@@ -218,6 +218,23 @@ async getPrestationsDependencies(prestationIds) {
             };
         }
     },
+    async getPrestationsForFicheByAuthenticatedUser(params = {}) {
+        try {
+            const response = await axios.get('/api/reception/prestations/fichenavette', { params });
+            return {
+                success: true,
+                data: response.data.data,
+                pagination: response.data.meta || response.data.pagination
+            };
+        } catch (error) {
+            console.error('Error fetching fiche navettes:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch fiche navettes',
+                error
+            };
+        }
+    },
 
     /**
      * Get fiche navette by ID

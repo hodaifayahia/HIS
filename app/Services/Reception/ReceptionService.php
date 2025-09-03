@@ -131,17 +131,48 @@ class ReceptionService
                 if (isset($data['prestations']) && !empty($data['prestations'])) {
                     // Add main prestation ONLY to fiche_navette_items
                     $mainPrestation = $data['prestations'][0];
-                    $mainItem = $this->addPrestationToFiche($fiche, $mainPrestation, null, $conventionData);
+                    
+                    $prestationData = [
+                        'prestation_id' => $mainPrestation['id'],
+                        'doctor_id' => $data['selectedDoctor'] ?? null,
+                        'convention_id' => $mainPrestation['convention_id'] ?? null,
+                        'convention_price' => $mainPrestation['convention_price'] ?? null,
+                        'notes' => $mainPrestation['notes'] ?? null,
+                    ];
+                    
+                    $mainItem = $this->addPrestationToFiche($fiche, $prestationData, null, $conventionData);
                     $totalAmount += $mainItem->final_price;
 
                     // Add dependencies ONLY to item_dependencies table
-                    if (isset($data['dependencies']) && !empty($data['dependencies'])) {
-                        $this->storeDependenciesOnly($mainItem, $data['dependencies'], $conventionData);
+                    if (count($data['prestations']) > 1) {
+                        $dependencies = array_slice($data['prestations'], 1);
+                        $formattedDependencies = [];
+                        foreach ($dependencies as $dependency) {
+                            $formattedDependencies[] = [
+                                'prestation_id' => $dependency['id'],
+                                'doctor_id' => $data['selectedDoctor'] ?? null,
+                                'convention_id' => $dependency['convention_id'] ?? null,
+                                'convention_price' => $dependency['convention_price'] ?? null,
+                                'notes' => $dependency['notes'] ?? null,
+                            ];
+                        }
+                        $this->storeDependenciesOnly($mainItem, $formattedDependencies, $conventionData);
                     }
-                } elseif (isset($data['packages']) && !empty($data['packages'])) {
-                    // Add package
+                }
+                
+                // FIXED: Handle packages correctly
+                if (isset($data['packages']) && !empty($data['packages'])) {
                     $packageData = $data['packages'][0];
-                    $packageItems = $this->addPackageToFiche($fiche, $packageData, $conventionData);
+                    
+                    $formattedPackageData = [
+                        'package_id' => $packageData['id'], // Map 'id' to 'package_id'
+                        'doctor_id' => $data['selectedDoctor'] ?? null,
+                        'convention_id' => $packageData['convention_id'] ?? null,
+                        'convention_prices' => $packageData['convention_prices'] ?? [],
+                        'notes' => $packageData['notes'] ?? null,
+                    ];
+                    
+                    $packageItems = $this->addPackageToFiche($fiche, $formattedPackageData, $conventionData);
                     foreach ($packageItems as $item) {
                         $totalAmount += $item->final_price;
                     }
@@ -149,7 +180,19 @@ class ReceptionService
             } 
             // 3. Handle custom prestations (first one is main, rest are dependencies)
             elseif (isset($data['type']) && $data['type'] === 'custom' && isset($data['customPrestations'])) {
-                $customItems = $this->addCustomPrestationsToFiche($fiche, $data['customPrestations'], $conventionData);
+                $formattedCustomPrestations = [];
+                foreach ($data['customPrestations'] as $customPrestation) {
+                    $formattedCustomPrestations[] = [
+                        'prestation_id' => $customPrestation['id'],
+                        'doctor_id' => $customPrestation['selected_doctor_id'] ?? $data['selectedDoctor'] ?? null,
+                        'convention_id' => $customPrestation['convention_id'] ?? null,
+                        'convention_price' => $customPrestation['convention_price'] ?? null,
+                        'notes' => $customPrestation['notes'] ?? null,
+                        'custom_name' => $customPrestation['display_name'] ?? null,
+                    ];
+                }
+                
+                $customItems = $this->addCustomPrestationsToFiche($fiche, $formattedCustomPrestations, $conventionData);
                 // Only add the first (main) prestation price to total
                 if (!empty($customItems)) {
                     $totalAmount += $customItems[0]->final_price;
@@ -160,7 +203,7 @@ class ReceptionService
             $fiche->update(['total_amount' => $totalAmount]);
 
             DB::commit();
-            return $fiche->fresh(['items.prestation', 'items.dependencies.dependentItem.prestation', 'items.convention', 'patient', 'creator']);
+            return $fiche->fresh(['items.prestation', 'items.package', 'items.dependencies.dependencyPrestation', 'items.convention', 'patient', 'creator']);
         } catch (\Exception $e) {
             DB::rollBack();
             throw $e;
@@ -232,7 +275,7 @@ class ReceptionService
                     // Fix: Ensure prestation_id is properly mapped
                     $prestationData = [
                         'prestation_id' => $mainPrestation['id'], // Map 'id' to 'prestation_id'
-                        'doctor_id' => $mainPrestation['doctor_id'] ?? null,
+                        'doctor_id' => $data['selectedDoctor'] ?? null, // Use selectedDoctor from main data
                         'convention_id' => $mainPrestation['convention_id'] ?? null,
                         'convention_price' => $mainPrestation['convention_price'] ?? null,
                         'notes' => $mainPrestation['notes'] ?? null,
@@ -242,34 +285,50 @@ class ReceptionService
                     $totalAmount += $mainItem->final_price;
 
                     // Add dependencies ONLY to item_dependencies table
-                    if (isset($data['dependencies']) && !empty($data['dependencies'])) {
+                    if (isset($data['prestations']) && count($data['prestations']) > 1) {
+                        $dependencies = array_slice($data['prestations'], 1); // All except first
                         $formattedDependencies = [];
-                        foreach ($data['dependencies'] as $dependency) {
+                        foreach ($dependencies as $dependency) {
                             $formattedDependencies[] = [
                                 'prestation_id' => $dependency['id'], // Map 'id' to 'prestation_id'
-                                'doctor_id' => $dependency['doctor_id'] ?? $mainPrestation['doctor_id'] ?? null,
-                                'convention_id' => $dependency['convention_id'] ?? $mainPrestation['convention_id'] ?? null,
+                                'doctor_id' => $data['selectedDoctor'] ?? null,
+                                'convention_id' => $dependency['convention_id'] ?? null,
                                 'convention_price' => $dependency['convention_price'] ?? null,
                                 'notes' => $dependency['notes'] ?? null,
                             ];
                         }
                         $this->storeDependenciesOnly($mainItem, $formattedDependencies, $conventionData);
                     }
-                } elseif (isset($data['packages']) && !empty($data['packages'])) {
-                    // Add package
+                }
+                
+                // FIXED: Handle packages separately - not in elseif
+                if (isset($data['packages']) && !empty($data['packages'])) {
                     $packageData = $data['packages'][0];
                     
-                    // Fix: Ensure package data is properly formatted
+                    \Log::info('Processing package data:', [
+                        'package_data' => $packageData,
+                        'selectedDoctor' => $data['selectedDoctor'] ?? null
+                    ]);
+                    
+                    // Fix: Ensure package_id is properly mapped
                     $formattedPackageData = [
                         'package_id' => $packageData['id'], // Map 'id' to 'package_id'
-                        'doctor_id' => $packageData['doctor_id'] ?? null,
+                        'doctor_id' => $data['selectedDoctor'] ?? null, // Use selectedDoctor from main data
                         'convention_id' => $packageData['convention_id'] ?? null,
                         'convention_prices' => $packageData['convention_prices'] ?? [],
+                        'notes' => $packageData['notes'] ?? null,
                     ];
+                    
+                    \Log::info('Formatted package data for addPackageToFiche:', $formattedPackageData);
                     
                     $packageItems = $this->addPackageToFiche($ficheNavette, $formattedPackageData, $conventionData);
                     foreach ($packageItems as $item) {
                         $totalAmount += $item->final_price;
+                        \Log::info('Created package item:', [
+                            'id' => $item->id,
+                            'package_id' => $item->package_id,
+                            'final_price' => $item->final_price
+                        ]);
                     }
                 }
             } 
@@ -279,7 +338,7 @@ class ReceptionService
                 foreach ($data['customPrestations'] as $customPrestation) {
                     $formattedCustomPrestations[] = [
                         'prestation_id' => $customPrestation['id'], // Map 'id' to 'prestation_id'
-                        'doctor_id' => $customPrestation['selected_doctor_id'] ?? $customPrestation['doctor_id'] ?? null,
+                        'doctor_id' => $customPrestation['selected_doctor_id'] ?? $data['selectedDoctor'] ?? null,
                         'convention_id' => $customPrestation['convention_id'] ?? null,
                         'convention_price' => $customPrestation['convention_price'] ?? null,
                         'notes' => $customPrestation['notes'] ?? null,
@@ -300,6 +359,7 @@ class ReceptionService
             DB::commit();
             return $ficheNavette->fresh([
                 'items.prestation', 
+                'items.package',
                 'items.dependencies.dependencyPrestation',
                 'items.convention',
                 'patient', 
@@ -765,6 +825,12 @@ private function addPackageToFiche(
     
     $package = PrestationPackage::findOrFail($packageData['package_id']);
     
+    \Log::info('Found package:', [
+        'package_id' => $package->id,
+        'package_name' => $package->name,
+        'package_price' => $package->price
+    ]);
+    
     // Handle file uploads for this specific item
     $itemFiles = [];
     if (!empty($conventionData['uploaded_files'])) {
@@ -780,8 +846,7 @@ private function addPackageToFiche(
     }
     
     // FIXED: Use the package price directly from prestation_packages table
-    // This is the special deal price, not the sum of individual prestations
-    $packagePrice = $package->price;
+    $packagePrice = $package->price; // This is the special package price
     
     // Prepare item data - store package_id, not prestation_id
     $itemData = [
@@ -790,10 +855,14 @@ private function addPackageToFiche(
         'package_id' => $package->id, // Store the package ID
         'doctor_id' => $packageData['doctor_id'] ?? null,
         'status' => 'pending',
-        'base_price' => $packagePrice, // Use package special price
-        'final_price' => $packageData['total_price'] ?? $packagePrice,
-        'patient_share' => $packageData['total_price'] ?? $packagePrice,
+        'base_price' => $packagePrice, // Use package price as base
+        'final_price' => $packagePrice, // Use package price as final (not individual prestations)
+        'patient_share' => $packagePrice, // Patient pays package price
+        'remaining_amount' => $packagePrice, // Full package price remaining
+        'paid_amount' => 0, // Nothing paid initially
+        'payment_status' => 'pending',
         'notes' => $packageData['notes'] ?? 'Package: ' . $package->name,
+        'custom_name' => $package->name,
         'created_at' => now(),
         'updated_at' => now(),
     ];
@@ -814,6 +883,19 @@ private function addPackageToFiche(
     
     // Create single fiche navette item for the entire package
     $createdItem = ficheNavetteItem::create($itemData);
+    
+    \Log::info('Created package fiche navette item:', [
+        'item_id' => $createdItem->id,
+        'package_id' => $createdItem->package_id,
+        'prestation_id' => $createdItem->prestation_id,
+        'final_price' => $createdItem->final_price,
+        'base_price' => $createdItem->base_price,
+        'remaining_amount' => $createdItem->remaining_amount,
+        'paid_amount' => $createdItem->paid_amount
+    ]);
+    
+    // IMPORTANT: Do NOT create dependencies for package prestations
+    // The package is treated as a single unit with its own price
     
     return [$createdItem]; // Return array with single item
 }

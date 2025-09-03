@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignId('fiche_navette_item_id')->nullable()->constrained('fiche_navette_items')->onDelete('set null'); // Nullable foreign key
             $table->foreignId('patient_id')->constrained('patients')->onDelete('cascade'); // Not null foreign key
             $table->foreignId('cashier_id')->nullable()->constrained('users')->onDelete('set null'); // Nullable foreign key
+            $table->foreignId('caisse_session_id')->nullable()->constrained('caisse_sessions')->onDelete('set null'); // Nullable foreign key
             $table->decimal('amount', 15, 2); // Not null
             $table->string('transaction_type')->comment('payment, refund, deposit, withdrawal, donation'); // Not null
             $table->string('payment_method')->nullable()->comment('cash, card, patient-balance, bank-transfer'); // Nullable string

@@ -117,7 +117,7 @@ const adminRoutes = [{
                     component: () => import('../Pages/Appointments/DoctorListAppointment.vue'),
                 },
                 {
-                    path: 'create/:id',
+                    path: 'create/:id/:specializationId',
                     name: 'admin.appointments.create',
                     component: () => import('../Pages/Appointments/AppointmentPage.vue'),
                 },
@@ -132,7 +132,7 @@ const adminRoutes = [{
                     component: () => import('../Pages/Pending/PendingList.vue'),
                 },
                 {
-                    path: ':id',
+                    path: ':id/:specializationId',
                     name: 'admin.appointments',
                     component: () => import('../Pages/Appointments/ListAppointment.vue'),
                 },

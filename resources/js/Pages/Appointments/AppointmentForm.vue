@@ -10,6 +10,9 @@ import AppointmentCalendar from './AppointmentCalendar.vue';
 import { useToastr } from '../../Components/toster';
 import { useAuthStore } from '../../stores/auth';
 
+// NEW: PrimeVue MultiSelect
+import MultiSelect from 'primevue/multiselect';
+
 const route = useRoute();
 const router = useRouter();
 const nextAppointmentDate = ref('');
@@ -20,6 +23,12 @@ const importanceLevels = ref([]);
 const authStore = useAuthStore();
 const doctors = ref([]);
 const autoPrint = ref(false);
+const specializationId = ref(route.params.specializationId ? parseInt(route.params.specializationId) : null);
+const doctorId = ref(route.params.id ? parseInt(route.params.doctorId) : null);
+
+// NEW: prestations for specialization and selected prestations
+const prestations = ref([]);
+const selectedPrestations = ref([]);
 
 const props = defineProps({
   editMode: { type: Boolean, default: false },
@@ -29,6 +38,8 @@ const props = defineProps({
   isConsulation : {type: Boolean, default: false},
   appointmentId: { type: Number, default: null }
 });
+
+console.log(props);
 
 const emit = defineEmits(['close']);
 
@@ -59,7 +70,26 @@ const form = reactive({
   importance: 1,
   status: {},
   selectionMethod: '',
-  days: ''
+  days: '',
+  prestation_id: null
+});
+
+// NEW: fetch prestations for specialization (called after time selected)
+const fetchPrestationsForSpecialization = async (specialization) => {
+  try {
+    const res = await axios.get(`/api/reception/prestations/by-specialization/${specialization}`);
+    prestations.value = (res.data && (res.data.data ?? res.data)) || [];
+    console.log('Loaded prestations for specialization:', prestations.value);
+  } catch (err) {
+    console.error('Failed to load prestations for specialization:', err);
+    prestations.value = [];
+  }
+};
+
+// Keep appointment.prestation_id in sync with first selected prestation (backend expects single id)
+watch(selectedPrestations, (val) => {
+  form.prestation_id = (Array.isArray(val) && val.length) ? val[0] : null;
+  console.log('Selected prestation ID:', form.prestation_id);
 });
 
 const fetchAppointmentData = async () => {
@@ -131,12 +161,17 @@ const handleDaysChange = (days) => {
 const handleDateSelected = (date) => {
   form.appointment_date = date;
   nextAppointmentDate.value = date;
-  console.log('Date selected:', date); // Debug log
 };
 
 const handleTimeSelected = (time) => {
   form.appointment_time = time;
-  console.log('Time selected:', time); // Debug log
+  console.log('Time selected:', time);
+
+  // After time is chosen -> load prestations for the current specialization
+  const currentSpecializationId = props.specialization_id || specializationId.value;
+  if (currentSpecializationId) {
+    fetchPrestationsForSpecialization(currentSpecializationId);
+  }
 };
 
 const handleSubmit = async (values, { setErrors }) => {
@@ -227,34 +262,16 @@ onMounted(async () => {
   ]);
   await fetchAppointmentData();
 });
-
-// Add this method to format the date for display
-const formatDisplayDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-};
-
-// Add helper to capitalize names
-const capitalize = (str) => {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-};
 </script>
 
 <template>
-  <Form @submit="handleSubmit.prevent" v-slot="{ errors }">
-    <PatientSearch
-      v-model="searchQuery"
-      :patientId="form.patient_id"
-      @patientSelected="handlePatientSelect"
+  <Form @submit="handleSubmit" v-slot="{ errors }">
+    <PatientSearch 
+      v-model="searchQuery" 
+      :patientId="form.patient_id" 
+      @patientSelected="handlePatientSelect" 
     />
-
+    
     <div class="mb-3" v-if="props.editMode && authStore.user.role !== 'doctor'">
       <label for="doctor_id" class="form-label">Select Doctor</label>
       <select id="doctor_id" v-model="form.doctor_id" class="form-control" required>
@@ -274,6 +291,26 @@ const capitalize = (str) => {
       @dateSelected="handleDateSelected"
       @timeSelected="handleTimeSelected"
     />
+
+    <!-- NEW: show MultiSelect after time is chosen and prestations were loaded -->
+    <div v-if="form.appointment_time" class="form-group mb-4">
+      <label class="form-label">Prestations (choose one or more)</label>
+      <MultiSelect
+        v-model="selectedPrestations"
+        :options="prestations"
+        option-label="name"
+        option-value="id"
+        placeholder="Select prestations"
+        filter
+        show-clear
+        class="w-full"
+        :maxSelectedLabels="3"
+        selectedItemsLabel="{0} prestations selected"
+      />
+      <small class="form-text text-muted">
+        Selecting prestations will set the appointment prestation (first selected used).
+      </small>
+    </div>
 
     <div class="form-group mb-4">
       <label for="selectionMethod" class="form-label">Select Appointment Method</label>
@@ -328,31 +365,8 @@ const capitalize = (str) => {
       </label>
     </div>
 
-    <!-- Show selected appointment details -->
-    <div v-if="form.appointment_date && form.appointment_time" class="alert alert-success mb-4">
-      <h6><i class="fas fa-check-circle me-2"></i>Ready to Create Appointment</h6>
-      <div class="row">
-        <div class="col-md-6">
-          <strong>Patient:</strong> {{ form.first_name }} {{ form.last_name }}
-        </div>
-        <div class="col-md-6">
-          <strong>Date:</strong> {{ formatDisplayDate(form.appointment_date) }}
-        </div>
-        <div class="col-md-6">
-          <strong>Time:</strong> {{ form.appointment_time }}
-        </div>
-        <div class="col-md-6" v-if="form.doctor_id">
-          <strong>Doctor ID:</strong> {{ form.doctor_id }}
-        </div>
-      </div>
-    </div>
-
     <div class="form-group d-flex justify-content-between align-items-center">
-      <button 
-        type="submit" 
-        class="btn btn-primary rounded-pill"
-        :disabled="!form.patient_id || !form.appointment_date || !form.appointment_time"
-      >
+      <button type="submit" class="btn btn-primary rounded-pill">
         {{ props.NextAppointment ? 'Create Appointment' : props.editMode ? 'Update Appointment' : 'Create Appointment' }}
       </button>
 
@@ -451,5 +465,20 @@ const capitalize = (str) => {
 
 .text-sm {
   font-size: 0.875rem;
+}
+
+/* PrimeVue MultiSelect styling */
+:deep(.p-multiselect) {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+:deep(.p-multiselect .p-multiselect-label) {
+  padding: 0.5rem;
+}
+
+.w-full {
+  width: 100%;
 }
 </style>

@@ -1,0 +1,69 @@
+<?php
+
+namespace App\Http\Resources\Coffre;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+/** @mixin \App\Models\Coffre\CoffreTransaction */
+class CoffreTransactionResource extends JsonResource
+{
+    public function toArray(Request $request): array
+    {
+        return [
+            'id' => $this->id,
+            'coffre_id' => $this->coffre_id,
+            'user_id' => $this->user_id,
+            'transaction_type' => $this->transaction_type,
+            'transaction_type_display' => $this->transaction_type_display,
+            'amount' => (float) $this->amount,
+            'formatted_amount' => $this->formatted_amount,
+            'description' => $this->description,
+            'source_caisse_session_id' => $this->source_caisse_session_id,
+            'destination_banque_id' => $this->destination_banque_id,
+            'dest_coffre_id' => $this->dest_coffre_id,
+            
+            // Relationships
+            'coffre' => $this->whenLoaded('coffre', function () {
+                return [
+                    'id' => $this->coffre->id,
+                    'name' => $this->coffre->name,
+                    'location' => $this->coffre->location,
+                ];
+            }),
+            
+            'user' => $this->whenLoaded('user', function () {
+                return [
+                    'id' => $this->user->id,
+                    'name' => $this->user->name,
+                    'email' => $this->user->email,
+                ];
+            }),
+            
+            'destination_coffre' => $this->whenLoaded('destinationCoffre', function () {
+                return [
+                    'id' => $this->destinationCoffre->id,
+                    'name' => $this->destinationCoffre->name,
+                    'location' => $this->destinationCoffre->location,
+                ];
+            }),
+            
+            'source_caisse_session' => $this->whenLoaded('sourceCaisseSession', function () {
+                return [
+                    'id' => $this->sourceCaisseSession->id,
+                    // Add other relevant fields
+                ];
+            }),
+            
+            'destination_banque' => $this->whenLoaded('destinationBanque', function () {
+                return [
+                    'id' => $this->destinationBanque->id,
+                    'name' => $this->destinationBanque->name,
+                ];
+            }),
+            
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
+        ];
+    }
+}

@@ -35,10 +35,12 @@ class Patient extends Model
         'weight',
         'created_by',
         'dateOfBirth',
+        'balance',
     ];
     protected $casts = [
         'age' => 'integer',
         'weight' => 'decimal:2',
+        'balance' => 'decimal:2',
     ];
      // Add 'fullname' to the $appends array
     protected $appends = ['fullname'];

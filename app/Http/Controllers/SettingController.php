@@ -18,10 +18,11 @@ class SettingController extends Controller
     public function index()
     {
         // Fetch the authenticated user
-        $user = User::find(Auth::id());
-    
-        // Optionally, return the user as a resource
-        return new UserResource($user);
+    // Load active specializations and main specialization so the frontend has them
+    $user = User::with(['activeSpecializations', 'specialization'])->find(Auth::id());
+
+    // Return the user as a resource (will include specializations when loaded)
+    return new UserResource($user);
     }
     
     

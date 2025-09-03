@@ -1,4 +1,3 @@
-<!-- components/Reception/FicheNavette/FicheNavetteHeader.vue -->
 <script setup>
 import { computed } from 'vue'
 import Button from 'primevue/button'
@@ -31,52 +30,54 @@ const breadcrumbHome = { icon: 'pi pi-home', route: '/' }
 </script>
 
 <template>
-  <div class="fiche-header">
-    <!-- Breadcrumb Navigation -->
-    <div class="breadcrumb-section">
+  <div class="tw-mb-8 md:tw-mb-10 lg:tw-mb-12">
+    <div class="tw-mb-4 lg:tw-mb-6">
       <Breadcrumb :model="breadcrumbItems" :home="breadcrumbHome" />
     </div>
 
-    <!-- Main Header -->
-    <div class="header-card">
-      <div class="header-content">
-        <div class="header-left">
+    <div class="tw-bg-white tw-shadow-md tw-rounded-2xl tw-p-4 sm:tw-p-6 lg:tw-p-8">
+      <div class="tw-flex tw-flex-col md:tw-flex-row md:tw-items-center tw-justify-between tw-gap-4 lg:tw-gap-6">
+        <div class="tw-flex tw-items-center tw-gap-4 lg:tw-gap-6 tw-flex-1">
           <Button 
             icon="pi pi-arrow-left"
-            class="p-button-text p-button-rounded"
+            class="p-button-text p-button-rounded tw-text-gray-600 hover:tw-bg-gray-200"
             @click="$emit('go-back')"
-            v-tooltip.bottom="'Back to Fiche List'"
+            v-tooltip.bottom="'Retour à la liste'"
             size="large"
           />
-          <div class="title-section">
-            <div class="title-group">
-              <div class="title-icon">
-                <i class="pi pi-file-edit"></i>
-              </div>
-              <div class="title-content">
-                <h1 class="page-title">Fiche Navette #{{ ficheId }}</h1>
-                <p class="page-subtitle" v-if="fiche">
-                  <i class="pi pi-user mr-2"></i>
-                  {{ fiche.patient_name }}
-                  <span class="divider">•</span>
-                  <i class="pi pi-calendar mr-2"></i>
-                  {{ new Date(fiche.fiche_date).toLocaleDateString('fr-FR', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  }) }}
-                </p>
-              </div>
+          <div class="tw-flex tw-items-center tw-gap-4">
+            <div class="tw-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-bg-blue-600 tw-text-white tw-rounded-xl tw-shadow-lg tw-flex-shrink-0">
+              <i class="pi pi-file-edit tw-text-xl"></i>
+            </div>
+            <div>
+              <h1 class="tw-text-xl sm:tw-text-2xl lg:tw-text-3xl tw-font-bold tw-text-gray-900 tw-leading-tight">
+                Fiche Navette #{{ ficheId }}
+              </h1>
+              <p class="tw-text-sm sm:tw-text-base tw-text-gray-600 tw-mt-1" v-if="fiche">
+                <i class="pi pi-user tw-mr-1"></i>
+                {{ fiche.patient_name }}
+                <span class="tw-mx-2 tw-text-gray-400">•</span>
+                <i class="pi pi-calendar tw-mr-1"></i>
+                {{ new Date(fiche.fiche_date).toLocaleDateString('fr-FR', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                }) }}
+              </p>
             </div>
           </div>
         </div>
         
-        <div class="header-actions">
+        <div class="tw-flex tw-flex-col sm:tw-flex-row tw-items-center tw-gap-3 tw-w-full md:tw-w-auto">
           <Button 
             :icon="showCreateForm ? 'pi pi-times' : 'pi pi-plus'"
-            :label="showCreateForm ? 'Cancel' : 'Add Items'"
-            :class="showCreateForm ? 'p-button-outlined' : 'p-button-primary'"
+            :label="showCreateForm ? 'Annuler' : 'Ajouter des services'"
+            :class="[
+              showCreateForm 
+                ? 'p-button-outlined p-button-danger tw-w-full' 
+                : 'p-button-primary tw-w-full'
+            ]"
             @click="$emit('toggle-create-form')"
             size="large"
           />
@@ -87,162 +88,8 @@ const breadcrumbHome = { icon: 'pi pi-home', route: '/' }
 </template>
 
 <style scoped>
-.fiche-header {
-  margin-bottom: 2rem;
-}
-
-.breadcrumb-section {
-  margin-bottom: 1rem;
-}
-
-.header-card {
-  background: linear-gradient(135deg, var(--primary-50) 0%, white 100%);
-  border: 1px solid var(--primary-100);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 2rem;
-  gap: 2rem;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  flex: 1;
-}
-
-.title-section {
-  flex: 1;
-}
-
-.title-group {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.title-icon {
-  background: var(--primary-color);
-  color: white;
-  width: 3.5rem;
-  height: 3.5rem;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  box-shadow: 0 4px 12px rgba(var(--primary-color-rgb), 0.3);
-}
-
-.title-content {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin: 0 0 0.5rem 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  color: var(--text-color-secondary);
-  margin: 0;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-}
-
-.divider {
-  color: var(--text-color-secondary);
-  opacity: 0.5;
-  margin: 0 0.5rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.mr-2 {
-  margin-right: 0.5rem;
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .header-content {
-    padding: 1.5rem;
-  }
-  
-  .title-icon {
-    width: 3rem;
-    height: 3rem;
-    font-size: 1.25rem;
-  }
-  
-  .page-title {
-    font-size: 1.75rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .header-content {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1.5rem;
-    padding: 1.5rem;
-  }
-  
-  .header-left {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 1rem;
-  }
-  
-  .title-group {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .page-subtitle {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .divider {
-    display: none;
-  }
-  
-  .header-actions {
-    width: 100%;
-  }
-  
-  .header-actions .p-button {
-    flex: 1;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.5rem;
-  }
-  
-  .title-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 1rem;
-  }
-}
+/*
+  The `tw-` prefix is used to prevent conflicts with other styles.
+  No custom CSS is needed as Tailwind handles everything.
+*/
 </style>

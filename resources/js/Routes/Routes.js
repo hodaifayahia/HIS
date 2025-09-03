@@ -11,6 +11,10 @@ import crmRoutes from './crm'; // 👈 NEW IMPORT
 import TicketManagementRoutes from './ticket-management'; // 👈 NEW IMPORT
 import receptionRoutes from './Reception'; // 👈 NEW IMPORT
 import PortalRoutes from './PortalSidebar';
+import CoffreRoutes from './Coffre';
+import BankRoutes from './bank'; // 👈 NEW IMPORT
+import CaisseRoutes from './caisse'
+import mangerRoutes from './manager'
 
 
 
@@ -26,6 +30,10 @@ export const allRoutes = [
     ...convenationRoutes,
     ...crmRoutes,
     ...TicketManagementRoutes,
+    ...CoffreRoutes,
+    ...BankRoutes,
+    ...CaisseRoutes,
+    ...mangerRoutes,
 
 
 

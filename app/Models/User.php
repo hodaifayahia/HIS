@@ -5,6 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Doctor;
 use App\Models\Specialization;
+use App\Models\UserSpecialization;
+
 use App\RoleSystemEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -70,6 +72,52 @@ class User extends Authenticatable
     public function doctor()
     {
         return $this->hasOne(Doctor::class);
+    }
+    public function activeSpecializations()
+    {
+        return $this->hasMany(UserSpecialization::class)->where('status', 'active');
+    }
+
+    /**
+     * All user specializations (regardless of status)
+     */
+    public function userSpecializations()
+    {
+        return $this->hasMany(UserSpecialization::class);
+    }
+
+    /**
+     * Sync specializations for the user.
+     * Accepts an array of specialization IDs. Existing specializations not in the
+     * provided array will be marked inactive. New or existing provided specializations
+     * will be created or marked active.
+     *
+     * @param array $specializationIds
+     * @return void
+     */
+    public function syncSpecializations(array $specializationIds): void
+    {
+        // Normalize IDs to integers and unique
+        $specializationIds = array_values(array_unique(array_map('intval', $specializationIds)));
+
+        // Mark any existing specializations not in the new list as inactive
+        $this->userSpecializations()->whereNotIn('specialization_id', $specializationIds)->update(['status' => 'inactive']);
+
+        // For each id in the new list, either update to active or create new
+        foreach ($specializationIds as $specId) {
+            $existing = $this->userSpecializations()->where('specialization_id', $specId)->first();
+            if ($existing) {
+                if ($existing->status !== 'active') {
+                    $existing->status = 'active';
+                    $existing->save();
+                }
+            } else {
+                $this->userSpecializations()->create([
+                    'specialization_id' => $specId,
+                    'status' => 'active',
+                ]);
+            }
+        }
     }
 
     // If doctors have specializations

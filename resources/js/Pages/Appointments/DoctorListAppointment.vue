@@ -7,6 +7,7 @@ import { storeToRefs } from 'pinia'; // Helper to destructure reactive propertie
 const route = useRoute();
 const router = useRouter();
 const specializationId = ref(route.params.id); // Use ref for reactivity if param can change
+console.log(specializationId.value);
 
 // --- Pinia Store Integration ---
 const appointmentStore = useAppointmentStore();
@@ -57,11 +58,13 @@ const getDoctorLoadingStatus = (doctorId) => {
 };
 
 const goToAppointmentPage = (doctor) => {
+  console.log('Navigating to appointment page for doctor:', doctor);
+
   router.push({
     name: 'admin.appointments',
     params: {
       id: doctor.id,
-      specializationId: doctor.specialization_id
+      specializationId: specializationId.value,
     },
   });
 };
@@ -77,7 +80,7 @@ const goToAppointmentPage = (doctor) => {
           </div>
           <div class="col-sm-12">
             <button class="float-left btn btn-ligh bg-primary rounded-pill" @click="router.go(-1)">
-              <i class="fas fa-arrow-left"></i> Back
+              <i class="fas fa-arrow-left"></i> Back {{ specializationId }}
             </button>
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="#">Home</a></li>

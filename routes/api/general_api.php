@@ -1,8 +1,54 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Reception\ficheNavetteController;
+use App\Http\Controllers\TransactionBankRequestController;
+use App\Http\Controllers\CONFIGURATION\UserCaisseApprovalController;
+use App\Http\Controllers\Caisse\FinancialTransactionController;
 
 // This file is for any API routes that don't fit into the more specific categories.
 // Review your original web.php to see if anything was left out.
 // As per your provided routes, there might not be much left for this file.
 // If you had any simple, standalone API routes, they would go here.
+
+// Return fiche prestations filtered by authenticated user's specializations
+Route::middleware('auth:sanctum')->get('reception/fiche-navette/{id}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
+
+// Financial Transaction Routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('financial-transactions')->group(function () {
+        Route::get('/', [FinancialTransactionController::class, 'index']);
+        Route::post('/', [FinancialTransactionController::class, 'store']);
+        Route::get('/{financialTransaction}', [FinancialTransactionController::class, 'show']);
+        Route::put('/{financialTransaction}', [FinancialTransactionController::class, 'update']);
+        Route::delete('/{financialTransaction}', [FinancialTransactionController::class, 'destroy']);
+        
+        // Specialized endpoints
+        Route::post('/handle-overpayment', [FinancialTransactionController::class, 'handleOverpayment']);
+        Route::post('/process-refund', [FinancialTransactionController::class, 'processRefund']);
+        Route::post('/bulk-payment', [FinancialTransactionController::class, 'bulkPayment']);
+        Route::get('/stats', [FinancialTransactionController::class, 'stats']);
+        Route::get('/refundable', [FinancialTransactionController::class, 'getRefundableTransactions']);
+        Route::get('/prestations-with-dependencies', [FinancialTransactionController::class, 'getPrestationsWithDependencies']);
+        Route::get('/patient-prestations', [FinancialTransactionController::class, 'getPatientPrestations']);
+        Route::get('/daily-summary', [FinancialTransactionController::class, 'dailySummary']);
+    });
+    
+    // Alternative endpoint for fiche navette transactions
+    Route::get('financial-transactions-by-fiche-navette', [FinancialTransactionController::class, 'getByFicheNavette']);
+});
+
+// Transaction Bank Request Routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('transaction-bank-requests')->group(function () {
+        Route::get('/', [TransactionBankRequestController::class, 'index']);
+        Route::post('/', [TransactionBankRequestController::class, 'store']);
+        Route::patch('/{transactionBankRequest}/status', [TransactionBankRequestController::class, 'updateStatus']);
+        Route::get('/pending-approvals', [TransactionBankRequestController::class, 'getPendingApprovals']);
+    });
+    
+    // User Caisse Approval Routes
+    Route::prefix('user-caisse-approval')->group(function () {
+        Route::get('/approvers', [UserCaisseApprovalController::class, 'getApprovers']);
+    });
+});

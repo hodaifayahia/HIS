@@ -44,6 +44,10 @@ const props = defineProps({
     type: String,
     required: true
   },
+  ficheNavetteId: {
+    type: String,
+    required: true
+  },
   doctors: {
     type: Array,
     required: true,
@@ -487,22 +491,64 @@ const individualTotal = computed(() => {
   return total
 })
 
-// FIXED: Update showSavings computation
+// NEW: compute a correct total for the group including main items + their dependencies (non-package)
+const totalPrice = computed(() => {
+  // Sum main display items (these include package dependencies already added to mainDisplayItems)
+  const mainSum = mainDisplayItems.value.reduce((sum, item) => {
+    const v = parseFloat(item.final_price ?? item.base_price ?? item.prestation?.public_price ?? item.package?.total_price ?? 0) || 0
+    return sum + v
+  }, 0)
+
+  // Sum regular (non-package) dependencies that belong to items in this group
+  const dependencySum = regularDependencies.value.reduce((sum, dep) => {
+    // price may be on dependency.dependencyPrestation.public_price or dep.price or dependency_prestation.public_price
+    const price = parseFloat(
+      dep.dependencyPrestation?.public_price
+      ?? dep.dependencyPrestation?.final_price
+      ?? dep.dependency_prestation?.public_price
+      ?? dep.price
+      ?? 0
+    ) || 0
+    return sum + price
+  }, 0)
+
+  // Sum packagePrestations (only relevant when group is a package)
+  const packageSum = packagePrestations.value.reduce((sum, p) => {
+    const v = parseFloat(p.public_price ?? p.final_price ?? 0) || 0
+    return sum + v
+  }, 0)
+
+  // If group is a package prefer packagePrestations sum or declared package price if present
+  const declaredPackagePrice = parseFloat(props.group?.total_price ?? 0) || 0
+
+  if (props.group?.type === 'package') {
+    if (packageSum > 0) return packageSum
+    if (declaredPackagePrice > 0) return declaredPackagePrice
+    // fallback: mainSum already includes package dependencies added to mainDisplayItems, but also add non-package deps just in case
+    return mainSum + dependencySum
+  }
+
+  // For non-package groups include main items + their non-package dependencies
+  return mainSum + dependencySum
+})
+
+// FIXED: Update showSavings computation (use totalPrice and individualTotal)
 const showSavings = computed(() => {
   const isPackage = props.group.type === 'package'
   const hasIndividualTotal = individualTotal.value > 0
-  const hasPackagePrice = props.group.total_price > 0
-  const hasSavings = individualTotal.value > props.group.total_price
-  
+  const groupTotal = totalPrice.value || 0
+  const hasPackagePrice = groupTotal > 0
+  const hasSavings = individualTotal.value > groupTotal
+
   console.log('Savings calculation:', {
     isPackage,
     hasIndividualTotal,
     hasPackagePrice,
     hasSavings,
     individualTotal: individualTotal.value,
-    packagePrice: props.group.total_price
+    packagePrice: groupTotal
   })
-  
+
   return isPackage && hasIndividualTotal && hasPackagePrice && hasSavings
 })
 </script>
@@ -552,7 +598,7 @@ const showSavings = computed(() => {
         </div>
         <div class="info-item">
           <span class="info-label">Total:</span>
-          <strong class="total-price">{{ formatCurrency(group?.total_price || 0) }}</strong>
+          <strong class="total-price">{{ formatCurrency(totalPrice) }}</strong>
         </div>
       </div>
 
@@ -604,7 +650,7 @@ const showSavings = computed(() => {
           <div class="package-details">
             <div class="detail-row">
               <span class="detail-label">Package Price:</span>
-              <span class="detail-value package-price">{{ formatCurrency(group.total_price) }}</span>
+              <span class="detail-value package-price">{{ formatCurrency(totalPrice) }}</span>
             </div>
             <div v-if="group.doctor_name" class="detail-row">
               <span class="detail-label">Assigned Doctor:</span>
@@ -681,16 +727,13 @@ const showSavings = computed(() => {
               </div>
               <div class="detail-item">
                 <span class="detail-label">Total Price:</span>
-                <strong class="total-amount">{{ formatCurrency(group.total_price) }}</strong>
+                <strong class="total-amount">{{ formatCurrency(totalPrice) }}</strong>
               </div>
               
               <!-- Package-specific info -->
               <div v-if="group.type === 'package'" class="detail-item">
-                <span class="detail-label">Package Prestations:</span>
-                <Chip
-                  :label="`${packagePrestations.length} prestations`"
-                  severity="info"
-                />
+                <span class="detail-label">Package Price:</span>
+                <span class="detail-value package-price">{{ formatCurrency(totalPrice) }}</span>
               </div>
               
               <!-- Package Savings Info -->
@@ -827,11 +870,11 @@ const showSavings = computed(() => {
               </div>
               <div class="summary-row package-price-row">
                 <span class="summary-label">Package Price:</span>
-                <span class="summary-value package-price">{{ formatCurrency(group.total_price) }}</span>
+                <span class="summary-value package-price">{{ formatCurrency(totalPrice) }}</span>
               </div>
               <div v-if="showSavings" class="summary-row savings-row">
                 <span class="summary-label">Your Savings:</span>
-                <span class="summary-value savings-amount">{{ formatCurrency(individualTotal - group.total_price) }}</span>
+                <span class="summary-value savings-amount">{{ formatCurrency(individualTotal - totalPrice) }}</span>
               </div>
             </div>
           </template>
@@ -1053,6 +1096,7 @@ const showSavings = computed(() => {
       v-model:visible="showRemiseModal"
       :patientId="props.patientId"
       :group="group"
+      :ficheNavetteId="props.ficheNavetteId"
       :prestations="prestations"
       :doctors="doctors"
       @apply-remise="handleApplyRemise"

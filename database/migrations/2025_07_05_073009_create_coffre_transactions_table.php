@@ -14,6 +14,7 @@ return new class extends Migration
        Schema::create('coffre_transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('coffre_id')->constrained('coffres')->onDelete('cascade');
+            
             $table->foreignId('user_id')->constrained('users'); // User performing the transaction
             $table->string('transaction_type'); // e.g., deposit, withdrawal, transfer_to_bank, transfer_from_caisse
             $table->decimal('amount', 15, 2);

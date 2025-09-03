@@ -78,11 +78,6 @@ const goBack = () => {
             </button>
           </li>
 
-             <router-link to="/admin/appointments/patient-remise-requests" active-class="active" class="nav-link">
-                  <i class="nav-icon fas fa-file-invoice-dollar"></i>
-                  <p>Patient Remise Requests</p>
-            </router-link>
-
           <li class="nav-item mr-2">
             <form style="display: contents;">
               <a href="#" @click.prevent="logout" class="nav-link">

@@ -26,6 +26,7 @@ import RemiseNotificationService from '../../../Apps/services/Remise/RemiseNotif
 const props = defineProps({
   visible: Boolean,
   group: Object,
+  ficheNavetteId: String,
   prestations: Array,
   patientId: String,
   doctors: Array,
@@ -163,10 +164,10 @@ const notifyAllContributions = async () => {
           ]
         }))
     }
-    console.log(prestationContributions.value)
     // Create the remise request using the notification service
     const result = await RemiseNotificationService.createRequest(requestPayload)
-    
+        console.log(result)
+
     if (result.success) {
       toast.add({ 
         severity: 'success', 
@@ -358,32 +359,24 @@ const onDoctorSelected = (index, doctorId) => {
   }
 }
 
-// Compute total original price for the group
+// Compute totals from the normalized prestationDisplayData (includes dependencies & package items)
 const totalOriginal = computed(() => {
-  const flatPrestations = flattenGroupPrestations(props.group)
-  return flatPrestations.reduce((sum, item) => {
-    const price = Number(item.final_price || 0)
-    return sum + (item.isAffected ? price : 0)
+  return prestationDisplayData.value.reduce((sum, item) => {
+    return sum + (Number(item.originalPrice || 0))
   }, 0)
 })
 
-// Compute total discounted price for the group
 const totalDiscounted = computed(() => {
-  const flatPrestations = flattenGroupPrestations(props.group)
-  return flatPrestations.reduce((sum, item) => {
-    const price = Number(item.final_price || 0)
-    const discount = item.discount_type === 'percentage' ? (price * (Number(item.discount_value) / 100)) : Math.min(price, Number(item.discount_value))
-    const discountedPrice = Math.max(0, price - discount)
-    return sum + (item.isAffected ? discountedPrice : 0)
+  // discountedPrice already reflects whether the item is affected by the selected remise
+  return prestationDisplayData.value.reduce((sum, item) => {
+    return sum + (Number(item.discountedPrice ?? item.originalPrice ?? 0))
   }, 0)
 })
 
-// Compute total savings
 const totalSavings = computed(() => {
-  return totalOriginal.value - totalDiscounted.value
+  return Math.max(0, totalOriginal.value - totalDiscounted.value)
 })
 
-// Compute savings percentage impact
 const savingsPercentage = computed(() => {
   if (totalOriginal.value === 0) return 0
   return Math.round((totalSavings.value / totalOriginal.value) * 100)
@@ -812,6 +805,101 @@ const discountImpact = computed(() => {
   if (savingsPercentage.value >= 10) return 'medium'
   if (savingsPercentage.value > 0) return 'low'
   return 'none'
+})
+
+// Add to RemiseFichenavetteModal.vue script setup
+const pendingRequests = ref([])
+const notifications = ref([])
+
+// Load remise data when modal opens
+const loadRemiseData = async () => {
+  try {
+    // Get pending requests
+    const pendingResult = await RemiseNotificationService.getPendingRequests()
+    console.log("pending request ",  pendingResult);
+
+    if (pendingResult.success) {
+      pendingRequests.value = pendingResult.data.items || []
+    }
+    
+    // Get notifications
+    const notificationsResult = await RemiseNotificationService.getNotifications()
+    if (notificationsResult.success) {
+      notifications.value = notificationsResult.data.items || []
+    }
+    
+  } catch (error) {
+    console.error('Error loading remise data:', error)
+  }
+}
+
+const getRequestDetails = async () => {
+  try {
+    const result = await RemiseNotificationService.getRequestDetails(props.ficheNavetteId)
+    console.log("Fetching request details for:", result.data.data)
+    console.log("Request details:", result.data)
+    if (result.success) {
+      // Handle successful response
+    }
+  } catch (error) {
+    console.error('Error fetching request details:', error)
+  }
+}
+
+// Watch for modal visibility changes
+
+watch(dialogVisible, async (visible) => {
+  if (visible) {
+    await loadRemiseData()
+    
+    const userId = props.group?.user?.id
+    if (userId) {
+      getRemiseUser(userId)
+    } else {
+      loadRemises()
+    }
+  } else {
+    resetForm()
+  }
+})
+
+const sendFichePrestations = async () => {
+  if (!props.ficheNavetteId) {
+    toast.add({ severity: 'warn', summary: 'Missing Fiche', detail: 'No ficheNavetteId available', life: 3000 })
+    return
+  }
+
+  // collect prestation ids from the computed display data (fallback to item.id)
+  const prestationIds = prestationDisplayData.value
+    .map(item => item._prestationId ?? item.id)
+    .filter(id => id !== null && id !== undefined)
+
+  if (!prestationIds.length) {
+    toast.add({ severity: 'warn', summary: 'No Prestations', detail: 'No prestations selected to send', life: 3000 })
+    return
+  }
+    console.log("Sending fiche prestations:", result);
+
+  try {
+    loading.value = true
+    const result = await RemiseNotificationService.sendFichePrestations(props.ficheNavetteId, prestationIds)
+    console.log("Sending fiche prestations:", result);
+
+    if (result.success) {
+      toast.add({ severity: 'success', summary: 'Sent', detail: 'Prestation ids sent successfully', life: 2500 })
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: result.message || 'Failed to send', life: 4000 })
+    }
+    return result
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to send', life: 4000 })
+    return { success: false, message: err.message }
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(() => {
+    sendFichePrestations()
 })
 </script>
 

@@ -209,9 +209,9 @@ const closeAddModal = () => {
 // --- Lifecycle Hooks and Watchers ---
 
 // Initial component setup - only call once
-onMounted(() => {
-  initializeComponent();
-});
+// onMounted(() => {
+//   initializeComponent();
+// });
 
 // Watch for doctor ID changes in route params
 watch(

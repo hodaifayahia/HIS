@@ -11,13 +11,32 @@ class ficheNavetteItemResource extends JsonResource
      *
      * @return array<string, mixed>
      */
+    protected static $loadedPrestations = [];
+    protected static $loadedPackages = [];
+    protected static $loadedConventions = [];
+
     public function toArray($request)
     {
+        // Cache instance calculations
+        static $cachedData = [];
+        $cacheKey = $this->id;
+
+        if (isset($cachedData[$cacheKey])) {
+            return $cachedData[$cacheKey];
+        }
+
+        // Cache expensive calculations
+        $isPackage = $this->isPackage();
+        $isPrestation = $this->isPrestation();
+        
         $data = [
             'id' => $this->id,
             'fiche_navette_id' => $this->fiche_navette_id,
+            'payment_status' => $this->payment_status,
             'prestation_id' => $this->prestation_id,
             'package_id' => $this->package_id,
+            'remaining_amount'=> $this->remaining_amount,
+            'paid_amount'=> $this->paid_amount,
             'convention_id' => $this->convention_id,
             'insured_id' => $this->insured_id,
             'doctor_id' => $this->doctor_id,
@@ -29,29 +48,35 @@ class ficheNavetteItemResource extends JsonResource
             'family_authorization' => $this->family_authorization,
             'uploaded_file' => $this->uploaded_file,
             'notes' => $this->notes,
+            'custom_name' => $this->custom_name ?? null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            'is_package' => $this->isPackage(),
-            'is_prestation' => $this->isPrestation(),
+            'is_package' => $isPackage,
+            'is_prestation' => $isPrestation,
         ];
 
         // Add prestation data if this is an individual prestation
         if ($this->isPrestation() && $this->relationLoaded('prestation')) {
-            $data['prestation'] = [
-                'id' => $this->prestation->id,
-                'name' => $this->prestation->name,
-                'internal_code' => $this->prestation->internal_code,
-                'public_price' => $this->prestation->public_price,
-                'need_an_appointment' => $this->prestation->need_an_appointment,
-                'service' => $this->prestation->service ? [
-                    'id' => $this->prestation->service->id,
-                    'name' => $this->prestation->service->name,
-                ] : null,
-                'specialization' => $this->prestation->specialization ? [
-                    'id' => $this->prestation->specialization->id,
-                    'name' => $this->prestation->specialization->name,
-                ] : null,
-            ];
+            if (!isset(static::$loadedPrestations[$this->prestation_id]) && $this->prestation) {
+                static::$loadedPrestations[$this->prestation_id] = [
+                    'id' => $this->prestation->id,
+                    'name' => $this->prestation->name,
+                    'internal_code' => $this->prestation->internal_code,
+                    'public_price' => $this->prestation->public_price,
+                    'default_payment_type' => $this->prestation->default_payment_type,
+                    'min_versement_amount' => $this->prestation->min_versement_amount,
+                    'need_an_appointment' => $this->prestation->need_an_appointment,
+                    'service' => $this->prestation->service ? [
+                        'id' => $this->prestation->service->id,
+                        'name' => $this->prestation->service->name,
+                    ] : null,
+                    'specialization' => $this->prestation->specialization ? [
+                        'id' => $this->prestation->specialization->id,
+                        'name' => $this->prestation->specialization->name,
+                    ] : null,
+                ];
+            }
+            $data['prestation'] = static::$loadedPrestations[$this->prestation_id] ?? null;
         }
 
         // Add package data if this is a package
@@ -124,11 +149,20 @@ class ficheNavetteItemResource extends JsonResource
                         'internal_code' => $prestation->internal_code ?? 'Unknown',
                         'description' => $prestation->description,
                         'public_price' => $prestation->public_price,
+                        'default_payment_type' => $prestation->default_payment_type,
+                        'min_versement_amount' => $prestation->min_versement_amount,
+                        'remaining_amount' => $prestation->remaining_amount ?? 0,
+                        'paid_amount' => $prestation->paid_amount ?? 0,
+                        'payment_status' => $prestation->payment_status ?? 'null',
                         'service_id' => $prestation->service_id ?? null,
                         'specialization_id' => $prestation->specialization_id ?? null,
                         'specialization' => ($prestation->relationLoaded('specialization') && $prestation->specialization) ? [
                             'id' => $prestation->specialization->id,
                             'name' => $prestation->specialization->name,
+                        ] : null,
+                        'service' => ($prestation->relationLoaded('service') && $prestation->service) ? [
+                            'id' => $prestation->service->id,
+                            'name' => $prestation->service->name,
                         ] : null,
                     ];
                     
@@ -146,9 +180,12 @@ class ficheNavetteItemResource extends JsonResource
                                     'internal_code' => $prestation->internal_code,
                                     'description' => $prestation->description,
                                     'public_price' => $prestation->public_price,
+                                    'default_payment_type' => $prestation->default_payment_type,
+                                    'min_versement_amount' => $prestation->min_versement_amount,
                                     'service_id' => $prestation->service_id ?? null,
                                     'specialization_id' => $prestation->specialization_id ?? null,
                                     'specialization' => null,
+                                    'service' => null,
                                 ];
                                 $prestationName = $prestation->name;
                             }
@@ -177,6 +214,10 @@ class ficheNavetteItemResource extends JsonResource
                     'base_price' => $dependency->base_price,
                     'final_price' => $dependency->final_price,
                     'status' => $dependency->status,
+                    'payment_status' => $dependency->payment_status,
+                    'paid_amount' => $dependency->paid_amount ?? 0,
+                    'remaining_amount' => $dependency->remaining_amount ?? 0,
+                    'patient_share' => $dependency->patient_share,
                     'notes' => $dependency->notes,
                     'custom_name' => $dependency->custom_name,
                     'display_name' => $displayName,

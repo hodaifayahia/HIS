@@ -41,6 +41,8 @@ use App\Http\Controllers\CONFIGURATION\PrestationController;
 use App\Http\Controllers\CONFIGURATION\UserPaymentMethodController;
 use App\Http\Controllers\CONFIGURATION\RemiseController;
 use App\Http\Controllers\CONFIGURATION\PrestationPackageController;
+use App\Http\Controllers\CONFIGURATION\UserRefundPermissionController;
+use App\Http\Controllers\CONFIGURATION\UserCaisseApprovalController;
 use App\Http\Controllers\CRM\OrganismeController;
 use App\Http\Controllers\INFRASTRUCTURE\PavilionController;
 use App\Http\Controllers\INFRASTRUCTURE\RoomTypeController;
@@ -56,6 +58,7 @@ use App\Http\Controllers\B2B\AvenantController;
 use App\Http\Controllers\CRM\OrganismeContactController;
 use App\Http\Controllers\Auth\LoginController; // Assuming you have a LoginController to handle the actual login process
 use App\Http\Controllers\B2B\ConvenctionDashborad; // Import the controller
+use App\Http\Controllers\Auth\PasswordValidationController; // Password validation controller
 //ficheNavetteController
 use App\Http\Controllers\Reception\ficheNavetteController;
 
@@ -64,6 +67,20 @@ use App\Http\Controllers\Reception\RemiseRequestNotificationController;
 use App\Http\Controllers\Reception\ficheNavetteItemController;
 use App\Http\Controllers\Reception\FicheNavetteCustomPackageController;
 use App\Http\Controllers\Reception\RemiseApproverController;
+use App\Http\Controllers\Coffre\CaisseSessionController;
+use App\Http\Controllers\Coffre\CoffreController;
+use App\Http\Controllers\Coffre\CaisseController;
+
+use App\Http\Controllers\Coffre\CoffreTransactionController;
+use App\Http\Controllers\Bank\BankController;
+use App\Http\Controllers\Bank\BankAccountController;
+use App\Http\Controllers\Bank\BankAccountTransactionController;
+use App\Http\Controllers\Bank\DashboardController;
+use App\Http\Controllers\Caisse\CaisseTransferController;
+use App\Http\Controllers\Caisse\FinancialTransactionController;
+use App\Http\Controllers\manager\RefundAuthorizationController;
+use App\Http\Controllers\manager\TransactionBankRequestController;
+
 use Illuminate\Support\Facades\Route;
 
 
@@ -105,6 +122,10 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/users/{userid}/change-role', [UserController::class, 'ChangeRole'])->name('users.ChangeRole');
         Route::get('/loginuser', [UserController::class, 'getCurrentUser']);
         Route::get('/role', [UserController::class, 'role']);
+
+        // Password Validation Routes
+        Route::post('/auth/validate-password', [PasswordValidationController::class, 'validateCurrentUserPassword']);
+        Route::post('/auth/validate-user-password', [PasswordValidationController::class, 'validateUserPassword']);
 
         Route::apiResource('/roles', RoleController::class);
 
@@ -302,7 +323,7 @@ Route::middleware(['auth'])->group(function () {
 
 // Static routes first (most specific)
 
-        // Appointment Routes
+// Appointment Routes
         Route::get('/modality-appointments/checkModalityAvailability', [ModalityAppointmentController::class, 'checkModalityAvailability']);
         Route::get('/modality-appointments/search', [ModalityAppointmentController::class, 'search']);
         Route::get('/modality-appointments/import-template', [ModalityAppointmentController::class, 'downloadImportTemplate']);
@@ -421,20 +442,27 @@ Route::middleware(['auth'])->group(function () {
 
     });
    Route::prefix('/reception/remise-requests')->group(function () {
-    Route::post('/', [RemiseRequestNotificationController::class, 'createRequest']);
-    Route::get('/notifications', [RemiseRequestNotificationController::class, 'getNotifications']);
-    Route::get('/pending', [RemiseRequestNotificationController::class, 'getPendingRequests']);
-    Route::get('/history', [RemiseRequestNotificationController::class, 'getRequestHistory']);
-    Route::patch('/{id}/approve', [RemiseRequestNotificationController::class, 'approve']);
-    Route::patch('/{id}/reject', [RemiseRequestNotificationController::class, 'reject']);
-    Route::patch('/notifications/mark-read', [RemiseRequestNotificationController::class, 'markAsRead']);
-    
-    Route::prefix('{remise_request}')->group(function () {
-        Route::patch('/approve', [RemiseRequestNotificationController::class, 'approve']);
-        Route::patch('/reject', [RemiseRequestNotificationController::class, 'reject']);
-        Route::patch('/apply-salary', [RemiseRequestNotificationController::class, 'applyToSalary']);
+    Route::post('/fiche-prestations', [RemiseRequestNotificationController::class, 'getFichePrestations']);
+       
+       // NEW: Group contributions routes
+       Route::get('/group/{groupId}/contributions', [RemiseRequestNotificationController::class, 'getGroupContributions']);
+       Route::post('/drafts', [RemiseRequestNotificationController::class, 'saveContributionDrafts']);
+       Route::patch('/contributions/{contributionId}/status', [RemiseRequestNotificationController::class, 'updateContributionStatus']);
+       
+        Route::post('/', [RemiseRequestNotificationController::class, 'createRequest']);
+        Route::get('/notifications', [RemiseRequestNotificationController::class, 'getNotifications']);
+        Route::get('/pending', [RemiseRequestNotificationController::class, 'getPendingRequests']);
+        Route::get('/history', [RemiseRequestNotificationController::class, 'getRequestHistory']);
+        Route::patch('/{id}/approve', [RemiseRequestNotificationController::class, 'approve']);
+        Route::patch('/{id}/reject', [RemiseRequestNotificationController::class, 'reject']);
+        Route::patch('/notifications/mark-read', [RemiseRequestNotificationController::class, 'markAsRead']);
+        
+        Route::prefix('{remise_request}')->group(function () {
+            Route::patch('/approve', [RemiseRequestNotificationController::class, 'approve']);
+            Route::patch('/reject', [RemiseRequestNotificationController::class, 'reject']);
+            Route::patch('/apply-salary', [RemiseRequestNotificationController::class, 'applyToSalary']);
+        });
     });
-});
 
         // Route::get('/payment-methods', [UserPaymentMethodController::class, 'getPaymentMethods']);
 
@@ -484,9 +512,13 @@ Route::middleware(['auth'])->group(function () {
         Route::prefix('/reception')->group(function () {
             Route::post('/fiche-navette/{ficheNavetteId}/items', [ficheNavetteItemController::class, 'store']);
             Route::get('/fiche-navette/{ficheNavetteId}/items', [ficheNavetteItemController::class, 'index']);
+            Route::get('/fiche-navette/{ficheNavetteId}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
+            
             Route::put('/fiche-navette/{ficheNavetteId}/items/{itemId}', [ficheNavetteItemController::class, 'update']);
             Route::delete('/fiche-navette/{ficheNavetteId}/items/{itemId}', [ficheNavetteItemController::class, 'destroy']);
+            Route::get('/fiche-navette/today-pending', [ficheNavetteController::class, 'getPrestationsForTodayAndPendingByAuthenticatedUser']);
             Route::get('/prestations/all', [ficheNavetteController::class, 'getAllPrestations']);
+            Route::post('/fiche-navette/{prestationId}/update-status', [FicheNavetteController::class, 'updatePrestationStatus']);
 
             Route::apiResource('/fiche-navette', ficheNavetteController::class);
                     
@@ -519,18 +551,155 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/specializations/all', [ficheNavetteController::class, 'getAllSpecializations']);
             Route::get('/fiche-navette/{ficheNavetteId}/grouped-items', [ficheNavetteItemController::class, 'getGroupedByInsured']);
         });
-
-
-        // portal apiresource
-Route::prefix('portal')->group(function () {
-    Route::apiResource('remise-approvers', RemiseApproverController::class);
-    Route::post('remise-approvers/{remiseApprover}/toggle', [RemiseApproverController::class, 'toggleApproval']);
-    Route::post('remise-approvers/bulk-update', [RemiseApproverController::class, 'bulkUpdate']);
-});
-        // Convention prescription routes
         Route::post('/fiche-navette/{ficheNavetteId}/convention-prescription', [ficheNavetteItemController::class, 'storeConventionPrescription']);
-    }); // End of /api group
+        Route::apiResource('coffres', CoffreController::class);
+
+        Route::apiResource('coffre-transactions', CoffreTransactionController::class);
+    
+           Route::apiResource('coffre-transactions', CoffreTransactionController::class);
+        Route::get('coffre-transactions/types', [CoffreTransactionController::class, 'transactionTypes']);
+        Route::get('coffre-transactions/coffres', [CoffreTransactionController::class, 'coffres']);
+        Route::get('coffre-transactions/users', [CoffreTransactionController::class, 'users']);
+        // portal apiresource
+        Route::prefix('portal')->group(function () {
+            Route::apiResource('remise-approvers', RemiseApproverController::class);
+            Route::post('remise-approvers/{remiseApprover}/toggle', [RemiseApproverController::class, 'toggleApproval']);
+            Route::post('remise-approvers/bulk-update', [RemiseApproverController::class, 'bulkUpdate']);
+        });
+        // Caisses resource routes
+            Route::apiResource('caisses', CaisseController::class);
+            
+            // Additional routes
+            Route::patch('caisses/{caisse}/toggle-status', [CaisseController::class, 'toggleStatus']);
+            Route::get('caisses-services', [CaisseController::class, 'services']);
+            Route::get('caisses-stats', [CaisseController::class, 'stats']);
+
+       
+
+            // Caisse Sessions resource routes
+    Route::apiResource('caisse-sessions', CaisseSessionController::class);
+    
+    // Additional session management routes
+    Route::patch('caisse-sessions/{caisse_session}/close', [CaisseSessionController::class, 'close']);
+    Route::patch('caisse-sessions/{caisse_session}/suspend', [CaisseSessionController::class, 'suspend']);
+    Route::patch('caisse-sessions/{caisse_session}/resume', [CaisseSessionController::class, 'resume']);
+    
+    // Helper routes
+    Route::get('caisse-sessions-authUser', [CaisseSessionController::class, 'getUserSessions']);
+    Route::get('caisse-sessions-active', [CaisseSessionController::class, 'active']);
+    Route::get('caisse-sessions-caisses', [CaisseSessionController::class, 'caisses']);
+    Route::get('caisse-sessions-users', [CaisseSessionController::class, 'users']);
+    Route::get('caisse-sessions-coffres', [CaisseSessionController::class, 'coffres']);
+    Route::get('caisse-sessions-denominations', [CaisseSessionController::class, 'denominations']);
+    Route::get('caisse-sessions-stats', [CaisseSessionController::class, 'stats']);
+
+
+     // Bank resource routes
+    Route::apiResource('banks', BankController::class);
+    
+    // Additional bank routes
+    Route::patch('banks/{bank}/toggle-status', [BankController::class, 'toggleStatus']);
+    Route::get('banks-active', [BankController::class, 'active']);
+    Route::get('banks-by-currency/{currency}', [BankController::class, 'byCurrency']);
+    Route::get('banks-options', [BankController::class, 'options']);
+    Route::get('banks-stats', [BankController::class, 'stats']);
+    Route::post('banks-reorder', [BankController::class, 'reorder']);
+    Route::post('banks-seed', [BankController::class, 'seed']);
+
+
+
+      // Bank Account resource routes (accounts)
+    Route::apiResource('bank-accounts', BankAccountController::class);
+    Route::patch('bank-accounts/{bankAccount}/toggle-status', [BankAccountController::class, 'toggleStatus']);
+    Route::patch('bank-accounts/{bankAccount}/update-balance', [BankAccountController::class, 'updateBalance']);
+    Route::get('bank-accounts-active', [BankAccountController::class, 'active']);
+    Route::get('bank-accounts-by-currency/{currency}', [BankAccountController::class, 'byCurrency']);
+    Route::get('bank-accounts-by-bank/{bankId}', [BankAccountController::class, 'byBank']);
+    Route::get('bank-accounts-stats', [BankAccountController::class, 'stats']);
+    Route::get('bank-accounts-currencies', [BankAccountController::class, 'currencies']);
+    Route::get('bank-accounts-banks', [BankAccountController::class, 'banks']);
+    Route::post('bank-accounts-sync-balances', [BankAccountController::class, 'syncBalances']);
+
+
+       // Bank Account Transaction routes
+    Route::apiResource('bank-account-transactions', BankAccountTransactionController::class);
+    
+    // Additional transaction actions
+    Route::patch('bank-account-transactions/{bankAccountTransaction}/complete', [BankAccountTransactionController::class, 'complete']);
+    Route::patch('bank-account-transactions/{bankAccountTransaction}/cancel', [BankAccountTransactionController::class, 'cancel']);
+    Route::patch('bank-account-transactions/{bankAccountTransaction}/reconcile', [BankAccountTransactionController::class, 'reconcile']);
+    Route::get('bank-account-transactions-stats', [BankAccountTransactionController::class, 'stats']);
+
+
+     // Dashboard routes
+    Route::get('dashboard', [DashboardController::class, 'index']);
+    Route::get('dashboard/system-health', [DashboardController::class, 'systemHealth']);
+    Route::post('dashboard/export', [DashboardController::class, 'exportDashboard']);
+    Route::get('dashboard/balance-trends', [DashboardController::class, 'balanceTrends']);
+    Route::get('dashboard/transaction-analytics', [DashboardController::class, 'transactionAnalytics']);
+
+ // Caisse Transfer routes
+    Route::apiResource('caisse-transfers', CaisseTransferController::class);
+    
+    // Additional transfer actions
+    Route::patch('caisse-transfers/{caisseTransfer}/accept', [CaisseTransferController::class, 'accept']);
+    Route::patch('caisse-transfers/{caisseTransfer}/reject', [CaisseTransferController::class, 'reject']);
+    Route::get('caisse-transfers-by-token/{token}', [CaisseTransferController::class, 'getByToken']);
+    Route::get('caisse-transfers-user', [CaisseTransferController::class, 'checkIfThereIsRequest']);
+    Route::get('caisse-transfers-stats', [CaisseTransferController::class, 'stats']);
+    Route::post('caisse-transfers-expire-old', [CaisseTransferController::class, 'expireOld']);
+    Route::get('caisse-transfers-auth-user-session', [CaisseTransferController::class, 'caisseTransfersAuthUserSession']);
+
+
+      // Financial Transaction specific routes BEFORE the resource routes
+      Route::apiResource('financial-transactions', FinancialTransactionController::class);
+    
+    // Additional transaction endpoints
+    Route::post('financial-transactions-update-prestation-price', [FinancialTransactionController::class, 'updatePrestationPrice']);
+    Route::post('financial-transactions-bulk-payment', [FinancialTransactionController::class, 'bulkPayment']);
+    Route::get('financial-transactions-stats', [FinancialTransactionController::class, 'stats']);
+    Route::get('financial-transactions-prestations', [FinancialTransactionController::class, 'getPrestationsWithDependencies']);
+    Route::get('financial-transactions-patient-prestations', [FinancialTransactionController::class, 'getPatientPrestations']);
+    Route::get('financial-transactions-by-fiche-navette', [FinancialTransactionController::class, 'getByFicheNavette']);
+    Route::post('financial-transactions/{financialTransaction}/refund', [FinancialTransactionController::class, 'refund']);
+    Route::get('financial-transactions-daily-summary', [FinancialTransactionController::class, 'dailySummary']);
+      // Refund and overpayment routes
+    Route::post('financial-transactions/process-refund', [FinancialTransactionController::class, 'processRefund']);
+    Route::post('financial-transactions/handle-overpayment', [FinancialTransactionController::class, 'handleOverpayment']);
+    Route::get('financial-transactions/refundable', [FinancialTransactionController::class, 'getRefundableTransactions']);
+// Refund Authorization routes
+    Route::apiResource('refund-authorizations', RefundAuthorizationController::class);
+    Route::post('refund-authorizations/{refundAuthorization}/approve', [RefundAuthorizationController::class, 'approve']);
+    Route::post('refund-authorizations/{refundAuthorization}/reject', [RefundAuthorizationController::class, 'reject']);
+    Route::get('refund-authorizations/fiche-item/{ficheNavetteItemId}', [RefundAuthorizationController::class, 'getByFicheNavetteItem']);  
+            // User refund permissions
+            Route::get('user-refund-permissions', [UserRefundPermissionController::class, 'index']);
+            Route::post('user-refund-permissions', [UserRefundPermissionController::class, 'store']);
+            Route::get('user-refund-permissions/check', [UserRefundPermissionController::class, 'checkauth']);
+            Route::get('user-refund-permissions/approvers', [UserRefundPermissionController::class, 'getApprovers']);
+            Route::delete('user-refund-permissions/{user}', [UserRefundPermissionController::class, 'destroy']);
+            
+            // Caisse approval permissions
+            Route::get('user-caisse-approval', [UserCaisseApprovalController::class, 'index']);
+            Route::post('user-caisse-approval', [UserCaisseApprovalController::class, 'store']);
+            Route::get('user-caisse-approval/check', [UserCaisseApprovalController::class, 'checkAuth']);
+            Route::get('user-caisse-approval/approvers', [UserCaisseApprovalController::class, 'getApprovers']);
+            Route::delete('user-caisse-approval/{user}', [UserCaisseApprovalController::class, 'destroy']);
+
+            // TransactionBankRequestController
+            
+    // Transaction bank request (payment approval) routes
+    Route::get('transaction-bank-requests', [TransactionBankRequestController::class, 'index']);
+    Route::post('transaction-bank-requests', [TransactionBankRequestController::class, 'store']);
+    // Approver acts on a request (approve/reject)
+    Route::patch('transaction-bank-requests/{transactionBankRequest}/status', [TransactionBankRequestController::class, 'updateStatus']);
+    // Get pending requests assigned to current approver (standard name used by frontend)
+    Route::get('transaction-bank-requests/pending-approvals', [TransactionBankRequestController::class, 'getPendingApprovals']);
+    // Backwards compatibility: older frontend code may call /pending
+    Route::get('transaction-bank-requests/pending', [TransactionBankRequestController::class, 'getPendingApprovals']);
+
+}); // End of /api group
 
     // The main application entry point for authenticated users
-    Route::get('/{view}', [ApplicationController::class, '__invoke'])->where('view', '.*')->name('dashboard');
+    Route::get('/{view}', [ApplicationController::class, '__invoke'])->where('view', '.*');
 }); // End of authenticated middleware group

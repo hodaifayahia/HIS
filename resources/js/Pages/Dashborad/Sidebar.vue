@@ -35,12 +35,13 @@ const toggleConsultationMenu = () => {
     isConsultationMenuOpen.value = !isConsultationMenuOpen.value;
 };
 
-// Logout Function
+// Logout Function - uses auth store for SPA logout
 const logout = async () => {
     try {
-        await axios.post('/logout');
-        window.location.href = '/login';
+        await authStore.logout()
     } catch (error) {
+        // Force logout even if API call fails
+        authStore.clearAuth()
         console.error('Error logging out:', error);
     }
 };
@@ -59,7 +60,7 @@ const fetchPendingRequestCount = async (doctorId) => {
 
 onMounted(async () => {
     // Only listen for doctor role
-    if (props.user.data.role === 'doctor') {
+    if (props.user.role === 'doctor') {
         try {
             // Fetch doctor data to get the doctor ID
             await doctorStore.getDoctor();
@@ -124,7 +125,7 @@ onMounted(async () => {
         }
     } else {
         console.log('WebSocket not initialized - user is not a doctor:', {
-            role: props.user.data.role,
+            role: props.user.role,
             user: props.user
         });
     }
@@ -146,7 +147,7 @@ watch(
     (newPath) => {
         // When navigating to the opinion receiver page, re-fetch the count
         // to ensure it's accurate after the user has potentially viewed requests.
-        if (newPath === '/doctor/opinionReciver' && props.user.data.role === 'doctor' && doctorStore.doctorData.id) {
+        if (newPath === '/doctor/opinionReciver' && props.user.role === 'doctor' && doctorStore.doctorData.id) {
             fetchPendingRequestCount(doctorStore.doctorData.id);
         }
     }
@@ -198,7 +199,7 @@ const playNotificationSound = () => {
                             <p>Calendar</p>
                         </router-link>
                     </li>
-                    <template v-if="user.data.role === 'admin' || user.data.role === 'SuperAdmin'">
+                                                            <template v-if="user.role === 'SuperAdmin'">
                         <li class="nav-item">
                             <router-link to="/admin/appointments/users" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
@@ -231,7 +232,7 @@ const playNotificationSound = () => {
                         </li>
                     </template>
                     <template
-                        v-if="user.data.role === 'admin' || user.data.role === 'receptionist' || user.data.role === 'SuperAdmin'">
+                        v-if="user.role === 'admin' || user.role === 'receptionist' || user.role === 'SuperAdmin'">
                         <li class="nav-item">
                             <router-link to="/admin/appointments/doctors" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
@@ -277,7 +278,7 @@ const playNotificationSound = () => {
                             </router-link>
                         </li>
 
-                    <template v-if="user.data.role === 'doctor'">
+                    <template v-if="user.role === 'doctor'">
                         <li class="nav-item">
                             <router-link to="/doctor/appointments" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-calendar-check"></i>
@@ -327,7 +328,7 @@ const playNotificationSound = () => {
                         </li>
                     </template>
 
-                    <template v-if="['admin', 'doctor', 'SuperAdmin'].includes(user.data.role)">
+                                        <template v-if="['admin', 'doctor', 'secretary', 'SuperAdmin'].includes(user.role)">
                         <li class="nav-item">
                             <router-link to="/admin/consultations/consultation" active-class="active" class="nav-link">
                                 <i class="fas fa-clipboard nav-icon"></i>

@@ -40,7 +40,7 @@ const togglePasswordVisibility = () => {
                     style="width: 120px; height: 120px; overflow: hidden;">
                     <img src="/login.png" alt="Doctor image" class="w-100 h-100" style="object-fit: cover;" />
                 </div>
-                <h1 class="text-white text-2xl font-bold">Appointment System</h1>
+                <h1 class="text-white text-2xl font-bold">HIS</h1>
                 <h2 class="text-white text-lg">Oasis Clinic</h2>
             </div>
 

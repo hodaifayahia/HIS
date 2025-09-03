@@ -130,4 +130,46 @@ class FicheNavetteService
         $sequence = ficheNavette::whereDate('created_at', today())->count() + 1;
         return $prefix . $date . sprintf('%04d', $sequence);
     }
+
+    public function getTodayAndUnpaidPatients(array $filters = [])
+    {
+        $query = ficheNavette::with(['patient', 'items.prestation.service', 'creator', 'items.prestation']);
+
+        // Include fiches that are either for today OR not paid
+        $query->where(function ($q) {
+            $q->whereDate('fiche_date', today())
+              ->orWhere('status', '!=', 'payed');
+        });
+
+        // Filter by service (prestation -> service_id)
+        if (!empty($filters['service_id'])) {
+            $serviceId = $filters['service_id'];
+            $query->whereHas('items.prestation', function ($q) use ($serviceId) {
+                $q->where('service_id', $serviceId);
+            });
+        }
+
+        // Filter by patient name (Firstname or Lastname)
+        if (!empty($filters['patient_name'])) {
+            $name = '%' . $filters['patient_name'] . '%';
+            $query->whereHas('patient', function ($q) use ($name) {
+                $q->where('Firstname', 'like', $name)
+                  ->orWhere('Lastname', 'like', $name);
+            });
+        }
+
+        // Filter by fiche status
+        if (isset($filters['status']) && $filters['status'] !== '') {
+            $query->where('status', $filters['status']);
+        }
+
+        // Sorting & pagination
+        $query = $query->orderBy('fiche_date', 'desc')->orderBy('created_at', 'desc');
+
+        if (!empty($filters['per_page'])) {
+            return $query->paginate((int)$filters['per_page']);
+        }
+
+        return $query->get();
+    }
 }

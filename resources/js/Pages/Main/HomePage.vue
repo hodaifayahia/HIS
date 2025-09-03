@@ -5,29 +5,23 @@
       <div class="navbar-content">
         <!-- Left Section -->
         <div class="navbar-left">
-        
+
           <div class="brand">
             <i class="fas fa-hospital-alt brand-icon"></i>
             <span class="brand-text">MedSystem</span>
           </div>
-           <div class="navbar-center">
-          <div class="search-container">
-            <i class="fas fa-search search-icon"></i>
-            <input 
-              type="text" 
-              v-model="searchQuery" 
-              class="search-input"
-              placeholder="Search applications..." 
-              aria-label="Search apps"
-              @input="onSearch"
-            >
-            <div class="search-shortcut">⌘K</div>
+          <div class="navbar-center">
+            <div class="search-container">
+              <i class="fas fa-search search-icon"></i>
+              <input type="text" v-model="searchQuery" class="search-input" placeholder="Search applications..."
+                aria-label="Search apps" @input="onSearch">
+              <div class="search-shortcut">⌘K</div>
+            </div>
           </div>
-        </div>
         </div>
 
         <!-- Center Search -->
-       
+
 
         <!-- Right Section -->
         <div class="navbar-right">
@@ -35,17 +29,17 @@
             <i class="fas fa-bell"></i>
             <span class="notification-badge">3</span>
           </button>
-          
+
           <div class="user-menu" @click="toggleUserMenu">
             <div class="user-avatar">
               <i class="fas fa-user-circle"></i>
             </div>
             <div class="user-info">
-              <span class="user-name">{{ user?.data?.name || 'Admin' }}</span>
-              <span class="user-role">{{ user?.data?.role || 'Administrator' }}</span>
+              <span class="user-name">{{ user?.name || 'Admin' }}</span>
+              <span class="user-role">{{ user?.role || 'Administrator' }}</span>
             </div>
             <i class="fas fa-chevron-down dropdown-arrow"></i>
-            
+
             <!-- User Dropdown -->
             <div class="dropdown-menu" :class="{ show: showUserMenu }">
               <a href="#" class="dropdown-item">
@@ -70,16 +64,16 @@
     <!-- Main Layout -->
     <div class="main-layout">
       <!-- Sidebar (Mobile overlay) -->
-    
+
 
       <!-- Main Content -->
       <main class="main-content">
         <!-- Header Section -->
-     
+
 
         <!-- Applications Section -->
         <section class="apps-section">
-          
+
 
           <!-- Applications Grid/List -->
           <div class="apps-container">
@@ -91,16 +85,9 @@
 
             <!-- Grid View -->
             <div v-else-if="viewMode === 'grid'" class="apps-grid">
-              <div 
-                v-for="app in filteredApps" 
-                :key="app.id" 
-                class="app-card"
-                @click="navigateToApp(app)"
-                @keydown.enter="navigateToApp(app)"
-                tabindex="0"
-                role="button"
-                :aria-label="`Open ${app.name} application`"
-              >
+              <div v-for="app in filteredApps" :key="app.id" class="app-card" @click="navigateToApp(app)"
+                @keydown.enter="navigateToApp(app)" tabindex="0" role="button"
+                :aria-label="`Open ${app.name} application`">
                 <div class="app-card-content">
                   <div class="app-icon" :style="{ backgroundColor: app.color }">
                     <i :class="app.icon"></i>
@@ -120,16 +107,9 @@
 
             <!-- List View -->
             <div v-else class="apps-list">
-              <div 
-                v-for="app in filteredApps" 
-                :key="app.id" 
-                class="app-list-item"
-                @click="navigateToApp(app)"
-                @keydown.enter="navigateToApp(app)"
-                tabindex="0"
-                role="button"
-                :aria-label="`Open ${app.name} application`"
-              >
+              <div v-for="app in filteredApps" :key="app.id" class="app-list-item" @click="navigateToApp(app)"
+                @keydown.enter="navigateToApp(app)" tabindex="0" role="button"
+                :aria-label="`Open ${app.name} application`">
                 <div class="app-icon" :style="{ backgroundColor: app.color }">
                   <i :class="app.icon"></i>
                 </div>
@@ -179,290 +159,290 @@ const showUserMenu = ref(false);
 
 // Apps data
 const allApps = ref([
-  { 
-    id: 2, 
-    name: 'Calendar', 
+  {
+    id: 2,
+    name: 'Calendar',
     icon: 'fas fa-calendar-alt',
     color: '#10B981',
     route: '/calander',
     category: 'administrative'
   },
-  { 
-    id: 3, 
-    name: 'Appointments', 
+  {
+    id: 3,
+    name: 'Appointments',
     icon: 'fas fa-calendar-check',
     color: '#F59E0B',
     route: '/admin/appointments/specialization',
     category: 'administrative'
   },
-  { 
-    id: 5, 
-    name: 'Consultation', 
+  {
+    id: 5,
+    name: 'Consultation',
     icon: 'fas fa-stethoscope',
     color: '#8B5CF6',
     route: '/admin/consultations/consultation',
     category: 'clinical'
   },
-  { 
-    id: 6, 
-    name: 'Reception', 
+  {
+    id: 6,
+    name: 'Reception',
     icon: 'fas fa-concierge-bell',
     color: '#3B82F6',
     route: '/reception',
     category: 'administrative'
   },
-  { 
-    id: 7, 
-    name: 'Configuration', 
+  {
+    id: 7,
+    name: 'Configuration',
     icon: 'fas fa-cogs',
     color: '#6B7280',
     route: '/admin/configuration',
     category: 'administrative'
   },
-  { 
-    id: 8, 
-    name: 'Caisse', 
+  {
+    id: 8,
+    name: 'Caisse',
     icon: 'fas fa-cash-register',
     color: '#14B8A6',
-    route: '/admin/caisse',
+    route: '/caisse',
     category: 'financial'
   },
-  { 
-    id: 9, 
-    name: 'Coffre', 
+  {
+    id: 9,
+    name: 'Coffre',
     icon: 'fas fa-lock',
     color: '#9CA3AF',
-    route: '/admin/coffre',
+    route: '/coffre',
     category: 'financial'
   },
-  { 
-    id: 10, 
-    name: 'Banking', 
+  {
+    id: 10,
+    name: 'Banking',
     icon: 'fas fa-university',
     color: '#F97316',
-    route: '/admin/banking',
+    route: '/banking',
     category: 'financial'
   },
-  { 
-    id: 11, 
-    name: 'Convention', 
+  {
+    id: 11,
+    name: 'Convention',
     icon: 'fas fa-handshake',
     color: '#7C3AED',
     route: '/convention',
     category: 'administrative'
   },
-  { 
-    id: 12, 
-    name: 'Facturation', 
+  {
+    id: 12,
+    name: 'Facturation',
     icon: 'fas fa-file-invoice-dollar',
     color: '#0EA5E9',
     route: '/admin/facturation',
     category: 'financial'
   },
-  { 
-    id: 13, 
-    name: 'Infrastructure', 
+  {
+    id: 13,
+    name: 'Infrastructure',
     icon: 'fas fa-building',
     color: '#EC4899',
     route: '/infrastructure',
     category: 'administrative'
   },
-  { 
-    id: 14, 
-    name: 'CRM', 
+  {
+    id: 14,
+    name: 'CRM',
     icon: 'fas fa-address-book',
     color: '#6366F1',
     route: '/crm',
     category: 'administrative'
   },
-  { 
-    id: 15, 
-    name: 'Admission', 
+  {
+    id: 15,
+    name: 'Admission',
     icon: 'fas fa-hospital-user',
     color: '#EF4444',
     route: '/admin/admission',
     category: 'clinical'
   },
-  { 
-    id: 16, 
-    name: 'Emergency', 
+  {
+    id: 16,
+    name: 'Emergency',
     icon: 'fas fa-ambulance',
     color: '#DC2626',
     route: '/admin/emergency',
     category: 'clinical'
   },
-  { 
-    id: 18, 
-    name: 'Nursing', 
+  {
+    id: 18,
+    name: 'Nursing',
     icon: 'fas fa-user-nurse',
     color: '#F472B6',
     route: '/admin/Nursing',
     category: 'clinical'
   },
-  { 
-    id: 19, 
-    name: 'Radiology', 
+  {
+    id: 19,
+    name: 'Radiology',
     icon: 'fas fa-x-ray',
     color: '#059669',
     route: '/admin/radiology',
     category: 'clinical'
   },
-  { 
-    id: 20, 
-    name: 'Hospitalization', 
+  {
+    id: 20,
+    name: 'Hospitalization',
     icon: 'fas fa-bed',
     color: '#7C3AED',
     route: '/admin/hospitalization',
     category: 'clinical'
   },
-  { 
-    id: 21, 
-    name: 'Laboratory', 
+  {
+    id: 21,
+    name: 'Laboratory',
     icon: 'fas fa-microscope',
     color: '#0D9488',
     route: '/admin/laboratory',
     category: 'clinical'
   },
-  { 
-    id: 22, 
-    name: 'Operating Room', 
+  {
+    id: 22,
+    name: 'Operating Room',
     icon: 'fas fa-procedures',
     color: '#D97706',
     route: '/admin/operating-room',
     category: 'clinical'
   },
-  { 
-    id: 23, 
-    name: 'Pharmacy', 
+  {
+    id: 23,
+    name: 'Pharmacy',
     icon: 'fas fa-prescription-bottle-alt',
     color: '#2563EB',
     route: '/admin/pharmacy',
     category: 'clinical'
   },
-  { 
-    id: 24, 
-    name: 'Catering', 
+  {
+    id: 24,
+    name: 'Catering',
     icon: 'fas fa-utensils',
     color: '#F59E0B',
     route: '/admin/catering',
     category: 'administrative'
   },
-  { 
-    id: 25, 
-    name: 'Inventory', 
+  {
+    id: 25,
+    name: 'Inventory',
     icon: 'fas fa-boxes',
     color: '#6B7280',
     route: '/admin/inventory',
     category: 'administrative'
   },
-  { 
-    id: 26, 
-    name: 'Purchasing', 
+  {
+    id: 26,
+    name: 'Purchasing',
     icon: 'fas fa-shopping-cart',
     color: '#EC4899',
     route: '/admin/purchasing',
     category: 'financial'
   },
-  { 
-    id: 27, 
-    name: 'Hygiene', 
+  {
+    id: 27,
+    name: 'Hygiene',
     icon: 'fas fa-soap',
     color: '#10B981',
     route: '/admin/hygiene',
     category: 'clinical'
   },
-  { 
-    id: 28, 
-    name: 'Biomedical', 
+  {
+    id: 28,
+    name: 'Biomedical',
     icon: 'fas fa-dna',
     color: '#8B5CF6',
     route: '/admin/biomedical',
     category: 'clinical'
   },
-  { 
-    id: 29, 
-    name: 'Ticket Management', 
+  {
+    id: 29,
+    name: 'Ticket Management',
     icon: 'fas fa-tags',
     color: '#F97316',
     route: '/ticket-management',
     category: 'administrative'
   },
-  { 
-    id: 30, 
-    name: 'Catheterization', 
+  {
+    id: 30,
+    name: 'Catheterization',
     icon: 'fas fa-heartbeat',
     color: '#14B8A6',
     route: '/admin/catheterization',
     category: 'clinical'
   },
-  { 
-    id: 31, 
-    name: 'Archive', 
+  {
+    id: 31,
+    name: 'Archive',
     icon: 'fas fa-archive',
     color: '#9CA3AF',
     route: '/admin/archive',
     category: 'administrative'
   },
-  { 
-    id: 32, 
-    name: 'Human Resources', 
+  {
+    id: 32,
+    name: 'Human Resources',
     icon: 'fas fa-id-badge',
     color: '#EF4444',
     route: '/admin/hr',
     category: 'administrative'
   },
-  { 
-    id: 33, 
-    name: 'Dashboard', 
+  {
+    id: 33,
+    name: 'Dashboard',
     icon: 'fas fa-tachometer-alt',
     color: '#0EA5E9',
     route: '/admin/dashboard',
     category: 'administrative'
   },
-  { 
-    id: 34, 
-    name: 'Maintenance', 
+  {
+    id: 34,
+    name: 'Maintenance',
     icon: 'fas fa-tools',
     color: '#DC2626',
     route: '/admin/maintenance',
     category: 'administrative'
   },
-{
-  id: 35,
-  name: 'portal',
-  icon: 'fas fa-user',      // Changed from 'fas fa-solid fa-gift'
-  color: '#DC2785',
-  route: '/portal',
-  category: 'administrative'
-},
+  {
+    id: 35,
+    name: 'portal',
+    icon: 'fas fa-user',      // Changed from 'fas fa-solid fa-gift'
+    color: '#DC2785',
+    route: '/portal',
+    category: 'administrative'
+  },
 
-  { 
-    id: 36, 
-    name: 'Soon', 
+  {
+    id: 36,
+    name: 'Manager',
+    icon: 'fas fa-briefcase',
+    color: '#DC2725',
+    route: '/manger',
+    category: 'administrative'
+  },
+  {
+    id: 37,
+    name: 'Soon',
     icon: 'fas fa-solid fa-gift',
     color: '#DC2785',
     route: '/admin/maintenance',
     category: 'administrative'
   },
-  { 
-    id: 37, 
-    name: 'Soon', 
+  {
+    id: 38,
+    name: 'Soon',
     icon: 'fas fa-solid fa-gift',
     color: '#DC2785',
     route: '/admin/maintenance',
     category: 'administrative'
   },
-  { 
-    id: 38, 
-    name: 'Soon', 
-    icon: 'fas fa-solid fa-gift',
-    color: '#DC2785',
-    route: '/admin/maintenance',
-    category: 'administrative'
-  },
-  { 
-    id: 39, 
-    name: 'Soon', 
+  {
+    id: 39,
+    name: 'Soon',
     icon: 'fas fa-solid fa-gift',
     color: '#DC2785',
     route: '/admin/maintenance',
@@ -473,14 +453,14 @@ const allApps = ref([
 // Computed properties
 const filteredApps = computed(() => {
   let filtered = allApps.value;
-  
+
   // Role-based filtering
   if (user.value?.data.role.toLowerCase() === 'doctor') {
-    filtered = filtered.filter(app => 
-      app.name === 'Calendar' || app.name === 'Consultation' 
+    filtered = filtered.filter(app =>
+      app.name === 'Calendar' || app.name === 'Consultation'
     );
   } else if (user.value?.data.role.toLowerCase() === 'receptionist') {
-    filtered = filtered.filter(app => 
+    filtered = filtered.filter(app =>
       app.name === 'Appointments' || app.name === 'portal'
     );
   }
@@ -493,7 +473,7 @@ const filteredApps = computed(() => {
   // Search filtering
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
-    filtered = filtered.filter(app => 
+    filtered = filtered.filter(app =>
       app.name.toLowerCase().includes(query)
     );
   }
@@ -556,7 +536,7 @@ const getAppDescription = (appName) => {
     'Dashboard': 'Analytics and reporting',
     'Maintenance': 'Facility maintenance',
     'Soon': 'Upcoming features and improvements'
-    };
+  };
   return descriptions[appName] || `Manage ${appName.toLowerCase()} operations`;
 };
 
@@ -569,11 +549,13 @@ const navigateToApp = (app) => {
   router.push(app.route);
 };
 
+// Logout Function - uses auth store for SPA logout
 const logout = async () => {
   try {
-    await axios.post('/logout');
-    router.push('/');
+    await authStore.logout()
   } catch (error) {
+    // Force logout even if API call fails
+    authStore.clearAuth()
     console.error('Error logging out:', error);
   }
 };
@@ -589,7 +571,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  document.removeEventListener('click', () => {});
+  document.removeEventListener('click', () => { });
 });
 </script>
 
@@ -609,7 +591,7 @@ onUnmounted(() => {
   --warning-color: #f97316;
   --success-color: #22c55e;
   --info-color: #06b6d4;
-  
+
   --gray-50: #f9fafb;
   --gray-100: #f3f4f6;
   --gray-200: #e5e7eb;
@@ -620,15 +602,17 @@ onUnmounted(() => {
   --gray-700: #374151;
   --gray-800: #1f2937;
   --gray-900: #111827;
-  
+
   --white: #ffffff;
   --black: #000000;
-  
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-  --border-radius: 0.5rem; /* 8px */
-  --border-radius-lg: 0.75rem; /* 12px */
+  --border-radius: 0.5rem;
+  /* 8px */
+  --border-radius-lg: 0.75rem;
+  /* 12px */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -640,21 +624,24 @@ onUnmounted(() => {
 }
 
 /* Updated: The main body now handles scrolling */
-html, body {
+html,
+body {
   height: 100%;
   width: 100%;
   overflow-x: hidden;
-  overflow-y: auto; /* The entire page is now scrollable */
+  overflow-y: auto;
+  /* The entire page is now scrollable */
   font-family: var(--font-sans);
   color: var(--gray-900);
   background: var(--gray-50);
 }
 
 .dashboard-container {
-  min-height: 100vh; /* This ensures the container is at least the height of the viewport */
+  min-height: 100vh;
+  /* This ensures the container is at least the height of the viewport */
   display: flex;
   flex-direction: column;
- 
+
 }
 
 /*
@@ -677,7 +664,8 @@ html, body {
   width: 100%;
 }
 
-.navbar-left, .navbar-right {
+.navbar-left,
+.navbar-right {
   gap: 1rem;
 }
 
@@ -709,12 +697,13 @@ html, body {
 }
 
 .brand-text {
-  display: none; /* Hidden on mobile */
+  display: none;
+  /* Hidden on mobile */
 }
 
 .search-container {
   width: 100vw;
-  
+
 }
 
 .search-input {
@@ -743,7 +732,8 @@ html, body {
 }
 
 .search-shortcut {
-  display: none; /* Hidden on mobile */
+  display: none;
+  /* Hidden on mobile */
 }
 
 .user-menu {
@@ -795,7 +785,8 @@ html, body {
   top: 0;
   z-index: 1000;
   border-bottom: 1px solid var(--gray-200);
-  box-shadow: var(--shadow-sm); /* Subtle floating effect */
+  box-shadow: var(--shadow-sm);
+  /* Subtle floating effect */
 }
 
 .navbar-content {
@@ -806,7 +797,8 @@ html, body {
   padding: 0 1.5rem;
 }
 
-.navbar-left, .navbar-right {
+.navbar-left,
+.navbar-right {
   display: flex;
   align-items: center;
   gap: 1.5rem;
@@ -889,7 +881,8 @@ html, body {
 }
 
 .search-shortcut {
-  display: none; /* Hidden on mobile */
+  display: none;
+  /* Hidden on mobile */
   position: absolute;
   right: 0.75rem;
   top: 50%;
@@ -1025,13 +1018,13 @@ html, body {
 .main-layout {
   display: flex;
   flex: 1;
-   overflow: hidden;
+  overflow: hidden;
 }
 
 .main-content {
   flex: 1;
   padding: 0.8rem 1rem;
-     overflow: hidden;
+  overflow: hidden;
 
 }
 
@@ -1082,7 +1075,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.375rem; /* 6px */
+  border-radius: 0.375rem;
+  /* 6px */
   cursor: pointer;
   color: var(--gray-500);
   transition: all 0.2s ease;
@@ -1251,24 +1245,30 @@ html, body {
   .brand-text {
     display: inline-block;
   }
+
   .nav-button {
     width: auto;
     height: auto;
     padding: 0.5rem 0.75rem;
   }
+
   .nav-text {
     display: inline-block;
   }
+
   .navbar-content {
     padding: 0 1.5rem;
   }
+
   .main-content {
     /* padding: 2rem 1.5rem; */
   }
+
   .header-content {
     flex-direction: row;
     justify-content: space-between;
   }
+
   .search-shortcut {
     display: inline-block;
   }
@@ -1279,19 +1279,24 @@ html, body {
   .navbar-content {
     padding: 0 2rem;
   }
+
   .main-content {
     /* padding: 2.5rem 2rem; */
   }
+
   .user-info {
     display: flex;
   }
+
   .user-menu {
     gap: 0.75rem;
     padding: 0.5rem;
   }
+
   .search-container {
     max-width: 32rem;
   }
+
   .apps-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
@@ -1299,6 +1304,7 @@ html, body {
 
 /* Widescreen and larger */
 @media (min-width: 1280px) {
+
   .navbar-content,
   .header-content,
   .apps-section {

@@ -15,9 +15,7 @@ class RemiseRequestPrestationContribution extends Model
         'remise_request_prestation_id',
         'user_id',
         'role',
-        'proposed_amount',
-        'approved_amount',
-        'approved_by',
+        'proposed_amount'
     ];
 
     public function prestationRequest()

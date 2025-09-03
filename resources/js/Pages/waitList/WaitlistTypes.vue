@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import AddPrestationModal from '../../Components/prestation/addPrestationModal.vue'; 
+// import AddPrestationModal from '../../Components/prestation/addPrestationModal.vue'; 
 
 // PrimeVue Components
 import Button from 'primevue/button';

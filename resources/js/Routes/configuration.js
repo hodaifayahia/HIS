@@ -67,6 +67,16 @@ const configurationRoutes = [
                         name: 'admin.configuration.system-settings',
                         component: () => import('../Components/Apps/Configuration/SystemSettings/SystemSettings.vue'),
                     },
+                     {
+                        path: 'Role-refund-permission',
+                        name: 'admin.configuration.Role-refund-permission',
+                        component: () => import('../Components/Apps/Configuration/rolesAndPremissions/ListUsersCanRefund.vue'),
+                    },
+                     {
+                        path: 'Role-caisse-permission',
+                        name: 'admin.configuration.Role-caisse-permission',
+                        component: () => import('../Components/Apps/Configuration/rolesAndPremissions/ListUsersCanApproveCaisse.vue'),
+                    },
                     //  {
                     //     path: 'remise-types',
                     //     name: 'admin.configuration.remise-types',

@@ -18,12 +18,15 @@ const isUserAccessManagementOpen = ref(false);
 const isModalityResourceOpen = ref(false);
 const isPrestationConfigOpen = ref(false);
 const isRemiseConfigOpen = ref(false);
+const isRolePermissionOpen = ref(false);
 
 // Toggle functions for each submenu
 const toggleUserAccessManagement = () => { isUserAccessManagementOpen.value = !isUserAccessManagementOpen.value; };
 const toggleModalityResource = () => { isModalityResourceOpen.value = !isModalityResourceOpen.value; };
 const togglePrestationConfig = () => { isPrestationConfigOpen.value = !isPrestationConfigOpen.value; };
 const toggleRemiseConfig = () => { isRemiseConfigOpen.value = !isRemiseConfigOpen.value; };
+const toggleRolePermission = () => { isRolePermissionOpen.value = !isRolePermissionOpen.value; };
+
 
 // Permission check function (retained from original)
 const hasPermission = (requiredRoles) => {
@@ -138,7 +141,7 @@ const hasPermission = (requiredRoles) => {
             </li>
 
             <!-- Remise Management Section -->
-            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isRemiseConfigOpen }">
+            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isRolePermissionOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleRemiseConfig">
                     <i class="nav-icon fas fa-percent"></i> <!-- Changed from fas fa-boxes -->
                     <p>
@@ -162,6 +165,38 @@ const hasPermission = (requiredRoles) => {
                     </li>
                 </ul>
             </li>
+            <!-- Remise Management Section -->
+            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isRolePermissionOpen }">
+                <a href="#" class="nav-link" @click.prevent="toggleRolePermission">
+                    <i class="nav-icon fas fa-percent"></i> <!-- Changed from fas fa-boxes -->
+                    <p>
+                        Roles and Premission 
+                        <i class="right fas fa-angle-left"></i>
+                    </p>
+                </a>
+                
+                <ul class="nav nav-treeview" v-show="isRolePermissionOpen">
+                    <li class="nav-item" >
+                        <router-link to="/admin/configuration/Role-refund-permission" active-class="active" class="nav-link">
+                            <i class="far fa-circle nav-icon"></i>
+                            <p>Refund Permission </p>
+                        </router-link>
+                    </li>
+                    <li class="nav-item" >
+                        <router-link to="/admin/configuration/Role-caisse-permission" active-class="active" class="nav-link">
+                            <i class="far fa-circle nav-icon"></i>
+                            <p>Caisse Permission </p>
+                        </router-link>
+                    </li>
+                    <!-- <li class="nav-item" >
+                        <router-link to="/admin/configuration/payment-methods" active-class="active" class="nav-link">
+                            <i class="far fa-circle nav-icon"></i>
+                            <p>Payment Methods</p>
+                        </router-link>
+                    </li> -->
+                </ul>
+            </li>
+            
 
             <!-- System Settings Section -->
             <li class="nav-item" >

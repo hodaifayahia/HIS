@@ -7,9 +7,10 @@
         "start": "concurrently \"php artisan serve \" \"npm run dev\" \"php artisan queue:work --timeout=0\" \"php artisan reverb:start --port=5207\""
     },
     "devDependencies": {
+        "@tailwindcss/forms": "^0.5.10",
+        "@tailwindcss/typography": "^0.5.16",
         "@types/html-docx-js": "^0.3.4",
         "@vue/babel-plugin-jsx": "^1.4.0",
-        "autoprefixer": "^10.4.21",
         "axios": "^1.10.0",
         "concurrently": "^9.2.0",
         "laravel-echo": "^2.1.6",
@@ -17,13 +18,17 @@
         "postcss": "^8.5.6",
         "pusher-js": "^8.4.0",
         "sass-embedded": "^1.89.1",
-        "vite": "^6.0"
+        "tailwindcss": "^4.1.12",
+        "vite": "^6.0",
+        "vite-bundle-analyzer": "^1.2.3"
     },
     "dependencies": {
         "@headlessui/vue": "^1.7.23",
         "@heroicons/vue": "^2.2.0",
         "@popperjs/core": "^2.11.8",
         "@primevue/themes": "^4.3.6",
+        "@tailwindcss/postcss": "^4.1.12",
+        "@tailwindcss/vite": "^4.1.12",
         "@vitejs/plugin-vue": "^5.2.1",
         "@vuepic/vue-datepicker": "^10.0.0",
         "@vueuse/core": "^13.3.0",

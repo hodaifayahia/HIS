@@ -183,6 +183,7 @@ const fetchAppointmentData = async () => {
                 phone: appointment.patient.phone
             };
 
+
             // Populate other form data
             Object.assign(form, {
                 id: appointment.id,
@@ -213,6 +214,7 @@ const fetchAppointmentData = async () => {
 };
 
 const handlePatientSelect = (patient) => {
+
     // This function is primarily for new appointments, as PatientSearch is hidden in edit mode.
     // If you need to allow patient changes in edit mode, you'd enable PatientSearch for it.
     if (props.editMode) {

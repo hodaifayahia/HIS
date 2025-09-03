@@ -23,8 +23,11 @@ export default defineConfig({
             },
         }),
     ],
+    
+    
     resolve: {
         alias: {
+            '@': '/resources/js',
             'pizzip': 'pizzip/dist/pizzip.js',
         },
         dedupe: ['pizzip'],

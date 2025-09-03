@@ -17,10 +17,10 @@ class RemiseRequest extends Model
     protected $fillable = [
         'sender_id',
         'receiver_id', 
+        'approver_id',
         'patient_id',
-        'status',
         'message',
-        'total_amount'
+        'status'
     ];
 
     protected $casts = [

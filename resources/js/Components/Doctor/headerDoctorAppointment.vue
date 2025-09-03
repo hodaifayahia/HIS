@@ -82,8 +82,23 @@ watch(() => props.doctorId, async (newDoctorId) => {
 
 // A computed property to get the appointments specific to the current doctor
 const currentDoctorAppointments = computed(() => {
-  // Use .value on availableAppointments because it's a ref from storeToRefs
-  return availableAppointments.value[props.doctorId] || { canceled_appointments: [], normal_appointments: {} };
+  const appts = availableAppointments.value?.[props.doctorId];
+
+  // Normalize result to guarantee structure and avoid undefined access
+  if (!appts) {
+    return {
+      canceled_appointments: [],
+      normal_appointments: { date: null, available_times: [] }
+    };
+  }
+
+  return {
+    canceled_appointments: Array.isArray(appts.canceled_appointments) ? appts.canceled_appointments : [],
+    normal_appointments: {
+      date: appts.normal_appointments?.date ?? null,
+      available_times: Array.isArray(appts.normal_appointments?.available_times) ? appts.normal_appointments.available_times : []
+    }
+  };
 });
 
 // A computed property to get the loading status specific to the current doctor's appointments
@@ -131,11 +146,10 @@ const formattedCanceledAppointments = computed(() => {
       <div class="text-right">
         <div class="mb-4">
           <p class="mb-1 small text-white-50">Next Appointment:</p>
-          <p v-if="!currentDoctorAppointmentsLoading && currentDoctorAppointments.normal_appointments" class="h5 font-weight-bold text-white mb-2">
-            {{ currentDoctorAppointments.normal_appointments.date + ' at ' +
-               currentDoctorAppointments.normal_appointments.available_times[0] }}
+          <p v-if="!currentDoctorAppointmentsLoading && currentDoctorAppointments.normal_appointments.available_times.length" class="h5 font-weight-bold text-white mb-2">
+            {{ (currentDoctorAppointments.normal_appointments.date ?? '') + (currentDoctorAppointments.normal_appointments.available_times.length ? ' at ' + currentDoctorAppointments.normal_appointments.available_times[0] : '') }}
           </p>
-          <p v-else-if="!currentDoctorAppointmentsLoading && !currentDoctorAppointments.normal_appointments" class="h5 font-weight-bold text-white mb-2">
+          <p v-else-if="!currentDoctorAppointmentsLoading && !currentDoctorAppointments.normal_appointments.available_times.length" class="h5 font-weight-bold text-white mb-2">
             No upcoming appointments
           </p>
           <div v-else class="h5 bg-gray-300 animate-pulse rounded mb-2" style="width: 200px; height: 24px;"></div>

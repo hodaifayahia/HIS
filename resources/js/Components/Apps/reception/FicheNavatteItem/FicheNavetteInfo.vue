@@ -182,166 +182,119 @@ const downloadFile = (file) => {
   }
 }
 </script>
-
 <template>
-  <Card class="fiche-info-card">
-    
+  <Card class="tw-bg-white tw-shadow-md tw-rounded-2xl tw-border tw-border-gray-200">
     <template #content>
-      <div class="fiche-info-content">
-        <!-- Patient Section -->
-        <div class="info-section patient-section">
-          <div class="section-header">
-            <i class="pi pi-user section-icon"></i>
-            <h4 class="section-title">Patient Information</h4>
-          </div>
-          <div class="patient-details">
-            <Avatar 
-              :label="fiche.patient_name.charAt(0)" 
-              class="patient-avatar"
-              size="large"
-              shape="circle"
-            />
-            <div class="patient-info">
-              <h5 class="patient-name">{{ fiche.patient_name }}</h5>
-              <p class="patient-id">ID: {{ fiche.patient_id }}</p>
+      <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-8 tw-p-4 md:tw-p-6">
+        <div class="tw-flex tw-flex-col tw-gap-8">
+          <div class="tw-flex tw-flex-col tw-gap-4">
+            <div class="tw-flex tw-items-center tw-gap-2 tw-pb-2 tw-border-b-2 tw-border-blue-200">
+              <i class="pi pi-user tw-text-blue-500 tw-text-xl"></i>
+              <h4 class="tw-text-lg tw-font-semibold tw-text-gray-800">Patient Information</h4>
             </div>
+          
           </div>
-        </div>
 
-        <!-- Fiche Details Section -->
-        <div class="info-section details-section">
-          <div class="section-header">
-            <i class="pi pi-info-circle section-icon"></i>
-            <h4 class="section-title">Fiche Details</h4>
-          </div>
-          <div class="details-grid">
-            <div class="detail-item">
-              <span class="detail-label">
-                <i class="pi pi-calendar mr-2"></i>
-                Date
-              </span>
-              <span class="detail-value">{{ formatDate(fiche.fiche_date) }}</span>
+          <div class="tw-flex tw-flex-col tw-gap-4">
+            <div class="tw-flex tw-items-center tw-gap-2 tw-pb-2 tw-border-b-2 tw-border-blue-200">
+              <i class="pi pi-info-circle tw-text-blue-500 tw-text-xl"></i>
+              <h4 class="tw-text-lg tw-font-semibold tw-text-gray-800">Fiche Details</h4>
             </div>
-            <div class="detail-item">
-              <span class="detail-label">
-                <i class="pi pi-flag mr-2"></i>
-                Status
-              </span>
-              <Tag 
-                :value="statusLabel"
-                :severity="getStatusSeverity(fiche.status)"
-                class="status-tag"
-              />
-            </div>
-            <div class="detail-item">
-              <span class="detail-label">
-                <i class="pi pi-flag mr-2"></i>
-                balance
-              </span>
-            {{fiche.patient_balance}}
-            </div>
-          </div>
-        </div>
-
-        <!-- Enhanced Convention Companies Section with Colors -->
-        <div v-if="hasConventions" class="info-section convention-section">
-          <div class="section-header">
-            <i class="pi pi-building section-icon"></i>
-            <h4 class="section-title">Convention Companies Used</h4>
-          </div>
-          <div class="convention-content">
-            <div class="convention-summary">
-              <div class="summary-stats">
-                <div class="stat-item">
-                  <span class="stat-number">{{ conventionCompaniesWithColors.length }}</span>
-                  <span class="stat-label">Companies</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-number">{{ totalConventions }}</span>
-                  <span class="stat-label">Conventions</span>
-                </div>
+            <div class="tw-grid tw-grid-cols-1 tw-gap-3">
+              <div class="tw-bg-gray-50 tw-p-3 tw-rounded-lg tw-border-l-4 tw-border-blue-500 tw-flex tw-items-center tw-justify-between">
+                <span class="tw-text-gray-600 tw-font-medium tw-text-sm tw-flex tw-items-center tw-gap-2">
+                  <i class="pi pi-calendar"></i> Date
+                </span>
+                <span class="tw-font-semibold tw-text-gray-800">{{ formatDate(fiche.fiche_date) }}</span>
+              </div>
+              <div class="tw-bg-gray-50 tw-p-3 tw-rounded-lg tw-border-l-4 tw-border-blue-500 tw-flex tw-items-center tw-justify-between">
+                <span class="tw-text-gray-600 tw-font-medium tw-text-sm tw-flex tw-items-center tw-gap-2">
+                  <i class="pi pi-flag"></i> Status
+                </span>
+                <Tag 
+                  :value="statusLabel"
+                  :severity="getStatusSeverity(fiche.status)"
+                  class="tw-font-semibold tw-px-2 tw-py-1 tw-text-xs"
+                />
+              </div>
+              <div class="tw-bg-gray-50 tw-p-3 tw-rounded-lg tw-border-l-4 tw-border-blue-500 tw-flex tw-items-center tw-justify-between">
+                <span class="tw-text-gray-600 tw-font-medium tw-text-sm tw-flex tw-items-center tw-gap-2">
+                  <i class="pi pi-balance-scale"></i> Balance
+                </span>
+                <span class="tw-font-bold tw-text-green-600">{{ fiche.patient_balance }} DZD</span>
               </div>
             </div>
-            
-            <div class="convention-companies-display">
-              <div class="companies-tags">
+          </div>
+        </div>
+
+        <div class="tw-flex tw-flex-col tw-gap-8">
+          <div v-if="hasConventions" class="tw-flex tw-flex-col tw-gap-4">
+            <div class="tw-flex tw-items-center tw-gap-2 tw-pb-2 tw-border-b-2 tw-border-blue-200">
+              <i class="pi pi-building tw-text-blue-500 tw-text-xl"></i>
+              <h4 class="tw-text-lg tw-font-semibold tw-text-gray-800">Convention Companies</h4>
+            </div>
+            <div class="tw-flex tw-flex-col tw-gap-4">
+              <div class="tw-flex tw-flex-wrap tw-gap-2">
                 <Tag
                   v-for="company in conventionCompaniesWithColors.slice(0, 3)"
                   :key="company.id"
                   :value="company.organisme_name || company.company_name"
-                  class="company-tag"
+                  class="tw-cursor-pointer tw-transition-all tw-duration-200 hover:tw-scale-105"
                   @click="showOrganismeDetails(company)"
-                  :style="{
-                    backgroundColor: company.organisme_color,
-                    color: '#fff',
-                    borderColor: company.organisme_color,
-                    border: `2px solid ${company.organisme_color }`
-                  }"
+                  :style="{ backgroundColor: company.color.bg }"
                 >
-
                   <template #default>
-                    <div class="tag-content">
-                      <i class="pi pi-building" :style="{ color: '#fff' }"></i>
-                      <span>{{ company.organisme_name || company.company_name }}</span>
+                    <div class="tw-flex tw-items-center tw-gap-2 tw-text-white">
+                      <i class="pi pi-building"></i>
+                      <span class="tw-font-medium">{{ company.organisme_name || company.company_name }}</span>
                       <Badge 
-                        v-if="company.conventions_count || company.conventions?.length" 
                         :value="company.conventions_count || company.conventions?.length" 
-                        :style="{
-                          backgroundColor: company.organisme_color || company.color.bg,
-                          color: '#fff'
-                        }"
+                        :style="{ backgroundColor: company.color.bg, color: 'white', border: `1px solid rgba(255,255,255,0.2)` }"
                       />
                     </div>
                   </template>
                 </Tag>
-                
                 <Tag
                   v-if="conventionCompaniesWithColors.length > 3"
                   :value="`+${conventionCompaniesWithColors.length - 3} more`"
                   severity="secondary"
-                  class="more-companies-tag"
+                  class="tw-cursor-pointer tw-transition-all tw-duration-200 hover:tw-scale-105"
                   @click="showAllConventions"
                 />
               </div>
-              
-              <div v-if="conventionCompaniesWithColors.length > 3" class="view-all-section">
-                <Button
-                  label="View All Companies"
-                  icon="pi pi-external-link"
-                  class="p-button-text p-button-sm"
-                  @click="showAllConventions"
-                />
-              </div>
+              <Button
+                v-if="conventionCompaniesWithColors.length > 3"
+                label="View All Companies"
+                icon="pi pi-external-link"
+                class="p-button-text p-button-sm tw-justify-start tw-text-blue-600 tw-font-semibold"
+                @click="showAllConventions"
+              />
             </div>
-
-         
           </div>
-        </div>
 
-        <!-- Summary Section -->
-        <div class="info-section summary-section">
-          <div class="section-header">
-            <i class="pi pi-chart-line section-icon"></i>
-            <h4 class="section-title">Summary</h4>
-          </div>
-          <div class="summary-grid">
-            <div class="summary-item">
-              <div class="summary-icon items-icon">
-                <i class="pi pi-list"></i>
-              </div>
-              <div class="summary-content">
-                <span class="summary-value">{{ itemsCount }}</span>
-                <span class="summary-label">Total Items</span>
-              </div>
+          <div class="tw-flex tw-flex-col tw-gap-4">
+            <div class="tw-flex tw-items-center tw-gap-2 tw-pb-2 tw-border-b-2 tw-border-blue-200">
+              <i class="pi pi-chart-line tw-text-blue-500 tw-text-xl"></i>
+              <h4 class="tw-text-lg tw-font-semibold tw-text-gray-800">Summary</h4>
             </div>
-            
-            <div class="summary-item total-item">
-              <div class="summary-icon total-icon">
-                <i class="pi pi-dollar"></i>
+            <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+              <div class="tw-bg-gray-100 tw-p-4 tw-rounded-lg tw-shadow-sm tw-flex tw-items-center tw-gap-4">
+                <div class="tw-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-bg-blue-200 tw-text-blue-800 tw-text-xl tw-flex-shrink-0">
+                  <i class="pi pi-list"></i>
+                </div>
+                <div>
+                  <div class="tw-text-2xl tw-font-bold tw-text-gray-900">{{ itemsCount }}</div>
+                  <div class="tw-text-sm tw-text-gray-600">Total Items</div>
+                </div>
               </div>
-              <div class="summary-content">
-                <span class="summary-value total-value">{{ formatCurrency(totalAmount) }}</span>
-                <span class="summary-label">Total Amount</span>
+              <div class="tw-bg-green-100 tw-p-4 tw-rounded-lg tw-shadow-sm tw-flex tw-items-center tw-gap-4">
+                <div class="tw-flex tw-items-center tw-justify-center tw-w-12 tw-h-12 tw-rounded-full tw-bg-green-200 tw-text-green-800 tw-text-xl tw-flex-shrink-0">
+                  <i class="pi pi-dollar"></i>
+                </div>
+                <div>
+                  <div class="tw-text-2xl tw-font-bold tw-text-green-800">{{ formatCurrency(totalAmount) }}</div>
+                  <div class="tw-text-sm tw-text-green-600">Total Amount</div>
+                </div>
               </div>
             </div>
           </div>
@@ -352,539 +305,16 @@ const downloadFile = (file) => {
 </template>
 
 <style scoped>
-/* Keep all existing styles and add these new enhanced ones */
-
-/* Enhanced Company Tag Styles */
-.company-tag {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 600;
-  padding: 0.5rem 1rem;
-}
-
-.company-tag:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-  filter: brightness(1.05);
-}
-
-.tag-content {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Convention Content Layout */
-.convention-content {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.convention-summary {
-  background: var(--surface-50);
-  padding: 1rem;
-  border-radius: 8px;
-  border-left: 4px solid var(--primary-color);
-}
-
-.summary-stats {
-  display: flex;
-  justify-content: space-around;
-  text-align: center;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.stat-number {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--primary-color);
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
-  font-weight: 500;
-}
-
-.companies-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.more-companies-tag {
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.more-companies-tag:hover {
-  background: var(--primary-100);
-}
-
-.view-all-section {
-  text-align: center;
-  margin-top: 0.5rem;
-}
-
-.conventions-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-/* Enhanced Company Detail Card */
-.company-detail-card {
-  border-radius: 12px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-  margin-bottom: 1rem;
-}
-
-.company-detail-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.company-header {
-  margin: -1rem -1rem 1rem -1rem;
-  padding: 1rem;
-  border-radius: 12px 12px 0 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.company-header h5 {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-}
-
-/* Convention Detail Enhancements */
-.convention-detail {
-  background: white;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.75rem;
-  transition: all 0.2s ease;
-}
-
-.convention-detail:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.convention-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.convention-name {
-  font-weight: 600;
-  color: #1f2937;
-  font-size: 1rem;
-}
-
-/* Prestations Styles (MAIN FOCUS) */
-.convention-prestations {
-  margin-bottom: 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.prestations-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.025em;
-}
-
-.prestations-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.prestation-item {
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  border-left: 3px solid;
-  transition: all 0.2s ease;
-  background: #f8fafc;
-}
-
-.prestation-item:hover {
-  transform: translateX(2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.prestation-name {
-  font-weight: 500;
-  color: #374151;
-  font-size: 0.875rem;
-}
-
-.prestation-spec {
-  font-size: 0.75rem;
-  font-weight: 500;
-  margin-top: 0.25rem;
-}
-
-.more-prestations {
-  color: #6b7280;
-  font-style: italic;
-  text-align: center;
-  padding: 0.5rem;
-  font-size: 0.75rem;
-}
-
-/* File Item Enhancements (Secondary) */
-.convention-files {
-  margin-top: 0.75rem;
-}
-
-.files-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  margin-bottom: 0.5rem;
-  letter-spacing: 0.025em;
-}
-
-.files-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.file-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  background: #f8fafc;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-  border-left: 3px solid;
-  transition: all 0.2s ease;
-}
-
-.file-item:hover {
-  background: #f1f5f9;
-  transform: translateX(2px);
-}
-
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-}
-
-.file-info i {
-  font-size: 1rem;
-}
-
-.file-name {
-  font-size: 0.875rem;
-  color: #374151;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-  font-weight: 500;
-}
-
-.file-actions {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.file-actions .p-button {
-  padding: 0.4rem;
-  min-width: auto;
-  transition: all 0.2s ease;
-}
-
-.file-actions .p-button:hover {
-  transform: scale(1.1);
-}
-
-.more-files {
-  color: #6b7280;
-  font-style: italic;
-  text-align: center;
-  padding: 0.5rem;
-  font-size: 0.75rem;
-  background: rgba(0, 0, 0, 0.02);
-  border-radius: 4px;
-  margin-top: 0.25rem;
-}
-
-/* Keep all existing styles */
-.fiche-info-card {
-  background: linear-gradient(135deg, white 0%, var(--surface-50) 100%);
-  border: 1px solid var(--surface-200);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
-}
-
-.fiche-info-content {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  padding: 0.5rem;
-}
-
-.info-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 2px solid var(--surface-200);
-}
-
-.section-icon {
-  color: var(--primary-color);
-  font-size: 1.25rem;
-}
-
-.section-title {
-  margin: 0;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-/* Patient Section */
-.patient-details {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.patient-avatar {
-  background: var(--primary-color);
-  color: white;
-  font-weight: 600;
-}
-
-.patient-info {
-  flex: 1;
-}
-
-.patient-name {
-  margin: 0 0 0.25rem 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.patient-id {
-  margin: 0;
-  color: var(--text-color-secondary);
-  font-size: 0.9rem;
-}
-
-/* Details Section */
-.details-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem;
-  background: var(--surface-50);
-  border-radius: 8px;
-  border-left: 4px solid var(--primary-color);
-}
-
-.detail-label {
-  font-weight: 500;
-  color: var(--text-color-secondary);
-  display: flex;
-  align-items: center;
-}
-
-.detail-value {
-  font-weight: 600;
-  color: var(--text-color);
-}
-
-.status-tag {
-  font-weight: 600;
-}
-
-/* Summary Section */
-.summary-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.summary-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-  background: var(--surface-50);
-  border-radius: 12px;
-  transition: all 0.2s ease;
-}
-
-.summary-item:hover {
-  background: var(--surface-100);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.summary-item.total-item {
-  background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-100) 100%);
-  border: 1px solid var(--primary-200);
-}
-
-.summary-icon {
-  width: 3rem;
-  height: 3rem;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.25rem;
-  color: white;
-}
-
-.items-icon {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.groups-icon {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.total-icon {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.summary-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.summary-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--text-color);
-  line-height: 1;
-}
-
-.summary-value.total-value {
-  color: var(--primary-color);
-  font-size: 1.75rem;
-}
-
-.summary-label {
-  font-size: 0.875rem;
-  color: var(--text-color-secondary);
-  font-weight: 500;
-  margin-top: 0.25rem;
-}
-
-.mr-2 {
-  margin-right: 0.5rem;
+/* PrimeVue overrides */
+:deep(.p-card-content) {
+  @apply tw-p-0;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .fiche-info-content {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
+:deep(.p-tag) {
+  @apply tw-rounded-full;
 }
 
-@media (max-width: 768px) {
-  .fiche-info-content {
-    gap: 1rem;
-    padding: 0;
-  }
-  
-  .patient-details {
-    flex-direction: column;
-    text-align: center;
-    gap: 0.75rem;
-  }
-  
-  .detail-item {
-    flex-direction: column;
-    gap: 0.5rem;
-    text-align: center;
-  }
-  
-  .summary-item {
-    padding: 0.75rem;
-  }
-  
-  .summary-value {
-    font-size: 1.25rem;
-  }
-  
-  .summary-value.total-value {
-    font-size: 1.5rem;
-  }
-  
-  .company-detail-card {
-    margin-bottom: 1rem;
-  }
-  
-  .convention-header {
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
-  }
-  
-  .file-item, .prestation-item {
-    padding: 0.75rem 0.5rem;
-  }
-  
-  .file-name {
-    max-width: 120px;
-  }
-  
-  .file-actions {
-    flex-direction: column;
-    gap: 0.25rem;
-  }
+:deep(.p-button-text) {
+  @apply tw-text-sm;
 }
 </style>

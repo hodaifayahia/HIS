@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-          Schema::create('medication_doctor_favorats', function (Blueprint $table) {
+          Schema::create('caisse_sessions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('caisse_id')->constrained('caisses')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users'); // The cashier
@@ -30,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('medication_doctor_favorats');
+        Schema::dropIfExists('caisse_sessions');
     }
 };

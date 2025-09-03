@@ -419,28 +419,39 @@ onMounted(() => {
   </Dialog>
   
   <!-- Add Waitlist Modal -->
-  <addWaitlistModel
-    :show="showWaitlistModal"
-    :editMode="false"
-    :specializationId="doctorSpecializationId"
-    :isDaily="1"
-    :doctorId="doctorId"
-    :patientId="patientId"
-    @close="closeWaitlistModal"
-    @save="onWaitlistSaved"
-  />
+  <teleport to="body">
+    <div style="position:fixed; inset:0; z-index:2147483000; pointer-events: none;">
+      <div style="pointer-events: auto;">
+        <addWaitlistModel
+          :show="showWaitlistModal"
+          :editMode="false"
+          :specializationId="doctorSpecializationId"
+          :isDaily="1"
+          :doctorId="doctorId"
+          :patientId="patientId"
+          @close="closeWaitlistModal"
+          @save="onWaitlistSaved"
+        />
+      </div>
+    </div>
+  </teleport>
   
   <!-- Appointment Form Modal -->
-  <appointmentForm
-    v-if="showAppointmentFormModal"
-    :show="showAppointmentFormModal"
-    :patientId="patientId"
-    :doctorId="doctorId"
-    :prestationId="prestationId"
-    :NextAppointment="true"
-    @close="closeAppointmentForm"
-    @appointment-saved="onAppointmentSaved"
-  />
+  <teleport to="body">
+    <div v-if="showAppointmentFormModal" style="position:fixed; inset:0; z-index:2147483001; pointer-events: none;">
+      <div style="pointer-events: auto;">
+        <appointmentForm
+          :show="showAppointmentFormModal"
+          :patientId="patientId"
+          :doctorId="doctorId"
+          :prestationId="prestationId"
+          :NextAppointment="true"
+          @close="closeAppointmentForm"
+          @appointment-saved="onAppointmentSaved"
+        />
+      </div>
+    </div>
+  </teleport>
 </template>
 
 <style scoped>
