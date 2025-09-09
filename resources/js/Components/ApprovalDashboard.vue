@@ -109,6 +109,32 @@
                     <span class="tw-text-gray-600 tw-italic tw-ml-1">{{ request.notes }}</span>
                   </p>
                 </div>
+
+                <div v-if="request.attachment" class="tw-mt-4">
+                  <p class="tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Attachment:</p>
+                  <div class="tw-flex tw-items-center tw-gap-3 tw-p-3 tw-bg-gray-50 tw-rounded-lg">
+                    <div class="tw-flex tw-items-center tw-gap-2">
+                      <i :class="getFileIcon(request.attachment.mime_type || request.attachment.type)" class="tw-text-lg tw-text-blue-600"></i>
+                      <div>
+                        <a 
+                          :href="request.attachment.url" 
+                          target="_blank" 
+                          class="tw-text-sm tw-font-medium tw-text-blue-600 hover:tw-text-blue-800 tw-underline"
+                        >
+                          {{ request.attachment.original_name || request.attachment.name }}
+                        </a>
+                        <p class="tw-text-xs tw-text-gray-500">{{ formatFileSize(request.attachment.size) }}</p>
+                      </div>
+                    </div>
+                    <Button
+                      icon="pi pi-pencil"
+                      label="Update"
+                      size="small"
+                      @click="openUpdateAttachmentModal(request)"
+                      class="p-button-secondary p-button-sm"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div class="tw-flex tw-gap-2 tw-ml-4 tw-self-center">
@@ -178,6 +204,81 @@
         </div>
       </template>
     </Dialog>
+
+    <Dialog 
+      v-model:visible="updateAttachmentDialogVisible" 
+      modal 
+      header="Update Attachment"
+      :style="{ width: '500px' }"
+    >
+      <div class="tw-space-y-4">
+        <p class="tw-text-gray-700">Update the attachment for this approval request.</p>
+        
+        <div class="tw-flex tw-flex-col tw-gap-2">
+          <label class="tw-font-medium tw-text-gray-700">
+            Current Attachment:
+          </label>
+          <div v-if="selectedAttachmentRequest?.attachment" class="tw-flex tw-items-center tw-gap-2 tw-p-2 tw-bg-gray-50 tw-rounded">
+            <i :class="getFileIcon(selectedAttachmentRequest.attachment.mime_type)" class="tw-text-blue-600"></i>
+            <span class="tw-text-sm">{{ selectedAttachmentRequest.attachment.original_name }}</span>
+          </div>
+        </div>
+
+        <div class="tw-flex tw-flex-col tw-gap-2">
+          <label class="tw-font-medium tw-text-gray-700">
+            New Attachment <span class="tw-text-red-500">*</span>
+          </label>
+          <div class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-4 tw-text-center hover:tw-border-gray-400 tw-transition-colors">
+            <input
+              type="file"
+              accept="image/*,.pdf"
+              @change="onAttachmentFileSelected"
+              class="tw-hidden"
+              id="newAttachment"
+            />
+            <div v-if="!newAttachment" class="tw-cursor-pointer" @click="$event.target.previousElementSibling.click()">
+              <i class="pi pi-upload tw-text-2xl tw-text-gray-400 tw-mb-2"></i>
+              <p class="tw-text-sm tw-text-gray-600">Click to select new file</p>
+              <p class="tw-text-xs tw-text-gray-500">Supported: Images, PDF (Max 5MB)</p>
+            </div>
+            <div v-else class="tw-flex tw-items-center tw-justify-between">
+              <div class="tw-flex tw-items-center tw-gap-2">
+                <i :class="getFileIcon(newAttachment.type)" class="tw-text-lg tw-text-blue-600"></i>
+                <div class="tw-text-left">
+                  <p class="tw-text-sm tw-font-medium tw-text-gray-900">{{ newAttachment.name }}</p>
+                  <p class="tw-text-xs tw-text-gray-500">{{ formatFileSize(newAttachment.size) }}</p>
+                </div>
+              </div>
+              <Button
+                icon="pi pi-times"
+                severity="secondary"
+                text
+                size="small"
+                @click="newAttachment = null"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="tw-flex tw-justify-end tw-gap-2">
+          <Button
+            label="Cancel"
+            severity="secondary"
+            @click="closeUpdateAttachmentModal"
+            :disabled="processingAttachmentUpdate"
+          />
+          <Button
+            label="Update"
+            severity="success"
+            @click="updateAttachment"
+            :loading="processingAttachmentUpdate"
+            :disabled="!newAttachment"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -203,6 +304,10 @@ const rejectDialogVisible = ref(false)
 const selectedRequest = ref(null)
 const rejectNotes = ref('')
 const processingReject = ref(false)
+const updateAttachmentDialogVisible = ref(false)
+const selectedAttachmentRequest = ref(null)
+const newAttachment = ref(null)
+const processingAttachmentUpdate = ref(false)
 
 // Computed
 const totalAmount = computed(() => {
@@ -351,6 +456,113 @@ const getItemName = (request) => {
   return 'Item'
 }
 
+const getFileIcon = (fileType) => {
+  if (fileType && fileType.startsWith('image/')) {
+    return 'pi pi-image'
+  } else if (fileType === 'application/pdf') {
+    return 'pi pi-file-pdf'
+  }
+  return 'pi pi-file'
+}
+
+const formatFileSize = (bytes) => {
+  if (!bytes) return 'Unknown size'
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const openUpdateAttachmentModal = (request) => {
+  selectedAttachmentRequest.value = request
+  newAttachment.value = null
+  updateAttachmentDialogVisible.value = true
+}
+
+const closeUpdateAttachmentModal = () => {
+  updateAttachmentDialogVisible.value = false
+  selectedAttachmentRequest.value = null
+  newAttachment.value = null
+}
+
+const onAttachmentFileSelected = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'File size must be less than 5MB',
+        life: 5000
+      })
+      return
+    }
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Only images and PDF files are allowed',
+        life: 5000
+      })
+      return
+    }
+    
+    newAttachment.value = file
+  }
+}
+
+const updateAttachment = async () => {
+  if (!newAttachment.value || !selectedAttachmentRequest.value) return
+
+  processingAttachmentUpdate.value = true
+
+  try {
+    const formData = new FormData()
+    formData.append('attachment', newAttachment.value)
+
+    const response = await axios.post(
+      `/api/transaction-bank-requests/${selectedAttachmentRequest.value.id}/update-attachment`,
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    )
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Attachment updated successfully',
+      life: 5000
+    })
+
+    // Update the request in the list
+    const index = pendingRequests.value.findIndex(r => r.id === selectedAttachmentRequest.value.id)
+    if (index !== -1) {
+      pendingRequests.value[index].attachment = response.data.attachment
+    }
+
+    closeUpdateAttachmentModal()
+
+  } catch (error) {
+    console.error('Error updating attachment:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to update attachment',
+      life: 5000
+    })
+  } finally {
+    processingAttachmentUpdate.value = false
+  }
+}
+
 // Lifecycle
 onMounted(() => {
   loadPendingApprovals()
@@ -359,10 +571,12 @@ onMounted(() => {
 
 <style scoped>
 .tw-approval-dashboard {
-  @apply tw-p-6 tw-max-w-7xl tw-mx-auto;
+  padding: 1.5rem;
+  max-width: 80rem;
+  margin: 0 auto;
 }
 
 .p-invalid {
-  @apply tw-border-red-500;
+  border-color: #ef4444 !important;
 }
 </style>

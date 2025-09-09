@@ -10,11 +10,27 @@
         Amount paid: {{ formatCurrency(overpaymentData.paid) }}<br>
         <strong class="tw-text-green-600">Surplus: {{ formatCurrency(overpaymentData.excess) }}</strong>
       </p>
-      <p class="tw-text-sm tw-text-gray-500 tw-mb-6">
-        What do you want to do with the surplus?
-      </p>
+      <div class="tw-mb-6">
+        <div class="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-4 tw-text-center">
+          <div class="tw-text-sm tw-text-blue-600 tw-mb-2">Return Amount Information</div>
+          <div class="tw-text-2xl tw-font-bold tw-text-blue-800">
+            {{ formatCurrency(overpaymentData.excess) }}
+          </div>
+          <div class="tw-text-xs tw-text-blue-500 tw-mt-1">
+            Should be returned to patient
+          </div>
+        </div>
+      </div>
       
-      <div class="tw-flex tw-gap-3 tw-justify-center">
+      <div class="tw-flex tw-gap-3 tw-justify-center tw-flex-wrap">
+        <Button
+          label="Return Info"
+          icon="pi pi-info-circle"
+          class="p-button-help p-button-lg tw-text-lg tw-font-semibold tw-px-6 tw-py-3"
+          @click="showReturnInfo"
+          :disabled="processingOverpayment"
+          v-tooltip.top="'Shows what should be returned to the patient'"
+        />
         <Button
           label="Donate"
           icon="pi pi-heart"
@@ -176,6 +192,7 @@ import Button from 'primevue/button'
 import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
 import { useCurrencyFormatter } from '@/composables/useCurrencyFormatter'
+import { useToast } from 'primevue/usetoast'
 
 const props = defineProps({
   showOverpaymentModal: {
@@ -233,8 +250,26 @@ const emit = defineEmits([
   'process-update',
   'update:show-overpayment-modal',
   'update:show-refund-modal',
-  'update:show-update-modal'
+  'update:show-update-modal',
+  'pay-global-amount'
 ])
 
 const { formatCurrency } = useCurrencyFormatter()
+const toast = useToast()
+
+// Show return information and trigger global payment for needed amount
+const showReturnInfo = () => {
+  const required = props.overpaymentData.required
+  
+  // Emit event to trigger global payment with the required amount
+  emit('pay-global-amount', required)
+  
+  toast.add({
+    severity: 'success',
+    summary: '💰 Global Payment Triggered',
+    detail: `Processing global payment for: ${formatCurrency(required)} (the amount needed to pay).`,
+    life: 6000,
+    style: 'font-size: 16px; font-weight: bold;'
+  })
+}
 </script>

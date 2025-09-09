@@ -296,6 +296,31 @@ const getFormattedAmount = (type, amount) => {
   return `${sign}${formatCurrency(amount)}`;
 };
 
+// Status options and handlers
+const getStatusLabel = (status) => {
+  if (!status) return 'Pending';
+  const map = {
+    pending: 'Pending',
+    approved: 'Approved',
+    rejected: 'Rejected',
+    completed: 'Completed'
+  };
+  return map[status] ?? status;
+};
+
+const getStatusSeverity = (status) => {
+  switch (status) {
+    case 'approved':
+    case 'completed':
+      return 'success';
+    case 'rejected':
+      return 'danger';
+    case 'pending':
+    default:
+      return 'warning';
+  }
+};
+
 // Lifecycle
 onMounted(() => {
   fetchTransactions();
@@ -505,6 +530,11 @@ onMounted(() => {
           <Column field="created_at" header="Date" :sortable="true" style="width: 12%">
             <template #body="{ data }">
               <span class="tw-text-gray-500 tw-text-xs">{{ formatDateTime(data.created_at) }}</span>
+            </template>
+          </Column>
+          <Column field="status" header="Status" style="width: 12%">
+            <template #body="{ data }">
+              <Tag :value="getStatusLabel(data.status)" :severity="getStatusSeverity(data.status)" />
             </template>
           </Column>
           <Column header="Actions" :exportable="false" style="width: 9%">

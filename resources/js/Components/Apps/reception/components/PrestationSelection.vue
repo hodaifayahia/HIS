@@ -19,13 +19,13 @@ const props = defineProps({
   selectedDoctor: [Number, String]
 })
 
-const emit = defineEmits(['update:hasSelectedItems', 'takeAppointment', 'cancelAppointment', 'itemsToCreate', 'appointmentRequired'])
+const emit = defineEmits(['update:hasSelectedItems', 'takeAppointment', 'cancelAppointment', 'itemsToCreate', 'appointmentRequired', 'update:prestationAppointments'])
 
 const toast = useToast()
 
 // Reactive data
 const selectedSpecialization = ref(null)
-const selectedDoctorInternal = ref(props.selectedDoctor)
+const selectedDoctorInternal = ref(null)
 const showPackages = ref(false)
 const selectedPrestation = ref(null)
 const selectedPackage = ref(null)
@@ -33,11 +33,45 @@ const dependencies = ref([])
 const selectedDependencies = ref([])
 const packagePrestations = ref([])
 
-// Computed properties
+// Initialize selectedDoctorInternal with props value
+watch(() => props.selectedDoctor, (newVal) => {
+  console.log('PrestationSelection: selectedDoctor prop changed:', newVal)
+  selectedDoctorInternal.value = newVal
+  console.log('PrestationSelection: selectedDoctorInternal set to:', selectedDoctorInternal.value)
+}, { immediate: true })
+
+// Also watch for changes in selectedDoctorInternal to update parent if needed
+watch(selectedDoctorInternal, (newVal) => {
+  console.log('PrestationSelection: selectedDoctorInternal changed to:', newVal)
+
+  // If a doctor is selected but no specialization is set, try to set it from the doctor
+  if (newVal && !selectedSpecialization.value) {
+    const selectedDoctorObj = props.allDoctors.find(doctor => doctor.id === newVal)
+    if (selectedDoctorObj && selectedDoctorObj.specialization_id) {
+      console.log('PrestationSelection: Setting specialization from selected doctor:', selectedDoctorObj.specialization_id)
+      selectedSpecialization.value = selectedDoctorObj.specialization_id
+    }
+  }
+
+  // Optional: emit to parent if you want to sync back
+  // emit('update:selectedDoctor', newVal)
+})
 const filteredDoctors = computed(() => {
   if (selectedSpecialization.value) {
-    return props.allDoctors.filter(doctor => doctor.specialization_id === selectedSpecialization.value)
+    const filtered = props.allDoctors.filter(doctor => doctor.specialization_id === selectedSpecialization.value)
+
+    // Always include the currently selected doctor if it's not already in the filtered list
+    if (selectedDoctorInternal.value) {
+      const selectedDoctor = props.allDoctors.find(doctor => doctor.id === selectedDoctorInternal.value)
+      if (selectedDoctor && !filtered.find(doctor => doctor.id === selectedDoctor.id)) {
+        filtered.unshift(selectedDoctor)
+      }
+    }
+
+    return filtered
   }
+
+  // If no specialization is selected, return all doctors
   return props.allDoctors
 })
 
@@ -249,10 +283,6 @@ watch(hasSelectedItems, (newVal) => {
   emit('update:hasSelectedItems', newVal)
 })
 
-watch(() => props.selectedDoctor, (newVal) => {
-  selectedDoctorInternal.value = newVal
-})
-
 watch(selectedDoctorInternal, () => {
   resetSelections()
 })
@@ -286,6 +316,7 @@ watch(selectedDoctorInternal, () => {
           :disabled="!selectedSpecialization"
           class="full-width"
           :loading="loading"
+          :key="`doctor-${selectedDoctorInternal}`"
         />
       </div>
 
@@ -331,7 +362,7 @@ watch(selectedDoctorInternal, () => {
                   />
                 </div>
               </div>
-              <span class="option-price">{{ formatCurrency(option.public_price) }}</span>
+              <span class="option-price">{{ formatCurrency(option.price) }}</span>
             </div>
           </template>
         </Dropdown>

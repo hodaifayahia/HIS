@@ -101,6 +101,9 @@ const RefoundAmount = ref([]);
 // Permission: whether the authenticated user can perform refunds
 const userCanRefund = ref(false)
 
+// Reactive set to track refunds for transactions
+const refundExistsForTransaction = reactive(new Set())
+
 // Handle refund authorization actions
 const handleRefundAuthorization = async (authId, action) => {
   try {
@@ -261,9 +264,15 @@ const getPaymentStatus = (item) => {
   const paidAmount = getItemPaidAmount(item)
   const remaining = itemRemaining(item)
   const minVersement = Number(item.prestation?.min_versement_amount || 0)
+  const defaultPaymentType = item.default_payment_type || item.prestation?.default_payment_type
 
   if (remaining <= 0) {
     return { status: 'paid', color: 'green', text: 'Payé' }
+  }
+  
+  // Special handling for pre_payment type: grant visa when minimum payment is made
+  if (defaultPaymentType === 'Pré-paiement' && paidAmount > 0) {
+    return { status: 'visa_granted', color: 'green', text: 'Visa accordé' }
   }
   
   if (minVersement > 0 && paidAmount >= minVersement) {
@@ -509,6 +518,15 @@ const checkItemOverpayment = (item, itemIndex) => {
   }
 }
 
+const handleItemOverpayment = (data, itemIndex) => {
+  overpaymentData.required = data.required
+  overpaymentData.paid = data.paid
+  overpaymentData.excess = data.excess
+  overpaymentData.itemIndex = itemIndex
+  overpaymentData.isGlobal = false
+  showOverpaymentModal.value = true
+}
+
 const checkGlobalOverpayment = () => {
   const amount = Number(globalPayment.amount)
   const total = totalOutstanding.value
@@ -602,7 +620,7 @@ const handleOverpayment = async (action) => {
           }
 
           try {
-            await axios.post('/api/financial-transactions/bulk-payment', bulkPayload)
+            await axios.post('/api/financial-transactions-bulk-payment', bulkPayload)
           } catch (bulkError) {
             console.error('Bulk payment failed:', bulkError)
             toast.add({ 
@@ -768,6 +786,18 @@ const cancelOverpayment = () => {
   showOverpaymentModal.value = false
 }
 
+// Handle global payment for the required amount from Return Info button
+const handlePayGlobalAmount = async (amount) => {
+  // Set the global payment amount to the required amount
+  globalPayment.amount = amount
+  
+  // Close the overpayment modal
+  showOverpaymentModal.value = false
+  
+  // Trigger the global payment
+  await payGlobal()
+}
+
 //create closeRefundModal 
 const closeRefundModal = () => {
   showRefundModal.value = false;
@@ -807,26 +837,35 @@ const canRefund = (transaction) => {
   const amount = Number(transaction.amount ?? transaction.total ?? 0);
   if (amount <= 0) return false;
 
+  console.log('Checking canRefund for transaction:', transaction);
+
   // Get the associated item
   const item = transaction.fiche_navette_item ?? transaction.ficheNavetteItem ?? {};
-  
+
   // Check if item exists and has required associations
   if (!item || !item.id) {
     console.warn('Invalid or missing item for transaction:', transaction);
     return false;
   }
 
-  // Check for existing refunds
+  // PRIORITY CHECK: If status is pending or confirmed, allow refund without other conditions
+  const ficheStatus = String(transaction?.fiche_navette_item_status).toLowerCase();
+  if (['pending', 'confirmed'].includes(ficheStatus)) {
+    console.log('Status is pending/confirmed - allowing refund without additional conditions');
+    return true;
+  }
+
+  // Check for existing refunds (only if status is not pending/confirmed)
   if (hasExistingRefund(transaction, item)) {
     console.debug('Transaction already has a refund:', transaction.id);
     return false;
   }
 
   const itemId = item.id ?? transaction.fiche_navette_item_id ?? transaction.ficheNavetteItem?.id;
-  
-  // Check for existing authorization
+
+  // Check for existing authorization (only if status is not pending/confirmed)
   const auth = transaction?.refund_authorization ?? refundAuthMap.value[itemId] ?? null;
-  
+
   // If there's an authorization, check its status
   if (auth) {
     const status = String((auth.status ?? auth.status_text ?? '')).toLowerCase();
@@ -834,29 +873,39 @@ const canRefund = (transaction) => {
       console.debug('Authorization already used/approved:', auth);
       return false;
     }
-    
+
+
     const requested = Number(auth.requested_amount ?? auth.requestedAmount ?? 0);
     if (requested > 0) return true;
   }
 
-  // Check fiche status for direct refunds
-  const ficheStatus = String(item?.fiche_navette?.status ?? item?.status ?? '').toLowerCase();
-  if (['pending', 'confirmed'].includes(ficheStatus)) return true;
+  console.log('No existing authorization, but status is not pending/confirmed - refund not allowed');
 
   console.debug('Refund not allowed for status:', ficheStatus);
   return false;
 }
 
 const canShowRefundButton = (transaction, item) => {
+  console.log('Checking canShowRefundButton for transaction:', transaction, 'and item:', item);
+  
   if (!canRefund(transaction)) return false;
   if (!item) return false;
 
-  if (hasExistingRefund(transaction, item)) return false;
+  // Check reactive refund state first
+  if (refundExistsForTransaction.has(`${transaction.id}_${item.id}`)) return false;
+
+  if (hasExistingRefund(transaction, item)) {
+    // Add to reactive set for future checks
+    refundExistsForTransaction.add(`${transaction.id}_${item.id}`);
+    return false;
+  }
 
   const txAuth = transaction?.refund_authorization ?? refundAuthMap.value[item.id];
+  console.log('Checking refund button visibility for item:', item.id, 'Transaction:', transaction?.id, 'Authorization:', txAuth);
+  
   if (txAuth) {
     const s = String((txAuth.status ?? txAuth.status_text ?? '')).toLowerCase();
-    if (['used', 'approved'].includes(s)) return false;
+    if (['used', 'approved', 'pending'].includes(s)) return false;
     return true;
   }
 
@@ -864,16 +913,52 @@ const canShowRefundButton = (transaction, item) => {
   const existingAuth = refundAuthMap.value[item.id];
   if (existingAuth) {
     const authStatus = String((existingAuth.status ?? existingAuth.status_text ?? '')).toLowerCase();
-    return !['used', 'approved'].includes(authStatus);
+    return !['used', 'approved', 'pending'].includes(authStatus);
   }
 
+  // Get the fiche navette status - check multiple possible paths
+  let ficheStatus = '';
+  
+  // Check item's fiche_navette status first
+  if (item.fiche_navette?.status) {
+    ficheStatus = String(item.fiche_navette.status).toLowerCase();
+  } 
+  // Check item's direct status
+  else if (item.status) {
+    ficheStatus = String(item.status).toLowerCase();
+  }
+  // For dependencies, check parent item's fiche status
+  else if (item.is_dependency && item.parent_item_id) {
+    const parentItem = items.value.find(i => !i.is_dependency && i.id === item.parent_item_id);
+    if (parentItem?.fiche_navette?.status) {
+      ficheStatus = String(parentItem.fiche_navette.status).toLowerCase();
+    } else if (parentItem?.status) {
+      ficheStatus = String(parentItem.status).toLowerCase();
+    }
+  }
+
+  console.log('Fiche status for refund check:', ficheStatus, 'Item:', item.id);
+  
   // Only show refund button for pending/confirmed status
-  const ficheStatus = String(item.fiche_navette?.status ?? item.status ?? '').toLowerCase();
   return ['pending', 'confirmed'].includes(ficheStatus);
 }
 
 const openRefundModal = async (transaction, item) => {
   console.log(transaction, item);
+
+  // Check if refund already exists for this transaction
+  if (hasExistingRefund(transaction, item)) {
+    toast.add({ 
+      severity: 'warn', 
+      summary: 'Refund Already Exists', 
+      detail: 'A refund already exists for this payment or item.', 
+      life: 4000 
+    });
+    
+    // Add to reactive set to hide button
+    refundExistsForTransaction.add(`${transaction.id}_${item.id}`);
+    return;
+  }
 
   refundAuthorization.value = null;
 
@@ -949,6 +1034,10 @@ const processRefund = async () => {
         toast.add({ severity: 'success', summary: 'Refund Done', detail: `Refund of ${refundData.amount} processed`, life: 4000 });
         refundAuthorization.value.status = 'used';
         refundAuthMap.value[refundData.item.id] = refundAuthorization.value;
+        
+        // Add to reactive set to hide button
+        refundExistsForTransaction.add(`${refundData.transaction.id}_${refundData.item.id}`);
+        
         closeRefundModal();
         await loadItems();
         await load();
@@ -965,6 +1054,10 @@ const processRefund = async () => {
       const res = await axios.post('/api/financial-transactions/process-refund', payload);
       if (res?.data?.success) {
         toast.add({ severity: 'success', summary: 'Refund Done', detail: `Refund of ${refundData.amount} processed`, life: 4000 });
+        
+        // Add to reactive set to hide button
+        refundExistsForTransaction.add(`${refundData.transaction.id}_${refundData.item.id}`);
+        
         closeRefundModal();
         await loadItems();
         await load();
@@ -982,7 +1075,26 @@ const processRefund = async () => {
 // Component utility functions for main page functionality
 
 const canUpdate = (transaction) => {
-  return transaction.transaction_type === 'payment' && transaction.id === Math.max(...items.value.flatMap(it => it.transactions.map(tx => tx.id)).filter(id => id));
+  // Only allow updating payments (not refunds)
+  if (transaction.transaction_type !== 'payment') return false;
+  
+  // Don't allow editing payments that have authorized refunds
+  if (transaction.refund_authorization) {
+    const authStatus = String(transaction.refund_authorization.status || '').toLowerCase();
+    if (['pending', 'approved', 'used'].includes(authStatus)) {
+      return false; // Cannot edit payments with refund authorizations
+    }
+  }
+  
+  // Check if this is the latest payment transaction
+  const allPaymentIds = items.value.flatMap(it => 
+    (it.transactions || [])
+      .filter(tx => tx.transaction_type === 'payment')
+      .map(tx => tx.id)
+  ).filter(id => id);
+  
+  const latestPaymentId = Math.max(...allPaymentIds);
+  return transaction.id === latestPaymentId;
 }
 
 const openUpdateModal = (transaction) => {
@@ -1473,11 +1585,25 @@ const processDependencyDirectPayment = async (parentItem, dep, amount, paymentMe
     toast.add({ severity: 'error', summary: 'Error', detail: msg, life: 4000 })
   }
 }
+const getAuthorizedRefunds = (item) => {
 
+  const itemId = item.id ?? item.fiche_navette_item_id ?? item.ficheNavetteItem?.id;
+  const auth = refundAuthMap.value[itemId] ?? null;
+  if (auth && ['approved', 'used'].includes(String(auth.status).toLowerCase())) {
+    return Number(auth.authorized_amount ?? auth.authorizedAmount ?? 0);
+  }
+  return 0;
+}
 const payGlobal = async () => {
   let amount = Number(globalPayment.amount)
   if (!amount || amount <= 0) {
     toast.add({ severity: 'warn', summary: 'Invalid amount', detail: 'Please enter an amount', life: 3000 })
+    return
+  }
+
+  // Check for overpayment first
+  if (amount > totalOutstanding.value) {
+    checkGlobalOverpayment()
     return
   }
 
@@ -1567,7 +1693,7 @@ const payGlobal = async () => {
     patient_id: patientId.value,
     payment_method: mapPaymentMethod(globalPayment.method || 'cash'),
     transaction_type: 'bulk_payment',
-    total_amount: totalOutstanding.value, // Send only the required amount
+    total_amount: amount, // Use the actual payment amount
     items: bulkPaymentItems,
     notes: `Global bulk payment for ${bulkPaymentItems.length} items`
   }
@@ -1610,13 +1736,18 @@ const payGlobal = async () => {
     globalPayment.amount = amount
   }
 }
-
+const getFicheStatus = (item) => {
+  
+  return item.status || (item.fiche_navette_item?.fiche_navette?.status) || 'unknown'
+}
 // Approval modal handlers
 const onApprovalRequestSent = (request) => {
+  const hasAttachment = request.attachment ? ' with attachment' : ''
+  
   toast.add({
     severity: 'info',
     summary: 'Demande Envoyée',
-    detail: 'Votre demande d\'approbation a été envoyée. En attente de validation.',
+    detail: `Votre demande d'approbation a été envoyée${hasAttachment}. En attente de validation.`,
     life: 5000
   })
   
@@ -1712,10 +1843,18 @@ onMounted(async () => {
                 :is-min-versement-paid="isMinVersementPaid(item)"
                 :min-versement-amount="Number(item.prestation?.min_versement_amount || 0)"
                 :default-payment-type="item.prestation?.default_payment_type"
+                :service-name="item.prestation?.service?.name ?? item.service_name ?? ''"
+                :refund-auth-map="refundAuthMap"
+                :can-show-refund-button="canShowRefundButton"
+                :can-refund="canRefund"
+                :can-update="canUpdate"
+                :fiche-status="getFicheStatus(item)"
+                :authorized-refunds="getAuthorizedRefunds(item)"
                 @pay-item="payItem(idx)"
                 @toggle-transactions="item._transactionsVisible = !item._transactionsVisible"
                 @open-update="openUpdateModal"
                 @open-refund="(tx) => openRefundModal(tx, item)"
+                @show-overpayment="(data) => handleItemOverpayment(data, idx)"
               />
 
               <div class="tw-mt-6 tw-flex tw-justify-end">
@@ -1753,6 +1892,7 @@ onMounted(async () => {
         @update:update-notes="updateData.notes = $event"
         @close-update="closeUpdateModal"
         @process-update="processUpdate"
+        @pay-global-amount="handlePayGlobalAmount"
       />
 
       <!-- Payment Approval Modal -->

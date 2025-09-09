@@ -5,15 +5,18 @@ namespace App\Http\Resources\Bank;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use App\Http\Resources\Bank\BankAccountTransactionResource;
 
 class BankAccountTransactionCollection extends ResourceCollection
 {
     public function toArray(Request $request): array
     {
         return [
-            'data' => $this->collection,
+            // Wrap collection items with the resource to ensure a consistent, complete shape
+            'data' => BankAccountTransactionResource::collection($this->collection),
             'meta' => [
                 'total' => $this->total(),
+                
                 'count' => $this->count(),
                 'per_page' => $this->perPage(),
                 'current_page' => $this->currentPage(),

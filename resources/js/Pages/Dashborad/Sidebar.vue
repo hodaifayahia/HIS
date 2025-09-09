@@ -206,6 +206,7 @@ const playNotificationSound = () => {
                                 <p>Users</p>
                             </router-link>
                         </li>
+
                         <li class="nav-item">
                             <router-link to="/admin/appointments/Roles" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-user-cog"></i> <p>Roles</p>

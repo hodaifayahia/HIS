@@ -477,9 +477,23 @@ class ReceptionService
     $fileMetas = [];
     if (!empty($globalConventionData['uploaded_files']) && is_array($globalConventionData['uploaded_files'])) {
         foreach ($globalConventionData['uploaded_files'] as $file) {
-            if ($file instanceof \Illuminate\Http\UploadedFile) {
+            // Check if it's already processed file data (from controller)
+            if (is_array($file) && isset($file['path']) && isset($file['original_name'])) {
+                // File is already processed, use it directly
+                $fileMetas[] = $file;
+                \Log::info('Using pre-processed file:', [
+                    'original_name' => $file['original_name'],
+                    'path' => $file['path']
+                ]);
+            } elseif ($file instanceof \Illuminate\Http\UploadedFile) {
+                // File is raw UploadedFile, process it
                 if ($this->fileUploadService->validateConventionFile($file)) {
-                    $fileMetas[] = $this->fileUploadService->uploadSingleFile($file);
+                    $processedFile = $this->fileUploadService->uploadSingleFile($file);
+                    $fileMetas[] = $processedFile;
+                    \Log::info('Processed raw file:', [
+                        'original_name' => $processedFile['original_name'],
+                        'path' => $processedFile['path']
+                    ]);
                 }
             }
         }

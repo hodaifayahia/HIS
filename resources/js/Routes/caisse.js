@@ -7,12 +7,12 @@ const CaisseRoutes = [
     name: 'caisse',
     meta: { role: ['admin', 'SuperAdmin', 'manager', 'reception', 'support', 'cashier'], appKey: 'caisse' },
     children: [
-      // {
-      //   path: 'dashboard',
-      //   name: 'caisse.dashboard',
-      //   component: () => import('../Pages/Apps/caisse/CaisseDashboard.vue'),
-      //   meta: { title: 'Caisse Dashboard' }
-      // },
+      {
+        path: 'dashboard',
+        name: 'caisse.dashboard',
+        component: () => import('../Pages/Apps/caisse/CaisseDashboard.vue'),
+        meta: { title: 'Caisse Dashboard' }
+      },
       {
         path: 'sessions',
         name: 'caisse.sessions',

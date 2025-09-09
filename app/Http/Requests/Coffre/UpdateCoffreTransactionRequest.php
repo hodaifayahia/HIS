@@ -18,6 +18,10 @@ class UpdateCoffreTransactionRequest extends FormRequest
         return [
             'transaction_type' => 'sometimes|required|string|in:deposit,withdraw',
             'coffre_id' => 'sometimes|required|exists:coffres,id',
+            'Reason' => 'nullable|string|max:255',
+            'reference' => 'nullable|string|max:255',
+            'Designation' => 'nullable|string|max:255',
+            'Payer' => 'nullable|string|max:255',
             'amount' => 'sometimes|required|numeric|min:0.01',
             'description' => 'nullable|string|max:1000'
             // user_id removed

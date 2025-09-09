@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import axios from 'axios'
 
 // PrimeVue Components
 import Card from 'primevue/card'
@@ -198,8 +199,10 @@ const packageDependencies = computed(() => {
 const organismColor = computed(() => {
   // Check if any item in the group has a convention with organism_color
   const itemWithConvention = groupItems.value.find(item => 
-    item.convention_id && item.convention?.organism_color
-  )
+  item.convention_id && item.convention?.organism_color
+)
+
+
   
   return itemWithConvention?.convention?.organism_color || null
 })
@@ -444,18 +447,38 @@ const confirmRemoveDependency = (dependency) => {
   })
 }
 
-const handleApplyRemise = (data) => {
-  emit('apply-remise', props.group.id)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Success',
-    detail: 'Remise applied successfully',
-    life: 3000
-  })
-  
-  // Refresh the component data
-  emit('item-updated', { refresh: true })
+const handleApplyRemise = async (data) => {
+  try {
+    // Call the remise API endpoint
+    const response = await axios.post('/api/remise/apply', data)
+    
+    if (response.data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Remise applied successfully',
+        life: 3000
+      })
+      
+      // Refresh the component data to show updated prices
+      emit('item-updated', { refresh: true })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: response.data.message || 'Failed to apply remise',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('Error applying remise:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to apply remise',
+      life: 3000
+    })
+  }
 }
 
 // FIXED: Update the packagePrestations computed property
@@ -532,24 +555,29 @@ const totalPrice = computed(() => {
   return mainSum + dependencySum
 })
 
-// FIXED: Update showSavings computation (use totalPrice and individualTotal)
-const showSavings = computed(() => {
-  const isPackage = props.group.type === 'package'
-  const hasIndividualTotal = individualTotal.value > 0
-  const groupTotal = totalPrice.value || 0
-  const hasPackagePrice = groupTotal > 0
-  const hasSavings = individualTotal.value > groupTotal
-
-  console.log('Savings calculation:', {
-    isPackage,
-    hasIndividualTotal,
-    hasPackagePrice,
-    hasSavings,
-    individualTotal: individualTotal.value,
-    packagePrice: groupTotal
-  })
-
-  return isPackage && hasIndividualTotal && hasPackagePrice && hasSavings
+// Get payment status information
+const paymentStatusInfo = computed(() => {
+  // Check if any item in the group has payment_status
+  const itemsWithPaymentStatus = groupItems.value.filter(item => item.payment_status)
+  
+  if (itemsWithPaymentStatus.length === 0) {
+    return null
+  }
+  
+  // Get unique payment statuses
+  const paymentStatuses = itemsWithPaymentStatus.map(item => item.payment_status).filter(Boolean)
+  const uniqueStatuses = [...new Set(paymentStatuses)]
+  
+  // If multiple statuses, show the most critical one
+  if (uniqueStatuses.includes('unpaid')) {
+    return { status: 'unpaid', label: 'Unpaid', severity: 'danger', color: '#dc3545' }
+  } else if (uniqueStatuses.includes('partial')) {
+    return { status: 'partial', label: 'Partial', severity: 'warning', color: '#fd7e14' }
+  } else if (uniqueStatuses.includes('paid')) {
+    return { status: 'paid', label: 'Paid', severity: 'success', color: '#28a745' }
+  }
+  
+  return null
 })
 </script>
 
@@ -566,7 +594,37 @@ const showSavings = computed(() => {
           <small class="card-subtitle">{{ cardSubtitle }}</small>
         </div>
       </div>
-     
+      
+      <!-- Header Actions with Payment Status -->
+      <div class="header-actions">
+        <!-- Payment Status Chip -->
+        <Chip
+          v-if="paymentStatusInfo"
+          :label="paymentStatusInfo.label"
+          :severity="paymentStatusInfo.severity"
+          class="payment-status-chip"
+          :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
+          size="small"
+        />
+        
+        <!-- Convention Chips -->
+        <div v-if="conventionChips.length > 0" class="convention-chips">
+          <Chip
+            v-for="chip in conventionChips.slice(0, 2)"
+            :key="chip.id"
+            :label="chip.label"
+            severity="info"
+            class="convention-chip"
+            size="small"
+          />
+          <Chip
+            v-if="conventionChips.length > 2"
+            :label="`+${conventionChips.length - 2}`"
+            severity="secondary"
+            size="small"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Content -->
@@ -596,6 +654,18 @@ const showSavings = computed(() => {
             severity="secondary"
           />
         </div>
+        
+        <!-- Payment Status -->
+        <div v-if="paymentStatusInfo" class="info-item">
+          <span class="info-label">Payment:</span>
+          <Chip
+            :label="paymentStatusInfo.label"
+            :severity="paymentStatusInfo.severity"
+            class="payment-status-chip"
+            :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
+          />
+        </div>
+        
         <div class="info-item">
           <span class="info-label">Total:</span>
           <strong class="total-price">{{ formatCurrency(totalPrice) }}</strong>
@@ -658,17 +728,13 @@ const showSavings = computed(() => {
             </div>
           </div>
         </div>
-
-        
-
-      
-        
       </div>
     </div>
 
     <!-- Footer - Fixed at bottom -->
     <div class="card-footer">
       <Button
+        v-if="!paymentStatusInfo || paymentStatusInfo.status !== 'paid'"
         icon="pi pi-percentage"
         label="Remise"
         class="p-button-outlined p-button-warning p-button-sm"
@@ -681,6 +747,7 @@ const showSavings = computed(() => {
         @click="openDetails"
       />
       <Button
+        v-if="!paymentStatusInfo || (paymentStatusInfo.status !== 'paid' && paymentStatusInfo.status !== 'partial')"
         icon="pi pi-trash"
         label="Remove"
         class="p-button-outlined p-button-danger p-button-sm"
@@ -725,6 +792,18 @@ const showSavings = computed(() => {
                 <span class="detail-label">Doctor:</span>
                 <span>{{ group.doctor_name || 'Not assigned' }}</span>
               </div>
+              
+              <!-- Payment Status in Details -->
+              <div v-if="paymentStatusInfo" class="detail-item">
+                <span class="detail-label">Payment Status:</span>
+                <Chip
+                  :label="paymentStatusInfo.label"
+                  :severity="paymentStatusInfo.severity"
+                  class="payment-status-chip"
+                  :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
+                />
+              </div>
+              
               <div class="detail-item">
                 <span class="detail-label">Total Price:</span>
                 <strong class="total-amount">{{ formatCurrency(totalPrice) }}</strong>
@@ -932,6 +1011,26 @@ const showSavings = computed(() => {
                     :value="getStatusData(data.status).label"
                     :severity="getStatusData(data.status).severity"
                   />
+                </template>
+              </Column>
+
+              <!-- Payment Status Column -->
+              <Column field="payment_status" header="Payment Status">
+                <template #body="{ data }">
+                  <Chip
+                    v-if="data.payment_status"
+                    :label="data.payment_status.charAt(0).toUpperCase() + data.payment_status.slice(1)"
+                    :severity="data.payment_status === 'paid' ? 'success' : data.payment_status === 'partial' ? 'warning' : 'danger'"
+                    size="small"
+                    :style="{
+                      backgroundColor: data.payment_status === 'paid' ? '#28a745' : 
+                                     data.payment_status === 'partial' ? '#fd7e14' : '#dc3545',
+                      color: 'white',
+                      borderColor: data.payment_status === 'paid' ? '#28a745' : 
+                                  data.payment_status === 'partial' ? '#fd7e14' : '#dc3545'
+                    }"
+                  />
+                  <span v-else class="text-muted">Not set</span>
                 </template>
               </Column>
 
@@ -1714,27 +1813,37 @@ const showSavings = computed(() => {
   word-break: break-all;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .prestations-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .package-savings {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .prestation-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .prestation-price {
-    text-align: left;
-    align-self: stretch;
-  }
+/* Payment Status Styles */
+.payment-status-chip {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.payment-status-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Payment status specific colors */
+.payment-status-unpaid {
+  background-color: #dc3545 !important;
+  color: white !important;
+  border-color: #dc3545 !important;
+}
+
+.payment-status-partial {
+  background-color: #fd7e14 !important;
+  color: white !important;
+  border-color: #fd7e14 !important;
+}
+
+.payment-status-paid {
+  background-color: #28a745 !important;
+  color: white !important;
+  border-color: #28a745 !important;
 }
 </style>

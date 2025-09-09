@@ -129,12 +129,51 @@ class CaisseSessionService
                 'opening_notes' => $data['opening_notes'] ?? null,
             ]);
 
+            // Optionally create a session transfer at the same time as opening the session
+            // Accept either a dedicated 'transfer' array or top-level 'to_user_id' + amount fields
+            if (!empty($data['transfer']) || !empty($data['to_user_id'])) {
+                $transferPayload = $data['transfer'] ?? [];
+                $toUserId = $transferPayload['to_user_id'] ?? ($data['to_user_id'] ?? null);
+                $amountSended = $transferPayload['amount_sended'] ?? ($data['transfer_amount'] ?? ($data['opening_amount'] ?? 0));
+                $haveProblems = $transferPayload['have_problems'] ?? ($data['have_problems'] ?? false);
+                $description = $transferPayload['description'] ?? ($data['transfer_description'] ?? "Session open transfer for caisse {$data['caisse_id']}");
+
+                // Decide initial status: if a recipient is specified, mark as 'transferred', otherwise 'pending'
+                $initialStatus = $toUserId ? 'transferred' : 'pending';
+
+                $transfer = CaisseTransfer::create([
+                    'caisse_id' => $data['caisse_id'],
+                    'from_user_id' => $currentUser->id,
+                    'to_user_id' => $toUserId,
+                    'amount_sended' => $amountSended,
+                    'caisse_session_id' => $session->id,
+                    'have_problems' => $haveProblems,
+                    'amount_received' => null,
+                    'description' => $description,
+                    'status' => $initialStatus,
+                ]);
+
+                // If transfer is pending, generate a token so it can be accepted later
+                if ($initialStatus === 'pending') {
+                    try {
+                        $transfer->generateToken();
+                    } catch (\Exception $ex) {
+                        // don't fail the entire session open if token generation fails; log and continue
+                        \Log::error('Failed to generate transfer token on session open', [
+                            'caisse_session_id' => $session->id,
+                            'transfer_id' => $transfer->id ?? null,
+                            'error' => $ex->getMessage()
+                        ]);
+                    }
+                }
+            }
+
             // If source coffre specified, create withdrawal transaction
             if (!empty($data['coffre_id_source']) && ($session->opening_amount > 0)) {
                 $this->createCoffreTransaction(
                     $data['coffre_id_source'],
                     'withdrawal',
-                    $session->opening_amount,
+                    (float) $session->opening_amount,
                     "Cash withdrawal for session opening - {$caisse->name}",
                     $currentUser->id,
                     $session->id
@@ -366,6 +405,7 @@ $data['closing_amount'] = $totalCashCounted;
         // Get active sessions
         $activeSessions = CaisseSession::where('user_id', $userId)
                            ->where('status', 'open')
+                           ->where('is_transfer', false)
                            ->with(['caisse', 'user', 'openedBy', 'sourceCoffre'])
                            ->orderBy('ouverture_at', 'desc')
                            ->get();

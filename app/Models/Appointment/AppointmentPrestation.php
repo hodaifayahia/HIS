@@ -4,7 +4,7 @@ namespace App\Models\Appointment;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Appointment;
-use App\Models\Prestation;
+use App\Models\CONFIGURATION\Prestation;
 
 class AppointmentPrestation extends Model
 {
@@ -14,6 +14,10 @@ class AppointmentPrestation extends Model
         'prestation_id',
     ];
 
+    protected $attributes = [
+        'description' => '', // Default empty string instead of null
+    ];
+
     public function appointment()
     {
         return $this->belongsTo(\App\Models\Appointment::class, 'appointment_id');
@@ -21,6 +25,6 @@ class AppointmentPrestation extends Model
 
     public function prestation()
     {
-        return $this->belongsTo(\App\Models\Prestation::class, 'prestation_id');
+        return $this->belongsTo(\App\Models\CONFIGURATION\Prestation::class, 'prestation_id');
     }
 }

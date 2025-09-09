@@ -48,19 +48,8 @@ class FinancialTransactionController extends Controller
         try {
             $transactions = $this->service->getAllPaginated($filters, $perPage);
 
-            // Ensure related prestation/item data is loaded on the paginator collection so resources can access them
-            try {
-                $transactions->getCollection()->load([
-                    'ficheNavetteItem.prestation.specialization',
-                    'ficheNavetteItem.fiche_navette.patient',
-                    'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
-                    'originalTransaction'
-                ]);
-            } catch (\Throwable $e) {
-                // ignore if load not possible
-            }
-
-            // collect fiche_navette_item_ids from returned transactions
+            // Relationships should already be loaded by the service
+            // Just ensure they're accessible if needed
             $items = $transactions->items();
             $itemIds = collect($items)->pluck('fiche_navette_item_id')->filter()->unique()->values()->toArray();
 
@@ -143,7 +132,15 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             if ($request->filled('original_transaction_id')) {
                 $originalTransaction = FinancialTransaction::findOrFail($request->original_transaction_id);
 
-                if (!$originalTransaction->canBeRefunded()) {
+                // Get fiche navette item status to determine if we should bypass restrictions
+                $ficheItemStatus = null;
+                if ($originalTransaction->ficheNavetteItem) {
+                    $ficheItemStatus = strtolower($originalTransaction->ficheNavetteItem->status ?? '');
+                }
+
+                $isPriorityStatus = in_array($ficheItemStatus, ['pending', 'confirmed']);
+
+                if (!$isPriorityStatus && !$originalTransaction->canBeRefunded()) {
                     return response()->json([
                         'success' => false,
                         'message' => 'This transaction cannot be refunded'
@@ -151,29 +148,39 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 }
 
                 // Prevent duplicate refunds: check if a refund already exists linked to this transaction
-                $existingRefund = FinancialTransaction::where('transaction_type', 'refund')
-                    ->where(function ($q) use ($originalTransaction) {
-                        $q->where('original_transaction_id', $originalTransaction->id)
-                          ->orWhere('fiche_navette_item_id', $originalTransaction->fiche_navette_item_id);
-                    })->first();
+                // Only check for non-priority status items
+                if (!$isPriorityStatus) {
+                    $existingRefund = FinancialTransaction::where('transaction_type', 'refund')
+                        ->where(function ($q) use ($originalTransaction) {
+                            $q->where('original_transaction_id', $originalTransaction->id)
+                              ->orWhere('fiche_navette_item_id', $originalTransaction->fiche_navette_item_id);
+                        })->first();
 
-                if ($existingRefund) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'A refund already exists for this payment or item.'
-                    ], 422);
+                    if ($existingRefund) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'A refund already exists for this payment or item.'
+                        ], 422);
+                    }
                 }
+
                 // Prefer the patient attached to the original transaction; if missing, try the fiche navette's patient
+                // Only validate patient for non-priority status items
                 $patientId = $originalTransaction->patient_id;
                 if (empty($patientId) && $originalTransaction->ficheNavetteItem) {
                     $patientId = $originalTransaction->ficheNavetteItem->ficheNavette->patient_id ?? null;
                 }
 
-                if (empty($patientId)) {
+                if (!$isPriorityStatus && empty($patientId)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Cannot determine patient for refund. Original transaction lacks associated patient.'
                     ], 422);
+                }
+
+                // For priority status items, use a default patient ID if not found
+                if ($isPriorityStatus && empty($patientId)) {
+                    $patientId = 1; // Default patient ID for priority status refunds
                 }
 
                 $refundData = [
@@ -184,12 +191,25 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                     'transaction_type' => 'refund',
                     'payment_method' => $originalTransaction->payment_method,
                     'notes' => $request->notes ?? "Refund for transaction #{$originalTransaction->reference}",
+                    'original_transaction_id' => $originalTransaction->id,
+                    // Add item_dependency_id if the original transaction was for a dependency
+                    'item_dependency_id' => $originalTransaction->item_dependency_id ?? null,
                 ];
             } elseif ($request->filled('refund_authorization_id')) {
                 $auth = RefundAuthorization::findOrFail($request->refund_authorization_id);
 
+                // Get fiche navette item status to determine if we should bypass restrictions
+                $ficheItemStatus = null;
+                $ficheItem = \App\Models\Reception\ficheNavetteItem::find($auth->fiche_navette_item_id);
+                if ($ficheItem) {
+                    $ficheItemStatus = strtolower($ficheItem->status ?? '');
+                }
+
+                $isPriorityStatus = in_array($ficheItemStatus, ['pending', 'confirmed']);
+
                 // Authorization must be approved (frontend may call approve endpoint first)
-                if (strtolower($auth->status) !== 'approved') {
+                // Only check for non-priority status items
+                if (!$isPriorityStatus && strtolower($auth->status) !== 'approved') {
                     return response()->json([
                         'success' => false,
                         'message' => 'Refund authorization must be approved before processing a refund.'
@@ -197,21 +217,29 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 }
 
                 // Also disallow if authorization is already used/approved (defensive)
-                $st = strtolower($auth->status);
-                if (in_array($st, ['used'])) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Refund authorization has already been used.'
-                    ], 422);
+                // Only check for non-priority status items
+                if (!$isPriorityStatus) {
+                    $st = strtolower($auth->status);
+                    if (in_array($st, ['used'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Refund authorization has already been used.'
+                        ], 422);
+                    }
                 }
 
                 // Determine amount: prefer authorized_amount, fallback to requested_amount
                 $amount = (float) ($auth->authorized_amount ?? $auth->requested_amount ?? 0);
-                if ($amount <= 0) {
+                if (!$isPriorityStatus && $amount <= 0) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Refund authorization does not contain a valid amount.'
                     ], 422);
+                }
+
+                // For priority status items, use the requested amount if authorized amount is not set
+                if ($isPriorityStatus && $amount <= 0) {
+                    $amount = (float) ($auth->requested_amount ?? $request->refund_amount ?? 0);
                 }
 
                 // Resolve fiche item and patient id from the fiche navette (do NOT use prestation_id)
@@ -219,11 +247,17 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 $ficheItem = \App\Models\Reception\ficheNavetteItem::with('ficheNavette')->find($ficheItemId);
                 $patientId = $ficheItem?->ficheNavette?->patient_id ?? null;
 
-                if (empty($patientId)) {
+                // Only validate patient for non-priority status items
+                if (!$isPriorityStatus && empty($patientId)) {
                     return response()->json([
                         'success' => false,
                         'message' => 'Cannot determine patient for refund. Fiche navette or patient missing for the authorized item.'
                     ], 422);
+                }
+
+                // For priority status items, use a default patient ID if not found
+                if ($isPriorityStatus && empty($patientId)) {
+                    $patientId = 1; // Default patient ID for priority status refunds
                 }
 
                 $refundData = [
@@ -243,7 +277,18 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 ], 422);
             }
 
-            $result = $this->service->processRefundTransaction($refundData);
+            $result = $this->service->processPaymentTransaction($refundData);
+
+            // Explicitly update remaining and paid amounts for fiche navette item and dependencies
+            $this->updateFicheNavetteItemAmounts($refundData['fiche_navette_item_id'], $refundData['item_dependency_id'] ?? null);
+
+            // If we used an authorization, mark it as used
+            if (!empty($refundData['refund_authorization_id'])) {
+                $auth = RefundAuthorization::find($refundData['refund_authorization_id']);
+                if ($auth) {
+                    $auth->update(['status' => 'used']);
+                }
+            }
 
             return response()->json([
                 'success' => true,
@@ -556,6 +601,19 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
             $transactions = $this->service->getAllPaginated($filters, $perPage);
 
+            // Load relationships for the transactions
+            try {
+                collect($transactions->items())->load([
+                    'ficheNavetteItem.prestation.specialization',
+                    'ficheNavetteItem.fiche_navette.patient',
+                    'ficheNavetteItem',
+                    'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
+                    'originalTransaction'
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to load transaction relationships in getByFicheNavette: ' . $e->getMessage());
+            }
+
             // collect fiche_navette_item_ids from returned transactions
             $items = $transactions->items();
             $itemIds = collect($items)->pluck('fiche_navette_item_id')->filter()->unique()->values()->toArray();
@@ -577,7 +635,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 'data' => FinancialTransactionResource::collection($transactions->items()),
                 'meta' => [
                     'total' => $transactions->total(),
-                    'count' => $transactions->count(),
+                    'count' => count($transactions->items()),
                     'per_page' => $transactions->perPage(),
                     'current_page' => $transactions->currentPage(),
                     'total_pages' => $transactions->lastPage(),
@@ -727,5 +785,77 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 ];
             })
         ];
+    }
+    private function updateFicheNavetteItemAmounts($ficheNavetteItemId, $itemDependencyId = null)
+    {
+        try {
+            // Load the fiche navette item with its dependencies and transactions
+            $ficheItem = \App\Models\Reception\ficheNavetteItem::with([
+                'dependencies',
+                'transactions' => function($query) {
+                    $query->whereIn('transaction_type', ['payment', 'refund']);
+                },
+                'dependencies.transactions' => function($query) {
+                    $query->whereIn('transaction_type', ['payment', 'refund']);
+                }
+            ])->find($ficheNavetteItemId);
+
+            if (!$ficheItem) {
+                return;
+            }
+
+            // If this is a dependency refund, update only the dependency
+            if ($itemDependencyId) {
+                $dependency = $ficheItem->dependencies->find($itemDependencyId);
+                if ($dependency) {
+                    $this->updateItemAmounts($dependency);
+                }
+            } else {
+                // Update the main fiche navette item
+                $this->updateItemAmounts($ficheItem);
+
+                // Update all dependencies of this item
+                foreach ($ficheItem->dependencies as $dependency) {
+                    $this->updateItemAmounts($dependency);
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to update fiche navette item amounts after refund: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update remaining and paid amounts for a single item (main item or dependency)
+     */
+    private function updateItemAmounts($item)
+    {
+        try {
+            $transactions = $item->transactions ?? collect();
+
+            // Calculate total paid amount (payments - refunds)
+            $totalPaid = $transactions->reduce(function ($carry, $transaction) {
+                if ($transaction->transaction_type === 'payment') {
+                    return $carry + $transaction->amount;
+                } elseif ($transaction->transaction_type === 'refund') {
+                    return $carry - $transaction->amount;
+                }
+                return $carry;
+            }, 0);
+
+            // Get the final price (for main items) or amount (for dependencies)
+            $finalPrice = $item->final_price ?? $item->amount ?? 0;
+
+            // Calculate remaining amount
+            $remainingAmount = max(0, $finalPrice - $totalPaid);
+
+            // Update the item with new amounts
+            $item->update([
+                'paid_amount' => $totalPaid,
+                'remaining_amount' => $remainingAmount
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to update item amounts: ' . $e->getMessage());
+        }
     }
 }

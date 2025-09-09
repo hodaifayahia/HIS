@@ -19,9 +19,14 @@ class TransactionBankRequest extends Model
         'approved_at',
         'requested_at',
         'notes',
+        'approval_document',
         'payment_method',
         'amount',
-        'status'
+        'status',
+        'attachment_path',
+        'attachment_original_name',
+        'attachment_mime_type',
+        'attachment_size'
     ];
 
     protected $casts = [
@@ -68,5 +73,28 @@ class TransactionBankRequest extends Model
             'transaction_id', // TransactionBankRequest transaction_id
             'item_dependency_id' // FinancialTransaction item_dependency_id
         );
+    }
+
+    public function uploads()
+    {
+        return $this->morphMany(\App\Models\Upload::class, 'uploadable');
+    }
+
+    /**
+     * Get attachment data as an array
+     */
+    public function getAttachmentAttribute()
+    {
+        if (!$this->attachment_path) {
+            return null;
+        }
+
+        return [
+            'original_name' => $this->attachment_original_name,
+            'mime_type' => $this->attachment_mime_type,
+            'size' => $this->attachment_size,
+            'path' => $this->attachment_path,
+            'url' => asset('storage/' . $this->attachment_path)
+        ];
     }
 }

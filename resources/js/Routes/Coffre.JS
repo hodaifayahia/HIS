@@ -19,12 +19,18 @@ const CoffreRoutes = [
         component: () => import('../Pages/Apps/coffre/Coffre/CoffreList.vue'),
         meta: { title: 'Coffre List' }
       },
-       {
+      {
         path: 'transactions/:coffre_id',
         name: 'coffre.transactions',
         component: () => import('../Pages/Apps/coffre/Transactions/CoffreTransactionList.vue'),
         meta: { title: 'Coffre Transactions' },
         props: true
+      },
+      {
+        path: 'transactions-dashboard',
+        name: 'coffre.transactions.dashboard',
+        component: () => import('../Pages/Apps/coffre/CoffreTransactionsDashboard.vue'),
+        meta: { title: 'Transactions & Approvals' }
       },
       {
         path: 'caisse', // <-- remove leading slash so path becomes /coffre/caisse

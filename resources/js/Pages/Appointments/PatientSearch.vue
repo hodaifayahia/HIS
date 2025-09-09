@@ -185,7 +185,7 @@ const onInputFocus = (event) => {
 </script>
 
 <template>
-    <div class="p-fluid">
+    <div class="p-fluid" >
         <div class="p-grid p-align-center p-mb-2">
             <div class="p-col-12 p-md-9 p-pr-md-2 p-overlay-panel-container">
                 <div class="p-inputgroup">
@@ -226,7 +226,7 @@ const onInputFocus = (event) => {
             </div>
         </div>
 
-        <OverlayPanel ref="op" appendTo="body" :showCloseIcon="false" class="p-overlaypanel-fixed-width">
+        <OverlayPanel ref="op"  appendTo="self"  :showCloseIcon="false" class="p-overlaypanel-fixed-width">
             <div v-if="isLoading" class="p-d-flex p-ai-center p-jc-center p-py-3">
                 <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="6" animationDuration=".8s" />
                 <span class="p-ml-2">Searching...</span>

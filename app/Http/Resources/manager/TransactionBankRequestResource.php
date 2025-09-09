@@ -69,6 +69,11 @@ class TransactionBankRequestResource extends JsonResource
                 ];
             }, null),
 
+            'approval_document' => $this->approval_document ? url('/storage/' . $this->approval_document) : null,
+
+            // attachment information
+            'attachment' => $this->attachment,
+
             // convenience flattened fields for frontend
             'item_type' => $tx ? ($tx->item_dependency_id ? 'item_dependency' : ($tx->fiche_navette_item_id ? 'fiche_navette_item' : null)) : null,
             'item_name' => $tx ? (

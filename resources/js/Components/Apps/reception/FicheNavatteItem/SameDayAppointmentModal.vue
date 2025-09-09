@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import addWaitlistModel from '../../../waitList/addWaitlistModel.vue'
@@ -17,6 +17,11 @@ const props = defineProps({
   doctorId: {
     type: Number,
     required: true
+  },
+  fuckuifwork: {
+    type: Object,
+    required: false,
+    default: () => ({})
   },
   patientId: {
     type: Number,
@@ -41,50 +46,156 @@ const availabilityData = ref({})
 const selectedSlot = ref(null)
 const showWaitlistModal = ref(false)
 const showAppointmentFormModal = ref(false)
+const isMounted = ref(false)
 
 // Computed
 const modalTitle = computed(() => {
-  if (availabilityData.value.doctor_allows_same_day) {
+  if (availabilityData.value.is_available && availabilityData.value.available_slots && availabilityData.value.available_slots.length > 0) {
     return 'Same-Day Appointment Options'
   }
   return 'Appointment Options'
 })
 
+// Extract values from fuckuifwork prop (fallback data)
+const extractedDoctorId = computed(() => {
+  // Priority 1: Use direct doctorId prop if it exists and is valid
+  if (props.doctorId && props.doctorId !== null && props.doctorId !== undefined) {
+    console.log('Using direct doctorId:', props.doctorId)
+    return props.doctorId
+  }
+
+  // Priority 2: Extract from fuckuifwork fallback object
+  const fallbackDoctorId = props.fuckuifwork?.appointmentItems?.otherItems?.selectedDoctor ||
+                          props.fuckuifwork?.otherItems?.selectedDoctor ||
+                          props.fuckuifwork?.selectedDoctor
+
+  if (fallbackDoctorId && fallbackDoctorId !== null && fallbackDoctorId !== undefined) {
+    console.log('Using fallback doctorId from fuckuifwork:', fallbackDoctorId)
+    return fallbackDoctorId
+  }
+
+  console.log('No valid doctorId found')
+  return null
+})
+
+const extractedPrestationId = computed(() => {
+  // Priority 1: Use direct prestationId prop if it exists and is valid
+  if (props.prestationId && props.prestationId !== null && props.prestationId !== undefined) {
+    console.log('Using direct prestationId:', props.prestationId)
+    return props.prestationId
+  }
+
+  // Priority 2: Extract from fuckuifwork fallback object
+  const fallbackPrestationId = props.fuckuifwork?.appointmentItems?.appointmentItems?.[0]?.id ||
+                               props.fuckuifwork?.appointmentItems?.otherItems?.prestationId ||
+                               props.fuckuifwork?.prestationId
+
+  if (fallbackPrestationId && fallbackPrestationId !== null && fallbackPrestationId !== undefined) {
+    console.log('Using fallback prestationId from fuckuifwork:', fallbackPrestationId)
+    return fallbackPrestationId
+  }
+
+  console.log('No valid prestationId found')
+  return null
+})
+
+const extractedDoctorSpecializationId = computed(() => {
+  // Priority 1: Use direct doctorSpecializationId prop if it exists and is valid
+  if (props.doctorSpecializationId && props.doctorSpecializationId !== null && props.doctorSpecializationId !== undefined) {
+    console.log('Using direct doctorSpecializationId:', props.doctorSpecializationId)
+    return props.doctorSpecializationId
+  }
+
+  // Priority 2: Extract from fuckuifwork fallback object
+  const fallbackSpecializationId = props.fuckuifwork?.appointmentItems?.otherItems?.selectedSpecialization ||
+                                   props.fuckuifwork?.otherItems?.selectedSpecialization ||
+                                   props.fuckuifwork?.selectedSpecialization
+
+  if (fallbackSpecializationId && fallbackSpecializationId !== null && fallbackSpecializationId !== undefined) {
+    console.log('Using fallback doctorSpecializationId from fuckuifwork:', fallbackSpecializationId)
+    return fallbackSpecializationId
+  }
+
+  console.log('No valid doctorSpecializationId found')
+  return null
+})
+
+const extractedPatientId = computed(() => {
+  console.log('=== extractedPatientId computed ===')
+  
+  // Priority 1: Use direct patientId prop if it exists and is valid
+  if (props.patientId && props.patientId !== null && props.patientId !== undefined) {
+    console.log('Using direct patientId:', props.patientId)
+    return props.patientId
+  }
+
+  // Priority 2: Extract from fuckuifwork fallback object
+  const fallbackPatientId = props.fuckuifwork?.otherItems?.patientId ||
+                            props.fuckuifwork?.patientId
+
+  if (fallbackPatientId && fallbackPatientId !== null && fallbackPatientId !== undefined) {
+    console.log('Using fallback patientId from fuckuifwork:', fallbackPatientId)
+    return fallbackPatientId
+  }
+
+  console.log('No valid patientId found')
+  return null
+})
+
 // Methods
 const checkAvailability = async () => {
+  if (!isMounted.value) return
+
   console.log('=== checkAvailability called ===')
-  console.log('Props:', {
-    doctorId: props.doctorId,
-    patientId: props.patientId,
-    prestationId: props.prestationId,
-    doctorSpecializationId: props.doctorSpecializationId
+  console.log('Extracted values:', {
+    doctorId: extractedDoctorId.value,
+    patientId: extractedPatientId.value,
+    prestationId: extractedPrestationId.value,
+    doctorSpecializationId: extractedDoctorSpecializationId.value
   })
-  
-  if (!props.doctorId) {
-    console.error('No doctorId provided to SameDayAppointmentModal')
-    toastr.error('Doctor information is missing')
+
+  // Validate required parameters with improved error handling
+  if (!extractedDoctorId.value) {
+    console.error('Doctor ID is required but not found - checking fallback sources')
+    console.log('Direct doctorId:', props.doctorId)
+    console.log('Fallback fuckuifwork:', props.fuckuifwork)
+
+    // Try to trigger a re-computation by accessing the computed properties
+    const doctorFromFallback = extractedDoctorId.value
+
+    if (!doctorFromFallback) {
+      toastr.error('Doctor information is missing. Please select a doctor first.')
+      return
+    }
+  }
+
+  if (!extractedPatientId.value) {
+    console.error('Patient ID is required but not found')
+    toastr.error('Patient information is missing.')
     return
   }
-  
-  if (!props.patientId) {
-    console.error('No patientId provided to SameDayAppointmentModal')
-    toastr.error('Patient information is missing')
-    return
-  }
-  
+
+  // Log which source we're using for each parameter
+  console.log('=== Parameter Sources ===')
+  console.log('Doctor ID source:', props.doctorId ? 'direct prop' : 'fallback (fuckuifwork)')
+  console.log('Prestation ID source:', props.prestationId ? 'direct prop' : 'fallback (fuckuifwork)')
+  console.log('Specialization ID source:', props.doctorSpecializationId ? 'direct prop' : 'fallback (fuckuifwork)')
+
   loading.value = true
   try {
     console.log('Calling appointmentService.checkSameDayAvailability...')
     const result = await appointmentService.checkSameDayAvailability({
-      doctor_id: props.doctorId,
-      prestation_id: props.prestationId,
+      doctor_id: extractedDoctorId.value,
+      prestation_id: extractedPrestationId.value,
       date: new Date().toISOString().split('T')[0] // today's date
     })
-    
+
     console.log('Availability check result:', result)
-    
+
     if (result.success) {
-      availabilityData.value = result.data
+      if (isMounted.value) {
+        availabilityData.value = result.data
+      }
       console.log('Availability data set:', availabilityData.value)
     } else {
       throw new Error(result.message)
@@ -92,51 +203,82 @@ const checkAvailability = async () => {
   } catch (error) {
     console.error('Error checking availability:', error)
     toastr.error(error.message || 'Failed to check availability')
-    
+
     // Set default data so modal doesn't break
-    availabilityData.value = {
-      doctor_allows_same_day: false,
-      today: new Date().toISOString().split('T')[0],
-      next_available_date: null,
-      period: null,
-      available_slots: []
+    if (isMounted.value) {
+      availabilityData.value = {
+        is_available: false,
+        current_date: new Date().toISOString().split('T')[0],
+        next_available_date: null,
+        period: null,
+        available_slots: []
+      }
     }
   } finally {
-    loading.value = false
+    if (isMounted.value) {
+      loading.value = false
+    }
   }
 }
 
 const selectSlot = (slot) => {
-  selectedSlot.value = slot
+  if (!isMounted.value) return
+  
+  // Create a proper slot object from the string
+  const slotTime = typeof slot === 'string' ? slot : slot.time || slot
+  const today = availabilityData.value.current_date || availabilityData.value.today || new Date().toISOString().split('T')[0]
+
+  selectedSlot.value = {
+    time: slotTime,
+    datetime: `${today} ${slotTime}`
+  }
   console.log('Selected slot:', selectedSlot.value)
 }
 
 const bookSameDayAppointment = async () => {
+  if (!isMounted.value) return
+
   if (!selectedSlot.value) {
     toastr.error('Please select a time slot')
     return
   }
-  
+
   console.log('=== Booking same-day appointment ===')
   console.log('Selected slot:', selectedSlot.value)
   console.log('Booking params:', {
-    doctor_id: props.doctorId,
-    patient_id: props.patientId,
-    prestation_id: props.prestationId,
+    doctor_id: extractedDoctorId.value,
+    patient_id: extractedPatientId.value,
+    prestation_id: extractedPrestationId.value,
     appointment_time: selectedSlot.value.datetime
   })
-  
+
+  // Validate that we have all required parameters
+  if (!extractedDoctorId.value) {
+    toastr.error('Doctor information is missing. Cannot book appointment.')
+    return
+  }
+
+  if (!extractedPatientId.value) {
+    toastr.error('Patient information is missing. Cannot book appointment.')
+    return
+  }
+
+  // Log parameter sources for debugging
+  console.log('=== Booking Parameter Sources ===')
+  console.log('Doctor ID:', extractedDoctorId.value, 'from:', props.doctorId ? 'direct prop' : 'fallback')
+  console.log('Prestation ID:', extractedPrestationId.value, 'from:', props.prestationId ? 'direct prop' : 'fallback')
+
   bookingAppointment.value = true
   try {
     const result = await appointmentService.bookSameDayAppointment({
-      doctor_id: props.doctorId,
-      patient_id: props.patientId,
-      prestation_id: props.prestationId,
+      doctor_id: extractedDoctorId.value,
+      patient_id: extractedPatientId.value,
+      prestation_id: extractedPrestationId.value,
       appointment_time: selectedSlot.value.datetime
     })
-    
+
     console.log('Booking result:', result)
-    
+
     if (result.success) {
       toastr.success(result.message || 'Same-day appointment booked successfully!')
       emit('appointment-booked', result.data)
@@ -148,20 +290,25 @@ const bookSameDayAppointment = async () => {
     console.error('Error booking appointment:', error)
     toastr.error(error.message || 'Failed to book appointment')
   } finally {
-    bookingAppointment.value = false
+    if (isMounted.value) {
+      bookingAppointment.value = false
+    }
   }
 }
 
 const showWaitListModal = () => {
+  if (!isMounted.value) return
   console.log('Opening waitlist modal')
   showWaitlistModal.value = true
 }
 
 const closeWaitlistModal = () => {
+  if (!isMounted.value) return
   showWaitlistModal.value = false
 }
 
 const onWaitlistSaved = (waitlistData) => {
+  if (!isMounted.value) return
   console.log('Waitlist saved:', waitlistData)
   toastr.success('Added to waiting list successfully!')
   emit('added-to-waitlist', waitlistData)
@@ -170,15 +317,18 @@ const onWaitlistSaved = (waitlistData) => {
 }
 
 const showAppointmentForm = () => {
+  if (!isMounted.value) return
   console.log('Opening appointment form modal')
   showAppointmentFormModal.value = true
 }
 
 const closeAppointmentForm = () => {
+  if (!isMounted.value) return
   showAppointmentFormModal.value = false
 }
 
 const onAppointmentSaved = (appointmentData) => {
+  if (!isMounted.value) return
   console.log('Appointment saved:', appointmentData)
   toastr.success('Appointment booked successfully!')
   emit('appointment-booked', appointmentData)
@@ -207,6 +357,7 @@ const formatDateTime = (dateTimeString) => {
 
 // Watchers
 watch(() => props.visible, (newVisible) => {
+  if (!isMounted.value) return
   console.log('=== Modal visibility changed ===', newVisible)
   if (newVisible) {
     selectedSlot.value = null
@@ -215,31 +366,70 @@ watch(() => props.visible, (newVisible) => {
     availabilityData.value = {}
     
     // Call checkAvailability immediately if all required props are available
-    if (props.doctorId && props.patientId) {
+    if (extractedDoctorId.value && extractedPatientId.value) {
       console.log('All props available, calling checkAvailability immediately')
       checkAvailability()
     } else {
       console.log('Missing required props, waiting for prop changes')
+      console.log('Current values:', {
+        doctorId: extractedDoctorId.value,
+        patientId: extractedPatientId.value,
+        fuckuifwork: props.fuckuifwork
+      })
     }
   }
 })
 
 // Watch for prop changes
-watch(() => [props.doctorId, props.patientId], ([newDoctorId, newPatientId]) => {
+watch(() => [extractedDoctorId.value, extractedPatientId.value], ([newDoctorId, newPatientId]) => {
+  if (!isMounted.value) return
   console.log('=== Props changed ===', { doctorId: newDoctorId, patientId: newPatientId })
   if (props.visible && newDoctorId && newPatientId) {
     console.log('Modal is visible and props are set, calling checkAvailability')
     checkAvailability()
+  } else if (props.visible) {
+    console.log('Modal is visible but missing required props:', {
+      doctorId: newDoctorId,
+      patientId: newPatientId
+    })
   }
 })
+
+// Watch for changes in fuckuifwork prop
+watch(() => props.fuckuifwork, (newFuckuifwork, oldFuckuifwork) => {
+  if (!isMounted.value) return
+  console.log('=== fuckuifwork prop changed ===')
+  console.log('Old fuckuifwork:', oldFuckuifwork)
+  console.log('New fuckuifwork:', newFuckuifwork)
+  console.log('New extractedDoctorId:', extractedDoctorId.value)
+  
+  if (props.visible && extractedDoctorId.value && extractedPatientId.value) {
+    console.log('fuckuifwork changed and modal is visible with valid props, calling checkAvailability')
+    checkAvailability()
+  } else {
+    console.log('fuckuifwork changed but conditions not met:', {
+      visible: props.visible,
+      doctorId: extractedDoctorId.value,
+      patientId: extractedPatientId.value
+    })
+  }
+}, { deep: true, immediate: false })
 
 onMounted(() => {
   console.log('=== SameDayAppointmentModal mounted ===')
   console.log('Initial props:', props)
-  if (props.visible && props.doctorId && props.patientId) {
+  isMounted.value = true
+  
+  if (props.visible && extractedDoctorId.value && extractedPatientId.value) {
     console.log('Modal is visible on mount, calling checkAvailability')
     checkAvailability()
+  } else {
+    console.log('Modal not visible or missing required props on mount')
   }
+})
+
+onUnmounted(() => {
+  isMounted.value = false
 })
 </script>
 
@@ -252,6 +442,7 @@ onMounted(() => {
     :style="{ width: '700px' }"
     @update:visible="$emit('update:visible', $event)"
   >
+
     <div class="same-day-content">
       <!-- Loading State -->
       <div v-if="loading" class="loading-state">
@@ -265,7 +456,7 @@ onMounted(() => {
       <!-- Main Content -->
       <div v-if="!loading && Object.keys(availabilityData).length > 0">
         <!-- Scenario 1: Doctor allows same-day appointments -->
-        <div v-if="availabilityData.doctor_allows_same_day" class="same-day-allowed">
+        <div v-if="availabilityData.is_available" class="same-day-allowed">
           <div class="scenario-header">
             <i class="pi pi-calendar-plus text-green-500"></i>
             <h4>Same-Day Appointments Available</h4>
@@ -273,14 +464,14 @@ onMounted(() => {
           
           <!-- Available slots today -->
           <div v-if="availabilityData.available_slots && availabilityData.available_slots.length > 0" class="available-slots">
-            <h5>Available Times Today ({{ formatDate(availabilityData.today) }})</h5>
+            <h5>Available Times Today ({{ formatDate(availabilityData.current_date || availabilityData.today) }})</h5>
             <div class="slots-grid">
               <Button
                 v-for="slot in availabilityData.available_slots"
-                :key="slot.time"
-                :label="slot.time"
+                :key="slot"
+                :label="slot"
                 class="text-dark"
-                :class="['slot-button', { 'selected': selectedSlot?.time === slot.time }]"
+                :class="['slot-button', { 'selected': selectedSlot?.time === slot }]"
                 @click="selectSlot(slot)"
                 :disabled="bookingAppointment"
               />
@@ -425,10 +616,10 @@ onMounted(() => {
         <addWaitlistModel
           :show="showWaitlistModal"
           :editMode="false"
-          :specializationId="doctorSpecializationId"
+          :specializationId="extractedDoctorSpecializationId"
           :isDaily="1"
-          :doctorId="doctorId"
-          :patientId="patientId"
+          :doctorId="extractedDoctorId"
+          :patientId="extractedPatientId"
           @close="closeWaitlistModal"
           @save="onWaitlistSaved"
         />
@@ -442,9 +633,9 @@ onMounted(() => {
       <div style="pointer-events: auto;">
         <appointmentForm
           :show="showAppointmentFormModal"
-          :patientId="patientId"
-          :doctorId="doctorId"
-          :prestationId="prestationId"
+          :patientId="extractedPatientId"
+          :doctorId="extractedDoctorId"
+          :prestationId="extractedPrestationId"
           :NextAppointment="true"
           @close="closeAppointmentForm"
           @appointment-saved="onAppointmentSaved"

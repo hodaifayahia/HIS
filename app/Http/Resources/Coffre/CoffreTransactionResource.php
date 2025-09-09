@@ -14,6 +14,7 @@ class CoffreTransactionResource extends JsonResource
             'id' => $this->id,
             'coffre_id' => $this->coffre_id,
             'user_id' => $this->user_id,
+            'status' => $this->status,
             'transaction_type' => $this->transaction_type,
             'transaction_type_display' => $this->transaction_type_display,
             'amount' => (float) $this->amount,
@@ -59,6 +60,16 @@ class CoffreTransactionResource extends JsonResource
                 return [
                     'id' => $this->destinationBanque->id,
                     'name' => $this->destinationBanque->name,
+                ];
+            }),
+            'approval_request' => $this->whenLoaded('approvalRequest', function () {
+                return [
+                    'id' => $this->approvalRequest->id,
+                    'status' => $this->approvalRequest->status,
+                    'requested_by' => $this->approvalRequest->requested_by,
+                    'candidate_user_ids' => $this->approvalRequest->candidate_user_ids,
+                    'approved_by' => $this->approvalRequest->approved_by,
+                    'created_at' => $this->approvalRequest->created_at?->toISOString(),
                 ];
             }),
             

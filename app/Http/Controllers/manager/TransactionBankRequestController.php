@@ -38,7 +38,8 @@ class TransactionBankRequestController extends Controller
      * This method:
      * 1. Creates a FinancialTransaction with status 'pending'
      * 2. Creates TransactionBankRequest linked to that transaction
-     * 3. Does NOT update item amounts (happens only after approval)
+     * 3. Handles file upload and storage
+     * 4. Does NOT update item amounts (happens only after approval)
      */
     public function store(Request $request)
     {
@@ -50,7 +51,8 @@ class TransactionBankRequestController extends Controller
             'patient_id' => 'nullable|exists:patients,id',
             'payment_method' => 'required|in:card,cheque',
             'approved_by' => 'nullable|exists:users,id',
-            'notes' => 'nullable|string|max:1000'
+            'notes' => 'nullable|string|max:1000',
+            'attachment' => 'nullable|file|mimes:pdf,jpeg,jpg,png|max:5120' // Max 5MB
         ]);
 
         try {
@@ -69,6 +71,28 @@ class TransactionBankRequestController extends Controller
                 'status' => 'pending' // Important: pending status, no item amount updates
             ]);
 
+            // Handle file upload if present
+            $attachmentPath = null;
+            $attachmentData = null;
+
+            if ($request->hasFile('attachment')) {
+                $file = $request->file('attachment');
+                $originalName = $file->getClientOriginalName();
+                $mimeType = $file->getMimeType();
+                $size = $file->getSize();
+
+                // Store file in public disk under approvals folder
+                $path = $file->store('approvals', 'public');
+
+                $attachmentData = [
+                    'original_name' => $originalName,
+                    'mime_type' => $mimeType,
+                    'size' => $size,
+                    'path' => $path,
+                    'url' => asset('storage/' . $path)
+                ];
+            }
+
             // Create approval request linked to the transaction
             $approvalRequest = TransactionBankRequest::create([
                 'transaction_id' => $transaction->id,
@@ -78,12 +102,22 @@ class TransactionBankRequestController extends Controller
                 'payment_method' => $request->payment_method,
                 'notes' => $request->notes,
                 'status' => 'pending',
-                'requested_at' => now()
+                'requested_at' => now(),
+                'attachment_path' => $attachmentData['path'] ?? null,
+                'attachment_original_name' => $attachmentData['original_name'] ?? null,
+                'attachment_mime_type' => $attachmentData['mime_type'] ?? null,
+                'attachment_size' => $attachmentData['size'] ?? null
             ]);
 
             DB::commit();
 
-            return (new TransactionBankRequestResource($approvalRequest->load(['requester', 'approver', 'transaction'])))
+            // Prepare response data with attachment info
+            $responseData = $approvalRequest->load(['requester', 'approver', 'transaction']);
+            if ($attachmentData) {
+                $responseData->attachment = $attachmentData;
+            }
+
+            return (new TransactionBankRequestResource($responseData))
                 ->additional(['success' => true, 'message' => 'Demande d\'approbation envoyée avec succès']);
 
         } catch (\Exception $e) {
@@ -102,7 +136,8 @@ class TransactionBankRequestController extends Controller
     {
         $request->validate([
             'status' => 'required|in:approved,rejected',
-            'notes' => 'nullable|string|max:1000'
+            'notes' => 'nullable|string|max:1000',
+            'approval_file' => 'nullable|file|mimes:pdf,jpeg,jpg,png|max:5120'
         ]);
 
         // Check if user is authorized to approve this request
@@ -131,7 +166,8 @@ class TransactionBankRequestController extends Controller
                 'status' => $request->status,
                 'is_approved' => $isApproved,
                 'approved_at' => now(),
-                'notes' => $request->notes ?? $transactionBankRequest->notes
+                'notes' => $request->notes ?? $transactionBankRequest->notes,
+                'approval_document' => $request->hasFile('approval_file') ? $request->file('approval_file')->store('approvals', 'public') : $transactionBankRequest->approval_document
             ]);
             // If approved, process the payment
             if ($isApproved) {
@@ -209,17 +245,75 @@ class TransactionBankRequestController extends Controller
     }
 
     /**
-     * Get pending requests for the authenticated user to approve.
+     * Update the attachment for a transaction bank request.
      */
-    public function getPendingApprovals()
+    public function updateAttachment(Request $request, TransactionBankRequest $transactionBankRequest)
     {
-        $requests = TransactionBankRequest::with(['requester', 'transaction.ficheNavetteItem.prestation'])
-            ->where('approved_by', Auth::id())
-            ->where('status', 'pending')
-            ->orderBy('requested_at', 'desc')
-            ->get();
+        $request->validate([
+            'attachment' => 'required|file|mimes:pdf,jpeg,jpg,png|max:5120' // Max 5MB
+        ]);
 
-        // return resource collection so frontend receives consistent shape (data + meta when paginated)
-        return TransactionBankRequestResource::collection($requests);
+        // Check if user is authorized to update this request
+        if ($transactionBankRequest->approved_by !== Auth::id()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous n\'êtes pas autorisé à modifier cette demande'
+            ], 403);
+        }
+
+        if ($transactionBankRequest->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cette demande ne peut plus être modifiée'
+            ], 400);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $file = $request->file('attachment');
+            $originalName = $file->getClientOriginalName();
+            $mimeType = $file->getMimeType();
+            $size = $file->getSize();
+
+            // Store new file
+            $path = $file->store('approvals', 'public');
+
+            // Delete old file if exists
+            if ($transactionBankRequest->attachment_path && \Storage::disk('public')->exists($transactionBankRequest->attachment_path)) {
+                \Storage::disk('public')->delete($transactionBankRequest->attachment_path);
+            }
+
+            // Update request with new attachment
+            $transactionBankRequest->update([
+                'attachment_path' => $path,
+                'attachment_original_name' => $originalName,
+                'attachment_mime_type' => $mimeType,
+                'attachment_size' => $size
+            ]);
+
+            DB::commit();
+
+            $attachmentData = [
+                'original_name' => $originalName,
+                'mime_type' => $mimeType,
+                'size' => $size,
+                'path' => $path,
+                'url' => asset('storage/' . $path)
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Attachment updated successfully',
+                'attachment' => $attachmentData
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur lors de la mise à jour du fichier: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

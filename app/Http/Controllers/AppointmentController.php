@@ -15,7 +15,7 @@ use App\Models\Patient;
 use App\Models\Schedule;
 use App\Models\WaitList;
 use App\Models\Appointment\AppointmentPrestation;
-use App\Models\Prestation;
+use App\Models\CONFIGURATION\Prestation;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -294,7 +294,66 @@ class AppointmentController extends Controller
             ], 500);
         }
     }
-
+public function bookSameDayAppointment(Request $request)
+{
+    try {
+        $validated = $request->validate([
+            'doctor_id' => 'required|exists:doctors,id',
+            'patient_id' => 'required|exists:patients,id',
+            'appointment_time' => 'required',
+            'prestation_id' => 'nullable|exists:prestations,id'
+        ]);
+        
+        $doctor = Doctor::find($validated['doctor_id']);
+        
+        if (!$doctor || !$doctor->allowed_appointment_today) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Doctor does not allow same-day appointments'
+            ], 400);
+        }
+        
+        $appointmentDateTime = Carbon::parse($validated['appointment_time']);
+        $appointmentDate = $appointmentDateTime->format('Y-m-d');
+        $appointmentTime = $appointmentDateTime->format('H:i');
+        
+        // Check if slot is still available using existing model method
+        if (!Appointment::isSlotAvailable(
+            $validated['doctor_id'],
+            $appointmentDate,
+            $appointmentTime,
+            $this->excludedStatuses
+        )) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected time slot is no longer available'
+            ], 400);
+        }
+        
+        // Create appointment
+        $appointment = Appointment::create([
+            'patient_id' => $validated['patient_id'],
+            'doctor_id' => $validated['doctor_id'],
+            'appointment_date' => $appointmentDate,
+            'appointment_time' => $appointmentTime,
+            'status' => 0, // Scheduled
+            'notes' => 'Same-day appointment',
+            'created_by' => Auth::id(),
+        ]);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Same-day appointment booked successfully',
+            'appointment' => new AppointmentResource($appointment)
+        ]);
+        
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error booking appointment: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
     public function consulationappointment(Request $request, $doctorId)
     {
@@ -1373,6 +1432,7 @@ class AppointmentController extends Controller
 
     public function checkAvailability(Request $request)
     {
+        
         try {
             $validated = $request->validate([
                 'doctor_id' => 'required|exists:doctors,id',
@@ -1603,41 +1663,84 @@ class AppointmentController extends Controller
             'created_by' => Auth::id(),
         ]);
 
-        // Persist selected prestation(s) if provided
+        // Handle prestation storage with improved validation and error handling
         try {
             $selectedPrestations = [];
+
+            // Collect prestation IDs from both single and array inputs
             if (!empty($validated['prestation_id'])) {
                 $selectedPrestations[] = (int)$validated['prestation_id'];
             }
-            if (!empty($validated['prestations']) && is_array($validated['prestations'])) {
-                $selectedPrestations = array_merge($selectedPrestations, $validated['prestations']);
-            }
-            $selectedPrestations = array_values(array_unique(array_filter($selectedPrestations)));
 
-            foreach ($selectedPrestations as $pid) {
-                AppointmentPrestation::create([
+            if (!empty($validated['prestations']) && is_array($validated['prestations'])) {
+                // Filter out null/empty values and ensure integers
+                $arrayPrestations = array_filter($validated['prestations'], function($prestationId) {
+                    return !is_null($prestationId) && is_numeric($prestationId);
+                });
+                $selectedPrestations = array_merge($selectedPrestations, array_map('intval', $arrayPrestations));
+            }
+
+            // Remove duplicates and filter out invalid IDs
+            $selectedPrestations = array_values(array_unique(array_filter($selectedPrestations, function($id) {
+                return $id > 0;
+            })));
+
+            // Store prestations if any are selected
+            if (!empty($selectedPrestations)) {
+                $prestationRecords = [];
+                foreach ($selectedPrestations as $prestationId) {
+                    $prestationRecords[] = [
+                        'appointment_id' => $appointment->id,
+                        'prestation_id' => $prestationId,
+                        'description' => '',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ];
+                }
+
+                // Use batch insert for better performance
+                AppointmentPrestation::insert($prestationRecords);
+
+                Log::info('Prestations stored successfully', [
                     'appointment_id' => $appointment->id,
-                    'prestation_id' => $pid,
-                    'description' => null
+                    'prestation_ids' => $selectedPrestations
                 ]);
+            } else {
+                Log::info('No prestations selected for appointment', ['appointment_id' => $appointment->id]);
             }
         } catch (\Throwable $e) {
-            Log::error('Failed to save appointment prestations (store)', ['error' => $e->getMessage(), 'appointment_id' => $appointment->id, 'payload' => $validated]);
+            Log::error('Failed to save appointment prestations (store)', [
+                'error' => $e->getMessage(),
+                'appointment_id' => $appointment->id,
+                'payload' => $validated,
+                'selected_prestations' => $selectedPrestations ?? []
+            ]);
+
+            // Consider whether to rollback the appointment creation
+            // For now, we'll keep the appointment but log the error
+            // You might want to delete the appointment if prestation storage is critical
         }
 
         // If adding to the waitlist, create a record
         if ($validated['addToWaitlist'] ?? false) {
-            $doctor = Doctor::find($validated['doctor_id']);
-            WaitList::create([
-                'doctor_id' => $validated['doctor_id'],
-                'patient_id' => $validated['patient_id'],
-                'is_Daily' => false,
-                'specialization_id' => $doctor->specialization_id ?? null,
-                'importance' => null,
-                'appointmentId' => $appointment->id ?? null,
-                'notes' => $validated['description'] ?? null,
-                'created_by' => Auth::id(),
-            ]);
+            try {
+                $doctor = Doctor::find($validated['doctor_id']);
+                WaitList::create([
+                    'doctor_id' => $validated['doctor_id'],
+                    'patient_id' => $validated['patient_id'],
+                    'is_Daily' => false,
+                    'specialization_id' => $doctor->specialization_id ?? null,
+                    'importance' => null,
+                    'appointmentId' => $appointment->id ?? null,
+                    'notes' => $validated['description'] ?? null,
+                    'created_by' => Auth::id(),
+                ]);
+            } catch (\Throwable $e) {
+                Log::error('Failed to create waitlist entry', [
+                    'error' => $e->getMessage(),
+                    'appointment_id' => $appointment->id
+                ]);
+            }
         }
 
         return new AppointmentResource($appointment);

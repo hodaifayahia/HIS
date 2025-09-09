@@ -74,7 +74,8 @@ class FinancialTransaction extends Model
 
     public function b2bInvoice()
     {
-        return $this->belongsTo(\App\Models\B2B\Invoice::class, 'b2b_invoice_id');
+        // B2B\Invoice model doesn't exist, return a dummy relationship
+        return $this->belongsTo(self::class, 'id')->whereRaw('1 = 0');
     }
 
     // Scopes
@@ -157,7 +158,7 @@ class FinancialTransaction extends Model
     // Accessors
     public function getFormattedAmountAttribute(): string
     {
-        return number_format($this->amount, 2);
+        return number_format((float) $this->amount, 2);
     }
 
     public function getTransactionTypeTextAttribute(): string

@@ -39,7 +39,10 @@ protected $casts = [
     {
         return $this->belongsTo(Doctor::class);
     }
+//create relationship between appointmenprestaiton and apponitment
+ public function appointmentprestation(){
     
+ }
 // In Appointment model
 public function patient()
 {

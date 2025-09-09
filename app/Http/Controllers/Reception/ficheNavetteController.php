@@ -7,6 +7,7 @@ use App\Http\Requests\Reception\ReceptionRequest;
 use App\Http\Requests\Reception\ficheNavetteItemRequest;
 use App\Http\Resources\Reception\ficheNavetteResource;
 use App\Http\Resources\Reception\ficheNavetteItemResource;
+use App\Models\Appointment\AppointmentPrestation;
 use App\Models\Reception\ficheNavette;
 use App\Models\Reception\ficheNavetteItem;
 use App\Models\Reception\ItemDependency;
@@ -69,38 +70,51 @@ class ficheNavetteController extends Controller
     return ficheNavetteResource::collection($ficheNavettes);
 }
 
-     public function store(Request $request)
-    {
-        $validatedData = $request->validate([
-            'patient_id' => 'required',
-            'notes' => 'nullable|string'
+    public function store(Request $request)
+{
+    $validatedData = $request->validate([
+        'patient_id' => 'required',
+        'notes' => 'nullable|string'
+    ]);
+
+    try {
+        // Simple fiche creation - no items initially
+        $ficheNavette = ficheNavette::create([
+            'patient_id' => $validatedData['patient_id'],
+            'creator_id' => Auth::id(),
+            'status' => 'pending',
+            'fiche_date' => now(),
+            'total_amount' => 0
         ]);
+        
+        $prestations = AppointmentPrestation::with('appointment')
+            ->where('patient_id', $validatedData['patient_id'])
+            ->whereDate('appointment_date', Carbon::now()->startOfDay())
+            ->get();
+            
+        DB::transaction(function () use ($ficheNavette, $prestations) {
+            $ficheNavette->items()->createMany($prestations->map(function ($item) {
+                return [
+                    'prestation_id' => $item->id,
+                    'quantity' => $item->quantity,
+                    'price' => $item->price,
+                ];
+            })->toArray());
+        });
 
-        try {
-            // Simple fiche creation - no items initially
-            $ficheNavette = ficheNavette::create([
-                'patient_id' => $validatedData['patient_id'],
-                'creator_id' => Auth::id(),
-                'status' => 'pending',
-                'fiche_date' => now(),
-                'total_amount' => 0,
-                'creator_id' => auth()->id()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Fiche Navette created successfully',
-                'data' => new ficheNavetteResource($ficheNavette->load(['patient', 'creator']))
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create Fiche Navette',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Fiche Navette created successfully',
+            'data' => new ficheNavetteResource($ficheNavette->load(['patient', 'creator']))
+        ], 201);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create Fiche Navette',
+            'error' => $e->getMessage()
+        ], 500);
     }
-
+}
     public function show($id)
     {
         $ficheNavette = FicheNavette::with(['creator', 'patient', 'items.prestation'])->findOrFail($id);

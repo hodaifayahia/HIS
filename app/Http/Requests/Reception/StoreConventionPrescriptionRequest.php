@@ -20,12 +20,12 @@ class StoreConventionPrescriptionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'conventions' => 'required|string',
+            'conventions' => 'required',
             'prise_en_charge_date' => 'required|date',
             'familyAuth' => 'required|string',
             'adherentPatient_id' => 'nullable|exists:patients,id',
             'uploadedFiles' => 'sometimes|array',
-            'uploadedFiles.*' => 'file|mimes:pdf,doc,docx|max:10240',
+            'uploadedFiles.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png,gif,bmp,tiff,webp,svg|max:10240',
         ];
     }
 
@@ -40,7 +40,7 @@ class StoreConventionPrescriptionRequest extends FormRequest
             'prise_en_charge_date.date' => 'The prise en charge date must be a valid date.',
             'familyAuth.required' => 'The family authorization is required.',
             'adherentPatient_id.exists' => 'The selected adherent patient is invalid.',
-            'uploadedFiles.*.mimes' => 'Uploaded files must be PDF, DOC, or DOCX files.',
+            'uploadedFiles.*.mimes' => 'Uploaded files must be PDF, DOC, DOCX, JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP, or SVG files.',
             'uploadedFiles.*.max' => 'Uploaded files must not exceed 10MB.',
         ];
     }

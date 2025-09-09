@@ -20,6 +20,7 @@ const initializationComplete = ref(false);
 const route = useRoute();
 const router = useRouter();
 const doctorId = ref(parseInt(route.params.id)); // Convert to number
+
 const specializationId = ref(route.params.specializationId ? parseInt(route.params.specializationId) : null);
 
 // Pinia Store Instances
@@ -225,6 +226,7 @@ watch(
       initializationComplete.value = false; // Reset initialization flag
       resetStore(); // Clear existing data
       initializeComponent();
+
     }
   }
 );
@@ -237,6 +239,7 @@ watch(
     </div>
 
     <div class="content">
+
       <div class="container-fluid">
         <div class="row">
           <div class="col-lg-12">

@@ -64,14 +64,31 @@ class CaisseTransferService
         return DB::transaction(function () use ($data) {
 
             $data['from_user_id'] = auth()->id();
+            // Mark previous transfers (from same user and caisse) as done
+            if (!empty($data['id'])) {
+                CaisseTransfer::where('id',$data['id'])
+                    ->where('status', '<>', 'done')
+                    ->update(['status' => 'done']);
+            }
+
+            // Create new transfer
             $transfer = CaisseTransfer::create($data);
 
-            $tranfre = CaisseTransfer::where('id', $data['id'])->first();
-            $tranfre->status = 'done';
-            $tranfre->save();
-            // Generate transfer token
-            $transfer->generateToken();
-            
+            // Generate token for pending transfers
+            try {
+                if ($transfer->status === 'pending') {
+                    $transfer->generateToken();
+                }
+            } catch (\Exception $ex) {
+                // log and continue
+                \Log::error('Failed to generate transfer token', ['error' => $ex->getMessage(), 'transfer_id' => $transfer->id ?? null]);
+            }
+
+            // Dispatch event after commit so observers can update sessions
+            DB::afterCommit(function () use ($transfer) {
+                event(new \App\Events\CaisseTransferCreated($transfer));
+            });
+
             return $transfer->load(['caisse', 'fromUser', 'toUser']);
         });
     }

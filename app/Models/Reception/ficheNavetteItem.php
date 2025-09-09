@@ -37,7 +37,6 @@ class ficheNavetteItem extends Model
 
     protected $casts = [
         'family_authorization' => 'array',
-        'uploaded_file' => 'array',
         'prise_en_charge_date' => 'date',
     ];
 

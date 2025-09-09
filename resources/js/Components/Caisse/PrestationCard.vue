@@ -13,6 +13,34 @@
       </ul>
     </div>
 
+    <!-- Rule 2: Top-level refund for non-pending/confirmed status with authorization -->
+    <div v-if="shouldShowTopLevelRefund" class="tw-mb-4 tw-border tw-border-orange-300 tw-bg-orange-50 tw-p-3 tw-rounded-md">
+      <div class="tw-flex tw-justify-between tw-items-center">
+        <div class="tw-flex-1">
+          <div class="tw-font-medium tw-text-orange-800">Authorized Refund Available</div>
+          <div class="tw-text-sm tw-text-orange-600">
+            Amount: {{ formatCurrency(authorizedRefundAmount) }}
+          </div>
+          <div class="tw-text-xs tw-text-orange-500 tw-mt-1">
+            {{ authorizedRefund?.notes || 'No additional notes' }}
+          </div>
+        </div>
+        <div class="tw-flex tw-items-center tw-gap-2">
+          <Button
+            icon="pi pi-undo"
+            label="Process Refund"
+            @click="$emit('open-refund', { 
+              transaction: authorizedRefund?.transaction, 
+              fixedAmount: authorizedRefundAmount,
+              isAuthorized: true,
+              authorizationId: authorizedRefund?.id
+            })"
+            class="p-button-sm p-button-warning"
+          />
+        </div>
+      </div>
+    </div>
+
     <div class="tw-flex tw-justify-between tw-items-start tw-mb-4">
       <div class="tw-flex-1">
         <div class="tw-font-semibold tw-text-lg">{{ displayName }}</div>
@@ -33,7 +61,6 @@
             {{ paymentStatus.text }}
           </div>
         </div>
-        
         <div v-if="minVersementAmount > 0" class="tw-mt-2 tw-text-xs tw-text-gray-600">
           <div class="tw-flex tw-items-center tw-gap-2">
             <span>Minimum payment:</span>
@@ -54,45 +81,47 @@
         </div>
       </div>
       <div class="tw-text-right">
-        <div class="tw-font-bold tw-text-xl tw-text-gray-900">{{ formatCurrency(finalPrice) }}</div>
-        <div class="tw-text-sm tw-text-gray-500">Paid: {{ formatCurrency(paidAmount) }}</div>
-        <div class="tw-text-sm" :class="remaining <= 0 ? 'tw-text-green-600' : 'tw-text-red-600'">
-          Remaining: {{ formatCurrency(remaining) }}
+        <div class="tw-text-sm tw-text-gray-600">Price: {{ formatCurrency(finalPrice) }}</div>
+        <div class="tw-text-sm tw-font-semibold" :class="remaining <= 0 ? 'tw-text-green-600' : 'tw-text-red-600'">
+          {{ remaining <= 0 ? 'Paid' : `Remaining: ${formatCurrency(remaining)}` }}
+        </div>
+        <div v-if="paidAmount > 0" class="tw-text-xs tw-text-gray-500">
+          Paid: {{ formatCurrency(paidAmount) }}
         </div>
       </div>
     </div>
 
     <div v-if="remaining > 0" class="tw-flex tw-items-center tw-gap-3 tw-mt-2">
       <div class="tw-flex-1 tw-min-w-[120px]">
-        <label :for="`item-amount-${item.id}`" class="tw-block tw-text-xs tw-font-medium tw-text-gray-600 tw-mb-1">
-          Amount
-        </label>
         <InputNumber
-          :id="`item-amount-${item.id}`"
-          :modelValue="payAmount"
-          @update:modelValue="$emit('update:pay-amount', $event)"
+          :id="`item-pay-${item.id}`"
+          :model-value="payAmount"
+          @update:model-value="$emit('update:pay-amount', $event)"
+          mode="currency"
+          currency="MAD"
+          locale="en-US"
+          :min="0"
           :max="remaining"
+          :step="10"
+          placeholder="Amount"
+          :class="{'p-invalid': !canPay && payAmount}"
           class="tw-w-full"
-          mode="decimal"
-          :minFractionDigits="2"
-          :maxFractionDigits="2"
-          :placeholder="suggestedAmount ? formatCurrency(suggestedAmount) : '0.00'"
         />
         <div v-if="paymentHelperText" class="tw-text-xs tw-text-blue-600 tw-mt-1">
           {{ paymentHelperText }}
         </div>
         <div v-if="suggestedAmount && !payAmount" class="tw-mt-1">
-          <Button
-            :label="`Pay minimum (${formatCurrency(suggestedAmount)})`"
+          <button 
             @click="$emit('update:pay-amount', suggestedAmount)"
-            class="p-button-sm p-button-outlined p-button-info"
-            size="small"
-          />
+            class="tw-text-xs tw-text-blue-600 hover:tw-text-blue-800 tw-underline"
+          >
+            Pay {{ formatCurrency(suggestedAmount) }}
+          </button>
         </div>
       </div>
       <div class="tw-min-w-[120px]">
         <label :for="`item-method-${item.id}`" class="tw-block tw-text-xs tw-font-medium tw-text-gray-600 tw-mb-1">
-          Method
+          Payment Method
         </label>
         <select
           :id="`item-method-${item.id}`"
@@ -102,13 +131,14 @@
         >
           <option value="cash">Cash</option>
           <option value="card">Card</option>
-          <option value="cheque">Check</option>
+          <option value="cheque">Cheque</option>
+          <option value="transfer">Transfer</option>
         </select>
       </div>
       <Button
         label="Pay"
         icon="pi pi-check"
-        @click="$emit('pay-item')"
+        @click="handlePayment"
         :disabled="!canPay"
         class="p-button-primary tw-mt-auto"
       />
@@ -118,9 +148,9 @@
       <div class="tw-font-medium tw-mb-2 tw-text-gray-600 tw-flex tw-justify-between tw-items-center">
         <span>Transactions</span>
         <Button
-          :icon="`pi ${transactionsVisible ? 'pi-chevron-up' : 'pi-chevron-down'}`"
-          class="p-button-text p-button-sm"
+          :icon="transactionsVisible ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
           @click="$emit('toggle-transactions')"
+          class="p-button-text p-button-sm"
         />
       </div>
       <ul v-if="transactionsVisible" class="tw-list-none tw-p-0 tw-text-sm tw-space-y-2">
@@ -128,70 +158,33 @@
           v-for="tx in sortedTransactions" 
           :key="tx.id" 
           class="tw-bg-gray-100 tw-rounded-md tw-p-3 tw-flex tw-justify-between tw-items-center"
+          :class="{
+            'tw-bg-green-100': tx.transaction_type === 'payment',
+            'tw-bg-red-100': tx.transaction_type === 'refund'
+          }"
         >
           <div class="tw-flex-1">
-            <div class="tw-font-semibold tw-text-gray-900">{{ formatCurrency(tx.amount ?? tx.total ?? 0) }}</div>
-            <div class="tw-text-xs tw-text-gray-500">
-              ID: {{ tx.id }} · {{ tx.payment_method ?? tx.method ?? '—' }} ·
-              <span :class="getTransactionTypeClass(tx.transaction_type)">
+            <div class="tw-flex tw-items-center tw-gap-2">
+              <span 
+                :class="getTransactionTypeClass(tx.transaction_type)"
+                class="tw-px-2 tw-py-1 tw-rounded tw-text-xs tw-font-medium"
+              >
                 {{ getTransactionTypeText(tx.transaction_type) }}
               </span>
+              <span class="tw-font-medium">{{ formatCurrency(tx.amount) }}</span>
+              <span class="tw-text-gray-500 tw-text-xs">{{ tx.payment_method }}</span>
+            </div>
+            <div class="tw-text-xs tw-text-gray-500 tw-mt-1">
+              {{ new Date(tx.created_at).toLocaleString() }}
+            </div>
+            <div v-if="tx.notes" class="tw-text-xs tw-text-gray-600 tw-mt-1">
+              {{ tx.notes }}
             </div>
           </div>
           <div class="tw-flex tw-items-center tw-gap-2">
-            <div class="tw-text-xs tw-text-right tw-text-gray-600 tw-mr-2">
-              {{ new Date(tx.created_at).toLocaleString() }}
-            </div>
-            
-            <!-- Edit button -->
-            <Button
-              v-if="tx.transaction_type === 'payment' && canUpdate(tx)"
-              icon="pi pi-pencil"
-              @click="$emit('open-update', tx)"
-              class="p-button-info p-button-sm p-button-rounded p-button-text"
-              v-tooltip.top="'Edit payment'"
-            />
-
-            <!-- Refund status and button -->
             <div class="tw-flex tw-items-center tw-gap-2" v-if="tx.transaction_type === 'payment'">
-              <!-- Authorization status tags -->
               <div v-if="tx.refund_authorization || refundAuthMap?.[item.id]">
-                <!-- Show transaction-specific authorization status -->
-                <template v-if="tx.refund_authorization">
-                  <Tag 
-                    v-if="tx.refund_authorization.status === 'pending'"
-                    severity="warning" 
-                    :value="`Refund Pending (${formatCurrency(tx.refund_authorization.requested_amount)})`"
-                  />
-                  <Tag 
-                    v-else-if="tx.refund_authorization.status === 'rejected'"
-                    severity="danger" 
-                    value="Refund Rejected"
-                  />
-                </template>
-                <!-- Show global authorization status if no transaction-specific one exists -->
-                <template v-else-if="refundAuthMap?.[item.id]">
-                  <Tag 
-                    v-if="Array.isArray(refundAuthMap[item.id]) && refundAuthMap[item.id][0]?.status === 'pending'"
-                    severity="warning" 
-                    :value="`Refund Pending (${formatCurrency(refundAuthMap[item.id][0]?.requested_amount)})`"
-                  />
-                  <Tag 
-                    v-else-if="Array.isArray(refundAuthMap[item.id]) && refundAuthMap[item.id][0]?.status === 'rejected'"
-                    severity="danger" 
-                    value="Refund Rejected"
-                  />
-                  <Tag 
-                    v-else-if="Array.isArray(refundAuthMap[item.id]) && refundAuthMap[item.id][0]?.status === 'approved'"
-                    severity="success" 
-                    :value="`Refund Approved (${formatCurrency(refundAuthMap[item.id][0]?.requested_amount)})`"
-                  />
-                  <Tag 
-                    v-else-if="Array.isArray(refundAuthMap[item.id]) && refundAuthMap[item.id][0]?.status === 'used'"
-                    severity="info" 
-                    value="Refund Completed"
-                  />
-                </template>
+                <small class="tw-text-orange-600">Auth pending</small>
               </div>
 
               <!-- Check for existing refund -->
@@ -209,17 +202,28 @@
                 )}`"
               />
 
-              <!-- Refund button -->
+              <!-- Rule 1 & 2: Refund button with new logic -->
+            
               <Button
-                v-if="canShowRefundButton(tx, item)"
+                v-if="canRefund && shouldShowRefundButton(tx, item)"
                 icon="pi pi-undo"
                 @click="$emit('open-refund', { 
                   transaction: tx, 
-                  fixedAmount: tx.refund_authorization?.requested_amount ?? null,
-                  isAuthorized: false
+                  fixedAmount: getRefundFixedAmount(tx, item),
+                  isAuthorized: isRefundAuthorized(tx, item),
+                  allowFlexibleAmount: canUseFlexibleRefund(tx, item)
                 })"
                 class="p-button-sm p-button-rounded p-button-warning"
                 v-tooltip.top="getRefundButtonTooltip(tx, item)"
+              />
+            </div>
+
+            <div v-if="tx.transaction_type === 'payment' " class="tw-flex tw-items-center tw-gap-2">
+              <Button
+                icon="pi pi-pencil"
+                @click="$emit('open-update', tx)"
+                class="p-button-sm p-button-rounded p-button-secondary"
+                v-tooltip.top="'Update transaction'"
               />
             </div>
           </div>
@@ -277,6 +281,10 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
+  canRefund: {
+    type: Function,
+    required: true
+  },
   finalPrice: {
     type: Number,
     required: true
@@ -305,9 +313,33 @@ const props = defineProps({
     type: String,
     default: null
   },
+  serviceName: {
+    type: String,
+    default: ''
+  },
   refundAuthMap: {
     type: Object,
     default: () => ({})
+  },
+  canShowRefundButton: {
+    type: Function,
+    required: true
+  },
+  canRefund: {
+    type: Boolean,
+    required: true
+  },
+  canUpdate: {
+    type: Function,
+    required: true
+  },
+  ficheStatus: {
+    type: String,
+    default: ''
+  },
+  authorizedRefunds: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -317,11 +349,31 @@ const emit = defineEmits([
   'pay-item',
   'toggle-transactions',
   'open-update',
-  'open-refund'
+  'open-refund',
+  'show-overpayment'
 ])
 
 const { formatCurrency } = useCurrencyFormatter()
 const { getTransactionTypeText, getTransactionTypeClass } = useTransactionHelpers()
+
+// Handle payment with overpayment check
+const handlePayment = () => {
+  const amount = Number(props.payAmount)
+  const remaining = props.remaining
+  
+  if (amount > remaining && remaining > 0) {
+    // Show overpayment modal
+    emit('show-overpayment', {
+      required: remaining,
+      paid: amount,
+      excess: amount - remaining,
+      item: props.item
+    })
+  } else {
+    // Normal payment
+    emit('pay-item')
+  }
+}
 
 const displayName = computed(() => {
   return props.item.display_name ?? 
@@ -331,9 +383,10 @@ const displayName = computed(() => {
 })
 
 const serviceName = computed(() => {
-  return props.item.prestation?.service?.name ?? 
-         props.item.service_name ?? 
-         ''
+  return props.serviceName || 
+         (props.item.prestation?.service?.name ?? 
+          props.item.service_name ?? 
+          '')
 })
 
 const cardClass = computed(() => {
@@ -388,10 +441,6 @@ const getRefundButtonTooltip = (tx, item) => {
   return 'Refund not available';
 }
 
-const canUpdate = (tx) => {
-  return tx.transaction_type === 'payment'
-}
-
 // Memoize the latest payment ID for each item
 const itemLatestPaymentMap = new Map();
 
@@ -408,27 +457,112 @@ const getLatestPaymentId = (item) => {
   return itemLatestPaymentMap.get(item.id);
 };
 
-const canShowRefundButton = (tx, item) => {
-  // Basic validation
-  if (!tx?.id || !item) return false;
-  if (tx.transaction_type !== 'payment') return false;
+// Check if a refund already exists for this specific transaction
+const hasExistingRefund = (transaction, item) => {
+  if (!transaction || !item || !Array.isArray(item.transactions)) return false;
 
-  // Quick check for refund authorization status
-  const authStatus = tx.refund_authorization?.status?.toLowerCase();
-  if (authStatus !== 'pending') return false;
+  return item.transactions.some(t => {
+    return t.transaction_type === 'refund' && 
+           (t.original_transaction_id === transaction.id || 
+            t.refunded_transaction_id === transaction.id);
+  });
+}
 
-  // Check if this is the latest payment
-  const latestPaymentId = getLatestPaymentId(item);
-  if (tx.id !== latestPaymentId) return false;
+// Computed property for suggested payment amount (minimum payment or remaining amount)
+const suggestedAmount = computed(() => {
+  if (props.minVersementAmount > 0 && !props.isMinVersementPaid) {
+    const remainingForVisa = Math.max(0, props.minVersementAmount - props.paidAmount)
+    return Math.min(remainingForVisa, props.remaining)
+  }
+  return Math.min(1000, props.remaining) // Suggest reasonable amount up to 1000
+})
 
-  // Check for existing refund using direct property access
-  const hasRefund = item.transactions?.some(t => 
-    t.transaction_type === 'refund' && (
-      t.original_transaction_id === tx.id || 
-      t.refunded_transaction_id === tx.id
-    )
-  );
+// Helper text for payment guidance
+const paymentHelperText = computed(() => {
+  if (props.minVersementAmount > 0 && !props.isMinVersementPaid) {
+    const remainingForVisa = Math.max(0, props.minVersementAmount - props.paidAmount)
+    if (remainingForVisa > 0) {
+      return `Pay ${formatCurrency(remainingForVisa)} to get visa approval`
+    }
+  }
+  return null
+})
 
-  return !hasRefund;
+// ===== NEW REFUND LOGIC BASED ON FICHE STATUS RULES =====
+
+// Refund logic based on fiche status rules
+const isFichePendingOrConfirmed = computed(() => {
+  
+  const status = String(props.ficheStatus || '').toLowerCase()
+  return ['pending', 'confirmed'].includes(status)
+})
+
+// Rule 2: Check for authorized refund at top level (non-pending/confirmed status)
+const shouldShowTopLevelRefund = computed(() => {
+  if (isFichePendingOrConfirmed.value) return false
+  return !!authorizedRefund.value
+})
+
+const authorizedRefund = computed(() => {
+  if (!props.authorizedRefunds || !Array.isArray(props.authorizedRefunds)) return null
+  
+  return props.authorizedRefunds.find(auth => {
+    const authItemId = auth.fiche_navette_item_id || auth.item_id
+    return authItemId === props.item.id && auth.status === 'approved'
+  })
+})
+
+const authorizedRefundAmount = computed(() => {
+  return authorizedRefund.value?.requested_amount || 0
+})
+
+// Determine if refund should be shown for a transaction
+const shouldShowRefundButton = (transaction, item) => {
+  console.debug('shouldShowRefundButton called with transaction:', transaction, 'item:', item);
+  
+  if (!transaction || transaction.transaction_type !== 'payment') return false
+  if (hasExistingRefund(transaction, item)) return false
+  
+  // Rule 1: For pending/confirmed status, show refund on latest transaction
+  if (isFichePendingOrConfirmed.value) {
+    console.log('Latest Payment ID:', getLatestPaymentId(item), 'Current Transaction ID:', transaction.id);
+    
+    return transaction.id === getLatestPaymentId(item)
+  }
+  
+  // Rule 2: For other statuses, only show if there's authorization
+  return isRefundAuthorized(transaction, item)
+}
+
+// Check if refund is authorized for specific transaction
+const isRefundAuthorized = (transaction, item) => {
+  if (!transaction || !item) return false
+  
+  // Check transaction-specific authorization
+  if (transaction.refund_authorization) {
+    const status = String(transaction.refund_authorization.status || '').toLowerCase()
+    return ['approved', 'pending'].includes(status)
+  }
+  
+  // Check item-level authorization
+  return !!authorizedRefund.value
+}
+
+// Get fixed amount for refund (Rule 2) or null for flexible (Rule 1)
+const getRefundFixedAmount = (transaction, item) => {
+  // Rule 1: Pending/confirmed status allows flexible amount
+  if (isFichePendingOrConfirmed.value) return null
+  
+  // Rule 2: Other statuses use fixed authorized amount
+  if (transaction.refund_authorization?.requested_amount) {
+    return transaction.refund_authorization.requested_amount
+  }
+  
+  return authorizedRefundAmount.value || null
+}
+
+// Check if flexible refund amount is allowed
+const canUseFlexibleRefund = (transaction, item) => {
+  return isFichePendingOrConfirmed.value
 }
 </script>

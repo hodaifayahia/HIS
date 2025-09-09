@@ -6,6 +6,8 @@ namespace App\Models\Coffre;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+//import bank
+use App\Models\Bank\Bank;
 
 class CoffreTransaction extends Model
 {
@@ -14,8 +16,10 @@ class CoffreTransaction extends Model
     protected $fillable = [
         'coffre_id',
         'user_id',
+        'bank_account_id',
         'transaction_type',
         'amount',
+        'status',
         'description',
         'source_caisse_session_id',
         'destination_banque_id',
@@ -46,12 +50,17 @@ class CoffreTransaction extends Model
 
     public function destinationBanque()
     {
-        return $this->belongsTo(\App\Models\Banque::class, 'destination_banque_id');
+        return $this->belongsTo(bank::class, 'destination_banque_id');
     }
 
     public function destinationCoffre()
     {
         return $this->belongsTo(Coffre::class, 'dest_coffre_id');
+    }
+
+    public function approvalRequest()
+    {
+        return $this->hasOne(\App\Models\RequestTransactionApproval::class, 'request_transaction_id');
     }
 
     // Scopes

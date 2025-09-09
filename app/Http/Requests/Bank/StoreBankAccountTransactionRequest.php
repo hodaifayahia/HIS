@@ -18,13 +18,17 @@ class StoreBankAccountTransactionRequest extends FormRequest
     {
         return [
             'bank_account_id' => ['required', 'exists:bank_accounts,id'],
-            'accepted_by_user_id' => ['required', 'exists:users,id'],
+            'accepted_by_user_id' => ['nullable', 'exists:users,id'],
             'transaction_type' => ['required', 'in:credit,debit'],
             'amount' => ['required', 'numeric', 'min:0.01'],
+            'coffre_id'=>['nullable','exists:coffres,id'],
             'transaction_date' => ['required', 'date'],
             'description' => ['nullable', 'string', 'max:1000'],
+            'Designation'=>['nullable ','string'],
+            'Payer'=>['nullable ','string'],
             'reference' => ['nullable', 'string', 'max:255', 'unique:bank_account_transactions,reference'],
             'status' => ['nullable', 'in:pending,completed,cancelled,reconciled'],
+            'Attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,jpg,jpeg,png,gif,bmp,tiff,webp,svg', 'max:10240'],
         ];
     }
 

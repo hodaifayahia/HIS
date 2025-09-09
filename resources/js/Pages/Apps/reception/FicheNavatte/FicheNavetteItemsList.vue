@@ -291,21 +291,16 @@ const downloadFile = (file) => {
 <template>
   <div class="fiche-navette-details">
     <!-- Header -->
-    <FicheNavetteHeader
-      :fiche-id="ficheId"
-      :fiche="fiche"
-      :show-create-form="showCreateForm"
-      @go-back="goBack"
-      @toggle-create-form="toggleCreateForm"
-    />
+   
 
     <!-- Loading State -->
     <LoadingSpinner v-if="loading" message="Loading fiche navette..." />
 
     <!-- Main Content -->
     <div v-else-if="fiche" class="main-content">
-      <!-- Fiche Information -->
-      <FicheNavetteInfo
+       <FicheNavetteHeader
+      :fiche-id="ficheId"
+     
         :fiche="fiche"
         :total-amount="totalAmount"
         :items-count="itemsCount"
@@ -313,7 +308,21 @@ const downloadFile = (file) => {
         :convention-companies="conventionCompanies"
         @show-convention-details="handleShowConventionDetails"
         @show-all-conventions="showAllConventions"
-      />
+      :show-create-form="showCreateForm"
+      @go-back="goBack"
+      @toggle-create-form="toggleCreateForm"
+      
+    />
+      <!-- Fiche Information -->
+      <!-- <FicheNavetteInfo
+        :fiche="fiche"
+        :total-amount="totalAmount"
+        :items-count="itemsCount"
+        :groups-count="groupedItems.length"
+        :convention-companies="conventionCompanies"
+        @show-convention-details="handleShowConventionDetails"
+        @show-all-conventions="showAllConventions"
+      /> -->
 
       <!-- Items Section -->
       <FicheNavetteItemsSection

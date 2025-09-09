@@ -60,23 +60,23 @@ export const coffreTransactionService = {
      * @param {Object} data - The transaction data
      * @returns {Promise<Object>} - Response with success status and data
      */
-    async create(data) {
-        try {
-            const response = await axios.post('/api/coffre-transactions', data);
-            return {
-                success: true,
-                data: response.data.data || response.data,
-                message: response.data.message || 'Transaction created successfully.'
-            };
-        } catch (error) {
-            console.error('Error creating transaction:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Failed to create transaction. Please check your input.',
-                errors: error.response?.data?.errors || {},
-                error
-            };
-        }
+    async create(data = {}) {
+        return axios.post('/api/coffre-transactions', data)
+            .then(res => res.data)
+            .catch(err => ({ success: false, message: err.message, errors: err.response?.data?.errors || null }));
+    },
+
+    /**
+     * Creates a new transaction with FormData (for file attachments)
+     * @param {FormData} formData - The FormData object containing transaction data and files
+     * @returns {Promise<Object>} - Response with success status and data
+     */
+    async createFormData(formData) {
+        return axios.post('/api/coffre-transactions', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        .then(res => res.data)
+        .catch(err => ({ success: false, message: err.message, errors: err.response?.data?.errors || null }));
     },
 
     /**
@@ -85,23 +85,24 @@ export const coffreTransactionService = {
      * @param {Object} data - Updated transaction data
      * @returns {Promise<Object>} - Response with success status and data
      */
-    async update(id, data) {
-        try {
-            const response = await axios.put(`/api/coffre-transactions/${id}`, data);
-            return {
-                success: true,
-                data: response.data.data || response.data,
-                message: response.data.message || 'Transaction updated successfully.'
-            };
-        } catch (error) {
-            console.error(`Error updating transaction ${id}:`, error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Failed to update transaction. Please check your input.',
-                errors: error.response?.data?.errors || {},
-                error
-            };
-        }
+    async update(id, data = {}) {
+        return axios.patch(`/api/coffre-transactions/${id}`, data)
+            .then(res => res.data)
+            .catch(err => ({ success: false, message: err.message, errors: err.response?.data?.errors || null }));
+    },
+
+    /**
+     * Updates an existing transaction with FormData (for file attachments)
+     * @param {number} id - The transaction ID
+     * @param {FormData} formData - The FormData object containing updated transaction data and files
+     * @returns {Promise<Object>} - Response with success status and data
+     */
+    async updateFormData(id, formData) {
+        return axios.patch(`/api/coffre-transactions/${id}`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        })
+        .then(res => res.data)
+        .catch(err => ({ success: false, message: err.message, errors: err.response?.data?.errors || null }));
     },
 
     /**
@@ -173,7 +174,7 @@ export const coffreTransactionService = {
      */
     async getUsers() {
         try {
-            const response = await axios.get('/api/coffre-transactions-users');
+            const response = await axios.get('/api/coffre-transactions/users/all');
             return {
                 success: true,
                 data: response.data.data || response.data
@@ -185,7 +186,52 @@ export const coffreTransactionService = {
                 message: error.response?.data?.message || 'Failed to load users.'
             };
         }
+    },
+
+    /**
+     * Fetches all banks for selection
+     * @returns {Promise<Object>} - Response with banks data
+     */
+    async getBanks() {
+        try {
+            const response = await axios.get('/api/bank-accounts');
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error fetching banks:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to load banks.'
+            };
+        }
+    },
+
+    /**
+     * Get recent transactions for dashboard
+     * @param {number} limit - Number of recent transactions to fetch
+     * @returns {Promise<Object>} - Response with recent transactions
+     */
+    async getRecentTransactions(limit = 10) {
+        try {
+            const response = await axios.get('/api/coffre-transactions/recent', {
+                params: { limit }
+            });
+            return {
+                success: true,
+                data: response.data.data || []
+            };
+        } catch (error) {
+            console.error('Error fetching recent transactions:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch recent transactions',
+                error: error
+            };
+        }
     }
+    // Note: getTransactionTypes and getCoffres are implemented above. Avoid duplicate definitions.
 };
 
 export default coffreTransactionService;

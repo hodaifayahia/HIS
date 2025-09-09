@@ -21,7 +21,7 @@ class UploadConventionFilesRequest extends FormRequest
     {
         return [
             'files' => 'required|array',
-            'files.*' => 'file|mimes:pdf,doc,docx|max:10240',
+            'files.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png,gif,bmp,tiff,webp,svg|max:10240',
         ];
     }
 
@@ -33,7 +33,7 @@ class UploadConventionFilesRequest extends FormRequest
         return [
             'files.required' => 'The files field is required.',
             'files.array' => 'The files must be an array.',
-            'files.*.mimes' => 'Uploaded files must be PDF, DOC, or DOCX files.',
+            'files.*.mimes' => 'Uploaded files must be PDF, DOC, DOCX, JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP, or SVG files.',
             'files.*.max' => 'Uploaded files must not exceed 10MB.',
         ];
     }

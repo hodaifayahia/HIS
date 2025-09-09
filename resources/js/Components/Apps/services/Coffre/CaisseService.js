@@ -189,8 +189,28 @@ export const caisseService = {
                 message: error.response?.data?.message || 'Failed to load statistics.'
             };
         }
-    }
+    },
 
+    /**
+     * Get services for form dropdown (alias for getServices)
+     */
+    async getServicesForSelect() {
+        return this.getServices();
+    },
+
+    /**
+     * Get active caisses only
+     */
+    async getActiveCaisses() {
+        return this.getAll({ is_active: true });
+    },
+
+    /**
+     * Get caisses by service
+     */
+    async getCaissesByService(serviceId) {
+        return this.getAll({ service_id: serviceId });
+    }
     
 };
 

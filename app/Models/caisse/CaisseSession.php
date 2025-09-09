@@ -19,7 +19,8 @@ class CaisseSession extends Model
         'opened_at',
         'closed_at',
         'opening_notes',
-        'closing_notes'
+        'closing_notes',
+        'is_transfer'
     ];
 
     protected $appends = [

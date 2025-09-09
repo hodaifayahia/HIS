@@ -60,12 +60,10 @@ const checkDateAvailability = async () => {
   }
 
   try {
-    const response = await axios.get('/api/appointments/checkAvailability', {
-      params: {
-        date: formattedDate.value,
-        doctor_id: props.doctorId,
-        include_slots: false
-      }
+    const response = await axios.post('/api/appointments/checkAvailability', {
+      date: formattedDate.value,
+      doctor_id: props.doctorId,
+      include_slots: false
     });
 
     nextAvailableDate.value = response.data.next_available_date;

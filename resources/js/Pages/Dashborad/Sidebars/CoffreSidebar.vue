@@ -39,7 +39,7 @@ const hasPermission = (requiredRoles) => {
     >
         <template #navigation>
             <li class="nav-item">
-                <router-link to="/coffre/dashboard" active-class="active" class="nav-link">
+                <router-link to="/coffre/transactions-dashboard" active-class="active" class="nav-link">
                     <i class="nav-icon fas fa-lock"></i>
                     <p>Coffre Dashboard</p>
                 </router-link>

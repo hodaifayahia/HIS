@@ -259,63 +259,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="form-section">
-        <h4 class="section-title">
-          <i class="pi pi-calendar mr-2"></i>
-          Form Details
-        </h4>
-        
-        <div class="form-grid">
-          <div class="field">
-            <label for="fiche-date" class="required">Form Date *</label>
-            <Calendar 
-              id="fiche-date"
-              v-model="formData.fiche_date"
-              dateFormat="dd/mm/yy"
-              showIcon
-              showButtonBar
-              class="w-full"
-              :class="{ 'p-invalid': errors.fiche_date }"
-              placeholder="Select a date"
-            />
-            <small v-if="errors.fiche_date" class="p-error">
-              {{ errors.fiche_date }}
-            </small>
-          </div>
-
-          <div class="field">
-            <label for="status">Status</label>
-            <Dropdown 
-              id="status"
-              v-model="formData.status"
-              :options="statusOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Select a status"
-              class="w-full"
-              :class="{ 'p-invalid': errors.status }"
-            />
-            <small v-if="errors.status" class="p-error">
-              {{ errors.status }}
-            </small>
-          </div>
-        </div>
-
-        <!-- <div class="field">
-          <label for="creator">Creator</label>
-          <InputText 
-            id="creator"
-            v-model="creatorName"
-            disabled
-            class="w-full creator-input"
-          />
-          <small class="help-text">
-            <i class="pi pi-info-circle mr-1"></i>
-            The creator is automatically set
-          </small>
-        </div> -->
-      </div>
-
+    
       <div v-if="mode === 'edit' && fiche" class="form-section">
         <h4 class="section-title">
           <i class="pi pi-list mr-2"></i>

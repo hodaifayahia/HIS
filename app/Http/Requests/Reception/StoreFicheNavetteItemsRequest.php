@@ -63,7 +63,7 @@ class StoreFicheNavetteItemsRequest extends FormRequest
             'uploadedFiles.*.name' => 'sometimes|string',
             'uploadedFiles.*.size' => 'sometimes|integer',
             'uploadedFiles.*.type' => 'sometimes|string',
-            'uploadedFiles.*.file' => 'sometimes|file|mimes:pdf,doc,docx|max:10240',
+            'uploadedFiles.*.file' => 'sometimes|file|mimes:pdf,doc,docx,jpg,jpeg,png,gif,bmp,tiff,webp,svg|max:10240',
         ];
     }
 
@@ -94,7 +94,7 @@ class StoreFicheNavetteItemsRequest extends FormRequest
             'familyAuth.*.in' => 'The family authorization must be one of: ascendant, descendant, Conjoint, adherent, autre.',
             'packages.*.id.exists' => 'The selected packages are invalid.',
             'packages.*.prestations.*.id.exists' => 'The selected package prestations are invalid.',
-            'uploadedFiles.*.file.mimes' => 'Uploaded files must be PDF, DOC, or DOCX files.',
+            'uploadedFiles.*.file.mimes' => 'Uploaded files must be PDF, DOC, DOCX, JPG, JPEG, PNG, GIF, BMP, TIFF, WEBP, or SVG files.',
             'uploadedFiles.*.file.max' => 'Uploaded files must not exceed 10MB.',
         ];
     }

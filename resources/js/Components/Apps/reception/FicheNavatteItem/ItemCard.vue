@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import axios from 'axios'
 
 // PrimeVue Components
 import Card from 'primevue/card'
@@ -357,18 +358,38 @@ const confirmRemoveDependency = (dependency: Dependency) => {
   })
 }
 
-const handleApplyRemise = (data: any) => {
-  emit('apply-remise', props.group.id)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Success',
-    detail: 'Remise applied successfully',
-    life: 3000
-  })
-  
-  // Refresh the component data
-  emit('item-updated', { refresh: true })
+const handleApplyRemise = async (data: any) => {
+  try {
+    // Call the remise API endpoint
+    const response = await axios.post('/remise/apply', data)
+    
+    if (response.data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Remise applied successfully',
+        life: 3000
+      })
+      
+      // Refresh the component data to show updated prices
+      emit('item-updated', { refresh: true })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: response.data.message || 'Failed to apply remise',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('Error applying remise:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to apply remise',
+      life: 3000
+    })
+  }
 }
 </script>
 

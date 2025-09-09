@@ -39,32 +39,38 @@ export const useAppointmentStore = defineStore('appointmentState', {
   actions: {
     // --- Core Appointment Fetching ---
     async getAppointments(doctorId, page = 1, status = null, filter = null, date = null) {
+      console.log('Store: getAppointments called with:', { doctorId, page, status, filter, date });
       this.loading = true;
-      this.error = null; // Clear previous errors
-      this.currentFilter = status; // Update the filter in store
+      this.error = null;
+      this.currentFilter = status;
 
       try {
-        const params = {
-          page,
-          status: status ?? this.currentFilter, // Use filter from store if not provided
-          filter,
-          date,
-        };
+        const params = new URLSearchParams({
+          page: page.toString(),
+        });
 
-        const { data } = await axios.get(`/api/appointments/${doctorId}`, { params });
+        // Only add non-null parameters
+        if (status !== null) params.append('status', status.toString());
+        if (filter) params.append('filter', filter);
+        if (date) params.append('date', date);
 
+        const apiUrl = `/api/appointments/${doctorId}?${params.toString()}`;
+        console.log('Store: Making API request to:', apiUrl);
+
+        const { data } = await axios.get(apiUrl);
+        console.log('Store: Fetched appointments data:', data);
+        
         if (data.success) {
           this.appointments = data.data;
           this.pagination = data.meta;
-          // You might also want to update the counts in the status objects here
-          // if your API returns them with the main appointment fetch.
-          // Otherwise, getAppointmentsStatus() handles it.
+          console.log('Store: Successfully set appointments:', this.appointments.length, 'items');
         } else {
           throw new Error(data.message || 'Failed to fetch appointments.');
         }
       } catch (err) {
-        console.error('Error fetching appointments:', err);
+        console.error('Store: Error fetching appointments:', err);
         this.error = 'Failed to load appointments. Please try again.';
+        this.appointments = []; // Clear appointments on error
       } finally {
         this.loading = false;
       }
@@ -73,41 +79,40 @@ export const useAppointmentStore = defineStore('appointmentState', {
     async getTodaysAppointments(doctorId) {
       this.loading = true;
       this.error = null;
-      this.currentFilter = 'TODAY'; // Set filter to 'TODAY'
+      this.currentFilter = 'TODAY';
+      
       try {
-        const response = await axios.get(`/api/appointments/${doctorId}`, {
-          params: { filter: 'today' }
-        });
+        const { data } = await axios.get(`/api/appointments/${doctorId}?filter=today`);
 
-        if (response.data.success) {
-          this.appointments = response.data.data;
-          this.pagination = response.data.meta; // Make sure today's appts also paginate
-          this.todaysAppointmentsCount = response.data.data.length;
+        if (data.success) {
+          this.appointments = data.data;
+          this.pagination = data.meta;
+          this.todaysAppointmentsCount = data.data.length;
         } else {
-          throw new Error(response.data.message);
+          throw new Error(data.message);
         }
       } catch (err) {
         console.error('Error fetching today\'s appointments:', err);
         this.error = 'Failed to load today\'s appointments. Please try again later.';
+        this.appointments = [];
       } finally {
         this.loading = false;
       }
     },
 
     async getAppointmentsStatus(doctorId) {
-      this.loading = true;
-      this.error = null;
-
       try {
-        const response = await axios.get(`/api/appointmentStatus/${doctorId}`);
-        if (response.data) {
+        const { data } = await axios.get(`/api/appointmentStatus/${doctorId}`);
+        
+        if (data) {
           // Update counts for each status in the store's statuses array
           this.statuses = this.statuses.map(status => {
-            const apiStatus = response.data.find(s => s.value === status.value);
+            const apiStatus = data.find(s => s.value === status.value);
             return { ...status, count: apiStatus ? apiStatus.count : 0 };
           });
-          // Update the "ALL" count specifically if your API returns total or calculate it
-          const totalCount = response.data.reduce((sum, s) => sum + s.count, 0);
+          
+          // Update the "ALL" count
+          const totalCount = data.reduce((sum, s) => sum + s.count, 0);
           const allStatus = this.statuses.find(s => s.name === 'ALL');
           if (allStatus) {
             allStatus.count = totalCount;
@@ -116,8 +121,6 @@ export const useAppointmentStore = defineStore('appointmentState', {
       } catch (err) {
         console.error('Error fetching appointment statuses:', err);
         this.error = 'Failed to load status filters. Please try again later.';
-      } finally {
-        this.loading = false;
       }
     },
 

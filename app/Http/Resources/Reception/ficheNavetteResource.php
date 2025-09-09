@@ -68,49 +68,49 @@ class ficheNavetteResource extends JsonResource
         'created_at' => $this->created_at,
         'updated_at' => $this->updated_at,
 
-        // // Only include items if relation is loaded
-        // 'items' => $this->whenLoaded('items', function () {
-        //     return $this->items->map(function ($item) {
-        //         return [
-        //             'id' => $item->id,
-        //             'prestation_id' => $item->prestation_id,
-        //             'prestation' => $this->whenLoadedRelation($item, 'prestation', function () use ($item) {
-        //                 return $item->prestation ? [
-        //                     'id' => $item->prestation->id,
-        //                     'name' => $item->prestation->name,
-        //                     'internal_code' => $item->prestation->internal_code,
-        //                     'price' => $item->prestation->public_price,
-        //                     'specialization_name' => $item->prestation->specialization?->name,
-        //                 ] : null;
-        //             }),
-        //             'package_id' => $item->package_id,
-        //             'doctor_id' => $item->doctor_id,
-        //             'custom_name' => $item->custom_name,
-        //             'payment_status' => $item->payment_status,
-        //             'status' => $item->status,
-        //             'base_price' => $item->base_price,
-        //             'final_price' => $item->final_price,
-        //             'patient_share' => $item->patient_share,
-        //             'dependencies' => $this->whenLoadedRelation($item, 'dependencies', function () use ($item) {
-        //                 return $item->dependencies->map(function ($dep) {
-        //                     return [
-        //                         'id' => $dep->id,
-        //                         'dependency_type' => $dep->dependency_type,
-        //                         'notes' => $dep->notes,
-        //                         'payment_status' => $dep->payment_status,
-        //                         'dependency_prestation' => $dep->dependencyPrestation ? [
-        //                             'id' => $dep->dependencyPrestation->id,
-        //                             'name' => $dep->dependencyPrestation->name,
-        //                             'internal_code' => $dep->dependencyPrestation->internal_code,
-        //                             'price' => $dep->dependencyPrestation->public_price,
-        //                             'is_package' => $dep->is_package,
-        //                         ] : null,
-        //                     ];
-        //                 });
-        //             }),
-        //         ];
-        //     });
-        // }),
+        // Only include items if relation is loaded
+        'items' => $this->whenLoaded('items', function () {
+            return $this->items->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'prestation_id' => $item->prestation_id,
+                    'prestation' => $this->whenLoadedRelation($item, 'prestation', function () use ($item) {
+                        return $item->prestation ? [
+                            'id' => $item->prestation->id,
+                            'name' => $item->prestation->name,
+                            'internal_code' => $item->prestation->internal_code,
+                            'price' => $item->prestation->public_price,
+                            'specialization_name' => $item->prestation->specialization?->name,
+                        ] : null;
+                    }),
+                    'package_id' => $item->package_id,
+                    'doctor_id' => $item->doctor_id,
+                    'custom_name' => $item->custom_name,
+                    'payment_status' => $item->payment_status,
+                    'status' => $item->status,
+                    'base_price' => $item->base_price,
+                    'final_price' => $item->final_price,
+                    'patient_share' => $item->patient_share,
+                    'dependencies' => $this->whenLoadedRelation($item, 'dependencies', function () use ($item) {
+                        return $item->dependencies->map(function ($dep) {
+                            return [
+                                'id' => $dep->id,
+                                'dependency_type' => $dep->dependency_type,
+                                'notes' => $dep->notes,
+                                'payment_status' => $dep->payment_status,
+                                'dependency_prestation' => $dep->dependencyPrestation ? [
+                                    'id' => $dep->dependencyPrestation->id,
+                                    'name' => $dep->dependencyPrestation->name,
+                                    'internal_code' => $dep->dependencyPrestation->internal_code,
+                                    'price' => $dep->dependencyPrestation->public_price,
+                                    'is_package' => $dep->is_package,
+                                ] : null,
+                            ];
+                        });
+                    }),
+                ];
+            });
+        }),
     ];
 }
 

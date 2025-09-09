@@ -103,9 +103,64 @@ class ficheNavetteItemController extends Controller
      */
     public function storeConventionPrescription(StoreConventionPrescriptionRequest $request, $ficheNavetteId): JsonResponse
     {
+      
+        // Debug: Log what we're receiving
+        \Log::info('Convention prescription request received:', [
+            'all_data' => $request->all(),
+            'conventions_type' => gettype($request->input('conventions')),
+            'conventions_value' => $request->input('conventions'),
+            'is_array' => is_array($request->input('conventions')),
+            'has_files' => $request->hasFile('uploadedFiles'),
+            'files_count' => $request->hasFile('uploadedFiles') ? count($request->file('uploadedFiles')) : 0,
+        ]);
+        
         try {
             $validatedData = $request->validated();
             $validatedData['fiche_navette_id'] = $ficheNavetteId;
+            
+            // Process uploaded files if they exist
+            if ($request->hasFile('uploadedFiles')) {
+                $uploadedFiles = [];
+                
+                foreach ($request->file('uploadedFiles') as $index => $file) {
+                    if ($file && $file->isValid()) {
+                        try {
+                            // Validate file using the file upload service
+                            if ($this->fileUploadService->validateConventionFile($file)) {
+                                $uploadedFileData = $this->fileUploadService->uploadSingleFile($file);
+                                $uploadedFiles[] = $uploadedFileData;
+                                
+                                \Log::info("File {$index} uploaded successfully:", [
+                                    'original_name' => $uploadedFileData['original_name'],
+                                    'path' => $uploadedFileData['path'],
+                                    'size' => $uploadedFileData['size']
+                                ]);
+                            } else {
+                                \Log::warning("File {$index} validation failed:", [
+                                    'name' => $file->getClientOriginalName(),
+                                    'size' => $file->getSize(),
+                                    'mime' => $file->getMimeType()
+                                ]);
+                            }
+                        } catch (\Exception $fileException) {
+                            \Log::error("Error processing file {$index}:", [
+                                'error' => $fileException->getMessage(),
+                                'file_name' => $file->getClientOriginalName()
+                            ]);
+                            // Continue with other files even if one fails
+                        }
+                    }
+                }
+                
+                // Add processed files to validated data
+                $validatedData['uploadedFiles'] = $uploadedFiles;
+                
+                \Log::info('Files processed for convention prescription:', [
+                    'total_files_processed' => count($uploadedFiles),
+                    'files_data' => $uploadedFiles
+                ]);
+            }
+            
             $result = $this->receptionService->createConventionPrescriptionItems($validatedData, $ficheNavetteId);
 
             return response()->json([
@@ -114,7 +169,8 @@ class ficheNavetteItemController extends Controller
                 'data' => [
                     'items_created' => $result['items_created'],
                     'total_amount' => $result['total_amount'],
-                    'items' => ficheNavetteItemResource::collection($result['items'])
+                    'items' => ficheNavetteItemResource::collection($result['items']),
+                    'files_uploaded' => isset($validatedData['uploadedFiles']) ? count($validatedData['uploadedFiles']) : 0
                 ]
             ], 201);
         } catch (\Exception $e) {
@@ -122,6 +178,7 @@ class ficheNavetteItemController extends Controller
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
+                'trace' => $e->getTraceAsString()
             ]);
             
             return response()->json([
@@ -230,90 +287,57 @@ class ficheNavetteItemController extends Controller
     public function index(GetGroupedByInsuredRequest $request, $ficheNavetteId)
     {
         try {
-            // Try to get from cache
-            $cacheKey = "fiche_navette_items_{$ficheNavetteId}";
-            if ($cachedResponse = cache()->get($cacheKey)) {
-                return response()->json($cachedResponse);
-            }
+            $ficheNavette = ficheNavette::with([
+                'items.prestation.service', 
+                'items.prestation.specialization',
+                'items.package.items.prestation.service',
+                'items.package.items.prestation.specialization',
+                'items.dependencies.dependencyPrestation.service',
+                'items.dependencies.dependencyPrestation.specialization',
+                'items.convention.organisme',
+                'items.doctor',
+                'items.insuredPatient',
+                'patient',
+                'creator'
+            ])->findOrFail($ficheNavetteId);
 
-            // Optimize the main query by selecting only needed fields and chunking relations
-            $ficheNavette = ficheNavette::select(['id', 'patient_id', 'creator_id', 'fiche_date'])
-                ->with([
-                    'items' => function($query) {
-                        $query->select([
-                            'id', 'fiche_navette_id', 'prestation_id', 'package_id',
-                            'convention_id', 'doctor_id', 'insured_id', 'final_price'
-                        ]);
-                    },
-                    'items.prestation' => function($query) {
-                        $query->select(['id', 'name', 'service_id', 'specialization_id']);
-                    },
-                    'items.prestation.service:id,name',
-                    'items.prestation.specialization:id,name',
-                    'items.package' => function($query) {
-                        $query->select(['id', 'name']);
-                    },
-                    'items.package.items' => function($query) {
-                        $query->select(['id', 'prestation_package_id', 'prestation_id'])
-                            ->with(['prestation' => function($q) {
-                                $q->select(['id', 'name', 'service_id', 'specialization_id']);
-                            }]);
-                    },
-                    'items.dependencies' => function($query) {
-                        $query->select(['id', 'parent_item_id', 'dependent_prestation_id'])
-                            ->with(['dependencyPrestation' => function($q) {
-                                $q->select(['id', 'name', 'service_id']);
-                            }]);
-                    },
-                    'items.convention' => function($query) {
-                        $query->select(['id', 'name', 'organisme_id'])
-                            ->with(['organisme:id,name']);
-                    },
-                    'items.doctor:id,name',
-                    'items.insuredPatient:id,Firstname,Lastname',
-                    'patient:id,Firstname,Lastname',
-                    'creator:id,name'
-                ])
-                ->findOrFail($ficheNavetteId);
-
-            // Process items collection efficiently
-            $items = $ficheNavette->items;
-            
-            // Set parent IDs for dependencies in a more efficient way
-            $items->each(function($item) {
-                $item->dependencies?->each(fn($dep) => $dep->parent_item_id = $item->id);
+            // Ensure each item has its own dependencies properly linked
+            $ficheNavette->items->each(function($item) {
+                if ($item->dependencies) {
+                    $item->dependencies->each(function($dependency) use ($item) {
+                        // Ensure the dependency knows its parent
+                        $dependency->parent_item_id = $item->id;
+                    });
+                }
             });
+            // Collect fiche navette item ids to fetch related refund authorizations
+            $itemIds = $ficheNavette->items->pluck('id')->filter()->unique()->values()->all();
 
-            // Optimize refund authorizations query
-            $itemIds = $items->pluck('id')->all();
-            $refundAuthorizations = empty($itemIds) ? [] : 
-                RefundAuthorization::select(['id', 'fiche_navette_item_id'])
-                    ->whereIn('fiche_navette_item_id', $itemIds)
+            // Load refund authorizations that belong to these fiche navette items and group by item id
+            $refundAuthorizations = [];
+            if (!empty($itemIds)) {
+                $refundAuthorizations = RefundAuthorization::whereIn('fiche_navette_item_id', $itemIds)
                     ->get()
                     ->groupBy('fiche_navette_item_id')
-                    ->map(fn($group) => $group->map->toArray()->values())
-                    ->toArray();
+                    ->map(function($group) {
+                        return $group->map(function($auth) {
+                            return $auth->toArray();
+                        })->values();
+                    })->toArray();
+            }
 
-            // Prepare the response
-            $response = [
+            return response()->json([
                 'success' => true,
-                'data' => ficheNavetteItemResource::collection($items),
+                'data' => ficheNavetteItemResource::collection($ficheNavette->items),
                 'refund_authorizations' => $refundAuthorizations,
                 'meta' => [
                     'fiche_navette_id' => $ficheNavetteId,
-                    'total_items' => $items->count(),
-                    'total_amount' => $items->sum('final_price'),
-                    'patient_name' => $ficheNavette->patient ? 
-                        "{$ficheNavette->patient->Firstname} {$ficheNavette->patient->Lastname}" : 
-                        'Unknown',
+                    'total_items' => $ficheNavette->items->count(),
+                    'total_amount' => $ficheNavette->items->sum('final_price'),
+                    'patient_name' => $ficheNavette->patient_name ?? 'Unknown',
                     'fiche_date' => $ficheNavette->fiche_date
                 ]
-            ];
-
-            // Cache the response for 5 minutes
-            cache()->put($cacheKey, $response, now()->addMinutes(5));
-
-            return response()->json($response);
+            ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching fiche navette items:', [
                 'fiche_navette_id' => $ficheNavetteId,

@@ -90,6 +90,13 @@ const prestationsNeedingAppointments = ref([])
 const currentPrestationForAppointment = ref(null)
 const pendingConventionData = ref(null)
 
+// ADD THIS FOR FALLBACK DATA HANDLING
+const fuckuifwork = ref({})
+
+// ADD STATE FOR FICHE NAVETTE DATA
+const ficheNavetteData = ref(null)
+const loadingFicheNavette = ref(false)
+
 // Computed properties
 const visibleModal = computed({
   get: () => props.visible,
@@ -171,6 +178,120 @@ const canAddConvention = computed(() => {
 
 const canCreatePrescription = computed(() => {
   return completedConventions.value.length > 0
+})
+
+// ADD THESE COMPUTED PROPERTIES FOR SAFE FALLBACK LOGIC
+const safeDoctorId = computed(() => {
+  console.log('=== safeDoctorId computed ===')
+  
+  // Priority 1: Get from the current prestation for appointment
+  if (currentPrestationForAppointment.value?.doctorId) {
+    console.log('Using doctorId from currentPrestationForAppointment:', currentPrestationForAppointment.value.doctorId)
+    return currentPrestationForAppointment.value.doctorId
+  }
+  
+  // Priority 2: Get from appointment data (fuckuifwork)
+  if (fuckuifwork.value?.otherItems?.selectedDoctor) {
+    console.log('Using doctorId from fuckuifwork.otherItems:', fuckuifwork.value.otherItems.selectedDoctor)
+    return fuckuifwork.value.otherItems.selectedDoctor
+  }
+  
+  // Priority 3: Get from selected doctor in ConventionManagement
+  if (selectedDoctor.value) {
+    console.log('Using doctorId from selectedDoctor:', selectedDoctor.value)
+    return selectedDoctor.value
+  }
+  
+  console.log('No doctorId found, returning null')
+  return null
+})
+
+const safeSpecializationId = computed(() => {
+  console.log('=== safeSpecializationId computed ===')
+  
+  // Priority 1: Get from the current prestation for appointment
+  if (currentPrestationForAppointment.value?.specializationId) {
+    console.log('Using specializationId from currentPrestationForAppointment:', currentPrestationForAppointment.value.specializationId)
+    return currentPrestationForAppointment.value.specializationId
+  }
+  
+  // Priority 2: Get from appointment data (fuckuifwork)
+  if (fuckuifwork.value?.otherItems?.selectedSpecialization) {
+    console.log('Using specializationId from fuckuifwork.otherItems:', fuckuifwork.value.otherItems.selectedSpecialization)
+    return fuckuifwork.value.otherItems.selectedSpecialization
+  }
+  
+  // Priority 3: Get from selected specialization in ConventionManagement
+  if (selectedSpecialization.value) {
+    console.log('Using specializationId from selectedSpecialization:', selectedSpecialization.value)
+    return selectedSpecialization.value
+  }
+  
+  console.log('No specializationId found, returning null')
+  return null
+})
+
+const safePrestationId = computed(() => {
+  console.log('=== safePrestationId computed ===')
+  
+  // Priority 1: Get from the current prestation for appointment
+  if (currentPrestationForAppointment.value?.id) {
+    console.log('Using prestationId from currentPrestationForAppointment.id:', currentPrestationForAppointment.value.id)
+    return currentPrestationForAppointment.value.id
+  }
+  
+  if (currentPrestationForAppointment.value?.prestation_id) {
+    console.log('Using prestationId from currentPrestationForAppointment.prestation_id:', currentPrestationForAppointment.value.prestation_id)
+    return currentPrestationForAppointment.value.prestation_id
+  }
+  
+  // Priority 2: Get from the appointment data (fuckuifwork)
+  if (fuckuifwork.value?.appointmentItems?.length > 0) {
+    const prestationId = fuckuifwork.value.appointmentItems[0].prestation_id || fuckuifwork.value.appointmentItems[0].id
+    console.log('Using prestationId from fuckuifwork.appointmentItems:', prestationId)
+    return prestationId
+  }
+  
+  // Priority 3: Get from prestations needing appointments
+  if (prestationsNeedingAppointments.value?.length > 0) {
+    const prestationId = prestationsNeedingAppointments.value[0].prestation_id || prestationsNeedingAppointments.value[0].id
+    console.log('Using prestationId from prestationsNeedingAppointments:', prestationId)
+    return prestationId
+  }
+  
+  console.log('No prestationId found, returning null')
+  return null
+})
+
+// ADD COMPUTED PROPERTY FOR SAFE PATIENT ID EXTRACTION
+const safePatientId = computed(() => {
+  console.log('=== safePatientId computed ===')
+  
+  // Priority 1: Get from selectedAdherentPatient if it exists
+  if (selectedAdherentPatient.value?.id) {
+    console.log('Using patient ID from selectedAdherentPatient.id:', selectedAdherentPatient.value.id)
+    return selectedAdherentPatient.value.id
+  }
+  
+  if (selectedAdherentPatient.value?.patient_id) {
+    console.log('Using patient ID from selectedAdherentPatient.patient_id:', selectedAdherentPatient.value.patient_id)
+    return selectedAdherentPatient.value.patient_id
+  }
+  
+  // Priority 2: Get from fiche navette data
+  if (ficheNavetteData.value?.patient_id) {
+    console.log('Using patient ID from ficheNavetteData.patient_id:', ficheNavetteData.value.patient_id)
+    return ficheNavetteData.value.patient_id
+  }
+  
+  // Priority 3: Get from fuckuifwork fallback
+  if (fuckuifwork.value?.otherItems?.patientId) {
+    console.log('Using patient ID from fuckuifwork.otherItems.patientId:', fuckuifwork.value.otherItems.patientId)
+    return fuckuifwork.value.otherItems.patientId
+  }
+  
+  console.log('No patient ID found, returning null')
+  return null
 })
 
 // Methods
@@ -283,6 +404,27 @@ const loadAllDoctors = async () => {
   }
 }
 
+// ADD METHOD TO LOAD FICHE NAVETTE DATA
+const loadFicheNavetteData = async () => {
+  if (!props.ficheNavetteId) return
+  
+  try {
+    loadingFicheNavette.value = true
+    console.log('Loading fiche navette data for ID:', props.ficheNavetteId)
+    const result = await ficheNavetteService.getFicheNavetteById(props.ficheNavetteId)
+    if (result.success) {
+      ficheNavetteData.value = result.data
+      console.log('Fiche navette data loaded:', ficheNavetteData.value)
+    } else {
+      console.error('Failed to load fiche navette data:', result.message)
+    }
+  } catch (error) {
+    console.error('Error loading fiche navette data:', error)
+  } finally {
+    loadingFicheNavette.value = false
+  }
+}
+
 const onOrganismeChange = async () => {
   currentConvention.value = null
   currentPrestations.value = []
@@ -366,44 +508,76 @@ const addConvention = () => {
 
 // Add new methods for handling appointments
 const handleProceedWithAppointments = (data) => {
+  console.log('=== ConventionManagement handleProceedWithAppointments called ===')
+  console.log('Appointment data:', data)
+  
   showAppointmentAlert.value = false
   
-  // Prepare the first prestation with proper doctor/specialization info
-  if (data.prestationsNeedingAppointments.length > 0) {
-    const prestation = data.prestationsNeedingAppointments[0]
-    
-    // Find the convention that contains this prestation to get doctor info
-    let doctorId = selectedDoctor.value
-    let specializationId = selectedSpecialization.value
-    
-    // Look through completed conventions to find the right doctor for this prestation
-    for (const convention of completedConventions.value) {
-      const found = convention.prestations.find(p => 
-        (p.prestation_id || p.id) === (prestation.prestation_id || prestation.id)
-      )
-      if (found) {
-        doctorId = convention.doctor.id
-        specializationId = convention.specialization.id
-        break
-      }
+  // Get doctor and specialization from the first prestation if available
+  let doctorIdToUse = selectedDoctor.value
+  let specializationIdToUse = selectedSpecialization.value
+  
+  if (data.appointmentItems && data.appointmentItems.length > 0) {
+    const firstPrestation = data.appointmentItems[0]
+    if (firstPrestation.conventionDoctorId) {
+      doctorIdToUse = firstPrestation.conventionDoctorId
     }
-    
-    // Enhance the prestation object with doctor info
-    currentPrestationForAppointment.value = {
-      ...prestation,
-      doctorId: doctorId,
-      specializationId: specializationId
+    if (firstPrestation.conventionSpecializationId) {
+      specializationIdToUse = firstPrestation.conventionSpecializationId
     }
-    
-    console.log('Setting up appointment modal with:', {
-      doctorId,
-      specializationId,
-      patientId: selectedAdherentPatient.value?.id,
-      prestationId: prestation.prestation_id || prestation.id
-    })
-    
-    showSameDayModal.value = true
   }
+  
+  console.log('Doctor ID to use:', doctorIdToUse)
+  console.log('Specialization ID to use:', specializationIdToUse)
+  console.log('Patient ID to use:', safePatientId.value)
+  
+  // Enhance the appointment data with correct doctor information and patient ID
+  const enhancedData = {
+    ...data,
+    otherItems: {
+      ...data.otherItems,
+      selectedDoctor: doctorIdToUse,
+      selectedSpecialization: specializationIdToUse,
+      patientId: safePatientId.value // ADD PATIENT ID TO ENHANCED DATA
+    }
+  }
+  
+  // Store the enhanced appointment data for fallback
+  fuckuifwork.value = enhancedData
+  
+  // Extract the data from the appointment event
+  const { appointmentItems: prestations } = data
+  
+  console.log('Prestations needing appointments:', prestations)
+  
+  // Set the current prestation for appointment
+  if (prestations && prestations.length > 0) {
+    currentPrestationForAppointment.value = {
+      ...prestations[0],
+      doctorId: doctorIdToUse,
+      specializationId: specializationIdToUse
+    }
+    console.log('Set currentPrestationForAppointment:', currentPrestationForAppointment.value)
+  }
+  
+  // Update the selected doctor and specialization
+  if (doctorIdToUse) {
+    selectedDoctor.value = doctorIdToUse
+    console.log('Set selectedDoctor to:', doctorIdToUse)
+  }
+  
+  if (specializationIdToUse) {
+    selectedSpecialization.value = specializationIdToUse
+    console.log('Set selectedSpecialization to:', specializationIdToUse)
+  }
+  
+  // Store prestations needing appointments
+  prestationsNeedingAppointments.value = prestations
+  
+  // Open the SameDayAppointmentModal
+  console.log('Opening SameDayAppointmentModal...')
+  console.log('Final enhanced fuckuifwork data:', fuckuifwork.value)
+  showSameDayModal.value = true
 }
 
 const handleProceedWithoutAppointments = () => {
@@ -420,6 +594,7 @@ const handleProceedWithoutAppointments = () => {
   
   // Clear appointment-related state
   prestationsNeedingAppointments.value = []
+  fuckuifwork.value = {}
   
   // Proceed with prescription creation
   proceedWithPrescriptionCreation()
@@ -429,6 +604,7 @@ const handleCancelAppointmentProcess = () => {
   showAppointmentAlert.value = false
   pendingConventionData.value = null
   prestationsNeedingAppointments.value = []
+  fuckuifwork.value = {}
 }
 
 const onSameDayAppointmentBooked = (appointment) => {
@@ -444,6 +620,9 @@ const onSameDayAppointmentBooked = (appointment) => {
   
   // Remove the prestation that was booked from the pending list
   removeBookedPrestationFromPending(currentPrestationForAppointment.value)
+  
+  // Clear the fuckuifwork data after successful booking
+  fuckuifwork.value = {}
   
   // Continue with next prestation or remaining items
   continueAppointmentProcess()
@@ -462,6 +641,9 @@ const onAddedToWaitingList = (waitListEntry) => {
   
   // Remove the prestation that was added to waitlist from pending list
   removeBookedPrestationFromPending(currentPrestationForAppointment.value)
+  
+  // Clear the fuckuifwork data after successful waitlist addition
+  fuckuifwork.value = {}
   
   // Continue with next prestation or remaining items
   continueAppointmentProcess()
@@ -541,6 +723,7 @@ const continueAppointmentProcess = () => {
     console.log('No more appointments needed, proceeding with prescription creation')
     prestationsNeedingAppointments.value = []
     currentPrestationForAppointment.value = null
+    fuckuifwork.value = {}
     
     // Proceed with prescription creation
     proceedWithPrescriptionCreation()
@@ -742,6 +925,10 @@ const resetAll = () => {
   prestationsNeedingAppointments.value = []
   currentPrestationForAppointment.value = null
   pendingConventionData.value = null
+  fuckuifwork.value = {}
+  
+  // Reset fiche navette data
+  ficheNavetteData.value = null
 }
 
 const createConventionPrescription = async () => {
@@ -750,20 +937,52 @@ const createConventionPrescription = async () => {
   
   // Check if any prestations in completed conventions require appointments
   const allPrestationsNeedingAppointments = []
+  let firstDoctorId = null
+  let firstSpecializationId = null
   
   completedConventions.value.forEach(convention => {
     const prestationsWithAppointments = convention.prestations.filter(
       p => p.need_an_appointment === true
     )
     console.log(`Convention ${convention.convention.name} has ${prestationsWithAppointments.length} prestations needing appointments`)
-    allPrestationsNeedingAppointments.push(...prestationsWithAppointments)
+    
+    // Enhance prestations with doctor and specialization info from the convention
+    const enhancedPrestations = prestationsWithAppointments.map(prestation => ({
+      ...prestation,
+      conventionDoctorId: convention.doctor.id,
+      conventionSpecializationId: convention.specialization.id,
+      doctorInfo: convention.doctor,
+      specializationInfo: convention.specialization
+    }))
+    
+    allPrestationsNeedingAppointments.push(...enhancedPrestations)
+    
+    // Store the first doctor and specialization for the appointment modal
+    if (!firstDoctorId && convention.doctor?.id) {
+      firstDoctorId = convention.doctor.id
+      firstSpecializationId = convention.specialization.id
+    }
   })
   
   console.log('Total prestations needing appointments:', allPrestationsNeedingAppointments.length)
+  console.log('First doctor ID for appointments:', firstDoctorId)
+  console.log('First specialization ID for appointments:', firstSpecializationId)
   
   // If there are prestations needing appointments, show the alert
   if (allPrestationsNeedingAppointments.length > 0) {
     prestationsNeedingAppointments.value = allPrestationsNeedingAppointments
+    
+    // Set the doctor and specialization for the appointment process
+    if (firstDoctorId) {
+      selectedDoctor.value = firstDoctorId
+    }
+    if (firstSpecializationId) {
+      selectedSpecialization.value = firstSpecializationId
+    }
+    
+    console.log('Set selectedDoctor for appointments:', selectedDoctor.value)
+    console.log('Set selectedSpecialization for appointments:', selectedSpecialization.value)
+    
     showAppointmentAlert.value = true
     return
   }
@@ -790,19 +1009,17 @@ const proceedWithPrescriptionCreation = async () => {
   try {
     const formData = new FormData()
 
-    // Append conventions as JSON string
-    const conventionsData = completedConventions.value.map(conv => ({
-      convention_id: conv.convention.id,
-      doctor_id: conv.doctor.id,
-      prestations: conv.prestations.map(p => ({
-        prestation_id: p.prestation_id || p.id,
-        doctor_id: conv.doctor.id,
-        convention_price: p.convention_price || p.price
-      }))
-    }))
-    
-    console.log('Conventions data to send:', conventionsData)
-    formData.append('conventions', JSON.stringify(conventionsData))
+    // Send conventions as individual form fields that Laravel can convert to array
+    completedConventions.value.forEach((conv, index) => {
+      formData.append(`conventions[${index}][convention_id]`, conv.convention.id)
+      formData.append(`conventions[${index}][doctor_id]`, conv.doctor.id)
+      
+      conv.prestations.forEach((prestation, prestIndex) => {
+        formData.append(`conventions[${index}][prestations][${prestIndex}][prestation_id]`, prestation.prestation_id || prestation.id)
+        formData.append(`conventions[${index}][prestations][${prestIndex}][doctor_id]`, conv.doctor.id)
+        formData.append(`conventions[${index}][prestations][${prestIndex}][convention_price]`, prestation.convention_price || prestation.price)
+      })
+    })
 
     // Append other fields
     formData.append('prise_en_charge_date', formatDateForApi(priseEnChargeDate.value))
@@ -854,7 +1071,8 @@ onMounted(async () => {
     loadOrganismes(),
     loadConventions(),
     loadSpecializations(),
-    loadAllDoctors()
+    loadAllDoctors(),
+    loadFicheNavetteData() // LOAD FICHE NAVETTE DATA TO GET PATIENT ID
   ])
 })
 
@@ -867,6 +1085,26 @@ watch(priseEnChargeDate, async (newDate) => {
 // Watch for family auth changes
 watch(selectedFamilyAuth, () => {
   onFamilyAuthChanged()
+})
+
+// ADD WATCH FOR APPOINTMENT MODAL DEBUGGING
+watch(showSameDayModal, (newValue) => {
+  console.log('ConventionManagement SameDayModal visibility changed to:', newValue)
+  if (newValue) {
+    console.log('=== ConventionManagement Appointment State ===')
+    console.log('selectedDoctor:', selectedDoctor.value)
+    console.log('currentPrestationForAppointment:', currentPrestationForAppointment.value)
+    console.log('selectedSpecialization:', selectedSpecialization.value)
+    console.log('prestationsNeedingAppointments:', prestationsNeedingAppointments.value)
+    console.log('safeDoctorId:', safeDoctorId.value)
+    console.log('safePrestationId:', safePrestationId.value)
+    console.log('safeSpecializationId:', safeSpecializationId.value)
+    console.log('safePatientId:', safePatientId.value)
+    console.log('fuckuifwork:', fuckuifwork.value)
+    console.log('selectedAdherentPatient:', selectedAdherentPatient.value)
+    console.log('ficheNavetteData:', ficheNavetteData.value)
+    console.log('================================')
+  }
 })
 </script>
 
@@ -1343,7 +1581,7 @@ watch(selectedFamilyAuth, () => {
                       <FileUpload
                         mode="basic"
                         :multiple="true"
-                        accept=".pdf,.doc,.docx"
+                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.tiff,.webp,.svg"
                         @select="onFileSelect"
                         chooseLabel="Choose Files"
                         class="file-upload"
@@ -1430,25 +1668,23 @@ watch(selectedFamilyAuth, () => {
 
     <!-- Appointment Required Alert -->
     <AppointmentRequiredAlert
-      :visible="showAppointmentAlert"
+      v-model:visible="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
-      :selected-doctor="selectedDoctor"
-      @update:visible="showAppointmentAlert = $event"
+      :selected-doctor="safeDoctorId"
       @proceed-with-appointments="handleProceedWithAppointments"
       @proceed-without-appointments="handleProceedWithoutAppointments"
       @cancel="handleCancelAppointmentProcess"
     />
     
-    <!-- Same Day Appointment Modal -->
+    <!-- Same Day Appointment Modal -->   
    <SameDayAppointmentModal
-  v-if="showSameDayModal"
-  :visible="showSameDayModal"
-  :doctor-id="currentPrestationForAppointment?.doctorId || selectedDoctor"
-  :patient-id="selectedAdherentPatient?.id || selectedAdherentPatient?.patient_id"
-  :prestation-id="currentPrestationForAppointment?.prestation_id || currentPrestationForAppointment?.id"
-  :doctor-specialization-id="currentPrestationForAppointment?.specializationId || selectedSpecialization"
-  @update:visible="showSameDayModal = $event"
+  v-model:visible="showSameDayModal"
+  :doctor-id="safeDoctorId"
+  :patient-id="safePatientId"
+  :fuckuifwork="fuckuifwork"
+  :prestation-id="safePrestationId"
+  :doctor-specialization-id="safeSpecializationId"
   @appointment-booked="onSameDayAppointmentBooked"
   @added-to-waitlist="onAddedToWaitingList"
 />

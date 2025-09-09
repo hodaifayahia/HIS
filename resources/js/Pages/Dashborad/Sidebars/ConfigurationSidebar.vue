@@ -38,16 +38,11 @@ const hasPermission = (requiredRoles) => {
 </script>
 
 <template>
-    <BaseSidebar
-        :user="authStore.user"
-        :app-name="appDetails.name"
-        :app-icon="appDetails.icon"
-        :app-color="appDetails.color"
-        :back-route="appDetails.backRoute"
-    >
+    <BaseSidebar :user="authStore.user" :app-name="appDetails.name" :app-icon="appDetails.icon"
+        :app-color="appDetails.color" :back-route="appDetails.backRoute">
         <template #navigation>
             <!-- User & Access Management Section -->
-            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isUserAccessManagementOpen}">
+            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isUserAccessManagementOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleUserAccessManagement">
                     <i class="nav-icon fas fa-user-shield"></i> <!-- Changed from fas fa-users-cog -->
                     <p>
@@ -56,31 +51,31 @@ const hasPermission = (requiredRoles) => {
                     </p>
                 </a>
                 <ul class="nav nav-treeview" v-show="isUserAccessManagementOpen">
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/users" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Users</p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/roles" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Roles</p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/permissions" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Permissions</p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/specializations" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Specializations</p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/services" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Services</p>
@@ -99,19 +94,19 @@ const hasPermission = (requiredRoles) => {
                     </p>
                 </a>
                 <ul class="nav nav-treeview" v-show="isModalityResourceOpen">
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/modalities" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Modalities List</p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/modalities-types" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Modality Types</p>
                         </router-link>
                     </li>
-                  
+
                 </ul>
             </li>
 
@@ -124,20 +119,21 @@ const hasPermission = (requiredRoles) => {
                         <i class="right fas fa-angle-left"></i>
                     </p>
                 </a>
-              <ul class="nav nav-treeview" v-show="isPrestationConfigOpen">
-    <li class="nav-item">
-        <router-link to="/admin/configuration/prestations" active-class="active" class="nav-link">
-            <i class="fas fa-hand-holding-medical nav-icon"></i>
-            <p>Prestation Catalog</p>
-        </router-link>
-    </li>
-    <li class="nav-item">
-        <router-link to="/admin/configuration/prestations-packages" active-class="active" class="nav-link">
-            <i class="fas fa-box-open nav-icon"></i>
-            <p>Prestations Packages</p>
-        </router-link>
-    </li>
-</ul>
+                <ul class="nav nav-treeview" v-show="isPrestationConfigOpen">
+                    <li class="nav-item">
+                        <router-link to="/admin/configuration/prestations" active-class="active" class="nav-link">
+                            <i class="fas fa-hand-holding-medical nav-icon"></i>
+                            <p>Prestation Catalog</p>
+                        </router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="/admin/configuration/prestations-packages" active-class="active"
+                            class="nav-link">
+                            <i class="fas fa-box-open nav-icon"></i>
+                            <p>Prestations Packages</p>
+                        </router-link>
+                    </li>
+                </ul>
             </li>
 
             <!-- Remise Management Section -->
@@ -149,15 +145,15 @@ const hasPermission = (requiredRoles) => {
                         <i class="right fas fa-angle-left"></i>
                     </p>
                 </a>
-                
-                <ul class="nav nav-treeview" v-show="isRemiseConfigOpen">   
-                    <li class="nav-item" >
+
+                <ul class="nav nav-treeview" v-show="isRemiseConfigOpen">
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/remise-management" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Remise List</p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
+                    <li class="nav-item">
                         <router-link to="/admin/configuration/payment-methods" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Payment Methods</p>
@@ -170,22 +166,31 @@ const hasPermission = (requiredRoles) => {
                 <a href="#" class="nav-link" @click.prevent="toggleRolePermission">
                     <i class="nav-icon fas fa-percent"></i> <!-- Changed from fas fa-boxes -->
                     <p>
-                        Roles and Premission 
+                        Roles and Premission
                         <i class="right fas fa-angle-left"></i>
                     </p>
                 </a>
-                
+
                 <ul class="nav nav-treeview" v-show="isRolePermissionOpen">
-                    <li class="nav-item" >
-                        <router-link to="/admin/configuration/Role-refund-permission" active-class="active" class="nav-link">
+                    <li class="nav-item">
+                        <router-link to="/admin/configuration/Role-refund-permission" active-class="active"
+                            class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Refund Permission </p>
                         </router-link>
                     </li>
-                    <li class="nav-item" >
-                        <router-link to="/admin/configuration/Role-caisse-permission" active-class="active" class="nav-link">
+                    <li class="nav-item">
+                        <router-link to="/admin/configuration/Role-caisse-permission" active-class="active"
+                            class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Caisse Permission </p>
+                        </router-link>
+                    </li>
+                    <li class="nav-item">
+                        <router-link to="/admin/configuration/transfer-approvals" active-class="active"
+                            class="nav-link">
+                            <i class="far fa-circle nav-icon"></i>
+                            <p>Transfer approval </p>
                         </router-link>
                     </li>
                     <!-- <li class="nav-item" >
@@ -196,10 +201,10 @@ const hasPermission = (requiredRoles) => {
                     </li> -->
                 </ul>
             </li>
-            
+
 
             <!-- System Settings Section -->
-            <li class="nav-item" >
+            <li class="nav-item">
                 <router-link to="/admin/configuration/system-settings" active-class="active" class="nav-link">
                     <i class="nav-icon fas fa-cogs"></i>
                     <p>System Settings</p>

@@ -8,20 +8,26 @@ namespace App\Http\Controllers\Bank;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Bank\StoreBankAccountTransactionRequest;
 use App\Http\Requests\Bank\UpdateBankAccountTransactionRequest;
+use App\Http\Requests\Bank\BulkUploadTransactionRequest;
 use App\Http\Resources\Bank\BankAccountTransactionCollection;
 use App\Http\Resources\Bank\BankAccountTransactionResource;
 use App\Models\Bank\BankAccountTransaction;
 use App\Services\Bank\BankAccountTransactionService;
+use App\Services\Bank\BulkTransactionUploadService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class BankAccountTransactionController extends Controller
 {
     protected BankAccountTransactionService $service;
+    protected BulkTransactionUploadService $bulkUploadService;
 
-    public function __construct(BankAccountTransactionService $service)
-    {
+    public function __construct(
+        BankAccountTransactionService $service,
+        BulkTransactionUploadService $bulkUploadService
+    ) {
         $this->service = $service;
+        $this->bulkUploadService = $bulkUploadService;
     }
 
     /**
@@ -47,7 +53,14 @@ class BankAccountTransactionController extends Controller
     public function store(StoreBankAccountTransactionRequest $request): JsonResponse
     {
         try {
-            $transaction = $this->service->create($request->validated());
+            $data = $request->validated();
+            
+            // Handle file upload for Attachment if present
+            if ($request->hasFile('Attachment')) {
+                $data['Attachment'] = $request->file('Attachment');
+            }
+            
+            $transaction = $this->service->create($data);
 
             return (new BankAccountTransactionResource($transaction))
                 ->response()
@@ -79,9 +92,7 @@ class BankAccountTransactionController extends Controller
 
             return new BankAccountTransactionResource($updatedTransaction);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => $e->getMessage()
-            ], 422);
+            throw new \Exception($e->getMessage());
         }
     }
 
@@ -141,6 +152,46 @@ class BankAccountTransactionController extends Controller
     }
 
     /**
+     * Validate a transaction (change from pending to confirmed with validation data)
+     */
+    public function validate(Request $request, BankAccountTransaction $bankAccountTransaction): JsonResponse
+    {
+        try {
+            $validationData = $request->validate([
+                'Payment_date' => 'nullable|date',
+                'reference_validation' => 'nullable|string|max:255',
+                'Attachment_validation' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,gif,bmp,tiff,webp,svg|max:10240', // 10MB max
+                'Reason_validation' => 'nullable|string|max:255',
+            ]);
+
+            // Handle file upload for Attachment_validation
+            if ($request->hasFile('Attachment_validation')) {
+                $file = $request->file('Attachment_validation');
+                $fileName = time() . '_validation_' . $file->getClientOriginalName();
+                $filePath = $file->storeAs('validation_attachments', $fileName, 'public');
+                $validationData['Attachment_validation'] = $filePath;
+            }
+
+            $validatedTransaction = $this->service->validate(
+                $bankAccountTransaction, 
+                $validationData,
+                auth()->id()
+            );
+
+            return response()->json([
+                'success' => true,
+                'data' => new BankAccountTransactionResource($validatedTransaction),
+                'message' => 'Transaction validated successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
      * Get transaction statistics
      */
     public function stats(Request $request): JsonResponse
@@ -151,5 +202,58 @@ class BankAccountTransactionController extends Controller
         return response()->json([
             'data' => $stats
         ]);
+    }
+
+    /**
+     * Bulk upload transactions from file
+     */
+    public function bulkUpload(BulkUploadTransactionRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->bulkUploadService->processUpload(
+                $request->file('file'),
+                $request->integer('bank_account_id'),
+                $request->input('description'),
+                auth()->id()
+            );
+
+            if ($result['success']) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $result['message'],
+                    'data' => $result['data']
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => $result['message']
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Upload failed: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Download bulk upload template
+     */
+    public function downloadTemplate(): JsonResponse
+    {
+        try {
+            $template = $this->bulkUploadService->generateTemplate();
+            
+            return response()->json([
+                'success' => true,
+                'data' => $template
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate template: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -12,6 +12,7 @@ use App\Services\Coffre\CoffreTransactionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class CoffreTransactionController extends Controller
 {
@@ -66,10 +67,15 @@ class CoffreTransactionController extends Controller
      */
     public function store(StoreCoffreTransactionRequest $request): JsonResponse
     {
-        // dd($request->all());
+
         try {
             $data = $request->validated();
-            
+            // Handle attachment upload
+            if ($request->hasFile('attachment')) {
+                $path = $request->file('attachment')->store('coffre_attachments', 'public');
+                $data['Attachment'] = $path;
+            }
+
             // Set user_id to authenticated user automatically
             $data['user_id'] = Auth::id();
             
@@ -105,7 +111,16 @@ class CoffreTransactionController extends Controller
     {
         try {
             $data = $request->validated();
-            
+            // Handle attachment update: remove old file then store new
+            if ($request->hasFile('attachment')) {
+                if (!empty($coffreTransaction->Attachment)) {
+                    Storage::disk('public')->delete($coffreTransaction->Attachment);
+                }
+
+                $path = $request->file('attachment')->store('coffre_attachments', 'public');
+                $data['Attachment'] = $path;
+            }
+
             // Keep original user or set to current auth user if not provided
             if (!isset($data['user_id'])) {
                 $data['user_id'] = $coffreTransaction->user_id ?? Auth::id();
@@ -118,6 +133,11 @@ class CoffreTransactionController extends Controller
                 'data' => new CoffreTransactionResource($result),
                 'message' => 'Transaction updated successfully'
             ]);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], $e->getStatusCode());
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

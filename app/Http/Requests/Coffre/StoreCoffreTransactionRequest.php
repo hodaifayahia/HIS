@@ -16,12 +16,17 @@ class StoreCoffreTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'transaction_type' => 'required|string|in:deposit,withdraw',
+            'transaction_type' => 'required|string|in:deposit,withdraw,transfer_in,transfer_out',
             'coffre_id' => 'required|exists:coffres,id',
-            'dest_coffre_id' => 'nullable|exists:coffres,id|different:coffre_id', // Optional for transfers
+            'dest_coffre_id' => 'nullable|exists:coffres,id|different:coffre_id',
+            'bank_account_id' => 'nullable|exists:bank_accounts,id',
+            'Reason' => 'nullable|string|max:255',
+            'reference' => 'nullable|string|max:255',
+            'Designation' => 'nullable|string|max:255',
+            'Payer' => 'nullable|string|max:255',
+            'attachment' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:5120',
             'amount' => 'required|numeric|min:0.01',
             'description' => 'nullable|string|max:1000'
-            // user_id removed - will be set automatically from auth
         ];
     }
 

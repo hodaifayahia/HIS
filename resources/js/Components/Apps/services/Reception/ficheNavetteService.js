@@ -441,6 +441,26 @@ async getPrestationsDependencies(prestationIds) {
     },
 
     /**
+     * Get fiche navette by ID with patient information
+     */
+    async getFicheNavetteById(ficheNavetteId) {
+        try {
+            const response = await axios.get(`/api/reception/fiche-navette/${ficheNavetteId}`);
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error fetching fiche navette:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch fiche navette',
+                error
+            };
+        }
+    },
+
+    /**
      * Add items to an existing fiche navette using ficheNavetteItemController
      */
     async addItemsToFiche(ficheNavetteId, data) {
@@ -767,6 +787,26 @@ async getGroupedItems(ficheNavetteId) {
         } catch (error) {
             console.error('Error downloading file:', error)
             throw error
+        }
+    },
+
+    /**
+     * Get all custom packages for dropdown options
+     */
+    async getCustomPackages() {
+        try {
+            const response = await axios.get('/api/fiche-navette-custom-packages');
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error fetching custom packages:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch custom packages',
+                error
+            };
         }
     }
 };

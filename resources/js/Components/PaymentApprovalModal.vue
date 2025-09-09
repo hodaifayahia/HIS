@@ -57,6 +57,46 @@
         />
       </div>
 
+      <div class="tw-flex tw-flex-col tw-gap-2">
+        <label for="attachment" class="tw-font-medium tw-text-gray-700">
+          Attachment <span class="tw-text-gray-400">(optional)</span>
+        </label>
+        <div class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-4 tw-text-center hover:tw-border-gray-400 tw-transition-colors">
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/*,.pdf"
+            @change="onFileSelected"
+            class="tw-hidden"
+            id="attachment"
+          />
+          <div v-if="!selectedFile" class="tw-cursor-pointer" @click="$refs.fileInput.click()">
+            <i class="pi pi-upload tw-text-2xl tw-text-gray-400 tw-mb-2"></i>
+            <p class="tw-text-sm tw-text-gray-600">Click to upload receipt or document</p>
+            <p class="tw-text-xs tw-text-gray-500">Supported: Images, PDF (Max 5MB)</p>
+          </div>
+          <div v-else class="tw-flex tw-items-center tw-justify-between">
+            <div class="tw-flex tw-items-center tw-gap-2">
+              <i :class="getFileIcon(selectedFile.type)" class="tw-text-lg tw-text-blue-600"></i>
+              <div class="tw-text-left">
+                <p class="tw-text-sm tw-font-medium tw-text-gray-900">{{ selectedFile.name }}</p>
+                <p class="tw-text-xs tw-text-gray-500">{{ formatFileSize(selectedFile.size) }}</p>
+              </div>
+            </div>
+            <Button
+              icon="pi pi-times"
+              severity="secondary"
+              text
+              size="small"
+              @click="removeFile"
+            />
+          </div>
+        </div>
+        <small class="tw-text-gray-500">
+          Upload a receipt, invoice, or supporting document for approval
+        </small>
+      </div>
+
       <div class="tw-bg-amber-50 tw-border tw-border-amber-200 tw-rounded-lg tw-p-3">
         <div class="tw-flex tw-items-start tw-gap-2">
           <i class="pi pi-exclamation-triangle tw-text-amber-600 tw-mt-0.5"></i>
@@ -118,6 +158,8 @@ const approvers = ref([])
 const loadingApprovers = ref(false)
 const submitting = ref(false)
 const submitted = ref(false)
+const selectedFile = ref(null)
+const fileInput = ref(null)
 
 const visible = computed({
   get: () => props.visible,
@@ -160,18 +202,25 @@ const onSubmit = async () => {
   submitting.value = true
   
   try {
-    const requestData = {
-      approved_by: selectedApprover.value,
-      payment_method: props.paymentData.method,
-      amount: props.paymentData.amount,
-      notes: notes.value || null,
-      item_type: props.paymentData.itemType,
-      fiche_navette_item_id: props.paymentData.fiche_navette_item_id,
-      item_dependency_id: props.paymentData.item_dependency_id,
-      patient_id: props.paymentData.patient_id
+    const formData = new FormData()
+    formData.append('approved_by', selectedApprover.value)
+    formData.append('payment_method', props.paymentData.method)
+    formData.append('amount', props.paymentData.amount)
+    formData.append('notes', notes.value || '')
+    formData.append('item_type', props.paymentData.itemType)
+    formData.append('fiche_navette_item_id', props.paymentData.fiche_navette_item_id || '')
+    formData.append('item_dependency_id', props.paymentData.item_dependency_id || '')
+    formData.append('patient_id', props.paymentData.patient_id || '')
+
+    if (selectedFile.value) {
+      formData.append('attachment', selectedFile.value)
     }
 
-    const response = await axios.post('/api/transaction-bank-requests', requestData)
+    const response = await axios.post('/api/transaction-bank-requests', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
     
     toast.add({
       severity: 'success',
@@ -183,7 +232,8 @@ const onSubmit = async () => {
     emit('submitted', {
       requestId: response.data.data?.id,
       approver: approvers.value.find(a => a.id === selectedApprover.value),
-      ...requestData
+      attachment: selectedFile.value,
+      ...Object.fromEntries(formData)
     })
     
     onHide()
@@ -209,10 +259,65 @@ const onCancel = () => {
 const onHide = () => {
   selectedApprover.value = null
   notes.value = ''
+  selectedFile.value = null
   submitted.value = false
   submitting.value = false
   
   emit('update:visible', false)
+}
+
+const onFileSelected = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'File size must be less than 5MB',
+        life: 5000
+      })
+      return
+    }
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf']
+    if (!allowedTypes.includes(file.type)) {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Only images and PDF files are allowed',
+        life: 5000
+      })
+      return
+    }
+    
+    selectedFile.value = file
+  }
+}
+
+const removeFile = () => {
+  selectedFile.value = null
+  if (fileInput.value) {
+    fileInput.value.value = ''
+  }
+}
+
+const getFileIcon = (fileType) => {
+  if (fileType.startsWith('image/')) {
+    return 'pi pi-image'
+  } else if (fileType === 'application/pdf') {
+    return 'pi pi-file-pdf'
+  }
+  return 'pi pi-file'
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
 watch(() => props.visible, (newValue) => {
@@ -234,6 +339,6 @@ onMounted(() => {
   We apply Tailwind's border-red-500 to it for consistent styling.
 */
 .p-invalid {
-  @apply tw-border-red-500;
+  border-color: #ef4444 !important;
 }
 </style>

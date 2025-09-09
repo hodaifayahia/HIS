@@ -65,14 +65,11 @@ const checkAvailability = async () => {
 
   try {
 
-    const response = await axios.get('/api/appointments/checkAvailability', {
-      params: {
-        days: days.value,
-        doctor_id: props.doctorId,
-        range: range.value, // Pass the range to the API
-        include_slots: true
-
-      }
+    const response = await axios.post('/api/appointments/checkAvailability', {
+      days: days.value,
+      doctor_id: props.doctorId,
+      range: range.value, // Pass the range to the API
+      include_slots: true
     });
     console.log(response.data.data);
 

@@ -15,13 +15,21 @@ class BankAccountTransaction extends Model
         'bank_account_id',
         'accepted_by_user_id',
         'transaction_type',
-        'amount',
-        'transaction_date',
         'description',
-        'reference',
         'status',
         'reconciled_by_user_id',
+        'transaction_date',
+        'amount',
         'reconciled_at',
+        'Designation',
+        'Payer',
+        'Reason',
+        'reference',
+        'Attachment',
+        'Payment_date',
+        'reference_validation',
+        'Attachment_validation',
+        'Reason_validation',
     ];
 
     protected $casts = [
@@ -62,6 +70,11 @@ class BankAccountTransaction extends Model
         return $query->where('status', 'reconciled');
     }
 
+    public function scopeConfirmed($query)
+    {
+        return $query->where('status', 'confirmed');
+    }
+
     public function scopeByType($query, string $type)
     {
         return $query->where('transaction_type', $type);
@@ -78,6 +91,7 @@ class BankAccountTransaction extends Model
         return match($this->status) {
             'pending' => 'Pending',
             'completed' => 'Completed',
+            'confirmed' => 'Confirmed',
             'cancelled' => 'Cancelled',
             'reconciled' => 'Reconciled',
             default => ucfirst($this->status)
@@ -89,6 +103,7 @@ class BankAccountTransaction extends Model
         return match($this->status) {
             'pending' => 'warning',
             'completed' => 'success',
+            'confirmed' => 'info',
             'cancelled' => 'danger',
             'reconciled' => 'info',
             default => 'secondary'
@@ -104,6 +119,31 @@ class BankAccountTransaction extends Model
     {
         $currency = $this->bankAccount?->currency ?? 'DZD';
         return number_format($this->amount, 2) . ' ' . $currency;
+    }
+
+    public function getAttachmentValidationUrlAttribute(): ?string
+    {
+        if ($this->Attachment_validation && !filter_var($this->Attachment_validation, FILTER_VALIDATE_URL)) {
+            return asset('storage/' . $this->Attachment_validation);
+        }
+        return $this->Attachment_validation;
+    }
+
+    public function getAttachmentUrlAttribute(): ?string
+    {
+        if ($this->Attachment && !filter_var($this->Attachment, FILTER_VALIDATE_URL)) {
+            return asset('storage/' . $this->Attachment);
+        }
+        return $this->Attachment;
+    }
+
+    public function getIsAttachmentImageAttribute(): bool
+    {
+        if (!$this->Attachment) {
+            return false;
+        }
+        $extension = strtolower(pathinfo($this->Attachment, PATHINFO_EXTENSION));
+        return in_array($extension, ['jpg', 'jpeg', 'png', 'gif']);
     }
 
     // Methods

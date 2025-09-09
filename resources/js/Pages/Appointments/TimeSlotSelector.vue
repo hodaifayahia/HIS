@@ -77,13 +77,11 @@ const fetchTimeSlots = async () => {
       return;
     }
 
-    const response = await axios.get('/api/appointments/checkAvailability', {
-      params: {
-        date: props.date,
-        doctor_id: props.doctorid,
-        range: props.range,
-        include_slots: true,
-      }
+    const response = await axios.post('/api/appointments/checkAvailability', {
+      date: props.date,
+      doctor_id: props.doctorid,
+      range: props.range,
+      include_slots: true
     });
     
     // Emit the availability check result to parent

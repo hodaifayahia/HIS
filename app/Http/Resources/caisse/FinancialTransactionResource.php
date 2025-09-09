@@ -14,39 +14,40 @@ class FinancialTransactionResource extends JsonResource
      */
     public static array $refundAuthorizations = [];
 
-    public function toArray(Request $request): array
-    {
-        return [
-            'id' => $this->id,
-            'reference' => $this->reference,
-            'fiche_navette_item_id' => $this->fiche_navette_item_id,
-            'patient_id' => $this->patient_id,
-            'cashier_id' => $this->cashier_id,
-            'amount' => (float) $this->amount,
-            'formatted_amount' => $this->formatted_amount,
-            'transaction_type' => $this->transaction_type,
-            'transaction_type_text' => $this->transaction_type_text,
-            'payment_method' => $this->payment_method,
-            'payment_method_text' => $this->payment_method_text,
-            'status_color' => $this->status_color,
-            'b2b_invoice_id' => $this->b2b_invoice_id,
-            'notes' => $this->notes,
-            'can_be_refunded' => $this->canBeRefunded(),
-            'can_be_adjusted' => $this->canBeAdjusted(),
+  public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->id,
+        'reference' => $this->reference,
+        'fiche_navette_item_id' => $this->fiche_navette_item_id,
+        'patient_id' => $this->patient_id,
+        'cashier_id' => $this->cashier_id,
+        'amount' => (float) $this->amount,
+        'status' => $this->status,
+        'formatted_amount' => $this->formatted_amount,
+        'transaction_type' => $this->transaction_type,
+        'transaction_type_text' => $this->transaction_type_text,
+        'payment_method' => $this->payment_method,
+        'payment_method_text' => $this->payment_method_text,
+        'status_color' => $this->status_color,
+        'b2b_invoice_id' => $this->b2b_invoice_id,
+        'notes' => $this->notes,
+        'can_be_refunded' => $this->canBeRefunded(),
+        'can_be_adjusted' => $this->canBeAdjusted(),
 
-            // Include refund authorization for this transaction's fiche item (if exists)
-            'refund_authorization' => $this->getRefundAuthorizationForItem(),
+        // Include ficheNavetteItem status
+        'fiche_navette_item_status' => $this->ficheNavetteItem?->status,
 
-            // Relationships
-            'fiche_navette_item' => $this->whenLoaded('ficheNavetteItem'),
-            'patient' => $this->whenLoaded('patient'),
-            'cashier' => $this->whenLoaded('cashier'),
-            'b2b_invoice' => $this->whenLoaded('b2bInvoice'),
+        // Relationships - always include if they exist
+        'fiche_navette_item' => $this->ficheNavetteItem,
+        'patient' => $this->patient,
+        'cashier' => $this->cashier,
+        'b2b_invoice' => $this->b2bInvoice ?? null,
 
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
-        ];
-    }
+        'created_at' => $this->created_at?->toISOString(),
+        'updated_at' => $this->updated_at?->toISOString(),
+    ];
+}
 
     /**
      * Get refund authorization for this transaction's fiche item

@@ -15,8 +15,16 @@ class FinancialTransactionService
 {
     public function getAllPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-        $query = FinancialTransaction::with(['ficheNavetteItem', 'patient', 'cashier'])
-                                   ->latest('created_at');
+       $query = FinancialTransaction::with([
+        'ficheNavetteItem.prestation.specialization',
+        'ficheNavetteItem.ficheNavette.patient',
+        'ficheNavetteItem',
+        'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
+        'patient',
+        'cashier',
+        'itemDependency'
+    ])
+    ->latest('created_at');
 
         // Apply filters
         if (!empty($filters['fiche_navette_item_id'])) {
@@ -59,8 +67,15 @@ class FinancialTransactionService
 
     public function findById(int $id): FinancialTransaction
     {
-        return FinancialTransaction::with(['ficheNavetteItem', 'patient', 'cashier'])
-                                  ->findOrFail($id);
+        return FinancialTransaction::with([
+            'ficheNavetteItem.prestation.specialization',
+            'ficheNavetteItem.ficheNavette.patient',
+            'ficheNavetteItem',
+            'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
+            'patient',
+            'cashier',
+            'itemDependency'
+        ])->findOrFail($id);
     }
 
     public function getAllPrestationsWithDependencies($ficheNavetteId)
@@ -445,71 +460,56 @@ class FinancialTransactionService
         }
 
         $updated = [];
-        $prestationId = $transaction->patient_id; // This is actually prestation_id
         $ficheNavetteItemId = $transaction->fiche_navette_item_id;
-        $refundAmount = $transaction->amount;
+        $refundAmount = abs((float) $transaction->amount); // Ensure positive amount for calculations
 
-        // Check if this is a dependency refund
-        $isDependencyRefund = isset($transaction->_is_dependency_payment) && $transaction->_is_dependency_payment;
-        $dependencyId = $transaction->_dependency_id ?? null;
+        // Check if this is a dependency refund by looking at item_dependency_id or dependency flags
+        $dependencyId = $transaction->item_dependency_id ?? $transaction->_dependency_id ?? null;
+        $isDependencyRefund = !empty($dependencyId) || (isset($transaction->_is_dependency_payment) && $transaction->_is_dependency_payment);
 
         if ($isDependencyRefund && $dependencyId) {
             // This is a dependency refund - update ItemDependency directly
             $itemDependency = ItemDependency::find($dependencyId);
             if ($itemDependency) {
-                $newPaidAmount = max(0, $itemDependency->paid_amount - $refundAmount);
-                $newRemainingAmount = $itemDependency->final_price - $newPaidAmount;
+                $currentPaidAmount = (float) ($itemDependency->paid_amount ?? 0);
+                $finalPrice = (float) ($itemDependency->final_price ?? 0);
+                
+                // Subtract refund amount from paid amount (ensure it doesn't go below 0)
+                $newPaidAmount = max(0, $currentPaidAmount - $refundAmount);
+                $newRemainingAmount = max(0, $finalPrice - $newPaidAmount);
 
                 $itemDependency->update([
                     'paid_amount' => $newPaidAmount,
-                    'remaining_amount' => max(0, $newRemainingAmount),
+                    'remaining_amount' => $newRemainingAmount,
                     'payment_status' => ($newRemainingAmount <= 0) ? 'paid' : 'pending',
                 ]);
 
                 $updated['item_dependency'] = $itemDependency->fresh();
             }
-        } else {
-            // Try to find in ficheNavetteItem first
-            $ficheNavetteItem = ficheNavetteItem::where('id', $ficheNavetteItemId)
-                ->where(function ($query) use ($prestationId) {
-                    $query->where('prestation_id', $prestationId)
-                          ->orWhere('package_id', $prestationId);
-                })
-                ->first();
-
+        } else if ($ficheNavetteItemId) {
+            // Regular fiche navette item refund
+            $ficheNavetteItem = ficheNavetteItem::find($ficheNavetteItemId);
             if ($ficheNavetteItem) {
-                $newPaidAmount = max(0, $ficheNavetteItem->paid_amount - $refundAmount);
-                $newRemainingAmount = $ficheNavetteItem->final_price - $newPaidAmount;
+                $currentPaidAmount = (float) ($ficheNavetteItem->paid_amount ?? 0);
+                $finalPrice = (float) ($ficheNavetteItem->final_price ?? 0);
+                
+                // Subtract refund amount from paid amount (ensure it doesn't go below 0)
+                $newPaidAmount = max(0, $currentPaidAmount - $refundAmount);
+                $newRemainingAmount = max(0, $finalPrice - $newPaidAmount);
 
                 $ficheNavetteItem->update([
                     'paid_amount' => $newPaidAmount,
-                    'remaining_amount' => max(0, $newRemainingAmount),
+                    'remaining_amount' => $newRemainingAmount,
                     'payment_status' => ($newRemainingAmount <= 0) ? 'paid' : 'pending',
                 ]);
 
                 $updated['fiche_navette_item'] = $ficheNavetteItem->fresh();
-            } else {
-                // If not found in ficheNavetteItem, look in ItemDependency
-                $itemDependency = ItemDependency::where('parent_item_id', $ficheNavetteItemId)
-                    ->where('dependent_prestation_id', $prestationId)
-                    ->first();
-
-                if ($itemDependency) {
-                    $newPaidAmount = max(0, $itemDependency->paid_amount - $refundAmount);
-                    $newRemainingAmount = $itemDependency->final_price - $newPaidAmount;
-
-                    $itemDependency->update([
-                        'paid_amount' => $newPaidAmount,
-                        'remaining_amount' => max(0, $newRemainingAmount),
-                        'payment_status' => ($newRemainingAmount <= 0) ? 'paid' : 'pending',
-                    ]);
-
-                    $updated['item_dependency'] = $itemDependency->fresh();
-                }
             }
         }
 
-     
+        if (empty($updated)) {
+            throw new \Exception("Failed to update refund records for transaction. No valid target found.");
+        }
 
         return $updated;
     }
@@ -928,51 +928,145 @@ class FinancialTransactionService
     }
 
     /**
-     * Process refund transaction and update prestation amounts
+     * Get refundable transactions for a fiche navette
      */
-    public function processRefundTransaction(array $data): array
+    public function getRefundableTransactions(int $ficheNavetteId): Collection
     {
-        return DB::transaction(function () use ($data) {
-            // Set transaction type to refund if not already set
-            $data['transaction_type'] = 'refund';
-            
-            // Validate and resolve fiche_navette_item_id if needed
-            $data = $this->validateAndResolveFicheNavetteItem($data);
-            
-            // Store dependency flags for later use
-            $isDependencyRefund = $data['_is_dependency_payment'] ?? false;
-            $dependencyId = $data['_dependency_id'] ?? null;
-            $dependencyPrestationId = $data['_dependency_prestation_id'] ?? null;
-            
-            // Remove internal flags and raw items payload to avoid mass-assignment errors
-            $hasDependencyFlags = $isDependencyRefund || !empty($data['item_dependency_id']);
+        return FinancialTransaction::with([
+            'ficheNavetteItem',
+            'patient',
+            'cashier'
+        ])
+        ->whereHas('ficheNavetteItem', function ($q) use ($ficheNavetteId) {
+            $q->where('fiche_navette_id', $ficheNavetteId);
+        })
+        ->where('transaction_type', 'payment')
+        ->where('amount', '>', 0)
+        ->latest('created_at')
+        ->get();
+    }
 
-            // Keep item_dependency_id in payload but remove transient internal flags
-            unset($data['_is_dependency_payment'], $data['_dependency_id'], $data['_dependency_prestation_id']);
-            if (isset($data['items'])) {
-                unset($data['items']);
+    /**
+     * Delete a financial transaction
+     */
+    public function delete(FinancialTransaction $transaction): bool
+    {
+        return DB::transaction(function () use ($transaction) {
+            // Reverse the transaction effects before deleting
+            if ($transaction->transaction_type === 'payment') {
+                $this->reversePaymentTransaction($transaction);
+            } elseif ($transaction->transaction_type === 'refund') {
+                $this->reverseRefundTransaction($transaction);
             }
 
-            // If this is a dependency refund, avoid persisting parent fiche id onto transaction
-            if ($hasDependencyFlags && isset($data['fiche_navette_item_id'])) {
-                $parentFicheItemId = $data['fiche_navette_item_id'];
-                // Don't unset here for refunds as we may need it for validation
+            return $transaction->delete();
+        });
+    }
+
+    /**
+     * Reverse payment transaction effects
+     */
+    private function reversePaymentTransaction(FinancialTransaction $transaction): void
+    {
+        $ficheNavetteItemId = $transaction->fiche_navette_item_id;
+        $dependencyId = $transaction->item_dependency_id;
+        $amount = $transaction->amount;
+
+        if ($dependencyId) {
+            $dependency = ItemDependency::find($dependencyId);
+            if ($dependency) {
+                $dependency->update([
+                    'paid_amount' => max(0, ($dependency->paid_amount ?? 0) - $amount),
+                    'remaining_amount' => ($dependency->final_price ?? 0) - max(0, ($dependency->paid_amount ?? 0) - $amount),
+                    'payment_status' => (($dependency->final_price ?? 0) - max(0, ($dependency->paid_amount ?? 0) - $amount) <= 0) ? 'paid' : 'pending'
+                ]);
+            }
+        } elseif ($ficheNavetteItemId) {
+            $ficheItem = ficheNavetteItem::find($ficheNavetteItemId);
+            if ($ficheItem) {
+                $ficheItem->update([
+                    'paid_amount' => max(0, ($ficheItem->paid_amount ?? 0) - $amount),
+                    'remaining_amount' => ($ficheItem->final_price ?? 0) - max(0, ($ficheItem->paid_amount ?? 0) - $amount),
+                    'payment_status' => (($ficheItem->final_price ?? 0) - max(0, ($ficheItem->paid_amount ?? 0) - $amount) <= 0) ? 'paid' : 'pending'
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Reverse refund transaction effects
+     */
+    private function reverseRefundTransaction(FinancialTransaction $transaction): void
+    {
+        $ficheNavetteItemId = $transaction->fiche_navette_item_id;
+        $dependencyId = $transaction->item_dependency_id;
+        $amount = abs((float) $transaction->amount); // Refunds are stored as negative, but we need positive for reversal
+
+        if ($dependencyId) {
+            $dependency = ItemDependency::find($dependencyId);
+            if ($dependency) {
+                $dependency->update([
+                    'paid_amount' => ($dependency->paid_amount ?? 0) + $amount,
+                    'remaining_amount' => max(0, ($dependency->final_price ?? 0) - (($dependency->paid_amount ?? 0) + $amount)),
+                    'payment_status' => (($dependency->final_price ?? 0) - (($dependency->paid_amount ?? 0) + $amount) <= 0) ? 'paid' : 'pending'
+                ]);
+            }
+        } elseif ($ficheNavetteItemId) {
+            $ficheItem = ficheNavetteItem::find($ficheNavetteItemId);
+            if ($ficheItem) {
+                $ficheItem->update([
+                    'paid_amount' => ($ficheItem->paid_amount ?? 0) + $amount,
+                    'remaining_amount' => max(0, ($ficheItem->final_price ?? 0) - (($ficheItem->paid_amount ?? 0) + $amount)),
+                    'payment_status' => (($ficheItem->final_price ?? 0) - (($ficheItem->paid_amount ?? 0) + $amount) <= 0) ? 'paid' : 'pending'
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Update prestation price and recalculate amounts
+     */
+    public function updatePrestationPrice(int $prestationId, int $ficheNavetteItemId, float $newFinalPrice, float $paidAmount): array
+    {
+        return DB::transaction(function () use ($prestationId, $ficheNavetteItemId, $newFinalPrice, $paidAmount) {
+            $ficheItem = ficheNavetteItem::find($ficheNavetteItemId);
+            if (!$ficheItem) {
+                throw new \Exception("Fiche navette item not found");
             }
 
-            // Create the refund transaction (item_dependency_id, if present, will be persisted)
-            $transaction = FinancialTransaction::create($data);
-            
-            // Restore dependency flags for processing
-            $transaction->_is_dependency_payment = $isDependencyRefund;
-            $transaction->_dependency_id = $dependencyId;
-            $transaction->_dependency_prestation_id = $dependencyPrestationId;
+            $oldFinalPrice = $ficheItem->final_price ?? 0;
+            $oldPaidAmount = $ficheItem->paid_amount ?? 0;
 
-            // Process refund and update prestation amounts
-            $updatedItems = $this->processRefundAndUpdatePrestation($transaction);
+            // Update the final price
+            $ficheItem->update([
+                'final_price' => $newFinalPrice,
+                'paid_amount' => $paidAmount,
+                'remaining_amount' => max(0, $newFinalPrice - $paidAmount),
+                'payment_status' => ($newFinalPrice - $paidAmount <= 0) ? 'paid' : 'pending'
+            ]);
+
+            // Update dependencies if any
+            $updatedDependencies = [];
+            foreach ($ficheItem->dependencies as $dependency) {
+                // Recalculate dependency amounts proportionally
+                $oldDependencyPrice = $dependency->final_price ?? 0;
+                $priceRatio = $oldFinalPrice > 0 ? $newFinalPrice / $oldFinalPrice : 1;
+                $newDependencyPrice = $oldDependencyPrice * $priceRatio;
+
+                $dependency->update([
+                    'final_price' => $newDependencyPrice,
+                    'remaining_amount' => max(0, $newDependencyPrice - ($dependency->paid_amount ?? 0)),
+                    'payment_status' => ($newDependencyPrice - ($dependency->paid_amount ?? 0) <= 0) ? 'paid' : 'pending'
+                ]);
+
+                $updatedDependencies[] = $dependency->fresh();
+            }
 
             return [
-                'transaction' => $transaction->load(['ficheNavetteItem', 'patient', 'cashier']),
-                'updated_items' => $updatedItems
+                'fiche_navette_item' => $ficheItem->fresh(),
+                'dependencies' => $updatedDependencies,
+                'old_final_price' => $oldFinalPrice,
+                'new_final_price' => $newFinalPrice
             ];
         });
     }

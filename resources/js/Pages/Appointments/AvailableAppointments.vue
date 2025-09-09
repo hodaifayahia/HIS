@@ -42,12 +42,10 @@ const fetchTimeSlots = async (date, type) => {
       );
       return appointment?.available_times || [];
     } else {
-      const response = await axios.get('/api/appointments/checkAvailability', {
-        params: {
-          date: availableAppointments.value.normal_appointments.date,
-          doctor_id: props.doctorId,
-          include_slots: true,
-        }
+      const response = await axios.post('/api/appointments/checkAvailability', {
+        date: availableAppointments.value.normal_appointments.date,
+        doctor_id: props.doctorId,
+        include_slots: true,
       });
       return response.data.available_slots || [];
     }

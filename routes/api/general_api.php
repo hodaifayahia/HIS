@@ -2,9 +2,11 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Reception\ficheNavetteController;
-use App\Http\Controllers\TransactionBankRequestController;
+use App\Http\Controllers\manager\TransactionBankRequestController;
 use App\Http\Controllers\CONFIGURATION\UserCaisseApprovalController;
 use App\Http\Controllers\Caisse\FinancialTransactionController;
+use App\Http\Controllers\Coffre\CoffreTransactionController;
+use App\Http\Controllers\RequestTransactionApprovalController;
 
 // This file is for any API routes that don't fit into the more specific categories.
 // Review your original web.php to see if anything was left out.
@@ -44,11 +46,35 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/', [TransactionBankRequestController::class, 'index']);
         Route::post('/', [TransactionBankRequestController::class, 'store']);
         Route::patch('/{transactionBankRequest}/status', [TransactionBankRequestController::class, 'updateStatus']);
+        Route::post('/{transactionBankRequest}/update-attachment', [TransactionBankRequestController::class, 'updateAttachment']);
         Route::get('/pending-approvals', [TransactionBankRequestController::class, 'getPendingApprovals']);
     });
     
     // User Caisse Approval Routes
     Route::prefix('user-caisse-approval')->group(function () {
         Route::get('/approvers', [UserCaisseApprovalController::class, 'getApprovers']);
+    });
+});
+
+// Coffre Transaction Routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::prefix('coffre-transactions')->group(function () {
+        Route::get('/', [CoffreTransactionController::class, 'index']);
+        Route::post('/', [CoffreTransactionController::class, 'store']);
+        Route::get('/{coffreTransaction}', [CoffreTransactionController::class, 'show']);
+        Route::put('/{coffreTransaction}', [CoffreTransactionController::class, 'update']);
+        Route::delete('/{coffreTransaction}', [CoffreTransactionController::class, 'destroy']);
+        
+        // Helper endpoints
+        Route::get('/types/all', [CoffreTransactionController::class, 'transactionTypes']);
+        Route::get('/coffres/all', [CoffreTransactionController::class, 'coffres']);
+        Route::get('/users/all', [CoffreTransactionController::class, 'users']);
+    });
+    
+    // Request Transaction Approval Routes
+    Route::prefix('request-transaction-approvals')->group(function () {
+        Route::get('/', [RequestTransactionApprovalController::class, 'index']);
+        Route::patch('/{requestTransactionApproval}/approve', [RequestTransactionApprovalController::class, 'approve']);
+        Route::patch('/{requestTransactionApproval}/reject', [RequestTransactionApprovalController::class, 'reject']);
     });
 });
