@@ -12,7 +12,7 @@ const crmRoutes = [
       {
         path: 'dashboard',
         name: 'crm.dashboard',
-        component: () => import('../Pages/Apps/crm/Dashboard/CrmDashboard.vue'),
+        component: () => import('../Pages/Apps/crm/dashboard/CrmDashboard.vue'),
       },
       // B2C: Patient CRM
       {

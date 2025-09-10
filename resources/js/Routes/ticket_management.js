@@ -1,6 +1,6 @@
-import Index from '../Pages/Apps/TicketManagement/Index.vue';
-import TicketList from '../Pages/Apps/TicketManagement/Components/TicketList.vue';
-import TicketDetail from '../Pages/Apps/TicketManagement/Components/TicketDetail.vue';
+import Index from '../Pages/Apps/ticketmanagement/Index.vue';
+import TicketList from '../Pages/Apps/ticketmanagement/Components/TicketList.vue';
+import TicketDetail from '../Pages/Apps/ticketmanagement/Components/TicketDetail.vue';
 
 
 

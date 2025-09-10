@@ -21,8 +21,8 @@ const toastr = useToastr();
 
 const Patient = ref({
     id: props.specData?.id || null,
-    first_name: props.specData?.first_name || '',
-    last_name: props.specData?.last_name || '',
+    Firstname: props.specData?.Firstname || '',
+    Lastname: props.specData?.Lastname || '',
     phone: props.specData?.phone || '',
     Idnum: props.specData?.Idnum || '',
     Parent: props.specData?.Parent || '',
@@ -37,11 +37,11 @@ watch(
     (newValue) => {
         Patient.value = {
             id: newValue?.id || null,
-            first_name: newValue?.first_name || '',
-            Parent: newValue?.Parent || '',
-            last_name: newValue?.last_name || '',
+            Firstname: newValue?.Firstname || '',
+            Lastname: newValue?.Lastname || '',
             phone: newValue?.phone || '',
             Idnum: newValue?.Idnum || '',
+            Parent: newValue?.Parent || '',
             dateOfBirth: newValue?.dateOfBirth || null,
             gender: newValue?.gender || 'male',
         };
@@ -50,12 +50,12 @@ watch(
 );
 
 const PatientSchema = yup.object({
-    first_name: yup
+    Firstname: yup
         .string()
         .required('First name is required')
         .min(2, 'First name must be at least 2 characters')
         .max(50, 'First name cannot exceed 50 characters'),
-    last_name: yup
+    Lastname: yup
         .string()
         .required('Last name is required')
         .min(2, 'Last name must be at least 2 characters')
@@ -63,8 +63,7 @@ const PatientSchema = yup.object({
     Parent: yup
         .string(),
     phone: yup
-        .string()
-       ,
+        .string(),
     Idnum: yup
         .string()
         .nullable()
@@ -148,15 +147,15 @@ const submitForm = async (values) => {
                                 <div class="form-group mb-4">
                                     <label for="patient-first-name" class="text-muted">Patient Last Name</label>
                                     <Field
-                                        name="first_name"
-                                        v-model="Patient.first_name"
+                                        name="Firstname"
+                                        v-model="Patient.Firstname"
                                         type="text"
                                         class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.first_name }"
+                                        :class="{ 'is-invalid': errors.Firstname }"
                                         id="patient-first-name"
                                         placeholder="Enter Patient First Name"
                                     />
-                                    <span class="invalid-feedback">{{ errors.first_name }}</span>
+                                    <span class="invalid-feedback">{{ errors.Firstname }}</span>
                                 </div>
                             </div>
                             
@@ -165,15 +164,15 @@ const submitForm = async (values) => {
                                 <div class="form-group mb-4">
                                     <label for="patient-last-name" class="text-muted">Patient First Name</label>
                                     <Field
-                                        name="last_name"
-                                        v-model="Patient.last_name"
+                                        name="Lastname"
+                                        v-model="Patient.Lastname"
                                         type="text"
                                         class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.last_name }"
+                                        :class="{ 'is-invalid': errors.Lastname }"
                                         id="patient-last-name"
                                         placeholder="Enter Patient Last Name"
                                     />
-                                    <span class="invalid-feedback">{{ errors.last_name }}</span>
+                                    <span class="invalid-feedback">{{ errors.Lastname }}</span>
                                 </div>
                             </div>
                             

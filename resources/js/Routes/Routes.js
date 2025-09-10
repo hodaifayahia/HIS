@@ -8,10 +8,10 @@ import configurationRoutes from './configuration'; // 👈 NEW IMPORT
 import infrastructureRoutes from './infrastructure'; // 👈 NEW IMPORT
 import convenationRoutes from './convenation'; // 👈 NEW IMPORT
 import crmRoutes from './crm'; // 👈 NEW IMPORT
-import TicketManagementRoutes from './ticket-management'; // 👈 NEW IMPORT
+import TicketManagementRoutes from './ticket_management.js'; // 👈 NEW IMPORT
 import receptionRoutes from './Reception'; // 👈 NEW IMPORT
 import PortalRoutes from './PortalSidebar';
-import CoffreRoutes from './Coffre';
+import CoffreRoutes from './Coffre.js';
 import BankRoutes from './bank'; // 👈 NEW IMPORT
 import CaisseRoutes from './caisse'
 import mangerRoutes from './manager'

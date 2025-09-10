@@ -65,11 +65,13 @@ const checkAvailability = async () => {
 
   try {
 
-    const response = await axios.post('/api/appointments/checkAvailability', {
-      days: days.value,
-      doctor_id: props.doctorId,
-      range: range.value, // Pass the range to the API
-      include_slots: true
+    const response = await axios.get('/api/appointments/checkAvailability', {
+      params: {
+        days: days.value,
+        doctor_id: props.doctorId,
+        range: range.value, // Pass the range to the API
+        include_slots: true
+      }
     });
     console.log(response.data.data);
 
@@ -155,7 +157,7 @@ onMounted(() => {
 
   <!-- If next appointment date is available, show the TimeSlotSelector component -->
   <TimeSlotSelector v-if="nextAppointmentDate" :date="nextAppointmentDate" :range="range"
-    @timeSelected="handleTimeSelected" :doctorid="props.doctorId" class="mt-4" />
+    @timeSelected="handleTimeSelected" :doctorId="props.doctorId" class="mt-4" />
 </template>
 
 <style scoped>

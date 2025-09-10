@@ -37,21 +37,22 @@ class PatientController extends Controller
      */
     public function store(Request $request)
     {
+        
         $validatedData = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string', 
+            'Firstname' => 'required|string|max:255',
+            'Lastname' => 'required|string|max:255',
             'phone' => 'nullable|string',
-            'gender' => 'required|string',
+            'gender' => 'required|integer|in:0,1', // 0 for
             'Parent' => 'nullable|string',
             'dateOfBirth' => 'nullable|date|string',
             'Idnum' => 'nullable|string|max:20', // Assuming ID can be up to 20 characters long
         ]);
     
         $patient = Patient::create([
-            'Firstname' => $validatedData['first_name'],
-            'Lastname' => $validatedData['last_name'],
+            'Firstname' => $validatedData['Firstname'],
+            'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
-            'gender' => $validatedData['gender'],
+            'gender' => $validatedData['gender'] ,
             'dateOfBirth' => $validatedData['dateOfBirth'] ?? null, // Handle optional date
             'Parent' => $validatedData['Parent'] ?? null, // Handle optional date
             'Idnum' => $validatedData['Idnum'] ?? null, // Handle optional ID number
@@ -65,19 +66,19 @@ class PatientController extends Controller
     public function update(Request $request,  $patientid)
     {
         $validatedData = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string',
+           'Firstname' => 'required|string|max:255',
+            'Lastname' => 'required|string|max:255',
             'Parent' => 'nullable|string',
             'phone' => 'nullable|string',
-            'gender' => 'required|string',
+            'gender' => 'required|integer|in:0,1',
             'dateOfBirth' => 'nullable|date|string',
             'Idnum' => 'nullable|string|max:20',
         ]);
          $patient = Patient::find($patientid);
     
         $patient->update([
-            'Firstname' => $validatedData['first_name'],
-            'Lastname' => $validatedData['last_name'],
+            'Firstname' => $validatedData['Firstname'],
+            'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
             'gender' => $validatedData['gender'],
             'dateOfBirth' => $validatedData['dateOfBirth'] ?? null,

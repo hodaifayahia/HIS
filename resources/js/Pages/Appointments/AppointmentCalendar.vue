@@ -60,10 +60,12 @@ const checkDateAvailability = async () => {
   }
 
   try {
-    const response = await axios.post('/api/appointments/checkAvailability', {
-      date: formattedDate.value,
-      doctor_id: props.doctorId,
-      include_slots: false
+    const response = await axios.get('/api/appointments/checkAvailability', {
+      params: {
+        date: formattedDate.value,
+        doctor_id: props.doctorId,
+        include_slots: false
+      }
     });
 
     nextAvailableDate.value = response.data.next_available_date;
@@ -148,7 +150,7 @@ watch(selectedDate, checkDateAvailability);
       <div class="card-body">
         <TimeSlotSelector 
           :date="formattedDate" 
-          :doctorid="props.doctorId" 
+          :doctorId="props.doctorId" 
           @timeSelected="handleTimeSelected"
           @availabilityChecked="handleAvailabilityChecked" 
           class="mt-3" 

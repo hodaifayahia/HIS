@@ -40,8 +40,8 @@ return new class extends Migration
         Schema::table('caisse_sessions', function (Blueprint $table) {
             // Drop indexes
             $table->dropIndex(['caisse_id', 'status']);
-            $table->dropIndex(['user_id', 'ouverture_at']);
-            $table->dropIndex(['status', 'ouverture_at']);
+            $table->dropIndex(['user_id', ]);
+            $table->dropIndex(['status']);
             $table->dropUnique('unique_open_session');
             $table->dropColumn('new_field');
             $table->dropColumn('total_cash_counted');

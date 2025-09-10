@@ -9,7 +9,7 @@ use App\Models\Reception\ficheNavetteItem;
 
 class ficheNavette extends Model
 {
-    protected $table = 'fiche_navette';
+    protected $table = 'fiche_navettes';
     
     protected $fillable = [
         'id',

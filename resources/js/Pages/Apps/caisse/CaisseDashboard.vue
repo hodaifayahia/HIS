@@ -16,9 +16,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
 // Services
-import { caisseService } from '../../../Components/Apps/services/Coffre/caisseService'
-import { requestTransactionApprovalService } from '../../../Components/Apps/services/Coffre/requestTransactionApprovalService'
-import { coffreTransactionService } from '../../../Components/Apps/services/Coffre/coffreTransactionService'
+import { caisseService } from '../../../Components/Apps/services/caisse/caisseService'
+import { requestTransactionApprovalService } from '../../../Components/Apps/services/Coffre/RequestTransactionApprovalService'
+import { coffreTransactionService } from '../../../Components/Apps/services/Coffre/CoffreTransactionService'
 
 // Composables
 const toast = useToast()

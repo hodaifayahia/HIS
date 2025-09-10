@@ -180,7 +180,7 @@ const adminRoutes = [{
                 {
                     path: 'template/:folderid',
                     name: 'admin.consultation.template',
-                    component: () => import('../Pages/Consultation/template/TemplateList.vue'),
+                    component: () => import('../Pages/Consultation/template/templateList.vue'),
                     props: true,
                 },
                 {
@@ -208,19 +208,19 @@ const adminRoutes = [{
                 {
                     path: 'consulation/:patientId/:appointmentId?/:doctorId?',
                     name: 'admin.consultations.consulation.show',
-                    component: () => import('../Pages/Consultation/consultations/ConsultationList.vue'),
+                    component: () => import('../Pages/Consultation/consultations/consultationList.vue'),
                     props: true,
                 },
                 {
                     path: 'consulation/add/:appointmentid/:doctorId/:patientId?/:specialization_id?/:consulationId?',
                     name: 'admin.consultations.consulation.add',
-                    component: () => import('../Pages/Consultation/consultations/ConsultationModel.vue'),
+                    component: () => import('../Pages/Consultation/consultations/consultationModel.vue'),
                     props: true,
                 },
                 {
                     path: 'consulation/edit/:id',
                     name: 'admin.consultations.consulation.edit',
-                    component: () => import('../Pages/Consultation/consultations/ConsultationModel.vue'),
+                    component: () => import('../Pages/Consultation/consultations/consultationModel.vue'),
                 },
                 {
                     path: 'consultation-workspaces',

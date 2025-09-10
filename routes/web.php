@@ -150,8 +150,8 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/specializations/{id}', [specializationsController::class, 'update']);
         Route::delete('/specializations/{id}', [specializationsController::class, 'destroy']);
 
-        Route::get('/appointments/search', [AppointmentController::class, 'search']);
         Route::get('/appointments/checkAvailability', [AppointmentController::class, 'checkAvailability']);
+        Route::get('/appointments/search', [AppointmentController::class, 'search']);
         Route::get('/appointments/canceledappointments', [AppointmentController::class, 'getAllCanceledAppointments']);
         Route::get('/appointments/available', [AppointmentController::class, 'AvailableAppointments']);
         Route::get('/appointmentStatus/{doctorid}', [AppointmentStatus::class, 'appointmentStatus']);

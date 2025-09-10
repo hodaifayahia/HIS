@@ -23,7 +23,7 @@ import FileUpload from 'primevue/fileupload';
 // Services
 import { bankAccountTransactionService } from '../../../../Components/Apps/services/bank/BankAccountTransactionService';
 import { bankAccountService } from '../../../../Components/Apps/services/bank/BankAccountService';
-import { coffreService } from '../../../../Components/Apps/services/coffre/CoffreService';
+import { coffreService } from '../../../../Components/Apps/services/Coffre/CoffreService';
 
 // Composables
 const toast = useToast();

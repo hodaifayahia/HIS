@@ -11,7 +11,7 @@ import Tag from 'primevue/tag'
 import ConfirmDialog from 'primevue/confirmdialog'
 import RemiseForm from '../../../../../Components/Apps/Configuration/RemiseMangement/Remise/RemiseForm.vue'
 import RemiseView from '../../../../../Components/Apps/Configuration/RemiseMangement/Remise/RemiseView.vue'
-import { remiseService } from '../../../../../Components/Apps/services/Remise/remiseService'
+import { remiseService } from '../../../../../Components/Apps/services/Remise/RemiseService'
 import { userService } from '../../../../../Components/Apps/services/User/userService'
 import { prestationService } from '../../../../../Components/Apps/services/Prestation/prestationService'
 import PageHeader from '../../../../../Components/Apps/Configuration/RemiseMangement/PaymentMethod/PageHeader.vue';

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue';
-import { requestTransactionApprovalService } from '../../../Apps/services/Coffre/requestTransactionApprovalService';
+import { requestTransactionApprovalService } from '/resources/js/Components/Apps/services/Coffre/RequestTransactionApprovalService.js';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 
