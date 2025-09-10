@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('transaction_type'); // e.g., deposit, withdrawal, transfer_to_bank, transfer_from_caisse
             $table->decimal('amount', 15, 2);
             $table->text('description')->nullable();
-            $table->foreignId('source_caisse_session_id')->nullable()->constrained('caisse_sessions')->onDelete('set null'); // If transfer from caisse
+            // $table->foreignId('source_caisse_session_id')->nullable()->constrained('caisse_sessions')->onDelete('set null'); // If transfer from caisse
             $table->foreignId('destination_banque_id')->nullable()->constrained('banques')->onDelete('set null'); // If transfer to bank
             $table->timestamps();
         });

@@ -23,10 +23,10 @@ public function up()
         $table->text('description')->nullable();
 
         // Add foreign key
-        $table->foreign('medication_id')
-              ->references('id')
-              ->on('medications')
-              ->onDelete('cascade');
+        // $table->foreign('medication_id')
+        //       ->references('id')
+        //       ->on('medications')
+        //       ->onDelete('cascade');
     });
 }
 

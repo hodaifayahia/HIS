@@ -20,9 +20,11 @@ return new class extends Migration
             // Drop the old 'room_type' string column
             $table->dropColumn('room_type');
 
-            // Add the new 'room_type_id' foreign key
-            // IMPORTANT: The 'room_types' table MUST exist before running this migration.
-            $table->foreignId('room_type_id')->nullable()->constrained('room_types')->onDelete('set null')->after('room_number');
+            // Add the new 'room_type_id' column (without foreign key constraint initially)
+            $table->unsignedBigInteger('room_type_id')->nullable()->after('room_number');
+            
+            // Add foreign key constraint after room_types table is created
+            // This will be handled by a separate migration
         });
     }
 
@@ -32,19 +34,16 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('rooms', function (Blueprint $table) {
-            // Drop the unique constraint first if it exists
-            $table->dropUnique('unique_room_number_per_pavilion');
-
-            // Drop the new 'room_type_id' foreign key
-            $table->dropForeign(['room_type_id']);
-            $table->dropColumn('room_type_id');
-
-            // Re-add the old 'room_type' string column (if you need to revert completely)
-            $table->string('room_type')->nullable()->after('room_number'); // Adjust nullable/default as per your original
-
             // Drop the new columns
             $table->dropColumn('room_number');
             $table->dropColumn('location');
+            $table->dropColumn('number_of_people');
+            
+            // Drop the room_type_id column
+            $table->dropColumn('room_type_id');
+
+            // Re-add the old 'room_type' string column
+            $table->string('room_type')->nullable()->after('room_number');
         });
     }
 };

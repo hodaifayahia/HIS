@@ -1,6 +1,5 @@
 
     
-
 // src/router/routes/crm.js
 
 const crmRoutes = [

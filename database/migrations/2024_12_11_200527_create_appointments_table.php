@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer('created_by')->nullable();
             $table->integer('canceled_by')->nullable();
             $table->integer('status')->default(0) ;// 0 is booked
-            $table->text('reason')->default(0) ;// 0 is booked
+            $table->text('reason')->nullable() ;// 0 is booked
             $table->softDeletes(); 
             $table->timestamps();
         });

@@ -13,7 +13,7 @@ return new class extends Migration
     {
        Schema::create('caisse_transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('caisse_session_id')->constrained('caisse_sessions')->onDelete('cascade');
+            // $table->foreignId('caisse_session_id')->constrained('caisse_sessions')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users'); // User performing the transaction
             $table->string('transaction_type'); // e.g., payment_in, refund_out, expense_out, cash_deposit
             $table->string('payment_method'); // e.g., cash, card, check, transfer
