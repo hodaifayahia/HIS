@@ -42,7 +42,7 @@ class PatientController extends Controller
             'Firstname' => 'required|string|max:255',
             'Lastname' => 'required|string|max:255',
             'phone' => 'nullable|string',
-            'gender' => 'required|integer|in:0,1', // 0 for
+            'gender' => 'required|string', // 0 for
             'Parent' => 'nullable|string',
             'dateOfBirth' => 'nullable|date|string',
             'Idnum' => 'nullable|string|max:20', // Assuming ID can be up to 20 characters long
@@ -52,7 +52,7 @@ class PatientController extends Controller
             'Firstname' => $validatedData['Firstname'],
             'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
-            'gender' => $validatedData['gender'] ,
+            'gender' => $validatedData['gender'] =='male' ? 1 : 0, // Convert to integer
             'dateOfBirth' => $validatedData['dateOfBirth'] ?? null, // Handle optional date
             'Parent' => $validatedData['Parent'] ?? null, // Handle optional date
             'Idnum' => $validatedData['Idnum'] ?? null, // Handle optional ID number
