@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('coffre_transactions', function (Blueprint $table) {
             //coffre_destination
             //send for coffre to another 
-            $table->foreignId('dest_coffre_id')->constrained('coffres')->onDelete('cascade');
+            $table->foreignId('dest_coffre_id')->nullable()->constrained('coffres')->onDelete('cascade');
              // Indexes
             $table->index(['coffre_id', 'created_at']);
             $table->index(['user_id', 'created_at']);

@@ -10,7 +10,7 @@ const CoffreRoutes = [
       {
         path: 'dashboard', // <-- changed from '' to 'dashboard' so /coffre/dashboard works
         name: 'coffre.dashboard',
-        component: () => import('../Pages/Apps/coffre/Coffre/CoffreList.vue'),
+        component: () => import('../Pages/Apps/coffre/Coffre/'),
         meta: { title: 'Coffre Dashboard' }
       },
       {

@@ -193,6 +193,41 @@ const fetchSessions = async (page = 1) => {
   }
 };
 
+const goToTransactionList = () => {
+  console.log('goToTransactionList called with caisseId:', caisseId.value);
+  
+  if (!caisseId.value) {
+    console.error('No caisse ID available for navigation');
+    showToast('error', 'Error', 'No caisse ID available');
+    return;
+  }
+  
+  try {
+    const routeParams = { 
+      name: 'coffre.caisse.transfers', 
+      params: { caisse_id: caisseId.value },
+      query: {}
+    };
+    
+    // If there's a current session, pass its ID to filter transfers by session
+    if (currentSession.value && currentSession.value.id) {
+      routeParams.query.session_id = currentSession.value.id;
+    }
+    
+    console.log('Attempting navigation with:', routeParams);
+    
+    router.push(routeParams).then(() => {
+      console.log('Navigation successful');
+    }).catch((error) => {
+      console.error('Router push error:', error);
+      showToast('error', 'Error', 'Navigation failed: ' + error.message);
+    });
+  } catch (error) {
+    console.error('Navigation error:', error);
+    showToast('error', 'Error', 'Failed to navigate to transfers page');
+  }
+};
+
 const goBack = () => {
   router.push({ name: 'coffre.caisse' });
 };
@@ -552,7 +587,11 @@ onMounted(() => {
         <ProgressSpinner animationDuration=".5s" strokeWidth="4" />
       </div>
 
-      <div v-else-if="viewMode === 'table' && sessions.length > 0">
+      <div v-else-if="viewMode === 'table' && sessions.length > 0" class="tw-cursor-pointer hover:tw-bg-blue-50 tw-transition-colors tw-duration-200 tw-rounded-lg tw-p-4 tw-border tw-border-blue-200" @click="goToTransactionList" v-tooltip.top="'Click to view transfer transactions for this caisse'">
+        <div class="tw-flex tw-items-center tw-justify-between tw-mb-4 tw-p-2 tw-bg-blue-50 tw-rounded-lg">
+          <span class="tw-text-sm tw-text-blue-700 tw-font-medium">💳 Click anywhere to view transfer transactions</span>
+          <i class="pi pi-arrow-right tw-text-blue-600"></i>
+        </div>
         <div class="tw-bg-white tw-rounded-xl tw-overflow-hidden tw-shadow-lg">
           <table class="tw-min-w-full tw-divide-y tw-divide-gray-200">
             <thead class="tw-bg-gray-50">
@@ -569,7 +608,7 @@ onMounted(() => {
               </tr>
             </thead>
             <tbody class="tw-bg-white tw-divide-y tw-divide-gray-200">
-              <tr v-for="session in sortedSessions" :key="session.id" class="hover:tw-bg-amber-50 tw-transition-colors tw-duration-200">
+              <tr v-for="session in sortedSessions" @click="goToTransactionList" :key="session.id" class="hover:tw-bg-amber-50 tw-transition-colors tw-duration-200 tw-cursor-pointer">
                 <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
                   <div class="tw-text-sm tw-text-gray-900">{{ session.opened_by?.name ?? session.open_by ?? '—' }}</div>
                 </td>
@@ -600,9 +639,9 @@ onMounted(() => {
                 </td>
                 <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-right tw-text-sm tw-font-medium">
                   <div class="tw-flex tw-justify-end tw-gap-2">
-                    <Button icon="pi pi-eye" class="p-button-sm p-button-text" v-tooltip.top="'View session details'" @click="viewSession(session)" />
-                    <Button icon="pi pi-stop" class="p-button-sm p-button-danger" v-if="session.status === 'open'" v-tooltip.top="'Close session'" @click="openCloseModal(session)" />
-                    <Button icon="pi pi-trash" class="p-button-sm p-button-danger" v-if="session.status === 'closed'" v-tooltip.top="'Delete session'" @click="confirmDeleteSession(session)" />
+                    <Button icon="pi pi-eye" class="p-button-sm p-button-text" v-tooltip.top="'View session details'" @click.stop="viewSession(session)" />
+                    <Button icon="pi pi-stop" class="p-button-sm p-button-danger" v-if="session.status === 'open'" v-tooltip.top="'Close session'" @click.stop="openCloseModal(session)" />
+                    <Button icon="pi pi-trash" class="p-button-sm p-button-danger" v-if="session.status === 'closed'" v-tooltip.top="'Delete session'" @click.stop="confirmDeleteSession(session)" />
                   </div>
                 </td>
               </tr>
@@ -613,8 +652,8 @@ onMounted(() => {
 
       <div v-else-if="viewMode === 'card' && sessions.length > 0"
         class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 xl:tw-grid-cols-4 tw-gap-6 tw-mb-8">
-        <div v-for="session in sessions" :key="session.id" class="tw-w-full">
-          <Card class="tw-h-full tw-border-none tw-rounded-[15px] tw-shadow-lg hover:tw-translate-y-[-5px] hover:tw-shadow-xl tw-transition-all tw-ease-in-out tw-duration-300"
+        <div v-for="session in sessions" :key="session.id" class="tw-w-full tw-cursor-pointer" @click="goToTransactionList" v-tooltip.top="'Click to view transfer transactions for this caisse'">
+          <Card class="tw-h-full tw-border-none tw-rounded-[15px] tw-shadow-lg hover:tw-translate-y-[-5px] hover:tw-shadow-xl tw-transition-all tw-ease-in-out tw-duration-300 hover:tw-shadow-blue-200 hover:tw-border-blue-300"
             :class="[session.status === 'suspended' ? 'tw-opacity-80' : '']">
             <template #header>
               <div class="tw-p-6 tw-rounded-t-[15px] tw-text-white"
@@ -676,8 +715,13 @@ onMounted(() => {
 
             <template #footer>
               <div class="tw-flex tw-gap-3 tw-p-6 tw-border-t tw-border-gray-200">
-                <Button v-if="session.status === 'open'" icon="pi pi-stop" label="Close Session" class="p-button-success p-button-outlined p-button-sm tw-flex-1" @click="openCloseModal(session)" />
-                <Button v-else icon="pi pi-eye" label="View Details" class="p-button-info p-button-outlined p-button-sm tw-flex-1" @click="viewSession(session)" />
+                <div class="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-text-blue-600 tw-font-medium">
+                  <i class="pi pi-arrow-right"></i>
+                  <span>Click to view transfers</span>
+                </div>
+                <div class="tw-flex-1"></div>
+                <Button v-if="session.status === 'open'" icon="pi pi-stop" label="Close Session" class="p-button-success p-button-outlined p-button-sm" @click.stop="openCloseModal(session)" />
+                <Button v-else icon="pi pi-eye" label="View Details" class="p-button-info p-button-outlined p-button-sm" @click.stop="viewSession(session)" />
               </div>
             </template>
           </Card>

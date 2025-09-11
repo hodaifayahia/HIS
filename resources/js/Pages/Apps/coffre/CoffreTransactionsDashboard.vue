@@ -146,132 +146,131 @@ onMounted(() => {
 </script>
 
 <template>
-  
-
-
-    <div class="tw-container tw-mx-auto tw-p-6">
-      <div class="tw-mb-6">
-        <h1 class="tw-text-3xl tw-font-bold tw-text-gray-800 tw-mb-2">
+  <div class="tw-bg-gray-100 tw-min-h-screen tw-p-6 md:tw-p-8">
+    <div class="tw-max-w-7xl tw-mx-auto">
+      <div class="tw-mb-6 md:tw-mb-8">
+        <h1 class="tw-text-3xl lg:tw-text-4xl tw-font-bold tw-text-gray-900 tw-mb-2">
           Coffre Management
         </h1>
-        <p class="tw-text-gray-600">
-          Manage coffre transactions and approve bank transfers
+        <p class="tw-text-gray-600 tw-text-lg">
+          Manage coffre transactions and approve transfers.
         </p>
       </div>
 
-      <TabView>
-        <!-- Transactions Tab -->
+      <TabView class="tw-bg-white tw-shadow-xl tw-rounded-2xl">
         <TabPanel header="Transactions">
-          <Card class="tw-shadow-lg">
+          <Card class="tw-border-0">
             <template #title>
-              <div class="tw-flex tw-justify-between tw-items-center">
-                <span>Coffre Transactions</span>
+              <div class="tw-flex tw-justify-between tw-items-center tw-p-6 tw-border-b tw-border-gray-200">
+                <span class="tw-text-xl tw-font-semibold tw-text-gray-800">Coffre Transactions</span>
                 <Button
                   label="New Transaction"
                   icon="pi pi-plus"
-                  class="p-button-primary"
+                  class="p-button-primary tw-rounded-lg"
                   @click="openCreateModal"
                 />
               </div>
             </template>
             
             <template #content>
-              <!-- Filters -->
-              <div class="tw-mb-4 tw-flex tw-gap-4 tw-flex-wrap">
-                <div class="tw-flex-1 tw-min-w-[200px]">
-                  <span class="p-input-icon-left tw-w-full">
-                    <i class="pi pi-search" />
-                    <InputText
-                      v-model="filters.global.value"
-                      placeholder="Search transactions..."
-                      class="tw-w-full"
+              <div class="tw-p-6">
+                <div class="tw-mb-6 tw-flex tw-gap-4 tw-flex-wrap">
+                  <div class="tw-flex-1 tw-min-w-[200px]">
+                    <span class="p-input-icon-left tw-w-full">
+                      <i class="pi pi-search" />
+                      <InputText
+                        v-model="filters.global.value"
+                        placeholder="Search transactions..."
+                        class="tw-w-full tw-rounded-lg"
+                      />
+                    </span>
+                  </div>
+                  <div class="tw-min-w-[150px]">
+                    <Dropdown
+                      v-model="filters.status.value"
+                      :options="statusOptions"
+                      option-label="label"
+                      option-value="value"
+                      placeholder="Filter by status"
+                      class="tw-w-full tw-rounded-lg"
                     />
-                  </span>
+                  </div>
                 </div>
-                <div class="tw-min-w-[150px]">
-                  <Dropdown
-                    v-model="filters.status.value"
-                    :options="statusOptions"
-                    option-label="label"
-                    option-value="value"
-                    placeholder="Filter by status"
-                    class="tw-w-full"
-                  />
-                </div>
-              </div>
 
-              <!-- Transactions Table -->
-              <DataTable
-                :value="transactions"
-                :loading="loading"
-                v-model:filters="filters"
-                :globalFilterFields="['description', 'coffre.name', 'user.name']"
-                paginator
-                :rows="15"
-                dataKey="id"
-                emptyMessage="No transactions found."
-                class="p-datatable-sm"
-              >
-                <Column field="transaction_type" header="Type" sortable>
-                  <template #body="{ data }">
-                    <div class="tw-flex tw-items-center tw-gap-2">
-                      <i :class="[getTypeIcon(data.transaction_type), getTypeColor(data.transaction_type)]"></i>
-                      <span class="tw-capitalize">{{ data.transaction_type.replace('_', ' ') }}</span>
-                    </div>
-                  </template>
-                </Column>
+                <DataTable
+                  :value="transactions"
+                  :loading="loading"
+                  v-model:filters="filters"
+                  :globalFilterFields="['description', 'coffre.name', 'user.name']"
+                  paginator
+                  :rows="15"
+                  dataKey="id"
+                  emptyMessage="No transactions found."
+                  class="tw-transactions-table"
+                >
+                  <Column field="transaction_type" header="Type" sortable style="min-width: 150px;">
+                    <template #body="{ data }">
+                      <div class="tw-flex tw-items-center tw-gap-2">
+                        <i :class="[getTypeIcon(data.transaction_type), getTypeColor(data.transaction_type)]"></i>
+                        <span class="tw-capitalize tw-font-medium">{{ data.transaction_type.replace('_', ' ') }}</span>
+                      </div>
+                    </template>
+                  </Column>
 
-                <Column field="amount" header="Amount" sortable>
-                  <template #body="{ data }">
-                    <span class="tw-font-semibold tw-text-green-600">
-                      {{ formatAmount(data.amount) }}
-                    </span>
-                  </template>
-                </Column>
+                  <Column field="amount" header="Amount" sortable style="min-width: 120px;">
+                    <template #body="{ data }">
+                      <span class="tw-font-bold" :class="data.transaction_type === 'deposit' ? 'tw-text-green-600' : 'tw-text-red-600'">
+                        {{ formatAmount(data.amount) }}
+                      </span>
+                    </template>
+                  </Column>
 
-                <Column field="status" header="Status" sortable>
-                  <template #body="{ data }">
-                    <TransactionStatusBadge :status="data.status" :transaction="data" />
-                  </template>
-                </Column>
+                  <Column field="status" header="Status" sortable style="min-width: 120px;">
+                    <template #body="{ data }">
+                      <TransactionStatusBadge :status="data.status" :transaction="data" />
+                    </template>
+                  </Column>
 
-                <Column field="coffre.name" header="Coffre">
-                  <template #body="{ data }">
-                    <div class="tw-flex tw-items-center tw-gap-2">
-                      <i class="pi pi-lock tw-text-gray-500"></i>
-                      <span>{{ data.coffre?.name || 'Unknown' }}</span>
-                    </div>
-                  </template>
-                </Column>
+                  <Column field="coffre.name" header="Coffre" style="min-width: 150px;">
+                    <template #body="{ data }">
+                      <div class="tw-flex tw-items-center tw-gap-2">
+                        <i class="pi pi-lock tw-text-gray-500"></i>
+                        <span>{{ data.coffre?.name || 'Unknown' }}</span>
+                      </div>
+                    </template>
+                  </Column>
 
-                <Column field="description" header="Description">
-                  <template #body="{ data }">
-                    <span class="tw-truncate tw-max-w-xs tw-block" :title="data.description">
-                      {{ data.description || 'No description' }}
-                    </span>
-                  </template>
-                </Column>
+                  <Column field="description" header="Description" style="min-width: 250px;">
+                    <template #body="{ data }">
+                      <span class="tw-truncate tw-max-w-xs tw-block tw-text-gray-700" :title="data.description">
+                        {{ data.description || 'No description' }}
+                      </span>
+                    </template>
+                  </Column>
 
-                <Column field="user.name" header="User">
-                  <template #body="{ data }">
-                    <span>{{ data.user?.name || 'Unknown' }}</span>
-                  </template>
-                </Column>
+                  <Column field="user.name" header="User" style="min-width: 150px;">
+                    <template #body="{ data }">
+                      <div class="tw-flex tw-items-center tw-gap-2">
+                        <i class="pi pi-user tw-text-gray-500"></i>
+                        <span>{{ data.user?.name || 'Unknown' }}</span>
+                      </div>
+                    </template>
+                  </Column>
 
-                <Column field="created_at" header="Date" sortable>
-                  <template #body="{ data }">
-                    <span class="tw-text-sm tw-text-gray-600">
-                      {{ formatDate(data.created_at) }}
-                    </span>
-                  </template>
-                </Column>
+                  <Column field="created_at" header="Date" sortable style="min-width: 150px;">
+                    <template #body="{ data }">
+                      <span class="tw-text-sm tw-text-gray-600">
+                        {{ formatDate(data.created_at) }}
+                      </span>
+                    </template>
+                  </Column>
 
-                <Column header="Actions" :exportable="false">
-                  <template #body="{ data }">
+                  <Column header="Actions" :exportable="false" style="min-width: 120px;">
+                    <template #body="{ data }">
                       <div class="tw-flex tw-gap-2">
                         <Button
                           icon="pi pi-pencil"
-                          class="p-button-sm"
+                          class="p-button-sm p-button-secondary"
                           @click="openEditModal(data)"
                           :disabled="data.status === 'pending'"
                         />
@@ -282,20 +281,19 @@ onMounted(() => {
                           :disabled="data.status === 'pending'"
                         />
                       </div>
-                  </template>
-                </Column>
-              </DataTable>
+                    </template>
+                  </Column>
+                </DataTable>
+              </div>
             </template>
           </Card>
         </TabPanel>
 
-        <!-- Approvals Tab -->
         <TabPanel header="Pending Approvals">
           <PendingApprovalsList />
         </TabPanel>
       </TabView>
 
-      <!-- Transaction Modal -->
       <CoffreTransactionModal
         v-if="showModal"
         :transaction="editingTransaction"
@@ -304,22 +302,81 @@ onMounted(() => {
         @saved="onTransactionSaved"
       />
     </div>
-
+  </div>
 </template>
 
 <style scoped>
-/* Component-specific styles */
+/*
+ * Custom styles to enhance PrimeVue components using Tailwind.
+ * All classes are prefixed with 'tw-' to avoid conflicts.
+ */
+
+/* PrimeVue Tabs */
+:deep(.p-tabview-nav) {
+  @apply tw-bg-gray-100 tw-rounded-t-2xl tw-p-4;
+}
+
+:deep(.p-tabview-nav-link) {
+  @apply tw-text-lg tw-font-semibold tw-text-gray-700 tw-px-6 tw-py-3 tw-transition-colors tw-duration-200 tw-rounded-lg;
+}
+
+:deep(.p-tabview-nav-link:hover) {
+  @apply tw-bg-gray-200 tw-text-gray-900;
+}
+
+:deep(.p-tabview-nav-link.p-highlight) {
+  @apply tw-bg-white tw-text-blue-600 tw-shadow-md;
+}
+
+/* PrimeVue Card */
+:deep(.p-card) {
+  @apply tw-rounded-2xl tw-shadow-xl;
+}
+
+:deep(.p-card-body) {
+  @apply tw-p-0;
+}
+
+/* PrimeVue DataTable */
+:deep(.p-datatable-header) {
+  @apply tw-p-0;
+}
+
 :deep(.p-datatable-thead > tr > th) {
-  background-color: #f8fafc;
-  font-weight: 600;
+  @apply tw-bg-gray-100 tw-text-gray-600 tw-font-semibold tw-text-sm tw-uppercase tw-p-4;
 }
 
-:deep(.p-button-sm) {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+:deep(.p-datatable .p-datatable-tbody > tr) {
+  @apply tw-transition-colors tw-duration-200;
 }
 
-:deep(.p-tabview-panels) {
-  padding: 0;
+:deep(.p-datatable .p-datatable-tbody > tr:hover) {
+  @apply tw-bg-gray-50;
+}
+
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+  @apply tw-p-4 tw-border-b tw-border-gray-200;
+}
+
+/* PrimeVue Buttons */
+.p-button-primary {
+  @apply tw-bg-blue-600 tw-border-blue-600 tw-text-white hover:tw-bg-blue-700 focus:tw-ring-blue-500;
+}
+
+.p-button-secondary {
+  @apply tw-bg-gray-200 tw-border-gray-200 tw-text-gray-800 hover:tw-bg-gray-300 focus:tw-ring-gray-300;
+}
+
+.p-button-danger {
+  @apply tw-bg-red-600 tw-border-red-600 tw-text-white hover:tw-bg-red-700 focus:tw-ring-red-500;
+}
+
+/* PrimeVue Inputs */
+:deep(.p-inputtext) {
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-blue-500 tw-shadow-sm;
+}
+
+:deep(.p-dropdown) {
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-blue-500 tw-shadow-sm;
 }
 </style>

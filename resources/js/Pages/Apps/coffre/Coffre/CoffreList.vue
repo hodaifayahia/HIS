@@ -22,7 +22,7 @@ import Avatar from 'primevue/avatar';
 
 // Services and Components
 import { coffreService } from '../../../../Components/Apps/services/Coffre/CoffreService';
-import CoffreModal from '../../../../Components/Apps/coffre/coffre/CoffreModal.vue';
+import CoffreModal from '../../../../Components/Apps/coffre/Coffre/CoffreModal.vue';
 
 const router = useRouter();
 

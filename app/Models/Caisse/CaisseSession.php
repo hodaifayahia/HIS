@@ -15,7 +15,6 @@ class CaisseSession extends Model
         'opening_amount',
         'closing_amount',
         'theoretical_amount',
-        'ouverture_at',
         'opened_at',
         'closed_at',
         'opening_notes',

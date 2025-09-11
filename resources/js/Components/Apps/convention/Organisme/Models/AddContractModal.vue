@@ -417,9 +417,10 @@ const showRestrictionToast = (fieldName) => {
                             :options="familyAuthOptions"
                             optionLabel="label"
                             optionValue="value"
+                            appendTo="self"
                             placeholder="Select Family Authorizations"
                             :disabled="isFamilyAuthDisabled"
-                            class="w-full md:w-20rem"
+                            class="w-full md:w-20rem"   
                             :class="{ 'p-invalid': errors.family_auth, 'input-disabled': isFamilyAuthDisabled }"
                             @focus="showRestrictionToast('family_auth')"
                         />

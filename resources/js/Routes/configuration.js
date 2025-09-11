@@ -83,6 +83,11 @@ const configurationRoutes = [
                         component: () => import('../Pages/Apps/Configuration/Approvers/UserCaisseApprovalManagement.vue'),
 
                     },
+                    {
+                        path: 'permissions',
+                        name: 'admin.configuration.permissions',
+                        component: () => import('../Pages/Apps/Configuration/Permissions/PermissionManagement.vue'),
+                    },
                     //  {
                     //     path: 'remise-types',
                     //     name: 'admin.configuration.remise-types',

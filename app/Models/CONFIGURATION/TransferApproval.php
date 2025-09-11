@@ -1,7 +1,7 @@
 <?php
 // app/Models/Configuration/TransferApproval.php
 
-namespace App\Models\Configuration;
+namespace App\Models\CONFIGURATION;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

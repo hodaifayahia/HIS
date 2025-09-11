@@ -10,6 +10,8 @@ use Spatie\Permission\Models\Permission;
 
 class UserCaisseApprovalController extends Controller
 {
+    private string $permissionName = 'caisse.approve';
+
     /**
      * Get all users with their caisse approval status
      */
@@ -29,10 +31,10 @@ class UserCaisseApprovalController extends Controller
                 ->orderBy('name');
 
             $users = $query->paginate($perPage);
-            
+
             // Add permission status to each user
             $users->getCollection()->transform(function ($user) {
-                $user->can_approve_caisse = $user->hasPermissionTo('caisse.approve');
+                $user->can_approve_caisse = $user->hasPermissionTo($this->permissionName);
                 return $user;
             });
 
@@ -56,13 +58,13 @@ class UserCaisseApprovalController extends Controller
 
         try {
             $user = User::findOrFail($request->user_id);
-            
+
             // Ensure the permission exists
-            $permission = Permission::firstOrCreate(['name' => 'caisse.approve']);
-            
-            if (!$user->hasPermissionTo('caisse.approve')) {
+            $permission = Permission::firstOrCreate(['name' => $this->permissionName]);
+
+            if (!$user->hasPermissionTo($this->permissionName)) {
                 $user->givePermissionTo($permission);
-                
+
                 return response()->json([
                     'success' => true,
                     'message' => "Caisse approval permission granted to {$user->name}",
@@ -96,9 +98,9 @@ class UserCaisseApprovalController extends Controller
     public function destroy(Request $request, User $user): JsonResponse
     {
         try {
-            if ($user->hasPermissionTo('caisse.approve')) {
-                $user->revokePermissionTo('caisse.approve');
-                
+            if ($user->hasPermissionTo($this->permissionName)) {
+                $user->revokePermissionTo($this->permissionName);
+
                 return response()->json([
                     'success' => true,
                     'message' => "Caisse approval permission revoked from {$user->name}",
@@ -114,9 +116,9 @@ class UserCaisseApprovalController extends Controller
                 'message' => "{$user->name} doesn't have caisse approval permission",
                 'data' => [
                     'user_id' => $user->id,
-                    'can_approve_caisse' => false
-                ]
-            ]);
+                        'can_approve_caisse' => false
+                    ]
+                ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -133,7 +135,7 @@ class UserCaisseApprovalController extends Controller
     {
         try {
             $user = $request->user();
-            $canApprove = $user ? $user->hasPermissionTo('caisse.approve') : false;
+            $canApprove = $user ? $user->hasPermissionTo($this->permissionName) : false;
 
             return response()->json([
                 'can_approve_caisse' => $canApprove,
@@ -154,7 +156,7 @@ class UserCaisseApprovalController extends Controller
     public function getApprovers(): JsonResponse
     {
         try {
-            $approvers = User::permission('caisse.approve')
+            $approvers = User::permission($this->permissionName)
                 ->select('id', 'name', 'email', 'avatar')
                 ->orderBy('name')
                 ->get();
@@ -169,5 +171,44 @@ class UserCaisseApprovalController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Set a custom permission name for caisse approval
+     * This allows you to change the permission name dynamically
+     */
+    public function setPermissionName(Request $request): JsonResponse
+    {
+        $request->validate([
+            'permission_name' => 'required|string|max:255'
+        ]);
+
+        try {
+            $this->permissionName = $request->permission_name;
+
+            return response()->json([
+                'success' => true,
+                'message' => "Caisse approval permission name updated to '{$this->permissionName}'",
+                'data' => [
+                    'permission_name' => $this->permissionName
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update permission name',
+                'error' => $e->getMessage()
+            ], 422);
+        }
+    }
+
+    /**
+     * Get current permission name being used
+     */
+    public function getPermissionName(): JsonResponse
+    {
+        return response()->json([
+            'permission_name' => $this->permissionName
+        ]);
     }
 }

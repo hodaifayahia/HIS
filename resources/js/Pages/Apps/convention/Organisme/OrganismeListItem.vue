@@ -75,12 +75,7 @@ const gotoCompanyDetails = () => {
             </button>
         </td>
     </tr>
-    <!-- Add this in the template, e.g. before the name -->
-    <span
-      v-if="organisme.organism_color"
-      :style="{ backgroundColor: organisme.organism_color, display: 'inline-block', width: '16px', height: '16px', borderRadius: '50%', marginRight: '8px', border: '1px solid #ccc' }"
-      title="Company Color"
-    ></span>
+  
 </template>
 
 <style scoped>

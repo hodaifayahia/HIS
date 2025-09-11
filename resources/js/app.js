@@ -16,7 +16,8 @@ import App from '../js/Pages/App.vue';
 
 // ✅ PrimeVue imports (only config and services)
 import PrimeVue from 'primevue/config';
-import Aura from '@primevue/themes/aura';
+import 'primevue/resources/themes/saga-blue/theme.css';
+import 'primevue/resources/primevue.min.css';
 import ToastService from 'primevue/toastservice';
 import ConfirmDialog from 'primevue/confirmdialog'
 
@@ -33,7 +34,6 @@ app.use(pinia);
 // ✅ Configure PrimeVue with custom theme
 app.use(PrimeVue, {
     theme: {
-        preset: Aura,
         options: {
             prefix: 'p',
             darkModeSelector: 'system',

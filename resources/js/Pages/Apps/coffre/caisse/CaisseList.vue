@@ -240,7 +240,11 @@ const openOperation = (caisse) => {
 };
 
 const viewTransactions = (caisse) => {
-  router.push({ name: 'coffre.transactions', params: { coffre_id: String(caisse.id) } });
+  router.push({ name: 'coffre.caisse.financial-transactions', params: { caisse_id: caisse.id } });
+};
+
+const openCaisseDetails = (caisse) => {
+  viewTransactions(caisse);
 };
 
 const showToast = (severity, summary, detail) => {
@@ -364,8 +368,12 @@ onMounted(() => {
                     <i class="pi pi-desktop"></i>
                   </div>
                   <div>
-                    <div class="tw-font-bold tw-text-slate-800">{{ caisse.name }}</div>
-                    <div class="tw-text-slate-500 tw-text-sm">{{ caisse.location || 'No location' }}</div>
+                    <div class="tw-font-bold tw-text-slate-800 tw-cursor-pointer hover:tw-text-violet-600 tw-transition-colors" @click="openCaisseDetails(caisse)">
+                      {{ caisse.name }}
+                    </div>
+                    <div class="tw-text-slate-500 tw-text-sm tw-cursor-pointer hover:tw-text-violet-600 tw-transition-colors" @click="openCaisseDetails(caisse)">
+                      {{ caisse.location || 'No location' }}
+                    </div>
                   </div>
                 </div>
               </td>
@@ -396,12 +404,12 @@ onMounted(() => {
       </div>
 
       <div v-else-if="viewMode === 'card' && caisses.length > 0" class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 xl:tw-grid-cols-4 tw-gap-6">
-        <div v-for="caisse in caisses" :key="caisse.id" class="tw-bg-white tw-rounded-2xl tw-shadow-md hover:tw-shadow-xl hover:-tw-translate-y-1 tw-transition-all tw-duration-300 tw-flex tw-flex-col">
+        <div v-for="caisse in caisses" :key="caisse.id" class="tw-bg-white tw-rounded-2xl tw-shadow-md hover:tw-shadow-xl hover:-tw-translate-y-1 tw-transition-all tw-duration-300 tw-flex tw-flex-col tw-cursor-pointer" @click="openCaisseDetails(caisse)">
           <div class="tw-p-5 tw-rounded-t-2xl tw-flex tw-justify-between tw-items-start" :class="caisse.is_active ? 'tw-bg-gradient-to-r tw-from-green-500 tw-to-emerald-500' : 'tw-bg-gradient-to-r tw-from-slate-500 tw-to-slate-600'">
             <div class="tw-w-12 tw-h-12 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-bg-white/20 tw-text-white">
                 <i class="pi pi-desktop tw-text-2xl"></i>
             </div>
-            <Button icon="pi pi-ellipsis-v" class="p-button-text p-button-plain p-button-rounded !tw-text-white" @click="(event) => toggleMenu(event, caisse)" />
+            <Button icon="pi pi-ellipsis-v" class="p-button-text p-button-plain p-button-rounded !tw-text-white" @click.stop="(event) => toggleMenu(event, caisse)" />
             <Menu ref="menu" :model="cardMenuItems" :popup="true" />
           </div>
           <div class="tw-p-5 tw-flex-grow tw-flex tw-flex-col">
@@ -412,7 +420,7 @@ onMounted(() => {
               <Tag :value="caisse.service?.name || 'N/A'" severity="info" />
             </div>
             <div class="tw-mt-auto tw-pt-4">
-                <Button icon="pi pi-clock" label="View Sessions" class="p-button-info p-button-outlined !tw-w-full" @click="openOperation(caisse)" />
+                <Button icon="pi pi-clock" label="View Sessions" class="p-button-info p-button-outlined !tw-w-full" @click.stop="openOperation(caisse)" />
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\Configuration\TransferApproval;
+use App\Models\CONFIGURATION\TransferApproval;
 use App\Models\User;
 use App\Models\Coffre\Coffre;
 use App\Services\Coffre\CoffreTransactionService;

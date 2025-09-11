@@ -1,14 +1,14 @@
 <?php
 // app/Http/Controllers/TransferApprovalController.php
 
-namespace App\Http\Controllers\Configuration;
+namespace App\Http\Controllers\CONFIGURATION;
 
 use App\Http\Controllers\Controller;
 
-use App\Models\Configuration\TransferApproval;
-use App\Http\Requests\Configuration\StoreTransferApprovalRequest;
-use App\Http\Requests\Configuration\UpdateTransferApprovalRequest;
-use App\Http\Resources\Configuration\TransferApprovalResource;
+use App\Models\CONFIGURATION\TransferApproval;
+use App\Http\Requests\CONFIGURATION\StoreTransferApprovalRequest;
+use App\Http\Requests\CONFIGURATION\UpdateTransferApprovalRequest;
+use App\Http\Resources\CONFIGURATION\TransferApprovalResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;

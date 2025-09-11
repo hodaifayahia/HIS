@@ -18,6 +18,7 @@ return new class extends Migration
             $table->foreignId('patient_id')->constrained('patients')->onDelete('cascade');
             $table->foreignId('doctor_id')->constrained('doctors')->onDelete('cascade');
             $table->foreignId('consultation_end_at')->nullable()->timestamps();
+            $table->text('codebash')->nullable(); // e.g., in_progress, completed
             //appointment id
             $table->foreignId('appointment_id')->constrained('appointments')->onDelete('cascade');
 

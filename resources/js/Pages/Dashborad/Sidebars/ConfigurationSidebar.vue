@@ -193,6 +193,13 @@ const hasPermission = (requiredRoles) => {
                             <p>Transfer approval </p>
                         </router-link>
                     </li>
+                    <li class="nav-item">
+                        <router-link to="/admin/configuration/permissions" active-class="active"
+                            class="nav-link">
+                            <i class="far fa-circle nav-icon"></i>
+                            <p>Permission Management</p>
+                        </router-link>
+                    </li>
                     <!-- <li class="nav-item" >
                         <router-link to="/admin/configuration/payment-methods" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>

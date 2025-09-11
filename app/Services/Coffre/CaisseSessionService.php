@@ -27,7 +27,7 @@ class CaisseSessionService
             'closedBy', 
             'sourceCoffre', 
             'destinationCoffre'
-        ])->latest('ouverture_at');
+        ])->latest('opened_at');
 
         // Apply filters
         if (!empty($filters['caisse_id'])) {
@@ -47,11 +47,11 @@ class CaisseSessionService
         }
 
         if (!empty($filters['date_from'])) {
-            $query->whereDate('ouverture_at', '>=', $filters['date_from']);
+            $query->whereDate('opened_at', '>=', $filters['date_from']);
         }
 
         if (!empty($filters['date_to'])) {
-            $query->whereDate('ouverture_at', '<=', $filters['date_to']);
+            $query->whereDate('opened_at', '<=', $filters['date_to']);
         }
 
         if (!empty($filters['search'])) {
@@ -123,7 +123,8 @@ class CaisseSessionService
                 'user_id' => $userId,
                 'open_by' => $currentUser->id,
                 'coffre_id_source' => $data['coffre_id_source'] ?? null,
-                'ouverture_at' => now(),
+                'opened_at' => now(),
+                
                 'opening_amount' => $data['opening_amount'] ?? 0,
                 'status' => 'open',
                 'opening_notes' => $data['opening_notes'] ?? null,
@@ -222,7 +223,7 @@ class CaisseSessionService
 $data['closing_amount'] = $totalCashCounted;
             // Update session
             $session->update([
-                'cloture_at' => now(),
+                'closed_at' => now(),
                 'closed_by' => $currentUser->id,
                 'closing_amount' => $data['closing_amount'],
                 'expected_closing_amount' => $data['expected_closing_amount'] ?? null,
@@ -349,7 +350,7 @@ $data['closing_amount'] = $totalCashCounted;
                                'openedBy', 
                                'sourceCoffre'
                            ])
-                           ->orderBy('ouverture_at', 'desc')
+                           ->orderBy('opened_at', 'desc')
                            ->get();
     }
 
@@ -407,7 +408,7 @@ $data['closing_amount'] = $totalCashCounted;
                            ->where('status', 'open')
                            ->where('is_transfer', false)
                            ->with(['caisse', 'user', 'openedBy', 'sourceCoffre'])
-                           ->orderBy('ouverture_at', 'desc')
+                           ->orderBy('opened_at', 'desc')
                            ->get();
 
         // Get transferred sessions
@@ -496,7 +497,7 @@ $data['closing_amount'] = $totalCashCounted;
 
     private function getTotalCashHandledToday(): float
     {
-        return CaisseSession::whereDate('ouverture_at', today())
+        return CaisseSession::whereDate('opened_at', today())
                            ->sum('opening_amount') +
                CaisseSession::closed()
                            ->whereDate('cloture_at', today())
