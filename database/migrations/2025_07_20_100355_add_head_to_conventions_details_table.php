@@ -52,10 +52,10 @@ return new class extends Migration
     {
         Schema::table('prestation_pricing', function (Blueprint $table) {
             // Drop the new unique index first
-            $table->dropUnique('prestation_pricing_prestation_id_annex_id_avenant_id_unique');
+            // $table->dropUnique('prestation_pricing_prestation_id_annex_id_avenant_id_unique');
 
-            // Re-add the old unique index (if it wasn't the FK target)
-            $table->unique(['prestation_id', 'annex_id'], 'prestation_pricing_prestation_id_annex_id_unique');
+            // // Re-add the old unique index (if it wasn't the FK target)
+            // $table->unique(['prestation_id', 'annex_id'], 'prestation_pricing_prestation_id_annex_id_unique');
 
             // Re-add any foreign keys that were dropped in the 'up' method, pointing to the original unique index
             // For example:

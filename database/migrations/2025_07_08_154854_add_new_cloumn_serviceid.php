@@ -12,8 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('specializations', function (Blueprint $table) {
-            //  $table->foreignId('service_id')->constrained('services')->onDelete('cascade'); // Not null foreign key
-            //  $table->boolean('is_active')->default(true);
+             $table->foreignId('service_id')->constrained('services')->onDelete('cascade'); // Not null foreign key
+             $table->boolean('is_active')->default(true);
         });
     }
 
@@ -23,7 +23,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('specializations', function (Blueprint $table) {
-               $table->dropColumn('service_id');
+            //    $table->dropColumn('service_id');
         });
     }
 };

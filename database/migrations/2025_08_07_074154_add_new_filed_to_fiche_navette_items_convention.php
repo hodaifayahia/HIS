@@ -53,7 +53,6 @@ if (!Schema::hasColumn('fiche_navette_items', 'convention_id')) {
     public function down(): void
     {
         Schema::table('fiche_navette_items', function (Blueprint $table) {
-            $table->dropColumn('custom_name');
             $table->dropForeign(['convention_id']);
             $table->dropColumn('convention_id');
         });

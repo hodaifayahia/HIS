@@ -23,6 +23,7 @@ public function up()
         $table->text('description')->nullable();
 
         // Add foreign key
+        $table->unsignedBigInteger('medication_id')->nullable();
         $table->foreign('medication_id')
               ->references('id')
               ->on('medications')
@@ -30,26 +31,10 @@ public function up()
     });
 }
 
-public function down()
+    public function down(): void
 {
-    Schema::table('prescription_medications', function (Blueprint $table) {
-        $table->dropForeign(['medication_id']);
-        $table->dropColumn([
-            'medication_id',
-            'form',
-            'num_times',
-            'frequency',
-            'start_date',
-            'end_date',
-            'description'
-        ]);
-
-        // Restore old columns
-        $table->string('cd_active_substance');
-        $table->string('brand_name')->nullable();
-        $table->string('pharmaceutical_form');
-        $table->string('dose_per_intake')->nullable();
-        $table->string('duration_or_boxes')->nullable();
-    });
+    Schema::disableForeignKeyConstraints();
+    Schema::dropIfExists('prescription_medications');
+    Schema::enableForeignKeyConstraints();
 }
 };

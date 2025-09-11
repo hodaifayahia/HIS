@@ -25,7 +25,7 @@ return new class extends Migration
     {
         Schema::table('prestation_pricing', function (Blueprint $table) {
             // drop subname field from prestation_pricing table
-            $table->dropColumn('subname');
+            // $table->dropColumn('subname');
         });
     }
 };

@@ -21,6 +21,9 @@ class AddExtraFieldsToPatientsTable extends Migration
             $table->string('postal_code')->nullable();
             $table->string('city')->nullable();
             $table->string('blood_group')->nullable();
+            $table->string('gender')->nullable();
+            //balance
+            
             $table->text('other_clinical_info')->nullable();
         });
     }
@@ -43,6 +46,7 @@ class AddExtraFieldsToPatientsTable extends Migration
                 'city',
                 'blood_group',
                 'other_clinical_info',
+                'gender',
             ]);
         });
     }

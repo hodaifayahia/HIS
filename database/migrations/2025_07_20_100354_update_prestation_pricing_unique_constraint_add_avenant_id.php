@@ -31,10 +31,10 @@ return new class extends Migration
     {
         Schema::table('prestation_pricing', function (Blueprint $table) {
             // Drop the new unique index
-            $table->dropUnique('prestation_pricing_prestation_id_annex_id_avenant_id_unique');
+            // $table->dropUnique('prestation_pricing_prestation_id_annex_id_avenant_id_unique');
 
-            // Re-add the old unique index if you ever need to roll back
-            $table->unique(['prestation_id', 'annex_id'], 'prestation_pricing_prestation_id_annex_id_unique');
+            // // Re-add the old unique index if you ever need to roll back
+            // $table->unique(['prestation_id', 'annex_id'], 'prestation_pricing_prestation_id_annex_id_unique');
         });
     }
 };
