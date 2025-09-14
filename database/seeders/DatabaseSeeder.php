@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         // Add this line to call your PavilionSeeder
         $this->call([
             PavilionSeeder::class,
+            ProductSeeder::class,
         ]);
     }
 }

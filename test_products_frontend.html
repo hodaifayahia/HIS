@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products API Test</title>
+</head>
+<body>
+    <h1>Products API Test</h1>
+    <button id="testBtn">Test Products API</button>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Loading...';
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/products?per_page=1000');
+                const data = await response.json();
+
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <h2>Success!</h2>
+                        <p>Status: ${response.status}</p>
+                        <p>Products loaded: ${data.data ? data.data.length : 0}</p>
+                        <details>
+                            <summary>Response Data</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h2>Error</h2>
+                        <p>Status: ${response.status}</p>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h2>Network Error</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

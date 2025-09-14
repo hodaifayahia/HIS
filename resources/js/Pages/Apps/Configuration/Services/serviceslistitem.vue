@@ -39,6 +39,7 @@ const deleteService = () => {
       <img :src="service.image_url" :alt="service.name" class="service-image" />
     </td>
     <td class="table-data">{{ service.name }}</td>
+    <td class="table-data service-abv">{{ service.service_abv || '-' }}</td>
     <td class="table-data">{{ service.start_date }}</td>
     <td class="table-data">{{ service.end_date }}</td>
     <td class="table-data">{{ service.agmentation }}</td>

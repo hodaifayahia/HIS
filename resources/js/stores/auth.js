@@ -65,11 +65,14 @@ export const useAuthStore = defineStore('auth', {
       try {
         // Get authenticated user (adjust endpoint based on your setup)
         const response = await axios.get('/api/setting/user');
-        this.user = response.data;
+        // Handle different response structures
+        this.user = response.data?.data || response.data || null;
         this.isAuthenticated = true;
+        return this.user; // Return the user data
       } catch (error) {
         this.user = null;
         this.isAuthenticated = false;
+        return null; // Return null on failure
       } finally {
         this.isLoading = false;
       }
@@ -78,12 +81,14 @@ export const useAuthStore = defineStore('auth', {
     // Initialize auth state on app load
     async initializeAuth() {
       try {
-        await this.getUser();
+        const user = await this.getUser();
+        return user; // Return the user data
       } catch (error) {
         // User not authenticated
         this.user = null;
         this.isAuthenticated = false;
-      }
-    }
-  }
+        return null;
+      }
+    }
+  }
 });

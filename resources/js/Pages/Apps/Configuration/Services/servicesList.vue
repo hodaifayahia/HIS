@@ -57,7 +57,6 @@ const getServices = async () => {
         const response = await axios.get('/api/services');
         services.value = response.data.data || response.data;
     } catch (err) {
-        console.error('Error fetching services:', err);
         error.value = err.response?.data?.message || 'Failed to load services. Please try again.';
         toaster.error(error.value);
     } finally {
@@ -73,6 +72,7 @@ const openModal = (service = null) => {
     selectedService.value = service ? { ...service } : {
         image_url: '',
         name: '',
+        service_abv: '',
         description: '',
         start_date: '',
         end_date: '',
@@ -143,7 +143,6 @@ const toggleServiceStatus = async (service) => {
             toaster.success(`Service ${action}d successfully!`);
             // No need to call getServices() here
         } catch (err) {
-            console.error(`Error ${action}ing service:`, err);
             const errorMessage = err.response?.data?.message || `Failed to ${action} service.`;
             toaster.error(errorMessage);
         }
@@ -174,7 +173,6 @@ const deleteService = async (id) => {
             services.value = services.value.filter(service => service.id !== id);
             toaster.success('Service deleted successfully!');
         } catch (err) {
-            console.error('Error deleting service:', err);
             const errorMessage = err.response?.data?.message || 'Failed to delete service.';
             toaster.error(errorMessage);
             swal.fire('Error!', errorMessage, 'error');
@@ -296,6 +294,7 @@ onMounted(() => {
                                     <th class="table-header">#</th>
                                     <th class="table-header">Image</th>
                                     <th class="table-header">Name</th>
+                                    <th class="table-header">Abbreviation</th>
                                     <th class="table-header">Start Date</th>
                                     <th class="table-header">End Date</th>
                                     <th class="table-header">Augmentation</th>

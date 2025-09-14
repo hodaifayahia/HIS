@@ -81,6 +81,8 @@ use App\Http\Controllers\Caisse\FinancialTransactionController;
 use App\Http\Controllers\manager\RefundAuthorizationController;
 use App\Http\Controllers\manager\TransactionBankRequestController;
 
+use App\Http\Controllers\Stock\ProductController;
+
 use Illuminate\Support\Facades\Route;
 
 
@@ -698,8 +700,81 @@ Route::middleware(['auth'])->group(function () {
     // Backwards compatibility: older frontend code may call /pending
     Route::get('transaction-bank-requests/pending', [TransactionBankRequestController::class, 'getPendingApprovals']);
 
+
+
+    // Api for stock
+     
+    Route::apiResource('products', \App\Http\Controllers\Stock\ProductController::class)->withoutMiddleware(['auth:sanctum']);
+    
+    // Custom product routes
+    Route::get('products/{id}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
+    Route::get('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'getSettings']);
+    Route::post('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'saveSettings']);
+    
+    Route::apiResource('stockages', \App\Http\Controllers\Stock\StockageController::class);
+    // Custom inventory routes must come BEFORE the resource route
+    Route::get('inventory/service-stock', [\App\Http\Controllers\Stock\InventoryController::class, 'getServiceStock']);
+    Route::post('inventory/{inventory}/adjust', [\App\Http\Controllers\Stock\InventoryController::class, 'adjustStock']);
+    Route::post('inventory/{inventory}/transfer', [\App\Http\Controllers\Stock\InventoryController::class, 'transferStock']);
+    Route::apiResource('inventory', \App\Http\Controllers\Stock\InventoryController::class);
+    Route::apiResource('categories', \App\Http\Controllers\Stock\CategoryController::class);
+    
+    // Stock Movement routes
+    Route::prefix('stock-movements')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Stock\StockMovementController::class, 'index']);
+        Route::post('/create-draft', [\App\Http\Controllers\Stock\StockMovementController::class, 'createDraft']);
+        Route::get('/drafts', [\App\Http\Controllers\Stock\StockMovementController::class, 'getDrafts']);
+        Route::get('/pending-approvals', [\App\Http\Controllers\Stock\StockMovementController::class, 'getPendingApprovals']);
+        Route::get('/suggestions', [\App\Http\Controllers\Stock\StockMovementController::class, 'getSuggestions']);
+        Route::get('/stats', [\App\Http\Controllers\Stock\StockMovementController::class, 'getStats']);
+        Route::get('/{movementId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'show']);
+        Route::delete('/{movementId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'destroy']);
+        Route::post('/{movementId}/send', [\App\Http\Controllers\Stock\StockMovementController::class, 'sendDraft']);
+        Route::patch('/{movementId}/status', [\App\Http\Controllers\Stock\StockMovementController::class, 'updateStatus']);
+        Route::get('/{movementId}/available-stock', [\App\Http\Controllers\Stock\StockMovementController::class, 'availableStock']);
+        Route::get('/{movementId}/inventory/{productId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'getProductInventory']);
+        Route::post('/{movementId}/select-inventory', [\App\Http\Controllers\Stock\StockMovementController::class, 'selectInventory']);
+        
+        // Item management
+        Route::post('/{movementId}/items', [\App\Http\Controllers\Stock\StockMovementController::class, 'addItem']);
+        Route::put('/{movementId}/items/{itemId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'updateItem']);
+        Route::delete('/{movementId}/items/{itemId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'removeItem']);
+    });
+    
+    // Stockage Tools (Location Management)
+    Route::prefix('stockages/{stockage}/tools')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Stock\StockageToolController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Stock\StockageToolController::class, 'store']);
+        Route::get('/{toolId}', [\App\Http\Controllers\Stock\StockageToolController::class, 'show']);
+        Route::put('/{toolId}', [\App\Http\Controllers\Stock\StockageToolController::class, 'update']);
+        Route::delete('/{toolId}', [\App\Http\Controllers\Stock\StockageToolController::class, 'destroy']);
+    });
+    // Helper routes for tool types and blocks
+    Route::get('stockage-tools/types', [\App\Http\Controllers\Stock\StockageToolController::class, 'getToolTypes']);
+    Route::get('stockage-tools/blocks', [\App\Http\Controllers\Stock\StockageToolController::class, 'getBlocks']);
+    // Route for stockage managers removed — managers are no longer managed via StockageController
+   // Stock Product Settings Routes (Web Routes)
+     Route::prefix('stock')->group(function () {
+        Route::get('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'show']);
+        Route::post('product-settings', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'store']);
+        Route::put('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'update']);
+        Route::delete('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'destroy']);
+        Route::get('product-settings/{serviceId}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'getByService']);
+        
+        // Product Settings Routes (per product)
+        Route::get('products/{product}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
+        Route::delete('products/bulk-delete', [\App\Http\Controllers\Stock\ProductController::class, 'bulkDelete']);
+        Route::get('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'index']);
+        Route::post('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'store']);
+        Route::get('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'show']);
+        Route::put('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'update']);
+        Route::delete('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'destroy']);
+
+    });
+
 }); // End of /api group
 
+    
     // The main application entry point for authenticated users
     Route::get('/{view}', [ApplicationController::class, '__invoke'])->where('view', '.*');
 }); // End of authenticated middleware group

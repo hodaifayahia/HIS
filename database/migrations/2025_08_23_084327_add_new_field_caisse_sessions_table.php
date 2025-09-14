@@ -11,26 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('caisse_sessions', function (Blueprint $table) {
+       // Schema::table('caisse_sessions', function (Blueprint $table) {
 
-            $table->foreignId('open_by')->constrained('users')->onDelete('cascade');
-              $table->foreignId('closed_by')->nullable()->constrained('users')->onDelete('cascade');
-            $table->foreignId('coffre_id_source')->nullable()->constrained('coffres')->onDelete('cascade');
-            $table->foreignId('coffre_id_destination')->nullable()->constrained('coffres')->onDelete('cascade');
+       //     $table->foreignId('open_by')->constrained('users')->onDelete('cascade');
+         //     $table->foreignId('closed_by')->nullable()->constrained('users')->onDelete('cascade');
+        //    $table->foreignId('coffre_id_source')->nullable()->constrained('coffres')->onDelete('cascade');
+         //   $table->foreignId('coffre_id_destination')->nullable()->constrained('coffres')->onDelete('cascade');
             // Indexes
-            $table->index(['caisse_id', 'status']);
-            $table->index(['user_id', 'ouverture_at']);
-            $table->index(['status', 'ouverture_at']);
+          //  $table->index(['caisse_id', 'status']);
+          //  $table->index(['user_id', 'ouverture_at']);
+           // $table->index(['status', 'ouverture_at']);
 
 
-            $table->decimal('total_cash_counted', 15, 2)->nullable()->after('closing_amount');
-            $table->decimal('cash_difference', 15, 2)->nullable()->after('total_cash_counted'); // Difference between closing_amount and total_cash_counted
+         //   $table->decimal('total_cash_counted', 15, 2)->nullable()->after('closing_amount');
+          //  $table->decimal('cash_difference', 15, 2)->nullable()->after('total_cash_counted'); // Difference between closing_amount and total_cash_counted
             // Unique constraint: only one open session per caisse
-            $table->unique(['caisse_id', 'status'], 'unique_open_session')
-                  ->where('status', 'open');
-          $table->text('opening_notes')->nullable();
-          $table->text('closing_notes')->nullable();
-    });
+         //   $table->unique(['caisse_id', 'status'], 'unique_open_session')
+        //          ->where('status', 'open');
+        //  $table->text('opening_notes')->nullable();
+         // $table->text('closing_notes')->nullable();
+  //  });
     }
     /**
      * Reverse the migrations.

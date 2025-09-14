@@ -11,6 +11,7 @@ class Service extends Model
 {
     protected $fillable = [
         'name',
+        'service_abv',
         'description',
         'image_url',
         'start_date',
@@ -33,6 +34,11 @@ public function specializations()
     public function prestations()
     {
         return $this->hasMany(Prestation::class, 'service_id'); // Assuming 'service_id' is the foreign key in Prestation model
+    }
+
+    public function stockages()
+    {
+        return $this->hasMany(\App\Models\Stockage::class, 'service_id');
     }
 
 }

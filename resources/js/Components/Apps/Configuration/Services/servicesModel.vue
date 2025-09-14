@@ -31,6 +31,7 @@ const toaster = useToastr();
 const form = ref({
     id: null,
     name: '',
+    service_abv: '',
     description: '',
     image_url: '',
     start_time: '',
@@ -53,6 +54,7 @@ const resetForm = () => {
     form.value = {
         id: null,
         name: '',
+        service_abv: '',
         description: '',
         image_url: '',
         start_time: '',
@@ -108,6 +110,7 @@ const handleSubmit = async () => {
 
 
     formData.append('name', form.value.name);
+    formData.append('service_abv', form.value.service_abv);
     // Append description only if it has a value
     if (form.value.description) {
         formData.append('description', form.value.description);
@@ -161,7 +164,6 @@ const handleSubmit = async () => {
         }
         closeModal();
     } catch (err) {
-        console.error('Error submitting service:', err);
         if (err.response?.status === 422) {
             errors.value = err.response.data.errors;
             toaster.error('Please correct the form errors.');
@@ -225,6 +227,26 @@ const closeModal = () => {
                                 <p v-if="errors.name" class="error-message">
                                     <i class="fas fa-exclamation-circle"></i>
                                     {{ errors.name[0] }}
+                                </p>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="service_abv" class="form-label">
+                                    <i class="fas fa-hashtag label-icon"></i>
+                                    Service Abbreviation
+                                </label>
+                                <input
+                                    type="text"
+                                    id="service_abv"
+                                    v-model="form.service_abv"
+                                    class="form-input"
+                                    :class="{ 'input-error': errors.service_abv }"
+                                    placeholder="Enter abbreviation (max 10 chars)"
+                                    maxlength="10"
+                                >
+                                <p v-if="errors.service_abv" class="error-message">
+                                    <i class="fas fa-exclamation-circle"></i>
+                                    {{ errors.service_abv[0] }}
                                 </p>
                             </div>
 

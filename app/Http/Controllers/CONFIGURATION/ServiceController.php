@@ -19,7 +19,7 @@ class ServiceController extends Controller
     public function index()
     {
         try {
-            $services = Service::latest()->get();
+            $services = Service::withCount('stockages')->latest()->get();
             return response()->json([
                 'status' => 'success',
                 'message' => 'Services retrieved successfully.',
@@ -45,6 +45,7 @@ class ServiceController extends Controller
             $validatedData = $request->validate([
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
                 'name' => ['required', 'string', 'max:255', 'unique:services,name'],
+                'service_abv' => ['nullable', 'string', 'max:10'],
                 'description' => ['nullable', 'string', 'max:1000'],
                 'start_time' => ['nullable'], // Use date_format for time validation
                 'end_time' => ['nullable'], // Ensure end_time is after start_time
@@ -126,6 +127,7 @@ class ServiceController extends Controller
             $validatedData = $request->validate([
                 'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,svg', 'max:2048'],
                 'name' => ['required', 'string', 'max:255', Rule::unique('services', 'name')->ignore($service->id)],
+                'service_abv' => ['nullable', 'string', 'max:10'],
                 'description' => ['nullable', 'string', 'max:1000'],
                 'start_time' => ['nullable'],
                 'end_time' => ['nullable'],

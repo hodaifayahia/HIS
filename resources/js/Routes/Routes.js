@@ -15,6 +15,8 @@ import CoffreRoutes from './Coffre';
 import BankRoutes from './bank'; // 👈 NEW IMPORT
 import CaisseRoutes from './caisse'
 import mangerRoutes from './manager'
+import stockRoutes from './stock'
+import pharmacyRoutes from './pharmacy'
 
 
 
@@ -34,6 +36,8 @@ export const allRoutes = [
     ...BankRoutes,
     ...CaisseRoutes,
     ...mangerRoutes,
+    ...stockRoutes,
+    ...pharmacyRoutes,
 
 
 

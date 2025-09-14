@@ -138,7 +138,6 @@
     <div class="sidebar-overlay" :class="{ active: sidebarOpen }" @click="closeSidebar"></div>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
@@ -410,12 +409,11 @@ const allApps = ref([
   {
     id: 35,
     name: 'portal',
-    icon: 'fas fa-user',      // Changed from 'fas fa-solid fa-gift'
+    icon: 'fas fa-user',
     color: '#DC2785',
     route: '/portal',
     category: 'administrative'
   },
-
   {
     id: 36,
     name: 'Manager',
@@ -426,16 +424,16 @@ const allApps = ref([
   },
   {
     id: 37,
-    name: 'Soon',
-    icon: 'fas fa-solid fa-gift',
-    color: '#DC2785',
-    route: '/admin/maintenance',
+    name: 'Stock',
+    icon: 'fas fa-warehouse',
+    color: '#6366F1',
+    route: '/stock',
     category: 'administrative'
   },
   {
     id: 38,
     name: 'Soon',
-    icon: 'fas fa-solid fa-gift',
+    icon: 'fas fa-gift',
     color: '#DC2785',
     route: '/admin/maintenance',
     category: 'administrative'
@@ -443,7 +441,7 @@ const allApps = ref([
   {
     id: 39,
     name: 'Soon',
-    icon: 'fas fa-solid fa-gift',
+    icon: 'fas fa-gift',
     color: '#DC2785',
     route: '/admin/maintenance',
     category: 'administrative'
@@ -455,11 +453,11 @@ const filteredApps = computed(() => {
   let filtered = allApps.value;
 
   // Role-based filtering
-  if (user.value?.data.role.toLowerCase() === 'doctor') {
+  if (user.value?.data?.role?.toLowerCase() === 'doctor') {
     filtered = filtered.filter(app =>
       app.name === 'Calendar' || app.name === 'Consultation'
     );
-  } else if (user.value?.data.role.toLowerCase() === 'receptionist') {
+  } else if (user.value?.data?.role?.toLowerCase() === 'receptionist') {
     filtered = filtered.filter(app =>
       app.name === 'Appointments' || app.name === 'portal'
     );
@@ -535,6 +533,7 @@ const getAppDescription = (appName) => {
     'Human Resources': 'Staff management',
     'Dashboard': 'Analytics and reporting',
     'Maintenance': 'Facility maintenance',
+    'Stock': 'Inventory management',
     'Soon': 'Upcoming features and improvements'
   };
   return descriptions[appName] || `Manage ${appName.toLowerCase()} operations`;
@@ -552,29 +551,39 @@ const navigateToApp = (app) => {
 // Logout Function - uses auth store for SPA logout
 const logout = async () => {
   try {
-    await authStore.logout()
+    await authStore.logout();
+    // Redirect to login page after logout
+    router.push('/login');
   } catch (error) {
     // Force logout even if API call fails
-    authStore.clearAuth()
+    authStore.$reset(); // Reset store state
     console.error('Error logging out:', error);
+    router.push('/login');
   }
 };
 
 // Lifecycle
 onMounted(() => {
   // Close user menu when clicking outside
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.user-menu')) {
+  const handleClickOutside = (e) => {
+    if (!e.target.closest('.user-menu') && !e.target.closest('.user-menu-button')) {
       showUserMenu.value = false;
     }
+  };
+
+  document.addEventListener('click', handleClickOutside);
+  
+  // Cleanup function
+  onUnmounted(() => {
+    document.removeEventListener('click', handleClickOutside);
   });
 });
 
+// Fix for onUnmounted cleanup
 onUnmounted(() => {
-  document.removeEventListener('click', () => { });
+  // Already handled in onMounted with proper cleanup
 });
 </script>
-
 <style scoped>
 /*
 * Global Styles and Full-Screen Setup

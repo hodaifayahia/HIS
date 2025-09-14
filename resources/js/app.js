@@ -16,6 +16,7 @@ import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
 import ToastService from 'primevue/toastservice';
 import ConfirmDialog from 'primevue/confirmdialog'
+import Tooltip from 'primevue/tooltip';
 
 import ConfirmationService from 'primevue/confirmationservice';
 
@@ -47,6 +48,9 @@ app.use(PrimeVue, { ripple: true }); // Enable ripple effect for buttons
 // ✅ Add PrimeVue services
 app.use(ToastService);
 app.use(ConfirmationService);
+
+// ✅ Register PrimeVue directives
+app.directive('tooltip', Tooltip);
 
 // ✅ Create router
 const router = createRouter({
