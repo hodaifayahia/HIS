@@ -132,7 +132,7 @@
               <template #body="slotProps">
                 <div class="tw-space-y-1">
                   <div v-for="item in slotProps.data.items" :key="item.id" class="tw-flex tw-justify-between tw-text-sm">
-                    <span>{{ item.product.name }}</span>
+                    <span>{{ item.product?.name || 'Product not loaded' }}</span>
                     <span class="tw-font-medium">{{ item.requested_quantity }}</span>
                   </div>
                   <div v-if="slotProps.data.items.length === 0" class="tw-text-gray-500 tw-text-sm">
@@ -202,12 +202,7 @@
             <Column header="Actions" style="min-width:15rem">
               <template #body="slotProps">
                 <div class="tw-flex tw-space-x-2">
-                  <Button
-                    icon="pi pi-eye"
-                    class="p-button-rounded p-button-info p-button-text"
-                    @click="viewMovement(slotProps.data)"
-                    v-tooltip="'View Details'"
-                  />
+             
 
                   <Button
                     v-if="slotProps.data.status === 'draft'"
@@ -240,6 +235,12 @@
                     v-tooltip="'Approved'"
                     disabled
                   />
+                  <Button
+                    icon="pi pi-eye"
+                    class="p-button-rounded p-button-info p-button-text"
+                    @click="viewMovement(slotProps.data)"
+                    v-tooltip="'View Details'"
+                  />
                 </div>
               </template>
             </Column>
@@ -249,7 +250,6 @@
     </div>
 
     <div v-else-if="activeTab === 'receiver'">
-      <!-- Receiver's View: Pending Approvals -->
       <Card class="tw-shadow-xl">
         <template #content>
           <DataTable
@@ -283,7 +283,7 @@
               <template #body="slotProps">
                 <div class="tw-space-y-1">
                   <div v-for="item in slotProps.data.items" :key="item.id" class="tw-flex tw-justify-between tw-text-sm">
-                    <span>{{ item.product.name }}</span>
+                    <span>{{ item.product?.name }}</span>
                     <span class="tw-font-medium">{{ item.requested_quantity }}</span>
                   </div>
                 </div>
@@ -341,20 +341,6 @@
                     class="p-button-rounded p-button-info p-button-text"
                     @click="viewMovement(slotProps.data)"
                     v-tooltip="'View Details'"
-                  />
-
-                  <Button
-                    icon="pi pi-check"
-                    class="p-button-rounded p-button-success p-button-text"
-                    @click="approveMovement(slotProps.data)"
-                    v-tooltip="'Approve'"
-                  />
-
-                  <Button
-                    icon="pi pi-times"
-                    class="p-button-rounded p-button-danger p-button-text"
-                    @click="rejectMovement(slotProps.data)"
-                    v-tooltip="'Reject'"
                   />
                 </div>
               </template>
@@ -578,7 +564,7 @@
             <h4 class="tw-font-medium tw-mb-2">Request Details</h4>
             <p><strong>Reason:</strong> {{ selectedMovement.request_reason }}</p>
             <p v-if="selectedMovement.expected_delivery_date"><strong>Expected:</strong> {{ formatDate(selectedMovement.expected_delivery_date) }}</p>
-            <p v-if="selectedMovement.approval_notes"><strong>Approval Notes:</strong> {{ selectedMovement.approval_notes }}</p>
+    
           </div>
         </div>
 
@@ -598,7 +584,7 @@
               </div>
               <div class="tw-text-right">
                 <p class="tw-font-medium">Requested: {{ item.requested_quantity }}</p>
-                <p v-if="item.approved_quantity" class="tw-text-green-600">Approved: {{ item.approved_quantity }}</p>
+      
                 <p v-if="item.executed_quantity" class="tw-text-blue-600">Executed: {{ item.executed_quantity }}</p>
               </div>
             </div>
@@ -614,103 +600,13 @@
             class="p-button-text"
             @click="showDetailsDialog = false"
           />
-          <Button
-            v-if="activeTab === 'receiver' && selectedMovement.status === 'pending'"
-            label="Approve"
-            icon="pi pi-check"
-            class="tw-bg-green-600"
-            @click="approveMovement(selectedMovement)"
-          />
-          <Button
-            v-if="activeTab === 'receiver' && selectedMovement.status === 'pending'"
-            label="Reject"
-            icon="pi pi-times"
-            class="tw-bg-red-600"
-            @click="rejectMovement(selectedMovement)"
-          />
+
+
         </div>
       </div>
     </Dialog>
 
-    <!-- Approval Dialog -->
-    <Dialog v-model:visible="showApprovalDialog" modal :header="`Review Request: ${selectedMovement?.movement_number}`" :style="{width: '50rem'}">
-      <div class="tw-space-y-4">
-        <div class="tw-p-4 tw-bg-blue-50 tw-rounded-lg">
-          <h4 class="tw-font-medium tw-mb-2">Request Summary</h4>
-          <p><strong>From:</strong> {{ selectedMovement?.requestingService?.name }}</p>
-          <p><strong>Products:</strong> {{ selectedMovement?.items?.length }}</p>
-          <p><strong>Reason:</strong> {{ selectedMovement?.request_reason }}</p>
-        </div>
 
-        <form @submit.prevent="submitApproval" class="tw-space-y-4">
-          <div>
-            <label class="tw-block tw-text-sm tw-font-medium tw-mb-2">Decision *</label>
-            <div class="tw-flex tw-space-x-4">
-              <div class="tw-flex tw-items-center">
-                <RadioButton v-model="approvalForm.decision" value="approved" />
-                <label class="tw-ml-2">Approve All</label>
-              </div>
-              <div class="tw-flex tw-items-center">
-                <RadioButton v-model="approvalForm.decision" value="partially_approved" />
-                <label class="tw-ml-2">Approve Partially</label>
-              </div>
-              <div class="tw-flex tw-items-center">
-                <RadioButton v-model="approvalForm.decision" value="rejected" />
-                <label class="tw-ml-2">Reject</label>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="approvalForm.decision === 'partially_approved'">
-            <h4 class="tw-font-medium tw-mb-3">Adjust Quantities</h4>
-            <div class="tw-space-y-3">
-              <div v-for="item in selectedMovement?.items" :key="item.id" class="tw-flex tw-items-center tw-justify-between tw-bg-gray-50 tw-p-3 tw-rounded">
-                <span class="tw-font-medium">{{ item.product.name }}</span>
-                <div class="tw-flex tw-items-center tw-space-x-2">
-                  <InputNumber
-                    v-model="approvalForm.itemApprovals[item.id]"
-                    :min="0"
-                    :max="item.requested_quantity"
-                    size="small"
-                    mode="decimal"
-                    :minFractionDigits="2"
-                    :maxFractionDigits="2"
-                  />
-                  <span class="tw-text-sm tw-text-gray-500">/ {{ item.requested_quantity }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label class="tw-block tw-text-sm tw-font-medium tw-mb-2">Approval Notes</label>
-            <Textarea
-              v-model="approvalForm.approval_notes"
-              rows="3"
-              class="tw-w-full"
-              placeholder="Add any notes about your decision..."
-            />
-          </div>
-
-          <div class="tw-flex tw-justify-end tw-space-x-3">
-            <Button
-              type="button"
-              label="Cancel"
-              icon="pi pi-times"
-              class="p-button-text"
-              @click="showApprovalDialog = false"
-            />
-            <Button
-              type="submit"
-              :label="getApprovalButtonText()"
-              :icon="getApprovalButtonIcon()"
-              :class="getApprovalButtonClass()"
-              :loading="approving"
-            />
-          </div>
-        </form>
-      </div>
-    </Dialog>
   </div>
 </template>
 
@@ -769,12 +665,12 @@ export default {
       savingDraft: false,
       sendingDraft: false,
       addingItem: false,
-      approving: false,
+
       showNewRequestDialog: false,
       showEditDialog: false,
       showAddProductDialog: false,
       showDetailsDialog: false,
-      showApprovalDialog: false,
+
       selectedMovement: null,
       maxQuantity: null,
       filters: {
@@ -790,11 +686,7 @@ export default {
         requested_quantity: null,
         notes: ''
       },
-      approvalForm: {
-        decision: null,
-        itemApprovals: {},
-        approval_notes: ''
-      },
+
       minDate: new Date()
     };
   },
@@ -832,13 +724,23 @@ export default {
       try {
         if (this.activeTab === 'sender') {
           const response = await axios.get('/api/stock-movements/?role=requester');
-          this.movements = response.data.data.data || [];
+          // Handle direct array response or nested data structure
+          this.movements = Array.isArray(response.data) ? response.data : (response.data.data?.data || response.data.data || []);
+          console.log('Loaded movements for sender:', this.movements);
+          
         } else {
           const response = await axios.get('/api/stock-movements/?role=provider&status=pending');
-          this.pendingApprovals = response.data.data.data || [];
+          // Handle direct array response or nested data structure
+          this.pendingApprovals = Array.isArray(response.data) ? response.data : (response.data.data?.data || response.data.data || []);
+          console.log('Loaded pending approvals for receiver:', this.pendingApprovals);
         }
       } catch (error) {
         console.error('Failed to load movements:', error);
+        this.toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load stock movements'
+        });
       }
     },
 
@@ -1077,98 +979,11 @@ export default {
       });
     },
 
-    async approveMovement(movement) {
-      this.selectedMovement = movement;
-      this.approvalForm = {
-        decision: 'approved',
-        itemApprovals: {},
-        approval_notes: ''
-      };
 
-      // Initialize item approvals with requested quantities
-      movement.items.forEach(item => {
-        this.approvalForm.itemApprovals[item.id] = item.requested_quantity;
-      });
 
-      this.showApprovalDialog = true;
-    },
 
-    async rejectMovement(movement) {
-      this.confirm.require({
-        message: 'Are you sure you want to reject this request?',
-        header: 'Reject Request',
-        icon: 'pi pi-exclamation-triangle',
-        rejectClass: 'p-button-secondary p-button-outlined',
-        acceptClass: 'p-button-danger',
-        accept: () => {
-          this.submitRejection(movement);
-        }
-      });
-    },
 
-    async submitRejection(movement) {
-      this.approving = true;
-      try {
-        await axios.patch(`/api/stock-movements/${movement.id}/status`, {
-          status: 'rejected',
-          approval_notes: 'Request rejected'
-        });
 
-        this.toast.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Request rejected successfully'
-        });
-
-        this.showApprovalDialog = false;
-        this.loadMovements();
-        this.loadStats();
-      } catch (error) {
-        const message = error.response?.data?.error || 'Failed to reject request';
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: message
-        });
-      } finally {
-        this.approving = false;
-      }
-    },
-
-    async submitApproval() {
-      this.approving = true;
-      try {
-        const payload = {
-          status: this.approvalForm.decision,
-          approval_notes: this.approvalForm.approval_notes
-        };
-
-        if (this.approvalForm.decision === 'partially_approved') {
-          payload.item_approvals = this.approvalForm.itemApprovals;
-        }
-
-        await axios.patch(`/api/stock-movements/${this.selectedMovement.id}/status`, payload);
-
-        this.toast.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: `Request ${this.approvalForm.decision.replace('_', ' ')} successfully`
-        });
-
-        this.showApprovalDialog = false;
-        this.loadMovements();
-        this.loadStats();
-      } catch (error) {
-        const message = error.response?.data?.error || 'Failed to process approval';
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: message
-        });
-      } finally {
-        this.approving = false;
-      }
-    },
 
     viewMovement(movement) {
       this.$router.push({
@@ -1223,24 +1038,7 @@ export default {
       return 'pi pi-box';
     },
 
-    getApprovalButtonText() {
-      if (this.approvalForm.decision === 'approved') return 'Approve Request';
-      if (this.approvalForm.decision === 'partially_approved') return 'Approve Partially';
-      if (this.approvalForm.decision === 'rejected') return 'Reject Request';
-      return 'Submit Decision';
-    },
 
-    getApprovalButtonIcon() {
-      if (this.approvalForm.decision === 'approved' || this.approvalForm.decision === 'partially_approved') return 'pi pi-check';
-      if (this.approvalForm.decision === 'rejected') return 'pi pi-times';
-      return 'pi pi-send';
-    },
-
-    getApprovalButtonClass() {
-      if (this.approvalForm.decision === 'approved' || this.approvalForm.decision === 'partially_approved') return 'tw-bg-green-600';
-      if (this.approvalForm.decision === 'rejected') return 'tw-bg-red-600';
-      return 'tw-bg-blue-600';
-    },
 
     formatDate(date) {
 

@@ -308,13 +308,53 @@ class ProductController extends \App\Http\Controllers\Controller
         ]);
 
         $ids = $request->ids;
-        $deletedCount = Product::whereIn('id', $ids)->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => "{$deletedCount} products deleted successfully",
-            'deleted_count' => $deletedCount
-        ]);
+        
+        try {
+            // Start a database transaction
+            \DB::beginTransaction();
+            
+            // Temporarily disable foreign key checks for reliable deletion
+            \DB::statement('SET FOREIGN_KEY_CHECKS=0');
+            
+            // Get all inventory IDs for the products to be deleted
+            $inventoryIds = \App\Models\Inventory::whereIn('product_id', $ids)->pluck('id')->toArray();
+            
+            // First, delete stock movement inventory selections that reference these inventories
+            if (!empty($inventoryIds)) {
+                \DB::table('stock_movement_inventory_selections')
+                    ->whereIn('inventory_id', $inventoryIds)
+                    ->delete();
+            }
+            
+            // Then, delete all related inventory records
+            \App\Models\Inventory::whereIn('product_id', $ids)->delete();
+            
+            // Finally, delete the products
+            $deletedCount = Product::whereIn('id', $ids)->delete();
+            
+            // Re-enable foreign key checks
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            
+            // Commit the transaction
+            \DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => "{$deletedCount} products deleted successfully",
+                'deleted_count' => $deletedCount
+            ]);
+            
+        } catch (\Exception $e) {
+            // Re-enable foreign key checks and rollback the transaction on error
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            \DB::rollback();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete products: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -464,5 +504,57 @@ class ProductController extends \App\Http\Controllers\Controller
             'message' => 'Product settings saved successfully',
             'settings' => $settings
         ]);
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Product $product)
+    {
+        try {
+            // Start a database transaction
+            \DB::beginTransaction();
+            
+            // Temporarily disable foreign key checks for reliable deletion
+            \DB::statement('SET FOREIGN_KEY_CHECKS=0');
+            
+            // Get all inventory IDs for this product
+            $inventoryIds = $product->inventories()->pluck('id')->toArray();
+            
+            // First, delete stock movement inventory selections that reference these inventories
+            if (!empty($inventoryIds)) {
+                \DB::table('stock_movement_inventory_selections')
+                    ->whereIn('inventory_id', $inventoryIds)
+                    ->delete();
+            }
+            
+            // Then, delete all related inventory records
+            $product->inventories()->delete();
+            
+            // Finally, delete the product
+            $product->delete();
+            
+            // Re-enable foreign key checks
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            
+            // Commit the transaction
+            \DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Product deleted successfully'
+            ]);
+            
+        } catch (\Exception $e) {
+            // Re-enable foreign key checks and rollback the transaction on error
+            \DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            \DB::rollback();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete product: ' . $e->getMessage(),
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 }

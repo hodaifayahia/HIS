@@ -41,6 +41,11 @@ class StockMovementItem extends Model
         return $this->hasMany(StockMovementInventorySelection::class);
     }
 
+    public function selectedInventory()
+    {
+        return $this->hasMany(StockMovementInventorySelection::class);
+    }
+
     // Helper methods
     public function getAvailableStock()
     {
@@ -96,5 +101,36 @@ class StockMovementItem extends Model
         $maxStockLevel = $this->product->max_stock_level ?? ($lowStockThreshold * 2);
         
         return max(0, $maxStockLevel - $availableStock);
+    }
+
+    // Status checking methods
+    public function isApproved(): bool
+    {
+        return $this->approved_quantity !== null && $this->approved_quantity > 0;
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->approved_quantity !== null && $this->approved_quantity == 0;
+    }
+
+    public function isPending(): bool
+    {
+        return $this->approved_quantity === null;
+    }
+
+    public function isEditable(): bool
+    {
+        return $this->isPending();
+    }
+
+    public function getStatus(): string
+    {
+        if ($this->isApproved()) {
+            return 'approved';
+        } elseif ($this->isRejected()) {
+            return 'rejected';
+        }
+        return 'pending';
     }
 }

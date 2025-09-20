@@ -975,7 +975,7 @@
           <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">To Location *</label>
           <Dropdown
             v-model="transferData.to_location_id"
-            :options="locations"
+            :options="availableToLocations"
             optionLabel="name"
             optionValue="id"
             placeholder="Select destination location"
@@ -1209,6 +1209,23 @@ export default {
 
     totalAlertsCount() {
       return this.lowStockAlerts.length + this.criticalStockAlerts.length + this.expiringAlerts.length + this.expiredAlerts.length;
+    },
+
+    // Filter 'to' locations to exclude the selected 'from' location
+    availableToLocations() {
+      if (!this.transferData.from_location_id) {
+        return this.locations;
+      }
+      return this.locations.filter(location => location.id !== this.transferData.from_location_id);
+    }
+  },
+  watch: {
+    // Clear 'to' location when 'from' location changes to prevent same location selection
+    'transferData.from_location_id'(newFromLocationId, oldFromLocationId) {
+      // If the currently selected 'to' location is the same as the new 'from' location, clear it
+      if (this.transferData.to_location_id === newFromLocationId) {
+        this.transferData.to_location_id = null;
+      }
     }
   },
   methods: {

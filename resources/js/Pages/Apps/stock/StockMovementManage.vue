@@ -298,188 +298,199 @@
                 </div>
               </div>
 
-              <!-- Products Table -->
-              <div v-if="movement.items && movement.items.length > 0" class="tw-overflow-hidden tw-bg-white tw-rounded-xl tw-border tw-border-gray-200 tw-shadow-sm">
-                <!-- Table Header -->
-                <div class="tw-bg-gradient-to-r tw-from-slate-50 tw-to-slate-100 tw-px-6 tw-py-4 tw-border-b tw-border-gray-200">
+              <!-- Enhanced Products DataTable -->
+              <div v-if="movement.items && movement.items.length > 0" class="tw-bg-white tw-rounded-2xl tw-shadow-xl tw-border tw-border-gray-100 tw-overflow-hidden">
+                <!-- Modern Header -->
+                <div class="tw-bg-gradient-to-r tw-from-emerald-600 tw-via-teal-600 tw-to-cyan-600 tw-px-8 tw-py-6">
                   <div class="tw-flex tw-items-center tw-justify-between">
-                    <h4 class="tw-text-lg tw-font-semibold tw-text-slate-800 tw-flex tw-items-center tw-gap-2">
-                      <i class="pi pi-list tw-text-slate-600"></i>
-                      Products List
-                    </h4>
-                    <div class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-slate-600">
-                      <span class="tw-flex tw-items-center tw-gap-1">
-                        <i class="pi pi-info-circle"></i>
-                        {{ filteredProducts.length }} of {{ movement.items.length }} products
-                      </span>
+                    <div class="tw-flex tw-items-center tw-gap-4">
+                      <div class="tw-w-12 tw-h-12 tw-bg-white/20 tw-backdrop-blur-sm tw-rounded-xl tw-flex tw-items-center tw-justify-center">
+                        <i class="pi pi-shopping-cart tw-text-white tw-text-xl"></i>
+                      </div>
+                      <div>
+                        <h4 class="tw-text-xl tw-font-bold tw-text-white tw-mb-1">Products Management</h4>
+                        <p class="tw-text-emerald-100 tw-text-sm">Add, edit and manage product requests</p>
+                      </div>
+                    </div>
+                    <div class="tw-bg-white/20 tw-backdrop-blur-sm tw-rounded-xl tw-px-4 tw-py-2">
+                      <div class="tw-flex tw-items-center tw-gap-2 tw-text-white">
+                        <i class="pi pi-info-circle tw-text-lg"></i>
+                        <span class="tw-font-semibold">{{ filteredProducts.length }}</span>
+                        <span class="tw-text-emerald-100">of {{ movement.items.length }} products</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Table -->
-                <div class="tw-overflow-x-auto">
-                  <table class="tw-w-full">
-                    <!-- Table Header Row -->
-                    <thead class="tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100">
-                      <tr>
-                        <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200">
-                          Product
-                        </th>
-                        <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200">
-                          Quantity
-                        </th>
-                        <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200">
-                          Unit
-                        </th>
-                        <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200">
-                          Stock Info
-                        </th>
-                        <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <!-- Table Body -->
-                    <tbody class="tw-divide-y tw-divide-gray-200">
-                      <tr
-                        v-for="item in paginatedProducts"
-                        :key="item.id"
-                        class="tw-hover:bg-blue-50/30 tw-transition-colors tw-duration-200"
-                      >
-                        <!-- Product Column -->
-                        <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                          <div class="tw-flex tw-items-center tw-gap-3">
-                            <div class="tw-w-10 tw-h-10 tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-flex-shrink-0 tw-shadow-sm">
-                              <i class="pi pi-box tw-text-white tw-text-sm"></i>
+                <!-- Enhanced DataTable -->
+                <DataTable
+                  :value="paginatedProducts"
+                  :rows="pageSize"
+                  :paginator="false"
+                  class="tw-border-0"
+                  :rowHover="true"
+                  stripedRows
+                  responsiveLayout="scroll"
+                >
+                  <!-- Product Column -->
+                  <Column field="product" header="Product" class="tw-min-w-80">
+                    <template #body="slotProps">
+                      <div class="tw-flex tw-items-center tw-gap-4 tw-py-2">
+                        <div class="tw-relative">
+                          <div class="tw-w-14 tw-h-14 tw-bg-gradient-to-br tw-from-emerald-500 tw-via-teal-500 tw-to-cyan-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+                            <i class="pi pi-box tw-text-white tw-text-lg"></i>
+                          </div>
+                          <div class="tw-absolute -tw-top-1 -tw-right-1 tw-w-5 tw-h-5 tw-bg-orange-500 tw-rounded-full tw-flex tw-items-center tw-justify-center">
+                            <i class="pi pi-pencil tw-text-white tw-text-xs"></i>
+                          </div>
+                        </div>
+                        <div class="tw-flex-1 tw-min-w-0">
+                          <div class="tw-text-base tw-font-bold tw-text-gray-900 tw-mb-1 tw-truncate">
+                            {{ slotProps.data.product?.name }}
+                          </div>
+                          <div class="tw-flex tw-items-center tw-gap-3 tw-text-sm tw-text-gray-500">
+                            <div class="tw-flex tw-items-center tw-gap-1 tw-bg-gray-100 tw-px-2 tw-py-1 tw-rounded-lg">
+                              <i class="pi pi-tag tw-text-xs"></i>
+                              <span class="tw-font-medium">{{ slotProps.data.product?.code }}</span>
                             </div>
-                            <div class="tw-min-w-0 tw-flex-1">
-                              <div class="tw-text-sm tw-font-semibold tw-text-gray-900 tw-truncate">
-                                {{ item.product?.name }}
-                              </div>
-                              <div class="tw-text-xs tw-text-gray-500 tw-flex tw-items-center tw-gap-2">
-                                <span class="tw-flex tw-items-center tw-gap-1">
-                                  <i class="pi pi-tag tw-text-xs"></i>
-                                  {{ item.product?.code }}
-                                </span>
-                                <span class="tw-text-gray-300">•</span>
-                                <span class="tw-flex tw-items-center tw-gap-1">
-                                  <i class="pi pi-map-marker tw-text-xs"></i>
-                                  {{ item.product?.stockage_name || 'Main Storage' }}
-                                </span>
-                              </div>
+                            <div class="tw-flex tw-items-center tw-gap-1 tw-bg-emerald-100 tw-text-emerald-700 tw-px-2 tw-py-1 tw-rounded-lg">
+                              <i class="pi pi-map-marker tw-text-xs"></i>
+                              <span class="tw-font-medium">{{ slotProps.data.product?.stockage_name || 'Main Storage' }}</span>
                             </div>
                           </div>
-                        </td>
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
 
-                        <!-- Quantity Column -->
-                        <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                          <div class="tw-flex tw-items-center tw-gap-3">
-                            <div class="tw-relative">
-                              <InputNumber
-                                v-if="movement?.status === 'draft'"
-                                v-model="item.requested_quantity"
-                                :min="0.01"
-                                :step="0.01"
-                                @input="updateItemQuantity(item)"
-                                class="tw-w-24"
-                                inputClass="tw-text-center tw-font-bold tw-text-sm tw-text-gray-900 tw-bg-white tw-rounded-lg tw-border tw-border-gray-300 hover:tw-border-blue-400 focus:tw-border-blue-500 tw-transition-all tw-duration-200"
-                                :disabled="updatingItemId === item.id"
-                                :showButtons="false"
-                              />
-                              <div v-if="updatingItemId === item.id" class="tw-absolute tw-inset-0 tw-bg-white/80 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
-                                <div class="tw-w-3 tw-h-3 tw-border-2 tw-border-blue-500 tw-border-t-transparent tw-rounded-full tw-animate-spin"></div>
-                              </div>
-                            </div>
-                            <div v-if="item.quantity_by_box && item.product?.boite_de" class="tw-text-xs tw-text-blue-600 tw-font-medium">
-                              = {{ item.requested_quantity * item.product.boite_de }} {{ getProductUnit(item.product) }}
-                            </div>
-                          </div>
-                        </td>
-
-                        <!-- Unit Column -->
-                        <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                          <div class="tw-flex tw-flex-col">
-                            <span class="tw-text-sm tw-font-medium tw-text-gray-900">
-                              {{ item.quantity_by_box && item.product?.boite_de ? 'Boxes' : (item.product?.unit || 'units') }}
-                            </span>
-                            <span v-if="item.duration" class="tw-text-xs tw-text-purple-600 tw-font-medium tw-bg-purple-50 tw-px-2 tw-py-1 tw-rounded-full tw-inline-block tw-mt-1">
-                              {{ item.duration }} {{ item.duration_unit }}
-                            </span>
-                          </div>
-                        </td>
-
-                        <!-- Stock Info Column -->
-                        <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                          <div class="tw-flex tw-items-center tw-gap-3">
-                            <div class="tw-flex tw-items-center tw-gap-2 tw-bg-blue-50 tw-px-3 tw-py-2 tw-rounded-lg tw-border tw-border-blue-200">
-                              <i class="pi pi-chart-line tw-text-blue-600 tw-text-sm"></i>
-                              <div>
-                                <div class="tw-text-xs tw-text-blue-700 tw-font-medium">Available</div>
-                                <div class="tw-text-sm tw-font-bold tw-text-blue-800">
-                                  {{ getProductStock(item.product_id) }} {{ item.product?.unit || 'units' }}
-                                </div>
-                              </div>
-                            </div>
-                            <div v-if="item.product?.expiry_date" class="tw-flex tw-items-center tw-gap-2 tw-bg-green-50 tw-px-3 tw-py-2 tw-rounded-lg tw-border tw-border-green-200">
-                              <i class="pi pi-calendar tw-text-green-600 tw-text-sm"></i>
-                              <div>
-                                <div class="tw-text-xs tw-text-green-700 tw-font-medium">Expiry</div>
-                                <div class="tw-text-sm tw-font-bold tw-text-green-800">
-                                  {{ formatDate(item.product.expiry_date) }}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        <!-- Actions Column -->
-                        <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                          <div class="tw-flex tw-items-center tw-gap-2">
-                            <Button
-                              v-if="movement?.status === 'draft'"
-                              @click="removeItem(item)"
-                              icon="pi pi-trash"
-                              severity="danger"
-                              text
-                              rounded
-                              class="tw-p-2 hover:tw-bg-red-50 tw-transition-all tw-duration-200 tw-opacity-60 hover:tw-opacity-100"
-                              v-tooltip="'Remove product'"
+                  <!-- Quantity Column -->
+                  <Column field="quantity" header="Quantity" class="tw-min-w-48">
+                    <template #body="slotProps">
+                      <div class="tw-py-2">
+                        <div class="tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-border tw-border-blue-200 tw-rounded-xl tw-p-4">
+                          <div v-if="movement?.status === 'draft'" class="tw-relative">
+                            <InputNumber
+                              v-model="slotProps.data.requested_quantity"
+                              :min="0.01"
+                              :step="0.01"
+                              @input="updateItemQuantity(slotProps.data)"
+                              class="tw-w-full"
+                              inputClass="tw-text-center tw-font-bold tw-text-lg tw-text-blue-700 tw-bg-white tw-rounded-lg tw-border-2 tw-border-blue-300 hover:tw-border-blue-400 focus:tw-border-blue-500 tw-transition-all tw-duration-200"
+                              :disabled="updatingItemId === slotProps.data.id"
+                              :showButtons="false"
                             />
-                            <div v-if="item.notes" class="tw-relative">
-                              <i class="pi pi-exclamation-triangle tw-text-amber-500 tw-text-sm" v-tooltip="item.notes"></i>
+                            <div v-if="updatingItemId === slotProps.data.id" class="tw-absolute tw-inset-0 tw-bg-white/80 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
+                              <div class="tw-w-4 tw-h-4 tw-border-2 tw-border-blue-500 tw-border-t-transparent tw-rounded-full tw-animate-spin"></div>
                             </div>
                           </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                          <div v-else class="tw-text-2xl tw-font-bold tw-text-blue-700 tw-text-center">
+                            {{ slotProps.data.requested_quantity }}
+                          </div>
+                          <div v-if="slotProps.data.quantity_by_box && slotProps.data.product?.boite_de" class="tw-text-xs tw-text-blue-600 tw-font-medium tw-mt-2 tw-text-center">
+                            = {{ slotProps.data.requested_quantity * slotProps.data.product.boite_de }} {{ getProductUnit(slotProps.data.product) }}
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
 
-                <!-- Table Footer with Pagination -->
-                <div v-if="totalPages > 1" class="tw-bg-gray-50 tw-px-6 tw-py-4 tw-border-t tw-border-gray-200">
+                  <!-- Unit Column -->
+                  <Column field="unit" header="Unit" class="tw-min-w-40">
+                    <template #body="slotProps">
+                      <div class="tw-py-2 tw-space-y-2">
+                        <div class="tw-bg-gray-50 tw-border tw-border-gray-200 tw-rounded-lg tw-px-3 tw-py-2">
+                          <div class="tw-text-sm tw-font-semibold tw-text-gray-900">
+                            {{ slotProps.data.quantity_by_box && slotProps.data.product?.boite_de ? 'Boxes' : (slotProps.data.product?.unit || 'units') }}
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
+
+                  <!-- Stock Info Column -->
+                  <Column field="stock" header="Stock Information" class="tw-min-w-64">
+                    <template #body="slotProps">
+                      <div class="tw-py-2 tw-space-y-2">
+                        <div class="tw-flex tw-items-center tw-gap-2 tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-px-3 tw-py-2">
+                          <i class="pi pi-chart-line tw-text-blue-600 tw-text-lg"></i>
+                          <div>
+                            <div class="tw-text-xs tw-text-blue-700 tw-font-medium">Available Stock</div>
+                            <div class="tw-text-lg tw-font-bold tw-text-blue-800">
+                              {{ getProductStock(slotProps.data.product_id) }}
+                            </div>
+                            <div class="tw-text-xs tw-text-blue-600">{{ slotProps.data.product?.unit || 'units' }}</div>
+                          </div>
+                        </div>
+                        <div v-if="slotProps.data.product?.expiry_date" class="tw-flex tw-items-center tw-gap-2 tw-bg-green-50 tw-border tw-border-green-200 tw-rounded-lg tw-px-3 tw-py-2">
+                          <i class="pi pi-calendar tw-text-green-600 tw-text-lg"></i>
+                          <div>
+                            <div class="tw-text-xs tw-text-green-700 tw-font-medium">Expiry Date</div>
+                            <div class="tw-text-sm tw-font-bold tw-text-green-800">
+                              {{ formatDate(slotProps.data.product.expiry_date) }}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
+
+                  <!-- Actions Column -->
+                  <Column field="actions" header="Actions" class="tw-min-w-40">
+                    <template #body="slotProps">
+                      <div class="tw-py-2 tw-flex tw-items-center tw-gap-2">
+                        <Button
+                          v-if="movement?.status === 'draft'"
+                          @click="removeItem(slotProps.data)"
+                          icon="pi pi-trash"
+                          severity="danger"
+                          outlined
+                          size="small"
+                          class="tw-rounded-lg tw-transition-all tw-duration-200"
+                          v-tooltip="'Remove product'"
+                        />
+                        <div v-if="slotProps.data.notes" class="tw-relative">
+                          <Button
+                            icon="pi pi-exclamation-triangle"
+                            severity="warning"
+                            text
+                            size="small"
+                            class="tw-rounded-lg"
+                            v-tooltip="slotProps.data.notes"
+                          />
+                        </div>
+                      </div>
+                    </template>
+                  </Column>
+                </DataTable>
+
+                <!-- Enhanced Pagination -->
+                <div v-if="totalPages > 1" class="tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-px-8 tw-py-6 tw-border-t tw-border-gray-200">
                   <div class="tw-flex tw-items-center tw-justify-between">
-                    <div class="tw-text-sm tw-text-gray-600">
-                      Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage * pageSize, filteredProducts.length) }} of {{ filteredProducts.length }} products
+                    <div class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-text-gray-600">
+                      <i class="pi pi-info-circle tw-text-emerald-500"></i>
+                      <span class="tw-font-medium">
+                        Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage * pageSize, filteredProducts.length) }} of {{ filteredProducts.length }} products
+                      </span>
                     </div>
-                    <div class="tw-flex tw-items-center tw-gap-2">
+                    <div class="tw-flex tw-items-center tw-gap-3">
                       <Button
                         @click="goToPage(currentPage - 1)"
                         :disabled="currentPage === 1"
                         icon="pi pi-chevron-left"
                         severity="secondary"
-                        text
-                        class="tw-p-2"
+                        outlined
                         size="small"
+                        class="tw-rounded-lg"
                       />
                       <div class="tw-flex tw-items-center tw-gap-1">
                         <Button
                           v-for="page in visiblePages"
                           :key="page"
                           @click="goToPage(page)"
-                          :class="page === currentPage ? 'tw-bg-blue-500 tw-text-white' : 'tw-bg-white tw-text-gray-600 tw-border tw-border-gray-300'"
-                          class="tw-w-8 tw-h-8 tw-rounded-lg tw-text-sm tw-font-medium hover:tw-bg-blue-500 hover:tw-text-white tw-transition-all tw-duration-200"
-                          text
+                          :severity="page === currentPage ? 'success' : 'secondary'"
+                          :outlined="page !== currentPage"
+                          class="tw-w-10 tw-h-10 tw-rounded-lg tw-font-semibold tw-transition-all tw-duration-200"
+                          size="small"
                         >
                           {{ page }}
                         </Button>
@@ -489,9 +500,9 @@
                         :disabled="currentPage === totalPages"
                         icon="pi pi-chevron-right"
                         severity="secondary"
-                        text
-                        class="tw-p-2"
+                        outlined
                         size="small"
+                        class="tw-rounded-lg"
                       />
                     </div>
                   </div>
@@ -557,43 +568,89 @@
           </div>
         </div>
 
-        <!-- Smart Suggestions Section -->
+        <!-- Smart Suggestions Alert Section -->
         <div v-if="suggestions.length > 0" class="tw-space-y-4">
-          <div class="tw-bg-gradient-to-r tw-from-amber-50 tw-to-amber-100 tw-rounded-xl tw-p-4 tw-border tw-border-amber-200">
+          <div class="tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-rounded-xl tw-p-4 tw-border tw-border-blue-200 tw-shadow-lg">
             <div class="tw-flex tw-items-center tw-gap-3 tw-mb-4">
-              <div class="tw-w-12 tw-h-12 tw-bg-amber-500 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
-                <i class="pi pi-lightbulb tw-text-white tw-text-lg"></i>
+              <div class="tw-w-12 tw-h-12 tw-bg-blue-600 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-animate-pulse">
+                <i class="pi pi-bell tw-text-white tw-text-lg"></i>
               </div>
               <div>
-                <h4 class="tw-font-semibold tw-text-amber-800 tw-text-lg">Smart Suggestions Available</h4>
-                <p class="tw-text-sm tw-text-amber-700">Consider adding these products that need attention</p>
+                <h4 class="tw-font-semibold tw-text-blue-800 tw-text-lg">🚨 Suggestion Alerts</h4>
+                <p class="tw-text-sm tw-text-blue-700">Click on products to auto-add with suggested quantities</p>
+              </div>
+              <div class="tw-ml-auto">
+                <span class="tw-text-xs tw-bg-blue-100 tw-text-blue-700 tw-px-3 tw-py-1 tw-rounded-full tw-font-medium">Click to add</span>
               </div>
             </div>
 
-            <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-3">
+            <div class="tw-space-y-4">
               <div
                 v-for="suggestion in suggestions.slice(0, 4)"
                 :key="suggestion.type"
-                class="tw-bg-white tw-rounded-lg tw-p-4 tw-border tw-border-gray-200 hover:tw-border-blue-300 hover:tw-shadow-md tw-transition-all tw-duration-300 tw-cursor-pointer"
-                @click="addSuggestedProducts(suggestion.products)"
+                class="tw-bg-white tw-rounded-lg tw-p-4 tw-border tw-border-gray-200 hover:tw-border-blue-300 hover:tw-shadow-md tw-transition-all tw-duration-300"
               >
-                <div class="tw-flex tw-items-start tw-justify-between tw-mb-2">
-                  <div class="tw-flex tw-items-center tw-gap-2">
-                    <div :class="['tw-w-8 tw-h-8 tw-rounded-lg tw-flex tw-items-center tw-justify-center', getSuggestionIconClass(suggestion.color)]">
-                      <i :class="suggestion.icon" class="tw-text-white tw-text-sm"></i>
+                <div class="tw-flex tw-items-center tw-justify-between tw-mb-3">
+                  <div class="tw-flex tw-items-center tw-gap-3">
+                    <div :class="['tw-w-10 tw-h-10 tw-rounded-lg tw-flex tw-items-center tw-justify-center', getSuggestionIconClass(suggestion.color)]">
+                      <i :class="suggestion.icon" class="tw-text-white tw-text-lg"></i>
                     </div>
                     <div>
-                      <h5 class="tw-font-medium tw-text-gray-900 tw-text-sm">{{ suggestion.title }}</h5>
-                      <p class="tw-text-xs tw-text-gray-600">{{ suggestion.products.length }} products</p>
+                      <h5 class="tw-font-semibold tw-text-gray-900 tw-text-base">{{ suggestion.title }}</h5>
+                      <p class="tw-text-sm tw-text-gray-600">{{ suggestion.products.length }} products need attention</p>
                     </div>
                   </div>
                   <Button
                     size="small"
                     :class="getSuggestionButtonClass(suggestion.color)"
-                    class="tw-rounded-lg tw-text-xs tw-px-3"
+                    class="tw-rounded-lg tw-text-sm tw-px-4 tw-py-2"
+                    @click="addSuggestedProducts(suggestion.products)"
                   >
+                    <i class="pi pi-plus-circle tw-mr-2"></i>
                     Add All
                   </Button>
+                </div>
+                
+                <!-- Individual Product Cards -->
+                <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-2">
+                  <div
+                    v-for="product in suggestion.products.slice(0, 4)"
+                    :key="product.id"
+                    :class="[
+                      'tw-border tw-rounded-lg tw-p-3 tw-cursor-pointer tw-transition-all tw-duration-200 hover:tw-shadow-md',
+                      suggestion.type === 'critical_low' ? 'tw-bg-red-50 tw-border-red-200 hover:tw-bg-red-100 tw-border-l-4 tw-border-l-red-500' :
+                      suggestion.type === 'low_stock' ? 'tw-bg-orange-50 tw-border-orange-200 hover:tw-bg-orange-100 tw-border-l-4 tw-border-l-orange-500' :
+                      suggestion.type === 'expiring_soon' ? 'tw-bg-yellow-50 tw-border-yellow-200 hover:tw-bg-yellow-100 tw-border-l-4 tw-border-l-yellow-500' :
+                      'tw-bg-gray-50 tw-border-gray-200 hover:tw-bg-gray-100 tw-border-l-4 tw-border-l-gray-500'
+                    ]"
+                    @click="showQuantityDialog(product, suggestion.type)"
+                  >
+                    <div class="tw-flex tw-items-center tw-justify-between">
+                      <div class="tw-flex-1">
+                        <div class="tw-text-sm tw-font-semibold tw-text-gray-800 tw-mb-1">{{ product.name }}</div>
+                        <div class="tw-text-xs tw-text-gray-600 tw-mb-1">
+                          <span v-if="suggestion.type === 'critical_low' || suggestion.type === 'low_stock'">
+                            Current: {{ product.current_stock || 0 }} {{ getProductUnit(product) }}
+                          </span>
+                          <span v-else-if="suggestion.type === 'expiring_soon'">
+                            {{ getExpiryText(product, 'expiring_soon') }}
+                          </span>
+                          <span v-else>
+                            {{ getExpiryText(product, 'expired') }}
+                          </span>
+                        </div>
+                        <div v-if="product.order_quantity" class="tw-text-xs tw-font-medium tw-text-blue-600">
+                          💡 Suggested: {{ product.order_quantity }} {{ getProductUnit(product) }}
+                        </div>
+                      </div>
+                      <div class="tw-flex tw-items-center tw-gap-2">
+                        <i class="pi pi-plus-circle tw-text-blue-600 tw-text-lg"></i>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-if="suggestion.products.length > 4" class="tw-flex tw-items-center tw-justify-center tw-text-xs tw-text-gray-500 tw-bg-gray-50 tw-rounded tw-p-3 tw-border tw-border-dashed tw-border-gray-300">
+                    +{{ suggestion.products.length - 4 }} more items
+                  </div>
                 </div>
               </div>
             </div>
@@ -712,43 +769,7 @@
             </div>
           </div>
 
-          <div>
-            <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
-              Duration <span class="tw-text-gray-400">(Optional)</span>
-            </label>
-            <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
-              <div class="tw-relative">
-                <InputNumber
-                  v-model="newItem.duration"
-                  :min="1"
-                  :step="1"
-                  placeholder="Enter duration"
-                  class="tw-w-full tw-h-12 tw-rounded-xl tw-border-2 tw-border-gray-300 hover:tw-border-blue-400 focus:tw-border-blue-500 tw-transition-all tw-duration-300 tw-shadow-sm hover:tw-shadow-md"
-                  inputClass="tw-text-center tw-font-semibold tw-text-lg tw-text-gray-900 tw-bg-white tw-rounded-xl tw-border-0 focus:tw-ring-0 tw-h-full tw-pr-16"
-                  :showButtons="true"
-                  buttonLayout="horizontal"
-                  incrementButtonClass="tw-bg-gray-100 hover:tw-bg-gray-200 tw-border-0 tw-rounded-r-none"
-                  decrementButtonClass="tw-bg-gray-100 hover:tw-bg-gray-200 tw-border-0 tw-rounded-l-none"
-                  :allowEmpty="true"
-                />
-                <div class="tw-absolute tw-right-3 tw-top-1/2 tw-transform -tw-translate-y-1/2 tw-pointer-events-none">
-                  <span class="tw-text-xs tw-text-gray-400 tw-uppercase tw-tracking-wide tw-font-semibold tw-bg-white tw-px-2 tw-rounded-full tw-shadow-sm">
-                    {{ newItem.duration_unit }}
-                  </span>
-                </div>
-              </div>
 
-              <Dropdown
-                v-model="newItem.duration_unit"
-                :options="durationUnitOptions"
-                option-label="label"
-                option-value="value"
-                placeholder="Select unit"
-                class="tw-w-full tw-rounded-xl tw-border-2"
-              />
-            </div>
-            <p class="tw-text-xs tw-text-gray-500 tw-mt-2">Specify how long this stock movement should be valid for</p>
-          </div>
         </div>
 
         <!-- Action Buttons -->
@@ -769,6 +790,101 @@
           >
             Add Product
           </Button>
+        </div>
+      </div>
+    </Dialog>
+
+    <!-- Quantity Selection Dialog -->
+    <Dialog 
+      v-model:visible="showQuantityDialog" 
+      modal 
+      :header="quantityDialogProduct ? `Add ${quantityDialogProduct.name}` : 'Add Product'" 
+      :style="{ width: '500px' }"
+      class="tw-rounded-xl tw-shadow-2xl"
+    >
+      <div v-if="quantityDialogProduct" class="tw-space-y-4">
+        <!-- Product Info -->
+        <div class="tw-bg-gray-50 tw-rounded-lg tw-p-4">
+          <div class="tw-flex tw-items-center tw-gap-3">
+            <div class="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
+              <i class="pi pi-box tw-text-blue-600 tw-text-lg"></i>
+            </div>
+            <div class="tw-flex-1">
+              <h4 class="tw-font-semibold tw-text-gray-900 tw-mb-1">{{ quantityDialogProduct.name }}</h4>
+              <div class="tw-text-sm tw-text-gray-600">
+                <span v-if="quantityDialogType === 'critical_low' || quantityDialogType === 'low_stock'">
+                  Current Stock: {{ quantityDialogProduct.current_stock || 0 }} {{ getProductUnit(quantityDialogProduct) }}
+                </span>
+                <span v-else-if="quantityDialogType === 'expiring_soon'">
+                  {{ getExpiryText(quantityDialogProduct, 'expiring_soon') }}
+                </span>
+                <span v-else>
+                  {{ getExpiryText(quantityDialogProduct, 'expired') }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quantity Input -->
+        <div>
+          <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+            Quantity to Add <span class="tw-text-red-500">*</span>
+          </label>
+          <div class="tw-relative">
+            <InputNumber
+              v-model="quantityDialogQuantity"
+              :min="1"
+              :step="1"
+              :useGrouping="false"
+              placeholder="Enter quantity"
+              class="tw-w-full tw-h-12 tw-rounded-xl tw-border-2 tw-border-gray-300 hover:tw-border-blue-400 focus:tw-border-blue-500 tw-transition-all tw-duration-300 tw-shadow-sm hover:tw-shadow-md"
+              inputClass="tw-text-center tw-font-semibold tw-text-lg tw-text-gray-900 tw-bg-white tw-rounded-xl tw-border-0 focus:tw-ring-0 tw-h-full tw-pr-16"
+              :showButtons="true"
+              buttonLayout="horizontal"
+              incrementButtonClass="tw-bg-gray-100 hover:tw-bg-gray-200 tw-border-0 tw-rounded-r-none"
+              decrementButtonClass="tw-bg-gray-100 hover:tw-bg-gray-200 tw-border-0 tw-rounded-l-none"
+              :allowEmpty="false"
+            />
+            <div class="tw-absolute tw-right-3 tw-top-1/2 tw-transform -tw-translate-y-1/2 tw-pointer-events-none">
+              <span class="tw-text-xs tw-text-gray-400 tw-uppercase tw-tracking-wide tw-font-semibold tw-bg-white tw-px-2 tw-rounded-full tw-shadow-sm">
+                {{ getProductUnit(quantityDialogProduct) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suggested Quantity Info -->
+        <div v-if="quantityDialogProduct.order_quantity" class="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-3">
+          <div class="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+            <i class="pi pi-lightbulb tw-text-blue-600"></i>
+            <span class="tw-text-sm tw-font-medium tw-text-blue-800">Smart Suggestion</span>
+          </div>
+          <p class="tw-text-sm tw-text-blue-700">
+            Based on usage patterns, we suggest ordering <strong>{{ quantityDialogProduct.order_quantity }} {{ getProductUnit(quantityDialogProduct) }}</strong>
+          </p>
+          <Button 
+            label="Use Suggested Quantity" 
+            size="small" 
+            class="p-button-outlined p-button-info tw-mt-2"
+            @click="quantityDialogQuantity = quantityDialogProduct.order_quantity"
+          />
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="tw-flex tw-justify-end tw-gap-3 tw-pt-4">
+          <Button 
+            label="Cancel" 
+            class="p-button-outlined p-button-secondary"
+            @click="closeQuantityDialog"
+          />
+          <Button 
+            label="Add Product" 
+            icon="pi pi-plus"
+            class="p-button-primary"
+            :disabled="!quantityDialogQuantity || quantityDialogQuantity <= 0"
+            @click="addProductWithQuantity"
+          />
         </div>
       </div>
     </Dialog>
@@ -948,6 +1064,8 @@ import Toast from 'primevue/toast'
 import Tooltip from 'primevue/tooltip'
 import InputSwitch from 'primevue/inputswitch'
 import Checkbox from 'primevue/checkbox'
+import DataTable from 'primevue/datatable'
+import Column from 'primevue/column'
 
 export default {
   name: 'StockMovementManage',
@@ -961,7 +1079,9 @@ export default {
     Card,
     Toast,
     InputSwitch,
-    Checkbox
+    Checkbox,
+    DataTable,
+    Column
   },
   directives: {
     tooltip: Tooltip
@@ -999,6 +1119,12 @@ export default {
     const updatingItemId = ref(null)
     const selectedSuggestionCategories = ref([])
 
+    // Quantity Dialog State
+    const showQuantityDialogState = ref(false)
+    const quantityDialogProduct = ref(null)
+    const quantityDialogType = ref('')
+    const quantityDialogQuantity = ref(1)
+
     // New reactive data for list management
     const searchQuery = ref('')
     const selectedCategory = ref(null)
@@ -1011,19 +1137,12 @@ export default {
       { label: '50', value: 50 }
     ])
 
-    const durationUnitOptions = ref([
-      { label: 'Days', value: 'days' },
-      { label: 'Weeks', value: 'weeks' },
-      { label: 'Months', value: 'months' },
-      { label: 'Years', value: 'years' }
-    ])
+
 
     const newItem = ref({
       product_id: null,
       requested_quantity: null,
       quantity_by_box: false,
-      duration: null,
-      duration_unit: 'days',
       notes: ''
     })
 
@@ -1417,8 +1536,6 @@ export default {
           product_id: newItem.value.product_id,
           requested_quantity: newItem.value.requested_quantity,
           quantity_by_box: newItem.value.quantity_by_box,
-          duration: newItem.value.duration,
-          duration_unit: newItem.value.duration_unit,
           notes: newItem.value.notes
         })
 
@@ -1452,8 +1569,6 @@ export default {
           product_id: null,
           requested_quantity: null,
           quantity_by_box: false,
-          duration: null,
-          duration_unit: 'days',
           notes: ''
         }
         showAddProductDialog.value = false
@@ -1485,8 +1600,6 @@ export default {
               ...movement.value.items[itemIndex],
               requested_quantity: item.requested_quantity,
               quantity_by_box: item.quantity_by_box,
-              duration: item.duration,
-              duration_unit: item.duration_unit,
               notes: item.notes
             }
           }
@@ -1497,8 +1610,6 @@ export default {
           product_id: item.product_id,
           requested_quantity: item.requested_quantity,
           quantity_by_box: item.quantity_by_box,
-          duration: item.duration,
-          duration_unit: item.duration_unit,
           notes: item.notes
         })
 
@@ -1777,8 +1888,6 @@ export default {
           product_id: product.id,
           requested_quantity: 1, // Default quantity, can be adjusted later
           quantity_by_box: false, // Default to units mode
-          duration: null, // No default duration
-          duration_unit: 'days',
           notes: getSuggestionNote(product)
         })
 
@@ -1830,8 +1939,6 @@ export default {
               product_id: product.id,
               requested_quantity: 1, // Default quantity, can be adjusted later
               quantity_by_box: false, // Default to units mode
-              duration: null, // No default duration for suggestions
-              duration_unit: 'days',
               notes: getSuggestionNote(product)
             })
 
@@ -1974,6 +2081,70 @@ export default {
       }
     }
 
+    // Quantity Dialog Methods
+    const showQuantityDialog = (product, type) => {
+      quantityDialogProduct.value = product
+      quantityDialogType.value = type
+      // Set default quantity from order_quantity if available, otherwise 1
+      quantityDialogQuantity.value = product.order_quantity || 1
+      showQuantityDialogState.value = true
+    }
+
+    const closeQuantityDialog = () => {
+      showQuantityDialogState.value = false
+      quantityDialogProduct.value = null
+      quantityDialogType.value = ''
+      quantityDialogQuantity.value = 1
+    }
+
+    const addProductWithQuantity = async () => {
+      if (!quantityDialogProduct.value || !quantityDialogQuantity.value) return
+
+      try {
+        const response = await axios.post(`/api/stock-movements/${props.movementId}/items`, {
+          product_id: quantityDialogProduct.value.id,
+          requested_quantity: quantityDialogQuantity.value,
+          quantity_by_box: false, // Default to units mode
+          notes: getSuggestionNote(quantityDialogProduct.value)
+        })
+
+        // Add the new item to the frontend immediately
+        if (movement.value && response.data && response.data.data) {
+          const newItemData = response.data.data
+
+          // Initialize items array if it doesn't exist
+          if (!movement.value.items) {
+            movement.value.items = []
+          }
+
+          // Add the new item to the items array
+          movement.value.items.unshift(newItemData) // Add to beginning for immediate visibility
+
+          // Update the movement stats if needed
+          if (movement.value.items_count !== undefined) {
+            movement.value.items_count = movement.value.items.length
+          }
+        }
+
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: `Added ${quantityDialogProduct.value.name} (${quantityDialogQuantity.value} ${getProductUnit(quantityDialogProduct.value)}) to request`,
+          life: 3000
+        })
+
+        closeQuantityDialog()
+      } catch (error) {
+        console.error('Error adding product:', error)
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: `Failed to add ${quantityDialogProduct.value.name}`,
+          life: 3000
+        })
+      }
+    }
+
     // Lifecycle
     onMounted(async () => {
       await loadMovement()
@@ -2005,7 +2176,6 @@ export default {
       currentPage,
       pageSize,
       pageSizeOptions,
-      durationUnitOptions,
       // New computed properties
       categoryOptions,
       filteredProducts,
@@ -2044,7 +2214,15 @@ export default {
       handleSearch,
       handleFilter,
       handlePageSizeChange,
-      goToPage
+      goToPage,
+      // Quantity Dialog
+      showQuantityDialog: showQuantityDialogState,
+      quantityDialogProduct,
+      quantityDialogType,
+      quantityDialogQuantity,
+      showQuantityDialog,
+      closeQuantityDialog,
+      addProductWithQuantity
     }
   }
 }

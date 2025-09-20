@@ -17,6 +17,14 @@ class StockMovementInventorySelection extends Model
         'selected_quantity' => 'decimal:2',
     ];
 
+    protected $appends = ['quantity'];
+
+    // Accessors
+    public function getQuantityAttribute()
+    {
+        return $this->selected_quantity;
+    }
+
     // Relationships
     public function stockMovementItem(): BelongsTo
     {

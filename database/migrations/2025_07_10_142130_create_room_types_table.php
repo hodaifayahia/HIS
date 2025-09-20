@@ -17,25 +17,12 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->string('image_url')->nullable();
             $table->foreignId('service_id')->constrained('services')->onDelete('cascade'); // Not null foreign key
-           $table->string('room_type', 20)
-                    ->default('normal')
-                    ->after('service_id');
+            $table->string('room_type', 20)->default('normal');
 
             $table->timestamps();
         });
 
-        // Seed initial data for room types
-        \DB::table('room_types')->insert([
-            ['name' => 'Hospitalisation', 'description' => 'Rooms for patients admitted for overnight stays.'],
-            ['name' => 'Consultation', 'description' => 'Individual rooms where doctors meet with patients.'],
-            ['name' => 'Treatment', 'description' => 'Rooms for minor procedures, wound care, injections etc.'],
-            ['name' => 'Radiology', 'description' => 'Shielded rooms that house specific imaging equipment.'],
-            ['name' => 'Cath Lab', 'description' => 'Highly specialized hybrid rooms for cardiac and interventional radiology procedures.'],
-            ['name' => 'Operating Theater', 'description' => 'Critical sterile environments for surgery.'],
-            ['name' => 'Waiting Area', 'description' => 'Areas where patients wait before their appointments.'],
-            ['name' => 'Transit Area', 'description' => 'Areas for patient movement between departments.'],
-            // Add other types as needed
-        ]);
+        // Note: Seed data should be added via a separate seeder after services table is populated
     }
 
     /**

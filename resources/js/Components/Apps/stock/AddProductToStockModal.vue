@@ -506,14 +506,31 @@ export default {
       }
     }
   },
+  mounted() {
+    // Initialize data when component is first mounted
+    this.fetchAvailableProducts();
+    this.fetchToolTypes();
+    this.fetchBlocks();
+    if (this.preSelectedStockageId) {
+      this.formData.stockage_id = this.preSelectedStockageId;
+      this.fetchStockageLocations(this.preSelectedStockageId);
+    }
+  },
   watch: {
     visible(newVal) {
       this.showModal = newVal;
       if (newVal) {
         this.resetForm();
-        this.fetchAvailableProducts();
-        this.fetchToolTypes();
-        this.fetchBlocks();
+        // Only fetch if data hasn't been loaded yet
+        if (this.availableProducts.length === 0) {
+          this.fetchAvailableProducts();
+        }
+        if (this.toolTypes.length === 0) {
+          this.fetchToolTypes();
+        }
+        if (this.blocks.length === 0) {
+          this.fetchBlocks();
+        }
         if (this.preSelectedStockageId) {
           this.formData.stockage_id = this.preSelectedStockageId;
           this.fetchStockageLocations(this.preSelectedStockageId);

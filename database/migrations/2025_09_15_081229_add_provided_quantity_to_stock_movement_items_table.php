@@ -11,11 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('banques', function (Blueprint $table) {
-            $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true);
-               $table->index(['bank_name', 'is_active']);
-            $table->index('currency');
+        Schema::table('stock_movement_items', function (Blueprint $table) {
+            $table->decimal('provided_quantity', 10, 2)->nullable()->after('quantity_by_box');
         });
     }
 
@@ -24,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('banques', function (Blueprint $table) {
-            //
+        Schema::table('stock_movement_items', function (Blueprint $table) {
+            $table->dropColumn('provided_quantity');
         });
     }
 };

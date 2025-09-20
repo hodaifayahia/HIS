@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('stock_movement_items', function (Blueprint $table) {
-            $table->boolean('quantity_by_box')->default(false)->after('notes');
+            $table->boolean('quantity_by_box')->default(false);
         });
     }
 

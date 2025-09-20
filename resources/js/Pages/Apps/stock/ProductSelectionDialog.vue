@@ -10,257 +10,228 @@
     <div class="tw-space-y-6">
       <!-- Product Info Header -->
       <div class="tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-p-4 tw-rounded-xl tw-border tw-border-blue-200">
-        <div class="tw-flex tw-items-center tw-justify-between">
-          <div class="tw-flex tw-items-center tw-space-x-4">
-            <div class="tw-w-12 tw-h-12 tw-bg-blue-500 tw-rounded-xl tw-flex tw-items-center tw-justify-center">
-              <i class="pi pi-box tw-text-white tw-text-lg"></i>
+        <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-3 tw-gap-4 tw-items-center">
+          <!-- Product Info -->
+          <div class="tw-flex tw-items-center tw-space-x-3">
+            <div class="tw-w-10 tw-h-10 tw-bg-blue-500 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
+              <i class="pi pi-box tw-text-white"></i>
             </div>
             <div>
-              <h3 class="tw-text-lg tw-font-bold tw-text-gray-900">{{ selectedItem?.product?.name }}</h3>
-              <p class="tw-text-sm tw-text-gray-600">Code: {{ selectedItem?.product?.code }} • Category: {{ selectedItem?.product?.category }}</p>
+              <h3 class="tw-text-base tw-font-bold tw-text-gray-900">{{ selectedItem?.product?.name }}</h3>
+              <p class="tw-text-xs tw-text-gray-600">{{ selectedItem?.product?.code }}</p>
             </div>
           </div>
+
+          <!-- Selection Status -->
+          <div v-if="Object.keys(selectedItems).length > 0" class="tw-text-center">
+            <div class="tw-flex tw-items-center tw-justify-center tw-gap-2 tw-mb-1">
+              <span :class="[
+                'tw-px-2 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium',
+                totalSelectedQuantity >= getCalculatedRequestedQuantity() 
+                  ? 'tw-bg-green-100 tw-text-green-700' 
+                  : 'tw-bg-orange-100 tw-text-orange-700'
+              ]">
+                {{ totalSelectedQuantity >= getCalculatedRequestedQuantity() ? '✓ Sufficient' : '⚠ Insufficient' }}
+              </span>
+              <span class="tw-text-xs tw-text-gray-500">
+                {{ Object.keys(selectedItems).length }} items selected
+              </span>
+            </div>
+            <p class="tw-text-sm tw-font-semibold tw-text-gray-900">
+              {{ totalSelectedQuantity.toFixed(2) }} / {{ getCalculatedRequestedQuantity() }} {{ getUnitDisplay() }}
+            </p>
+          </div>
+
+          <!-- Quick Actions -->
           <div class="tw-text-right">
-            <p class="tw-text-sm tw-font-medium tw-text-gray-600">Requested Quantity</p>
-            <div class="tw-space-y-1">
-              <p class="tw-text-xl tw-font-bold tw-text-blue-600">
-                {{ getCalculatedRequestedQuantity() }} {{ getUnitDisplay() }}
-              </p>
-              <div v-if="hasBoiteDe(selectedItem?.product)" class="tw-flex tw-flex-col tw-gap-1">
-                <p class="tw-text-sm tw-text-gray-600">
-                  Select by:
-                </p>
-                <div class="tw-flex tw-gap-2">
-                  <button 
-                    @click="applySuggestion('units')"
-                    class="tw-px-2 tw-py-1 tw-bg-blue-50 tw-text-blue-600 tw-rounded-md tw-text-xs hover:tw-bg-blue-100"
-                  >
-                    {{ getCalculatedRequestedQuantity() }} {{ getUnitDisplay() }}
-                  </button>
-                  <button 
-                    @click="applySuggestion('boxes')"
-                    class="tw-px-2 tw-py-1 tw-bg-blue-50 tw-text-blue-600 tw-rounded-md tw-text-xs hover:tw-bg-blue-100"
-                  >
-                    {{ getRequestedBoxes() }} boxes ({{ selectedItem?.product?.boite_de }} {{ getUnitDisplay() }}/box)
-                  </button>
-                </div>
-                <p class="tw-text-xs tw-text-gray-500">
-                  {{ selectedItem?.quantity_by_box ? 
-                    `Original request: ${selectedItem?.requested_quantity} boxes` : 
-                    `Equal to ${getRequestedBoxes()} boxes` }}
-                </p>
+            <p class="tw-text-xs tw-font-medium tw-text-gray-600 tw-mb-2">Quick Select</p>
+            <div v-if="hasBoiteDe(selectedItem?.product)" class="tw-flex tw-flex-col tw-gap-1">
+              <div class="tw-flex tw-gap-1 tw-justify-end">
+                <button 
+                  @click="applySuggestion('units')"
+                  class="tw-px-2 tw-py-1 tw-bg-blue-50 tw-text-blue-600 tw-rounded tw-text-xs hover:tw-bg-blue-100 tw-transition-colors"
+                >
+                  {{ getCalculatedRequestedQuantity() }} {{ getUnitDisplay() }}
+                </button>
+                <button 
+                  @click="applySuggestion('boxes')"
+                  class="tw-px-2 tw-py-1 tw-bg-blue-50 tw-text-blue-600 tw-rounded tw-text-xs hover:tw-bg-blue-100 tw-transition-colors"
+                >
+                  {{ getRequestedBoxes() }} boxes
+                </button>
               </div>
+              <p class="tw-text-xs tw-text-gray-500">
+                1 box = {{ selectedItem?.product?.boite_de }} {{ getUnitDisplay() }}
+              </p>
+            </div>
+            <div v-else>
+              <button 
+                @click="applySuggestion('units')"
+                class="tw-px-3 tw-py-1 tw-bg-blue-50 tw-text-blue-600 tw-rounded tw-text-xs hover:tw-bg-blue-100 tw-transition-colors"
+              >
+                Select {{ getCalculatedRequestedQuantity() }} {{ getUnitDisplay() }}
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Search and Filter -->
-      <div class="tw-flex tw-flex-wrap tw-gap-4 tw-items-center tw-justify-between">
-        <div class="tw-flex tw-gap-4 tw-items-center">
+      <div class="tw-bg-white tw-p-3 tw-rounded-lg tw-border tw-border-gray-200">
+        <div class="tw-flex tw-flex-wrap tw-gap-3 tw-items-center">
           <!-- Barcode Search -->
-          <div class="tw-relative">
+          <div class="tw-relative tw-flex-1 tw-min-w-64">
             <InputText
               v-model="barcodeSearch"
               @keyup.enter="searchByBarcode"
-              placeholder="Scan barcode..."
-              class="tw-pl-10 tw-pr-4 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-w-64"
+              placeholder="Scan or search barcode..."
+              class="tw-pl-9 tw-pr-4 tw-py-2 tw-text-sm tw-w-full"
             />
-            <i class="pi pi-qrcode tw-absolute tw-left-3 tw-top-1/2 tw-transform -tw-translate-y-1/2 tw-text-gray-400"></i>
+            <i class="pi pi-qrcode tw-absolute tw-left-3 tw-top-1/2 tw-transform -tw-translate-y-1/2 tw-text-gray-400 tw-text-sm"></i>
           </div>
 
-          <!-- Batch Filter -->
-          <div class="tw-w-48">
+          <!-- Filters -->
+          <div class="tw-flex tw-gap-2">
             <Dropdown
               v-model="batchFilter"
               :options="batchOptions"
               optionLabel="label"
               optionValue="value"
-              placeholder="Filter by batch"
-              class="tw-w-full"
+              placeholder="Batch"
+              class="tw-w-32"
+              size="small"
               showClear
             />
-          </div>
-
-          <!-- Expiry Filter -->
-          <div class="tw-w-48">
             <Dropdown
               v-model="expiryFilter"
               :options="expiryOptions"
               optionLabel="label"
               optionValue="value"
-              placeholder="Filter by expiry"
-              class="tw-w-full"
+              placeholder="Expiry"
+              class="tw-w-36"
+              size="small"
               showClear
             />
+            <Button
+              @click="clearFilters"
+              icon="pi pi-filter-slash"
+              severity="secondary"
+              outlined
+              size="small"
+              class="tw-px-2"
+            />
           </div>
-        </div>
-
-        <div class="tw-flex tw-items-center tw-gap-2">
-          <Button
-            @click="clearFilters"
-            icon="pi pi-filter-slash"
-            severity="secondary"
-            text
-            size="small"
-          >
-            Clear Filters
-          </Button>
         </div>
       </div>
 
       <!-- Inventory Table -->
-      <div class="tw-bg-white tw-rounded-xl tw-border tw-border-gray-200 tw-overflow-hidden tw-shadow-sm">
-        <div class="tw-overflow-x-auto">
-          <table class="tw-w-full">
-            <thead class="tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100">
+      <div class="tw-bg-white tw-rounded-lg tw-border tw-border-gray-200 tw-overflow-hidden">
+        <div class="tw-overflow-x-auto tw-max-h-80">
+          <table class="tw-min-w-full tw-divide-y tw-divide-gray-200">
+            <thead class="tw-bg-gray-50 tw-sticky tw-top-0">
               <tr>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
-                  <input
-                    type="checkbox"
-                    v-model="selectAll"
-                    @change="toggleSelectAll"
-                    class="tw-rounded tw-border-gray-300"
-                  />
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
+                  <div class="tw-flex tw-items-center tw-gap-2">
+                    <input
+                      type="checkbox"
+                      :checked="selectAll"
+                      @change="toggleSelectAll"
+                      class="tw-rounded tw-border-gray-300"
+                    />
+                    Select
+                  </div>
                 </th>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
                   Barcode
                 </th>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
-                  Batch Number
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
+                  Batch / Serial
                 </th>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
-                  Expiry Date
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
+                  Expiry
                 </th>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
-                  Available Qty
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
+                  Available
                 </th>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
                   Location
                 </th>
-                <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-semibold tw-text-gray-600 tw-uppercase tw-tracking-wider">
-                  Select Qty
+                <th class="tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase">
+                  Quantity
                 </th>
               </tr>
             </thead>
             <tbody class="tw-divide-y tw-divide-gray-200">
               <tr
-                v-for="inventory in filteredInventory"
-                :key="inventory.id"
-                :class="[
-                  'tw-hover:bg-blue-50/30 tw-transition-colors tw-duration-200',
-                  selectedItems[inventory.id] ? 'tw-bg-blue-50' : ''
-                ]"
+                v-for="item in filteredInventory"
+                :key="item.id"
+                class="tw-hover:tw-bg-gray-50 tw-transition-colors"
               >
-                <!-- Checkbox -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap">
                   <input
                     type="checkbox"
-                    :checked="!!selectedItems[inventory.id]"
-                    @change="toggleItemSelection(inventory)"
+                    :checked="isItemSelected(item)"
+                    @change="toggleItemSelection(item)"
                     class="tw-rounded tw-border-gray-300"
                   />
                 </td>
-
-                <!-- Barcode -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                  <div class="tw-flex tw-items-center tw-gap-2">
-                    <span class="tw-font-mono tw-text-sm tw-text-gray-900">{{ inventory.barcode }}</span>
-                    <Button
-                      @click="copyBarcode(inventory.barcode)"
-                      icon="pi pi-copy"
-                      severity="secondary"
-                      text
-                      size="small"
-                      v-tooltip="'Copy barcode'"
-                    />
-                  </div>
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">
+                  {{ item.barcode || '-' }}
                 </td>
-
-                <!-- Batch Number -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                  <span class="tw-text-sm tw-font-medium tw-text-gray-900">
-                    {{ inventory.batch_number || 'N/A' }}
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">
+                  {{ item.batch_number || '-' }}
+                </td>
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap tw-text-sm">
+                  <span
+                    :class="{
+                      'tw-text-red-600': isExpiringSoon(item.expiry_date),
+                      'tw-text-orange-600': isExpired(item.expiry_date),
+                      'tw-text-gray-900': !isExpiringSoon(item.expiry_date) && !isExpired(item.expiry_date)
+                    }"
+                  >
+                    {{ formatDate(item.expiry_date) }}
                   </span>
                 </td>
-
-                <!-- Expiry Date -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap tw-text-sm">
                   <div class="tw-flex tw-flex-col">
-                    <span class="tw-text-sm tw-font-medium tw-text-gray-900">
-                      {{ formatDate(inventory.expiry_date) }}
-                    </span>
-                    <span
-                      :class="getExpiryStatusClass(inventory.expiry_date)"
-                      class="tw-text-xs tw-font-medium tw-px-2 tw-py-1 tw-rounded-full tw-inline-block tw-mt-1"
-                    >
-                      {{ getExpiryStatus(inventory.expiry_date) }}
-                    </span>
-                  </div>
-                </td>
-
-                <!-- Available Quantity -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                  <div class="tw-flex tw-flex-col">
-                    <span class="tw-text-sm tw-font-medium tw-text-gray-900">
-                      {{ inventory.total_units || inventory.quantity }} {{ inventory.unit || 'units' }}
+                    <span class="tw-font-medium tw-text-gray-900">
+                      {{ item.available_quantity }}
                     </span>
                     <span class="tw-text-xs tw-text-gray-500">
-                      {{ getBoxesDisplay(inventory.total_units || inventory.quantity, inventory.product?.boite_de || selectedItem?.product?.boite_de) }}
+                      {{ selectedItem.unit_name }}
                     </span>
                   </div>
                 </td>
-
-                <!-- Location -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-text-gray-500">
+                  {{ item.location || '-' }}
+                </td>
+                <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap">
                   <div class="tw-flex tw-items-center tw-gap-2">
-                    <i class="pi pi-map-marker tw-text-gray-400"></i>
-                    <span class="tw-text-sm tw-text-gray-600">
-                      {{ inventory.stockage?.name || 'Unknown' }}
-                    </span>
-                  </div>
-                </td>
-
-                <!-- Select Quantity -->
-                <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                  <div v-if="selectedItems[inventory.id]" class="tw-flex tw-flex-col tw-gap-2">
-                    <!-- By Box Checkbox -->
-                    <div v-if="hasBoiteDe(inventory)" class="tw-flex tw-items-center tw-gap-2">
-                      <div class="tw-flex tw-items-center">
-                        <input
-                          type="checkbox"
-                          :id="'byBox-' + inventory.id"
-                          v-model="selectedItems[inventory.id].byBox"
-                          class="tw-rounded tw-border-gray-300"
-                          @change="updateQuantityMode(inventory.id)"
-                        />
-                        <label :for="'byBox-' + inventory.id" class="tw-ml-2 tw-text-xs tw-text-gray-600">By Box</label>
-                      </div>
-                    </div>
-
-                    <!-- Quantity Input -->
-                    <div class="tw-flex tw-items-center tw-gap-2">
-                      <InputNumber
-                        v-model="selectedItems[inventory.id].quantity"
-                        :min="0.01"
-                        :max="getMaxQuantity(inventory)"
-                        :step="selectedItems[inventory.id].byBox ? 1 : 0.01"
-                        mode="decimal"
-                        :minFractionDigits="selectedItems[inventory.id].byBox ? 0 : 2"
-                        :maxFractionDigits="selectedItems[inventory.id].byBox ? 0 : 2"
-                        class="tw-w-24"
-                        size="small"
-                        @input="() => updateQuantityInput(inventory.id)"
-                      />
-                      <span class="tw-text-xs tw-text-gray-500">{{ selectedItems[inventory.id].byBox ? 'boxes' : (inventory.unit || 'units') }}</span>
-                    </div>
-
-                    <!-- Quantity Display -->
-                    <div class="tw-text-xs tw-text-gray-500">
-                      {{ getQuantityDisplay(inventory.id, selectedItems[inventory.id]) }}
+                    <input
+                      v-if="isItemSelected(item)"
+                      type="number"
+                      v-model.number="selectedItems[item.id].quantity"
+                      :max="getMaxQuantity(item)"
+                      min="0"
+                      step="1"
+                      @input="updateQuantityInput(item.id)"
+                      class="tw-w-16 tw-px-2 tw-py-1 tw-border tw-border-gray-300 tw-rounded tw-text-sm focus:tw-outline-none focus:tw-ring-1 focus:tw-ring-blue-500 focus:tw-border-blue-500"
+                    />
+                    <span v-else class="tw-text-sm tw-text-gray-400">-</span>
+                    <div v-if="hasBoiteDe(item) && isItemSelected(item)" class="tw-flex tw-flex-col tw-items-center">
+                      <button
+                        @click="selectedItems[item.id].byBox = !selectedItems[item.id].byBox; updateQuantityMode(item.id)"
+                        :class="[
+                          'tw-px-2 tw-py-1 tw-text-xs tw-rounded tw-transition-colors tw-min-w-12',
+                          selectedItems[item.id].byBox
+                            ? 'tw-bg-blue-100 tw-text-blue-700 tw-border tw-border-blue-300'
+                            : 'tw-bg-gray-100 tw-text-gray-600 tw-border tw-border-gray-300'
+                        ]"
+                      >
+                        {{ selectedItems[item.id].byBox ? 'Box' : 'Unit' }}
+                      </button>
                     </div>
                   </div>
-                  <span v-else class="tw-text-sm tw-text-gray-400">-</span>
                 </td>
               </tr>
             </tbody>
@@ -277,91 +248,34 @@
         </div>
       </div>
 
-      <!-- Selection Summary -->
-      <div v-if="Object.keys(selectedItems).length > 0" class="tw-bg-gradient-to-r tw-from-green-50 tw-to-emerald-50 tw-p-6 tw-rounded-xl tw-border tw-border-green-200">
-        <div class="tw-space-y-4">
-          <!-- Header -->
-          <div class="tw-flex tw-items-center tw-justify-between tw-border-b tw-border-green-200 tw-pb-3">
-            <h4 class="tw-text-lg tw-font-semibold tw-text-green-800 tw-flex tw-items-center tw-gap-2">
-              <i class="pi pi-check-circle"></i>
-              Selection Summary
-            </h4>
-            <p :class="[
-              'tw-px-3 tw-py-1 tw-rounded-full tw-text-sm tw-font-medium',
-              totalSelectedQuantity >= getCalculatedRequestedQuantity() 
-                ? 'tw-bg-green-100 tw-text-green-700' 
-                : 'tw-bg-orange-100 tw-text-orange-700'
-            ]">
-              {{ totalSelectedQuantity >= getCalculatedRequestedQuantity() ? '✓ Sufficient' : '⚠ Insufficient' }}
-            </p>
-          </div>
 
-          <!-- Summary Grid -->
-          <div class="tw-grid tw-grid-cols-2 md:tw-grid-cols-3 tw-gap-4">
-            <!-- Selected Items Count -->
-            <div class="tw-bg-white tw-rounded-lg tw-p-3 tw-border tw-border-green-100">
-              <p class="tw-text-sm tw-text-gray-600 tw-mb-1">Selected Items</p>
-              <p class="tw-text-lg tw-font-bold tw-text-gray-900">
-                {{ Object.keys(selectedItems).length }}
-              </p>
-            </div>
-
-            <!-- Total Selected -->
-            <div class="tw-bg-white tw-rounded-lg tw-p-3 tw-border tw-border-green-100">
-              <p class="tw-text-sm tw-text-gray-600 tw-mb-1">Total Selected</p>
-              <p class="tw-text-lg tw-font-bold tw-text-gray-900">
-                {{ totalSelectedQuantity.toFixed(2) }} {{ getUnitDisplay() }}
-              </p>
-              <p v-if="hasBoiteDe(selectedItem?.product)" class="tw-text-xs tw-text-gray-500">
-                ≈ {{ Math.floor(totalSelectedQuantity / selectedItem?.product?.boite_de) }} boxes
-              </p>
-            </div>
-
-            <!-- Requested -->
-            <div class="tw-bg-white tw-rounded-lg tw-p-3 tw-border tw-border-green-100">
-              <p class="tw-text-sm tw-text-gray-600 tw-mb-1">Requested</p>
-              <p class="tw-text-lg tw-font-bold tw-text-gray-900">
-                {{ getCalculatedRequestedQuantity() }} {{ getUnitDisplay() }}
-              </p>
-              <p v-if="hasBoiteDe(selectedItem?.product)" class="tw-text-xs tw-text-gray-500">
-                ≈ {{ getRequestedBoxes() }} boxes
-              </p>
-            </div>
-          </div>
-
-          <!-- Progress Bar -->
-          <div class="tw-space-y-2">
-            <div class="tw-h-2 tw-bg-green-100 tw-rounded-full tw-overflow-hidden">
-              <div 
-                class="tw-h-full tw-transition-all tw-duration-500"
-                :class="totalSelectedQuantity >= getCalculatedRequestedQuantity() ? 'tw-bg-green-500' : 'tw-bg-orange-500'"
-                :style="{ width: `${Math.min((totalSelectedQuantity / getCalculatedRequestedQuantity()) * 100, 100)}%` }"
-              ></div>
-            </div>
-            <p class="tw-text-xs tw-text-gray-600 tw-text-right">
-              {{ Math.round((totalSelectedQuantity / getCalculatedRequestedQuantity()) * 100) }}% of requested quantity
-            </p>
-          </div>
-        </div>
-      </div>
 
       <!-- Action Buttons -->
-      <div class="tw-flex tw-justify-end tw-space-x-3 tw-pt-4 tw-border-t tw-border-gray-200">
-        <Button
-          @click="cancelSelection"
-          label="Cancel"
-          icon="pi pi-times"
-          severity="secondary"
-          outlined
-        />
-        <Button
-          @click="saveSelection"
-          label="Save Selection"
-          icon="pi pi-check"
-          :class="Object.keys(selectedItems).length > 0 ? 'tw-bg-green-600' : 'tw-bg-gray-400'"
-          :disabled="Object.keys(selectedItems).length === 0"
-          :loading="saving"
-        />
+      <div class="tw-flex tw-justify-between tw-items-center tw-pt-4 tw-border-t tw-border-gray-200">
+        <div class="tw-text-sm tw-text-gray-600">
+          <span v-if="Object.keys(selectedItems).length > 0">
+            {{ Object.keys(selectedItems).length }} item(s) selected
+          </span>
+        </div>
+        <div class="tw-flex tw-gap-3">
+          <Button
+            @click="cancelSelection"
+            label="Cancel"
+            icon="pi pi-times"
+            severity="secondary"
+            outlined
+            class="tw-px-4 tw-py-2"
+          />
+          <Button
+            @click="saveSelection"
+            label="Apply Selection"
+            icon="pi pi-check"
+            :class="Object.keys(selectedItems).length > 0 ? 'tw-bg-green-600' : 'tw-bg-gray-400'"
+            :disabled="Object.keys(selectedItems).length === 0"
+            :loading="saving"
+            class="tw-px-4 tw-py-2"
+          />
+        </div>
       </div>
     </div>
   </Dialog>
@@ -494,7 +408,15 @@ export default {
 
     const totalSelectedQuantity = computed(() => {
       return Object.values(selectedItems.value).reduce((total, item) => {
-        return total + (parseFloat(item.quantity) || 0)
+        let quantity = parseFloat(item.quantity) || 0
+        
+        // If selected by box, convert to units
+        if (item.byBox) {
+          const boiteDe = props.selectedItem?.product?.boite_de || 1
+          quantity = quantity * boiteDe
+        }
+        
+        return total + quantity
       }, 0)
     })
 
@@ -540,6 +462,21 @@ export default {
           // Sort by date ascending (soonest first)
           return dateA - dateB
         })
+
+        // Load existing selections if editing
+        if (props.selectedItem?.selected_inventory && Array.isArray(props.selectedItem.selected_inventory)) {
+          selectedItems.value = {}
+          props.selectedItem.selected_inventory.forEach(selection => {
+            if (selection.inventory && selection.inventory.id) {
+              selectedItems.value[selection.inventory.id] = {
+                inventory_id: selection.inventory.id,
+                quantity: parseFloat(selection.quantity || selection.selected_quantity || 0),
+                byBox: false // Default to units, can be enhanced later to detect if it was by box
+              }
+            }
+          })
+          updateTotalQuantity()
+        }
       } catch (error) {
         console.error('Error loading inventory:', error)
         inventory.value = []
@@ -764,6 +701,22 @@ export default {
       return props.selectedItem.product.unit || props.selectedItem.product.forme || 'units'
     }
 
+    const isItemSelected = (inventoryItem) => {
+      return !!selectedItems.value[inventoryItem.id]
+    }
+
+    const isExpiringSoon = (expiryDate) => {
+      if (!expiryDate) return false
+      const days = getDaysUntilExpiry(expiryDate)
+      return days > 0 && days <= 90
+    }
+
+    const isExpired = (expiryDate) => {
+      if (!expiryDate) return false
+      const days = getDaysUntilExpiry(expiryDate)
+      return days < 0
+    }
+
     const getBoxesDisplay = (totalQuantity, boiteDe) => {
       if (!boiteDe || !totalQuantity) return ''
       const boxes = Math.floor(totalQuantity / boiteDe)
@@ -847,7 +800,10 @@ export default {
       getQuantityDisplay,
       applySuggestion,
       getCalculatedRequestedQuantity,
-      getRequestedBoxes
+      getRequestedBoxes,
+      isItemSelected,
+      isExpiringSoon,
+      isExpired
     }
   }
 }

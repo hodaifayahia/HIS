@@ -735,6 +735,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/{movementId}/inventory/{productId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'getProductInventory']);
         Route::post('/{movementId}/select-inventory', [\App\Http\Controllers\Stock\StockMovementController::class, 'selectInventory']);
         
+        // Approval management
+        Route::post('/{movementId}/approve', [\App\Http\Controllers\Stock\StockMovementController::class, 'approveItems']);
+        Route::post('/{movementId}/reject', [\App\Http\Controllers\Stock\StockMovementController::class, 'rejectItems']);
+        
         // Item management
         Route::post('/{movementId}/items', [\App\Http\Controllers\Stock\StockMovementController::class, 'addItem']);
         Route::put('/{movementId}/items/{itemId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'updateItem']);

@@ -1492,7 +1492,7 @@ export default {
       try {
         const ids = this.selectedProducts.map(p => p.id);
         // Assuming there's a bulk delete endpoint
-        const response = await axios.delete('/api/products/bulk-delete', { data: { ids } });
+        const response = await axios.delete('/api/stock/products/bulk-delete', { data: { ids } });
         if (response.data.success) {
           await this.fetchProducts(this.currentPage);
           this.selectedProducts = [];

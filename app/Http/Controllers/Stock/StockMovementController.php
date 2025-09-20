@@ -14,11 +14,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Resources\stock\StockMovementResource;
+use App\Http\Resources\Stock\StockMovementItemResource;
+use App\Http\Requests\Stock\ApproveItemsRequest;
+use App\Http\Requests\Stock\RejectItemsRequest;
+use App\Services\StockMovementApprovalService;
 
 class StockMovementController extends Controller
 {
-    public function __construct()
+    protected $approvalService;
+
+    public function __construct(StockMovementApprovalService $approvalService)
     {
+        $this->approvalService = $approvalService;
         // Middleware is already applied at route level
     }
 
@@ -37,7 +44,7 @@ class StockMovementController extends Controller
             
             // Get user's active specialization
             $userSpecialization = UserSpecialization::where('user_id', $user->id)
-                                                   ->where('status', 'active')
+                                                   ->where('status', true)
                                                    ->with('specialization.service')
                                                    ->first();
             
@@ -746,16 +753,13 @@ class StockMovementController extends Controller
     public function show($movementId)
     {
         $movement = StockMovement::with([
-            'items.product' => function ($query) {
-                $query->with(['inventories' => function ($inventoryQuery) {
-                    $inventoryQuery->select('product_id', 'unit');
-                }]);
-            },
+            'items.product',
+            'items.selectedInventory.inventory',
             'requestingService',
             'providingService',
             'requestingUser',
             'approvingUser',
-            'executingUser'
+            'executingUser',
         ])->findOrFail($movementId);
 
         $user = Auth::user();
@@ -773,7 +777,18 @@ class StockMovementController extends Controller
             if ($item->product && $item->product->inventories) {
                 $units = $item->product->inventories->pluck('unit')->filter()->unique();
                 $item->product->unit = $units->first() ?? 'units';
+                $item->product->name;
+                $item->product->description;
             }
+            
+            // Ensure product name and description are available
+            if ($item->product) {
+                $item->product_name = $item->product->name;
+                $item->product_description = $item->product->description;
+            }
+            
+            // Add provided_quantity (this might be the approved_quantity or requested_quantity based on context)
+            $item->provided_quantity = $item->approved_quantity ?? $item->requested_quantity ?? 0;
         });
 
         return response()->json([
@@ -937,8 +952,14 @@ class StockMovementController extends Controller
             foreach ($request->selected_inventory as $selection) {
                 // Verify the inventory item exists and has sufficient quantity
                 $inventory = DB::table('inventories')->find($selection['inventory_id']);
-                if (!$inventory || $inventory->quantity < $selection['quantity']) {
-                    throw new \Exception('Insufficient inventory for item: ' . $inventory->barcode);
+                if (!$inventory) {
+                    throw new \Exception('Inventory item not found: ' . $selection['inventory_id']);
+                }
+                
+                // Use total_units if available, otherwise fall back to quantity
+                $availableQuantity = $inventory->total_units ?? $inventory->quantity;
+                if ($availableQuantity < $selection['quantity']) {
+                    throw new \Exception('Insufficient inventory for item: ' . $inventory->barcode . '. Available: ' . $availableQuantity . ', Requested: ' . $selection['quantity']);
                 }
 
                 DB::table('stock_movement_inventory_selections')->insert([
@@ -988,5 +1009,140 @@ class StockMovementController extends Controller
     {
         // Implementation depends on your notification system
         // Could use Laravel notifications, database notifications, or email
+    }
+
+    /**
+     * Approve selected items in a stock movement
+     */
+    public function approveItems(ApproveItemsRequest $request, $movementId)
+    {
+        try {
+            $userService = $this->getUserService();
+            if (!$userService) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User service not found'
+                ], 403);
+            }
+
+            $movement = StockMovement::where('id', $movementId)
+                                   ->where('providing_service_id', $userService->id)
+                                   ->with('items.product')
+                                   ->first();
+
+            if (!$movement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stock movement not found or access denied'
+                ], 404);
+            }
+
+            // Check if movement can be edited
+            if (!$this->approvalService->canEditMovement($movement)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This stock movement cannot be modified in its current state'
+                ], 422);
+            }
+
+            $result = $this->approvalService->approveItems($movement, $request->item_ids);
+
+            if (!empty($result['errors'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Some items could not be processed',
+                    'errors' => $result['errors']
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'processed_items' => StockMovementItemResource::collection($result['processed_items']),
+                'statistics' => $this->approvalService->getMovementStatistics($movement->fresh())
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error approving stock movement items: ' . $e->getMessage(), [
+                'movement_id' => $movementId,
+                'item_ids' => $request->item_ids ?? [],
+                'user_id' => Auth::id()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while approving items'
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject selected items in a stock movement
+     */
+    public function rejectItems(RejectItemsRequest $request, $movementId)
+    {
+        try {
+            $userService = $this->getUserService();
+            if (!$userService) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User service not found'
+                ], 403);
+            }
+
+            $movement = StockMovement::where('id', $movementId)
+                                   ->where('providing_service_id', $userService->id)
+                                   ->with('items.product')
+                                   ->first();
+
+            if (!$movement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Stock movement not found or access denied'
+                ], 404);
+            }
+
+            // Check if movement can be edited
+            if (!$this->approvalService->canEditMovement($movement)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This stock movement cannot be modified in its current state'
+                ], 422);
+            }
+
+            $result = $this->approvalService->rejectItems(
+                $movement, 
+                $request->item_ids, 
+                $request->rejection_reason
+            );
+
+            if (!empty($result['errors'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Some items could not be processed',
+                    'errors' => $result['errors']
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => $result['message'],
+                'processed_items' => StockMovementItemResource::collection($result['processed_items']),
+                'statistics' => $this->approvalService->getMovementStatistics($movement->fresh())
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error rejecting stock movement items: ' . $e->getMessage(), [
+                'movement_id' => $movementId,
+                'item_ids' => $request->item_ids ?? [],
+                'rejection_reason' => $request->rejection_reason ?? null,
+                'user_id' => Auth::id()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while rejecting items'
+            ], 500);
+        }
     }
 }

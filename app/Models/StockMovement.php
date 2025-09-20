@@ -46,7 +46,7 @@ class StockMovement extends Model
     // Relationships
     public function product(): BelongsTo
     {
-        return $this->belongsTo(Product::class)->nullable();
+        return $this->belongsTo(Product::class);
     }
 
     public function requestingService(): BelongsTo

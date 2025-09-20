@@ -14,6 +14,7 @@ public function up()
       
 
         // Add or modify columns
+        $table->foreignId('medication_id')->constrained('medications')->onDelete('cascade');
         $table->string('form');
         $table->string('num_times');
         $table->string('frequency-period');
@@ -21,12 +22,6 @@ public function up()
         $table->date('start_date')->nullable();
         $table->date('end_date')->nullable();
         $table->text('description')->nullable();
-
-        // Add foreign key
-        $table->foreign('medication_id')
-              ->references('id')
-              ->on('medications')
-              ->onDelete('cascade');
     });
 }
 
