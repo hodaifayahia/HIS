@@ -3,19 +3,12 @@ import laravel from 'laravel-vite-plugin';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
-    server: {
-        host: '0.0.0.0',
-        port: 5174,
-        strictPort: true,
-        hmr: { 
-            host: '10.47.0.26',
-        },
-        watch: {
-            usePolling: true
-        },
-        cors: true,
-        origin: 'http://10.47.0.26:5174'
-    },
+    // server: {
+    //     host: '0.0.0.0',
+    //     port: 5174,
+    //     strictPort: true,
+    //     hmr: { host: '10.47.2.118' }
+    // },
     plugins: [
         laravel({
             input: ['resources/css/app.css', 'resources/js/app.js'],
@@ -44,7 +37,7 @@ export default defineConfig({
     },
     build: {
         target: 'esnext',
-        sourcemap: false,  // Set true only if you need to debug production
+        sourcemap: false,
     },
 });
 

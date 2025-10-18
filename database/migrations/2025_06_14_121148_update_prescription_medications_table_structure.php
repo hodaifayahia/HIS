@@ -23,7 +23,6 @@ public function up()
         $table->text('description')->nullable();
 
         // Add foreign key
-        $table->unsignedBigInteger('medication_id')->nullable();
         $table->foreign('medication_id')
               ->references('id')
               ->on('medications')

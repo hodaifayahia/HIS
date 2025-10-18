@@ -20,7 +20,7 @@ return new class extends Migration
             $table->date('dateOfBirth')->nullable();
             $table->text('Idnum')->nullable();
             $table->integer('created_by')->default(2);
-            $table->softDeletes(); 
+            $table->boolean('gender')->default(true);
             $table->timestamps();
         });
     }

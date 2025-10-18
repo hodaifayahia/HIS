@@ -1,0 +1,6 @@
+FROM laravelsail/php84-composer:latest
+
+# Install PCNTL extension (required for Reverb)
+RUN docker-php-ext-install pcntl
+
+WORKDIR /var/www/html
