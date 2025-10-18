@@ -8,8 +8,7 @@ export default defineConfig({
         port: 5174,
         strictPort: true,
         hmr: { 
-            host: 'localhost',
-            port: 5174
+            host: '10.47.0.26',
         },
         watch: {
             usePolling: true
@@ -46,3 +45,4 @@ export default defineConfig({
         sourcemap: false,  // Set true only if you need to debug production
     },
 });
+

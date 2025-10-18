@@ -16,7 +16,7 @@ class UpdateCoffreTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'transaction_type' => 'sometimes|required|string|in:deposit,withdraw',
+            'transaction_type' => 'required|string|in:deposit,withdraw,transfer_in,transfer_out',
             'coffre_id' => 'sometimes|required|exists:coffres,id',
             'Reason' => 'nullable|string|max:255',
             'reference' => 'nullable|string|max:255',

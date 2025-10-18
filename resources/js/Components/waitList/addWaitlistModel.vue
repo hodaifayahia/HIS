@@ -4,6 +4,12 @@ import axios from 'axios';
 import { Form } from 'vee-validate';
 import PatientSearch from '../../Pages/Appointments/PatientSearch.vue';
 import { useToastr } from '../../Components/toster';
+import Dialog from 'primevue/dialog';
+import Button from 'primevue/button';
+import Dropdown from 'primevue/dropdown';
+import Textarea from 'primevue/textarea';
+import Checkbox from 'primevue/checkbox';
+import Card from 'primevue/card';
 
 const toastr = useToastr();
 
@@ -11,8 +17,8 @@ const props = defineProps({
   show: Boolean,
   editMode: { type: Boolean, default: false },
   waitlist: { type: Object, default: null },
-  specializationId: { type: Number, default: null }, // Add specializationId prop
-  isDaily: { type: [Number, String], default: null }, // Add isDaily prop
+  specializationId: { type: Number, default: null },
+  isDaily: { type: [Number, String], default: null },
 });
 
 // Emits
@@ -21,67 +27,69 @@ const emit = defineEmits(['close', 'save', 'update']);
 const form = reactive({
   doctor_id: null,
   patient_id: null,
-  specialization_id: props.specializationId, // Initialize with specializationId
-  is_Daily: props.isDaily !== null ? !!props.isDaily : false, // Initialize with isDaily (convert to boolean)
+  specialization_id: props.specializationId,
+  is_Daily: props.isDaily !== null ? !!parseInt(props.isDaily) : false, // Convert prop to boolean
   created_by: null,
   importance: null,
   notes: '',
 });
 
-// Fetch data
+// Reactive data
 const doctors = ref([]);
 const specializations = ref([]);
-const importanceLevels = ref([]);
+const importanceLevels = ref([
+    { label: 'Urgent', value: 1 },
+    { label: 'Normal', value: 0 },
+]);
 const searchQuery = ref('');
 
 // Fetch specializations
 const fetchSpecializations = async () => {
-  const response = await axios.get('/api/specializations');
-  specializations.value = response.data.data;
+  try {
+    const response = await axios.get('/api/specializations');
+    specializations.value = response.data.data;
+  } catch (error) {
+    console.error('Error fetching specializations:', error);
+    toastr.error('Failed to fetch specializations. Please try again later.');
+  }
 };
 
 // Fetch doctors based on specialization
-// can u add try and catch
-// Fetch doctors based on specialization
-
 const fetchDoctors = async (specializationId) => {
+  if (!specializationId) {
+    doctors.value = [];
+    return;
+  }
   try {
-    console.log('Fetched specializations:', specializationId);
-    const response = await axios.get(`/api/doctors`);
+    // Correctly use the specializationId to filter doctors
+    const response = await axios.get(`/api/doctors?specialization_id=${specializationId}`);
     doctors.value = response.data.data;
-  
   } catch (error) {
     console.error('Error fetching doctors:', error);
     toastr.error('Failed to fetch doctors. Please try again later.');
   }
 };
 
-// Fetch importance enum values
-const fetchImportanceEnum = async () => {
-  const response = await axios.get('/api/importance-enum');
-  importanceLevels.value = response.data;
-};
+
 
 // Pre-fill form when in edit mode
 const populateForm = () => {
   if (props.editMode && props.waitlist) {
-    console.log(props.waitlist);
+    console.log('Populating form from waitlist prop:', props.waitlist);
 
     // Populate form fields one by one
     form.doctor_id = props.waitlist.doctor_id;
     form.patient_id = props.waitlist.patient_id;
-    form.specialization_id = parseInt(props.waitlist.specialization_id); // Convert to integer
-    form.is_Daily = props.waitlist.is_Daily;
+    form.specialization_id = parseInt(props.waitlist.specialization_id);
+    form.is_Daily = props.waitlist.is_Daily === 1 || props.waitlist.is_Daily === true; // Ensure boolean value
     form.created_by = props.waitlist.created_by;
     form.importance = props.waitlist.importance;
-    form.appointmentId = props.waitlist.appointmentId;
     form.notes = props.waitlist.notes;
 
     // Set the patient search query
     searchQuery.value = `${props.waitlist.patient_first_name} ${props.waitlist.patient_last_name}`;
   }
 };
-watch(() => props.waitlist, populateForm); // Watch for changes in waitlist prop
 
 // Handle patient selection
 const handlePatientSelect = (patient) => {
@@ -90,6 +98,12 @@ const handlePatientSelect = (patient) => {
 
 // Handle form submission
 const handleSubmit = async () => {
+  // Simple validation to prevent form submission without required fields
+  if (!form.patient_id || !form.specialization_id || !form.doctor_id || (form.is_Daily && !form.importance)) {
+    toastr.error('Please fill in all required fields.');
+    return;
+  }
+
   try {
     const method = props.editMode ? 'put' : 'post';
     const url = props.editMode
@@ -99,13 +113,7 @@ const handleSubmit = async () => {
     const response = await axios[method](url, form);
     toastr.success(`${props.editMode ? 'Waitlist updated' : 'Waitlist created'} successfully`);
 
-    // Emit appropriate event
-    if (props.editMode) {
-      emit('update', response.data); // Notify parent of update
-    } else {
-      emit('save', response.data); // Notify parent of save
-    }
-
+    emit('save', response.data);
     closeModal();
   } catch (error) {
     console.error(`${props.editMode ? 'Error updating waitlist:' : 'Error creating waitlist:'}`, error);
@@ -113,20 +121,38 @@ const handleSubmit = async () => {
   }
 };
 
-// Close modal
+// Close modal and reset form
 const closeModal = () => {
   emit('close');
+  // Reset reactive form data
+  Object.assign(form, {
+    doctor_id: null,
+    patient_id: null,
+    specialization_id: props.specializationId,
+    is_Daily: props.isDaily !== null ? !!parseInt(props.isDaily) : false,
+    created_by: null,
+    importance: null,
+    notes: '',
+  });
+  searchQuery.value = '';
 };
 
-// Watch for changes in specialization_id
-watch(() => props.specializationId, (newSpecializationId) => {
-  if (newSpecializationId) {
-    form.specialization_id = newSpecializationId;
-    console.log('New specialization ID:', newSpecializationId);
-    
-    fetchDoctors(newSpecializationId);
-  }
-});
+// Watchers
+// Combine the watchers into a single, more efficient watcher
+watch(
+  () => [props.waitlist, form.specialization_id],
+  ([newWaitlist, newSpecializationId]) => {
+    // If waitlist prop changes, populate the form
+    if (newWaitlist) {
+      populateForm();
+    }
+    // If specialization changes, fetch doctors
+    if (newSpecializationId) {
+      fetchDoctors(newSpecializationId);
+    }
+  },
+  { immediate: true }
+);
 
 // Computed property to check if the checkbox should be disabled
 const isCheckboxDisabled = computed(() => {
@@ -135,128 +161,200 @@ const isCheckboxDisabled = computed(() => {
 
 onMounted(async () => {
   await fetchSpecializations();
-  await fetchImportanceEnum();
-
-  // Set the default specialization_id if provided
-  if (props.specializationId) {
-    form.specialization_id = props.specializationId;
-    fetchDoctors(form.specialization_id); // Fetch doctors for the default specialization
-  }
-
-  // Set the default is_Daily value
-  form.is_Daily = props.isDaily == 1;
-
-  populateForm(); // Pre-fill form if in edit mode
-});
-
-// Watch for changes in specialization_id
-watch(() => form.specialization_id, (newSpecializationId) => {
-  fetchDoctors(newSpecializationId);
+  populateForm();
 });
 </script>
 
 <template>
-  <div v-if="show" class="modal fade show" tabindex="-1" role="dialog"
-    style="display: block; background: rgba(0, 0, 0, 0.5);">
-    <div class="modal-dialog modal-lg" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">{{ editMode ? 'Edit Waitlist' : 'Create Waitlist' }}</h5>
-          <button type="button" class="close" @click="closeModal">
-            <span>&times;</span>
-          </button>
-        </div>
-        <div class="modal-body">
-          <Form @submit="handleSubmit" v-slot="{ errors }">
-            <!-- Patient Search -->
-            <PatientSearch v-model="searchQuery" :patientId="form.patient_id" @patientSelected="handlePatientSelect" />
-            <!-- Specialization Selection -->
-            <div class="form-group mb-4">
-              <label for="specialization_id" class="form-label">Specialization</label>
-              <select id="specialization_id" v-model="form.specialization_id" class="form-control" required>
-                <option v-for="spec in specializations" :key="spec.id" :value="spec.id">
-                  {{ spec.name }}
-                </option>
-              </select>
-            </div>
-            <!-- Doctor Selection -->
-            <div class="form-group mb-4">
-              <label for="doctor_id" class="form-label">Doctor</label>
-              <select id="doctor_id" v-model="form.doctor_id" class="form-control" required>
-                <option value="">ALL Doctors</option>
-                <option v-for="doctor in doctors" :key="doctor.id" :value="doctor.id">
-                  {{ doctor.name }}
-                </option>
-              </select>
-            </div>
+  <Dialog
+    :visible="show"
+    modal
+    :header="editMode ? 'Edit Waitlist' : 'Create Waitlist'"
+    :style="{ width: '50rem' }"
+    :breakpoints="{ '1199px': '75vw', '575px': '90vw' }"
+    @update:visible="closeModal"
+    @hide="closeModal"
+    class="tw-font-sans"
+  >
+    <Card class="tw-shadow-none tw-border-0">
+      <template #content>
+        <Form @submit="handleSubmit" v-slot="{ errors }" class="tw-space-y-6">
+          <div class="tw-space-y-2">
+            <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">
+              Patient Search *
+            </label>
+            <PatientSearch
+              v-model="searchQuery"
+              :patientId="form.patient_id"
+              @patientSelected="handlePatientSelect"
+              class="tw-w-full"
+            />
+          </div>
 
-            <!-- Importance Level (Conditional Rendering) -->
-            <div class="form-group mb-4" v-if="form.is_Daily">
-              <label for="importance" class="form-label">Importance</label>
-              <select id="importance" v-model="form.importance" class="form-control" required>
-                <option v-for="(level, key) in importanceLevels" :key="key" :value="level.value">
-                {{ level.label }}
-                </option>
-              </select>
-            </div>
+          <div class="tw-space-y-2">
+            <label for="specialization_id" class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700">
+              Specialization *
+            </label>
+            <Dropdown
+              id="specialization_id"
+              v-model="form.specialization_id"
+              :options="specializations"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Select a specialization"
+              class="tw-w-full"
+              :class="{ 'p-invalid': errors.specialization_id }"
+            />
+          </div>
 
-            <!-- Is Daily Checkbox -->
-            <div class="form-group mb-4">
-              <label for="is_Daily" class="form-label d-block ml-2 text-md">Is Daily?</label>
-              <input type="checkbox" id="is_Daily" v-model="form.is_Daily" class="ml-2"
-                :disabled="isCheckboxDisabled" />
-            </div>
+          <div class="tw-space-y-2">
+            <label for="doctor_id" class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700">
+              Doctor *
+            </label>
+            <Dropdown
+              id="doctor_id"
+              v-model="form.doctor_id"
+              :options="[{ id: null, name: 'ALL Doctors' }, ...doctors]"
+              optionLabel="name"
+              optionValue="id"
+              placeholder="Select a doctor"
+              class="tw-w-full"
+              :class="{ 'p-invalid': errors.doctor_id }"
+            />
+          </div>
+          <div class="tw-flex tw-items-center tw-space-x-3 tw-py-2">
+            <Checkbox
+              id="is_Daily"
+              v-model="form.is_Daily"
+              :binary="true"
+              :disabled="isCheckboxDisabled"
+              class="tw-mr-2"
+            />
+            <label for="is_Daily" class="tw-text-sm tw-font-semibold tw-text-gray-700 tw-cursor-pointer">
+              Is Daily?
+            </label>
+          </div>
+          <div class="tw-space-y-2" v-if="form.is_Daily">
+            <label for="importance" class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700">
+              Importance *
+            </label>
+            <Dropdown
+              id="importance"
+              v-model="form.importance"
+              :options="importanceLevels"
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Select importance level"
+              class="tw-w-full"
+              :class="{ 'p-invalid': errors.importance }"
+            />
+          </div>
 
-            <!-- Notes -->
-            <div class="form-group mb-4">
-              <label for="notes" class="form-label">Notes</label>
-              <textarea id="notes" v-model="form.notes" class="form-control" rows="3"></textarea>
-            </div>
+          <div class="tw-space-y-2">
+            <label for="notes" class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700">
+              Notes
+            </label>
+            <Textarea
+              id="notes"
+              v-model="form.notes"
+              rows="4"
+              class="tw-w-full tw-resize-none"
+              placeholder="Add any additional notes..."
+            />
+          </div>
 
-            <!-- Submit Button -->
-            <div class="form-group">
-              <button type="submit" class="btn btn-primary">
-                {{ editMode ? 'Update Waitlist' : 'Create Waitlist' }}
-              </button>
-            </div>
-          </Form>
-        </div>
-      </div>
-    </div>
-  </div>
+          <div class="tw-flex tw-justify-end tw-space-x-3 tw-pt-4 tw-border-t tw-border-gray-200">
+            <Button
+              type="button"
+              label="Cancel"
+              severity="secondary"
+              outlined
+              @click="closeModal"
+              class="tw-px-6 tw-py-2"
+            />
+            <Button
+              type="submit"
+              :label="editMode ? 'Update Waitlist' : 'Create Waitlist'"
+              severity="primary"
+              class="tw-px-6 tw-py-2"
+              :loading="false"
+            />
+          </div>
+        </Form>
+      </template>
+    </Card>
+  </Dialog>
 </template>
 
 <style scoped>
-/* Add your custom styles here */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1050;
+/* PrimeVue Dialog Customizations */
+:deep(.p-dialog) {
+  @apply tw-font-sans;
 }
 
-.modal-dialog {
-  margin: 1.75rem auto;
+:deep(.p-dialog-header) {
+  @apply tw-bg-gradient-to-r tw-from-blue-600 tw-to-blue-700 tw-text-white;
 }
 
-.modal-content {
-  background: white;
-  border-radius: 0.3rem;
-  print-color-adjust: exact;
+:deep(.p-dialog-title) {
+  @apply tw-font-bold tw-text-lg;
 }
 
-.modal-header {
-  padding: 1rem;
-  border-bottom: 1px solid #e9ecef;
+:deep(.p-dialog-header-icon) {
+  @apply tw-text-white hover:tw-bg-blue-800;
 }
 
-.modal-title {
-  margin: 0;
+:deep(.p-dialog-content) {
+  @apply tw-p-6;
 }
 
-.modal-body {
-  padding: 1rem;
+/* Form Input Styling */
+:deep(.p-dropdown) {
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+}
+
+:deep(.p-dropdown:not(.p-disabled):hover) {
+  @apply tw-border-blue-400;
+}
+
+:deep(.p-textarea) {
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+}
+
+:deep(.p-textarea:hover) {
+  @apply tw-border-blue-400;
+}
+
+:deep(.p-checkbox .p-checkbox-box) {
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+}
+
+:deep(.p-checkbox .p-checkbox-box.p-highlight) {
+  @apply tw-bg-blue-600 tw-border-blue-600;
+}
+
+/* Button Styling */
+:deep(.p-button.p-button-primary) {
+  @apply tw-bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600 hover:tw-border-blue-700;
+}
+
+:deep(.p-button.p-button-secondary) {
+  @apply tw-text-gray-600 tw-border-gray-300 hover:tw-bg-gray-50;
+}
+
+/* Error States */
+:deep(.p-invalid) {
+  @apply tw-border-red-500 focus:tw-border-red-500 focus:tw-ring-red-200;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  :deep(.p-dialog) {
+    @apply tw-m-4;
+  }
+  
+  :deep(.p-dialog-content) {
+    @apply tw-p-4;
+  }
 }
 </style>

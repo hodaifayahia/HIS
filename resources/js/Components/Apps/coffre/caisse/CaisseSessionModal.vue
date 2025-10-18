@@ -140,7 +140,6 @@ const openSession = async () => {
       }
     }
   } catch (error) {
-    console.error('Error opening session:', error);
     showToast('error', 'Error', 'An unexpected error occurred. Please try again.');
   } finally {
     saving.value = false;

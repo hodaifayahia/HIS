@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->decimal('fichenavatte_max', 10, 2)->nullable();
-            $table->integer('salary');
+            $table->integer('salary')->nullable();
             
         });
     }

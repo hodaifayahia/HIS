@@ -29,6 +29,7 @@ class PrestationRequest extends FormRequest
                 'max:50',
             ],
             'need_an_appointment' => 'boolean',
+            'Urgent_Prestation' => 'boolean',
             'billing_code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
 

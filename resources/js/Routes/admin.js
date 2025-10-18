@@ -143,23 +143,24 @@ const adminRoutes = [{
             children: [
                 {
                     path: '',
-                    name: 'admin.waitlist.specialization',
+                    name: 'admin.Waitlist.specialization',
                     component: () => import('../Pages/waitList/SpecializationListWaitlist.vue'),
                 },
                 {
                     path: ':id/types',
-                    name: 'admin.waitlist.types',
+                    name: 'admin.Waitlist.types',
                     component: () => import('../Pages/waitList/WaitlistTypes.vue'),
                 },
+               
                 {
-                    path: ':id/general',
-                    name: 'admin.waitlist.general',
-                    component: () => import('../Components/waitList/GeneralWaitlist.vue'),
+                    path: ':id/general-prime',
+                    name: 'admin.Waitlist.GeneralPrime',
+                    component: () => import('../Components/waitList/GeneralWaitlistPrime.vue'),
                 },
                 {
-                    path: ':id/daily',
-                    name: 'admin.waitlist.daily',
-                    component: () => import('../Components/waitList/DailyWaitlist.vue'),
+                    path: ':id/daily-prime',
+                    name: 'admin.Waitlist.DailyPrime',
+                    component: () => import('../Components/waitList/DailyWaitlistPrime.vue'),
                 },
             ],
         },

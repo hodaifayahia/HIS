@@ -55,10 +55,10 @@ class FinancialTransactionService
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
-        if (!empty($filters['fiche_navette_id'])) {
-            $ficheId = $filters['fiche_navette_id'];
-            $query->whereHas('ficheNavetteItem', function ($q) use ($ficheId) {
-                $q->where('fiche_navette_id', $ficheId);
+        if (!empty($filters['caisse_id'])) {
+            $caisseId = $filters['caisse_id'];
+            $query->whereHas('ficheNavetteItem.ficheNavette', function ($q) use ($caisseId) {
+                $q->where('caisse_id', $caisseId);
             });
         }
         
@@ -520,6 +520,7 @@ class FinancialTransactionService
 
     public function processPaymentTransaction(array $data): array
     {
+
         return DB::transaction(function () use ($data) {
             // Validate and resolve fiche_navette_item_id if needed
             $data = $this->validateAndResolveFicheNavetteItem($data);

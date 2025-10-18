@@ -19,6 +19,7 @@ return new class extends Migration
           //total_amount
             $table->decimal('total_amount', 15, 2)->default(0); // Not null, default to 0
             $table->string('status')->comment('e.g., scheduled, checked-in, completed, cancelled'); // Not null
+            $table->string('reference')->nullable(); // Not null
             $table->timestamps(); // Adds created_at and updated_at columns
         });
     }

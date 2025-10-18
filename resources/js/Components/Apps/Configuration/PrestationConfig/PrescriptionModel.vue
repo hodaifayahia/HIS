@@ -29,6 +29,7 @@ const toaster = useToastr();
 const form = ref({ // Use ref() for the form object itself
     id: null,
      need_an_appointment: false,
+     Urgent_Prestation: false,
     name: '',
     internal_code: '',
     billing_code: '',
@@ -41,7 +42,7 @@ const form = ref({ // Use ref() for the form object itself
     convenience_prix: 0, // Default to 0 for new
     vat_rate: null, // Null for new
     night_tariff: null, // Null for new
-    night_tariff_active: false, // New toggle for night tariff
+    Tarif_de_nuit_is_active: true, // New toggle for night tariff
     consumables_cost: null, // Null for new
     is_social_security_reimbursable: false,
     reimbursement_conditions: '',
@@ -80,8 +81,9 @@ const resetForm = () => {
         public_price: 0,
         convenience_prix: 0,
         need_an_appointment: false,
+        Urgent_Prestation: false,
         vat_rate: null,
-        night_tariff_active: false,
+        Tarif_de_nuit_is_active: true,
         night_tariff: null,
         consumables_cost: null,
         is_social_security_reimbursable: false,
@@ -191,9 +193,9 @@ const estimatedTotal = computed(() => {
     const convenience_prix = parseFloat(form.value.convenience_prix) || 0;
     const vatRate = parseFloat(form.value.vat_rate) || 0;
     const consumables = parseFloat(form.value.consumables_cost) || 0;
-    const nightTariff = form.value.night_tariff_active ? (parseFloat(form.value.night_tariff) || 0) : 0;
+    const nightTariff = form.value.Tarif_de_nuit_is_active ? (parseFloat(form.value.night_tariff) || 0) : 0;
 
-    const basePrice = form.value.night_tariff_active ? nightTariff : price;
+    const basePrice = form.value.Tarif_de_nuit_is_active ? nightTariff : price;
 
     const vatAmount = (basePrice * vatRate) / 100;
     const total = basePrice + vatAmount + consumables;
@@ -222,7 +224,7 @@ watch(() => form.value.requires_hospitalization, (newVal) => {
     }
 });
 
-watch(() => form.value.night_tariff_active, (newVal) => {
+watch(() => form.value.Tarif_de_nuit_is_active, (newVal) => {
     if (!newVal) {
         form.value.night_tariff = null;
     }
@@ -286,7 +288,7 @@ const populateForm = () => {
 
         // Use a loop to assign most fields directly
         for (const key in form.value) {
-            if (Object.prototype.hasOwnProperty.call(props.prestationData, key) && key !== 'id' && key !== 'night_tariff_active') {
+            if (Object.prototype.hasOwnProperty.call(props.prestationData, key) && key !== 'id' && key !== 'Tarif_de_nuit_is_active') {
                 // Handle special cases for relations if they are objects in resource but IDs in form
                 if (key === 'service_id' && props.prestationData.service) {
                     form.value.service_id = props.prestationData.service.id;
@@ -310,8 +312,8 @@ const populateForm = () => {
             }
         }
 
-        // Special handling for night_tariff_active based on night_tariff
-        form.value.night_tariff_active = props.prestationData.night_tariff !== null && props.prestationData.night_tariff !== undefined;
+        // Special handling for Tarif_de_nuit_is_active based on night_tariff
+        form.value.Tarif_de_nuit_is_active = props.prestationData.night_tariff !== null && props.prestationData.night_tariff !== undefined;
         // Ensure night_tariff itself is set correctly (it will be by the loop, but this reinforces)
         form.value.night_tariff = props.prestationData.night_tariff ?? null;
         form.value.need_an_appointment = props.prestationData.need_an_appointment ?? false;
@@ -432,7 +434,7 @@ const validateForm = () => {
     }
 
     const nightTariff = parseFloat(form.value.night_tariff);
-    if (form.value.night_tariff_active && (isNaN(nightTariff) || nightTariff <= 0)) {
+    if (form.value.Tarif_de_nuit_is_active && (isNaN(nightTariff) || nightTariff <= 0)) {
         errors.value.night_tariff = 'Valid Night Tariff is required if active (must be greater than 0)';
     }
 
@@ -483,10 +485,10 @@ const submitForm = async () => {
         const dataToSubmit = { ...form.value }; // Copy the current form state
 
         // Clean up temporary local UI toggles and format data for backend
-        if (!dataToSubmit.night_tariff_active) {
+        if (!dataToSubmit.Tarif_de_nuit_is_active) {
             dataToSubmit.night_tariff = null;
         }
-        delete dataToSubmit.night_tariff_active; // Remove this field before sending
+        delete dataToSubmit.Tarif_de_nuit_is_active; // Remove this field before sending
 
         // Ensure array fields are arrays, even if empty
         dataToSubmit.non_applicable_discount_rules = Array.isArray(dataToSubmit.non_applicable_discount_rules) ? dataToSubmit.non_applicable_discount_rules : [];

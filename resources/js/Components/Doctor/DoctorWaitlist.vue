@@ -43,13 +43,17 @@ const showModal = ref(props.WaitlistDcotro);
 watch(
   () => props.WaitlistDcotro,
   (newVal) => {
+    console.log('WaitlistDcotro prop changed:', newVal);
     showModal.value = newVal;
+    console.log('showModal updated to:', showModal.value);
   }
 );
 
 const closeModal = () => {
+  console.log('closeModal called');
   showModal.value = false;
   waitlists.value = [];
+  console.log('Emitting close event');
   emit('close');
 };
 const fetchWaitlists = async (filters = {}) => {
@@ -182,9 +186,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="modal fade" :class="{ show: showModal }" tabindex="-1" aria-labelledby="waitlistModalLabel"
-    aria-hidden="true" v-if="showModal">
-    <div class="modal-dialog modal-lg">
+  <div v-if="showModal">
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop fade show" @click="closeModal"></div>
+    <!-- Modal -->
+    <div class="modal fade show" style="display: block;" tabindex="-1" aria-labelledby="waitlistModalLabel"
+      aria-hidden="false">
+      <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="waitlistModalLabel">Waitlist</h5>
@@ -243,13 +251,23 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .modal {
-  display: block;
+  z-index: 1050;
+}
+
+.modal-backdrop {
+  z-index: 1040;
   background-color: rgba(0, 0, 0, 0.5);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
 }
 
 .modal.show {

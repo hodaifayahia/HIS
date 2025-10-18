@@ -14,7 +14,7 @@ class Folder extends Model
         'name',
         'description',
         'doctor_id',
-        'specializations_id',
+        'specialization_id',
     ];
 
     protected $appends = ['templates_count'];

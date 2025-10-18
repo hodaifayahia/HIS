@@ -176,6 +176,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/appointments/Confirmation/print-confirmation-ticket', [AppointmentController::class, 'printConfirmationTicket']);
         Route::post('/generate-appointments-pdf', [AppointmentController::class, 'generateAppointmentsPdf']);
         Route::post('/appointments/print-ticket', [AppointmentController::class, 'printTicket']);
+Route::post('/appointments/transfer', [AppointmentController::class, 'transferAppointments']);
 
         // Schedule Routes
         Route::get('/schedules/{doctorid}', [ScheduleController::class, 'index']);
@@ -190,6 +191,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/patients/search', [PatientController::class, 'search']);
         Route::get('/patients/{parentid}', [PatientController::class, 'SpecificPatient']);
         Route::delete('/patients/{patientid}', [PatientController::class, 'destroy']);
+        
+        // Patient Portal Routes
+        Route::get('/patients/{patientid}/details', [PatientController::class, 'show']);
+        Route::put('/patients/{patientid}/notes', [PatientController::class, 'updateNotes']);
+        Route::put('/patients/{patientid}/medical-info', [PatientController::class, 'updateMedicalInfo']);
+        Route::get('/appointments/patient/{patientid}', [AppointmentController::class, 'getPatientAppointments']);
+        Route::get('/consulations/{patientid}/all', [ConsulationController::class, 'getPatientConsultations']);
 
         // Setting Routes
         // This is the problematic route
@@ -209,9 +217,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/waitlists/{waitlistid}/move-to-end', [WaitListController::class, 'moveToend']);
         Route::delete('/waitlists/{waitlist}', [WaitListController::class, 'destroy']);
         Route::patch('/waitlists/{waitlist}/importance', [WaitlistController::class, 'updateImportance']);
-        Route::get('/waitlist/empty', [WaitListController::class, 'isempty']);
-
-    // Request Transaction Approvals
+        Route::get('/waitlist/empty', [WaitListController::class, 'isempty']);  // Request Transaction Approvals
     Route::get('/request-transaction-approvals', [\App\Http\Controllers\RequestTransactionApprovalController::class, 'index']);
     Route::patch('/request-transaction-approvals/{requestTransactionApproval}/approve', [\App\Http\Controllers\RequestTransactionApprovalController::class, 'approve']);
     Route::patch('/request-transaction-approvals/{requestTransactionApproval}/reject', [\App\Http\Controllers\RequestTransactionApprovalController::class, 'reject']);
@@ -733,11 +739,167 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('bank-account-transactions-pack', BankAccountTransactionPackController::class);
         Route::get('bank-account-transactions/{transactionId}/pack-users', [BankAccountTransactionPackController::class, 'getPackUsers']);
 
+        // Fournisseur routes
+        Route::apiResource('fournisseurs', \App\Http\Controllers\FournisseurController::class);
+        Route::get('fournisseurs/search', [\App\Http\Controllers\FournisseurController::class, 'search']);
+        Route::get('fournisseurs-active', [\App\Http\Controllers\FournisseurController::class, 'active']);
+
+        // Service Demand Management routes
+        Route::prefix('service-demands')->group(function () {
+            Route::get('/', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'store']);
+            
+            // Helper endpoints (must come BEFORE parameterized routes)
+            Route::get('/meta/services', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getServices']);
+            Route::get('/meta/products', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getProducts']);
+            Route::get('/meta/fournisseurs', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getFournisseurs']);
+            Route::get('/meta/stats', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getStats']);
+            Route::get('/suggestions', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getSuggestions']);
+            
+            // Parameterized routes (must come AFTER specific named routes)
+            Route::get('/{id}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'destroy']);
+            
+            // Status management
+            Route::post('/{id}/send', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'send']);
+            
+            // Item management
+            Route::post('/{id}/items', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'addItem']);
+            Route::put('/{id}/items/{itemId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'updateItem']);
+            Route::delete('/{id}/items/{itemId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'removeItem']);
+            
+            // Fournisseur assignment management
+            Route::post('/{id}/items/{itemId}/assign-fournisseur', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'assignFournisseurToItem']);
+            Route::post('/{id}/bulk-assign-fournisseurs', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'bulkAssignFournisseurs']);
+            Route::put('/{id}/items/{itemId}/assignments/{assignmentId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'updateFournisseurAssignment']);
+            Route::delete('/{id}/items/{itemId}/assignments/{assignmentId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'removeFournisseurAssignment']);
+            
+            // Facture proforma creation from assignments
+            Route::post('/{id}/create-facture-proforma', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'createFactureProformaFromAssignments']);
+            Route::get('/{id}/assignment-summary', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getAssignmentSummary']);
+            
+            // Workflow tracking
+            Route::post('/{id}/add-note', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'addWorkflowNote']);
+        });
+
+        // Facture Proforma Management routes
+        Route::prefix('facture-proformas')->group(function () {
+            // Helper endpoints (must come BEFORE parameterized routes)
+            Route::get('/meta/service-demands', [\App\Http\Controllers\FactureProformaController::class, 'getServiceDemands']);
+            Route::get('/meta/suppliers', [\App\Http\Controllers\FactureProformaController::class, 'getSuppliers']);
+            Route::get('/meta/products', [\App\Http\Controllers\FactureProformaController::class, 'getProducts']);
+            Route::get('/meta/stats', [\App\Http\Controllers\FactureProformaController::class, 'getStats']);
+            
+            // Main CRUD operations
+            Route::get('/', [\App\Http\Controllers\FactureProformaController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\FactureProformaController::class, 'store']);
+            Route::get('/{id}', [\App\Http\Controllers\FactureProformaController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\FactureProformaController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\FactureProformaController::class, 'destroy']);
+            
+            // Special operations
+            Route::post('/create-from-demands', [\App\Http\Controllers\FactureProformaController::class, 'createFromServiceDemands']);
+            Route::post('/{id}/send', [\App\Http\Controllers\FactureProformaController::class, 'send']);
+            Route::get('/{id}/download', [\App\Http\Controllers\FactureProformaController::class, 'download']);
+            Route::post('/{id}/mark-as-paid', [\App\Http\Controllers\FactureProformaController::class, 'markAsPaid']);
+            
+            // Product detail management
+            Route::get('/{id}/products', [\App\Http\Controllers\FactureProformaController::class, 'getProformaProducts']);
+            Route::put('/{id}/products/{productId}', [\App\Http\Controllers\FactureProformaController::class, 'updateProductQuantity']);
+        });
+        
+        Route::apiResource('bon-commends', \App\Http\Controllers\BonCommendController::class);
+        Route::prefix('bon-commends')->group(function () {
+            Route::get('/{id}/download', [\App\Http\Controllers\BonCommendController::class, 'download']);
+            Route::put('/{id}/status', [\App\Http\Controllers\BonCommendController::class, 'updateStatus']);
+        });
+
+        
+
+          // Old stock routes commented out to avoid conflicts with pharmacy routes
+    Route::apiResource('products', \App\Http\Controllers\Stock\ProductController::class)->withoutMiddleware(['auth:sanctum']);
+    
+   // Custom product routes
+    Route::get('products/{id}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
+    Route::get('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'getSettings']);
+    Route::post('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'saveSettings']);
+    
+    Route::apiResource('stockages', \App\Http\Controllers\Stock\StockageController::class);
+  //  Custom inventory routes must come BEFORE the resource route
+    Route::get('inventory/service-stock', [\App\Http\Controllers\Stock\InventoryController::class, 'getServiceStock']);
+    Route::post('inventory/{inventory}/adjust', [\App\Http\Controllers\Stock\InventoryController::class, 'adjustStock']);
+    Route::post('inventory/{inventory}/transfer', [\App\Http\Controllers\Stock\InventoryController::class, 'transferStock']);
+    Route::apiResource('inventory', \App\Http\Controllers\Stock\StockageController::class);
+    Route::apiResource('categories', \App\Http\Controllers\Stock\CategoryController::class);
+    
+    // Stock Movement routes
+    Route::prefix('stock-movements')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Stock\StockMovementController::class, 'index']);
+        Route::post('/create-draft', [\App\Http\Controllers\Stock\StockMovementController::class, 'createDraft']);
+        Route::get('/drafts', [\App\Http\Controllers\Stock\StockMovementController::class, 'getDrafts']);
+        Route::get('/pending-approvals', [\App\Http\Controllers\Stock\StockMovementController::class, 'getPendingApprovals']);
+        Route::get('/suggestions', [\App\Http\Controllers\Stock\StockMovementController::class, 'getSuggestions']);
+        Route::get('/stats', [\App\Http\Controllers\Stock\StockMovementController::class, 'getStats']);
+        Route::get('/{movementId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'show']);
+        Route::delete('/{movementId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'destroy']);
+        Route::post('/{movementId}/send', [\App\Http\Controllers\Stock\StockMovementController::class, 'sendDraft']);
+        Route::patch('/{movementId}/status', [\App\Http\Controllers\Stock\StockMovementController::class, 'updateStatus']);
+        Route::get('/{movementId}/available-stock', [\App\Http\Controllers\Stock\StockMovementController::class, 'availableStock']);
+        Route::get('/{movementId}/inventory/{productId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'getProductInventory']);
+        Route::post('/{movementId}/select-inventory', [\App\Http\Controllers\Stock\StockMovementController::class, 'selectInventory']);
+        
+        // Approval and rejection routes
+        Route::post('/{movementId}/approve', [\App\Http\Controllers\Stock\StockMovementController::class, 'approveItems']);
+        Route::post('/{movementId}/reject', [\App\Http\Controllers\Stock\StockMovementController::class, 'rejectItems']);
+
+        // Transfer and delivery routes
+        Route::post('/{movementId}/init-transfer', [\App\Http\Controllers\Stock\StockMovementController::class, 'initializeTransfer']);
+        Route::post('/{movementId}/confirm-delivery', [\App\Http\Controllers\Stock\StockMovementController::class, 'confirmDelivery']);
+        Route::post('/{movementId}/confirm-product', [\App\Http\Controllers\Stock\StockMovementController::class, 'confirmProduct']);
+        
+        // Validation workflow routes
+        Route::post('/{movementId}/validate-quantities', [\App\Http\Controllers\Stock\StockMovementController::class, 'validateQuantities']);
+        Route::post('/{movementId}/process-validation', [\App\Http\Controllers\Stock\StockMovementController::class, 'processValidation']);
+
+        // Item management routes
+        Route::post('/{movementId}/items', [\App\Http\Controllers\Stock\StockMovementController::class, 'addItem']);
+        Route::put('/{movementId}/items/{itemId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'updateItem']);
+        Route::delete('/{movementId}/items/{itemId}', [\App\Http\Controllers\Stock\StockMovementController::class, 'removeItem']);
+    });
+    
+    // Stockage Tools (Location Management)
+    Route::prefix('stockages/{stockage}/tools')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Stock\StockageToolController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\Stock\StockageToolController::class, 'store']);
+        Route::get('/{toolId}', [\App\Http\Controllers\Stock\StockageToolController::class, 'show']);
+        Route::put('/{toolId}', [\App\Http\Controllers\Stock\StockageToolController::class, 'update']);
+        Route::delete('/{toolId}', [\App\Http\Controllers\Stock\StockageToolController::class, 'destroy']);
+    });
+    // Helper routes for tool types and blocks
+    Route::get('stockage-tools/types', [\App\Http\Controllers\Stock\StockageToolController::class, 'getToolTypes']);
+    Route::get('stockage-tools/blocks', [\App\Http\Controllers\Stock\StockageToolController::class, 'getBlocks']);
+    // Route for stockage managers removed — managers are no longer managed via StockageController
+   // Stock Product Settings Routes (Web Routes)
+     Route::prefix('stock')->group(function () {
+        Route::get('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'show']);
+        Route::post('product-settings', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'store']);
+        Route::put('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'update']);
+        Route::delete('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'destroy']);
+        Route::get('product-settings/{serviceId}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'getByService']);
+        
+        // Product Settings Routes (per product)
+        Route::get('products/{product}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
+        Route::delete('products/bulk-delete', [\App\Http\Controllers\Stock\ProductController::class, 'bulkDelete']);
+        Route::get('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'index']);
+        Route::post('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'store']);
+        Route::get('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'show']);
+        Route::put('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'update']);
+        Route::delete('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'destroy']);
+
+    });
     }); // End of /api group
 
     // The main application entry point for authenticated users
     Route::get('/{view}', [ApplicationController::class, '__invoke'])->where('view', '.*');
 }); // End of authenticated middleware group
-
-// Test route outside auth middleware for debugging
-Route::get('/api/appointments/{doctorid}', [AppointmentController::class, 'index']);

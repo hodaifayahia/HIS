@@ -1,73 +1,99 @@
 <script setup>
 import { ref, onMounted, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useAppointmentStore } from '@/stores/appointments'; // Import your Pinia store
-import { storeToRefs } from 'pinia'; // Helper to destructure reactive properties from store
+import axios from 'axios';
 
+const doctors = ref([]);
+const searchQuery = ref('');
+const isLoading = ref(false);
+const loadingAppointments = ref({});
 const route = useRoute();
 const router = useRouter();
-const specializationId = ref(route.params.id); // Use ref for reactivity if param can change
-console.log(specializationId.value);
+const specializationId = route.params.id;
 
-// --- Pinia Store Integration ---
-const appointmentStore = useAppointmentStore();
+const availableAppointments = ref({});
 
-// Destructure reactive state properties from the store
-// Using storeToRefs() ensures reactivity is maintained for state properties
-const {
-  doctors,
-  isLoadingDoctors,
-  availableAppointments,
-  loadingAppointments,
-  searchQuery // If searchQuery is also managed by the store
-} = storeToRefs(appointmentStore);
-
-// Destructure actions directly (they don't lose reactivity)
-const {
-  fetchDoctors,
-  searchDoctors,
-  fetchAvailableAppointments, // Will be called internally by fetchDoctors/searchDoctors if doctors are loaded.
-  formatClosestCanceledAppointment // Use the getter from the store
-} = appointmentStore;
-
-// --- Component Logic ---
-
-// Debounced search logic, now calling the store action
 const debouncedSearch = (() => {
   let timeout;
   return () => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => {
-      searchDoctors(searchQuery.value); // Call the store action
+    timeout = setTimeout(async () => {
+      try {
+        isLoading.value = true;
+        const response = await axios.get('/api/doctors/search', {
+          params: { query: searchQuery.value },
+        });
+        doctors.value = response.data.data;
+      } catch (error) {
+        console.error('Error searching doctors:', error);
+      } finally {
+        isLoading.value = false;
+      }
     }, 200);
   };
 })();
 
-// Watch for changes in the local searchQuery ref, which is bound to the input
 watch(searchQuery, debouncedSearch);
 
-// Fetch doctors and their appointments on component mount
-onMounted(() => {
-  // Pass specializationId to the store action
-  fetchDoctors(specializationId.value);
-});
+const getDoctors = async () => {
+  try {
+    isLoading.value = true;
+    const response = await axios.get(`/api/doctors/specializations/${specializationId}`, {
+      params: { query: specializationId },
+    });
+    doctors.value = response.data.data;
 
-// Computed property to check if a specific doctor's appointments are loading
-const getDoctorLoadingStatus = (doctorId) => {
-  return computed(() => loadingAppointments.value[doctorId] || false);
+    await Promise.all(doctors.value.map(doctor => fetchAvailableAppointments(doctor.id)));
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const fetchAvailableAppointments = async (doctorId) => {
+  try {
+    loadingAppointments.value[doctorId] = true;
+    const response = await axios.get('/api/appointments/available', {
+      params: { doctor_id: doctorId }
+    });
+    availableAppointments.value[doctorId] = {
+      canceled_appointments: response.data.canceled_appointments,
+      normal_appointments: response.data.normal_appointments
+    };
+  } catch (error) {
+    console.error(`Error fetching available appointments for doctor ${doctorId}:`, error);
+  } finally {
+    loadingAppointments.value[doctorId] = false;
+  }
+};
+
+const formatClosestCanceledAppointment = (appointments) => {
+  if (!appointments || appointments.length === 0) return 'No upcoming canceled appointments';
+
+  const sortedAppointments = appointments.sort((a, b) => {
+    const dateA = new Date(a.date + 'T' + a.available_times[0] + ':00');
+    const dateB = new Date(b.date + 'T' + b.available_times[0] + ':00');
+    return dateA - dateB;
+  });
+
+  const closest = sortedAppointments[0];
+  return `${closest.date} at ${closest.available_times[0]}`;
 };
 
 const goToAppointmentPage = (doctor) => {
-  console.log('Navigating to appointment page for doctor:', doctor);
-
   router.push({
     name: 'admin.appointments',
     params: {
       id: doctor.id,
-      specializationId: specializationId.value,
+      specializationId: doctor.specialization_id
     },
   });
 };
+
+onMounted(() => {
+  getDoctors();
+});
 </script>
 
 <template>
@@ -80,7 +106,7 @@ const goToAppointmentPage = (doctor) => {
           </div>
           <div class="col-sm-12">
             <button class="float-left btn btn-ligh bg-primary rounded-pill" @click="router.go(-1)">
-              <i class="fas fa-arrow-left"></i> Back {{ specializationId }}
+              <i class="fas fa-arrow-left"></i> Back
             </button>
             <ol class="breadcrumb float-sm-right">
               <li class="breadcrumb-item"><a href="#">Home</a></li>
@@ -111,19 +137,19 @@ const goToAppointmentPage = (doctor) => {
         </div>
         <div class="row">
           <div v-for="doctor in doctors" :key="doctor.id" class="col-md-3 mb-4 d-flex justify-content-center">
-            <div
-              class="card text-center shadow-lg"
-              :class="{ 'loading': getDoctorLoadingStatus(doctor.id).value }"
+            <div 
+              class="card text-center shadow-lg" 
+              :class="{ 'loading': loadingAppointments[doctor.id] }"
               style="width: 100%; max-width: 250px; border-radius: 15px;"
               @click="goToAppointmentPage(doctor)"
             >
               <div class="p-3">
                 <div class="mx-auto rounded-circle overflow-hidden border" style="width: 150px; height: 150px;">
-                  <img
-                    :src="doctor.avatar"
-                    alt="Doctor image"
+                  <img 
+                    :src="doctor.avatar" 
+                    alt="Doctor image" 
                     class="w-100 h-100"
-                    style="object-fit: contain; border-radius: 50%;"
+                    style="object-fit: contain; border-radius: 50%;" 
                   />
                 </div>
               </div>
@@ -136,10 +162,10 @@ const goToAppointmentPage = (doctor) => {
                   </p>
                   <p class="text-dark mb-0">
                     {{ availableAppointments[doctor.id].normal_appointments &&
-                       availableAppointments[doctor.id].normal_appointments.date ?
-                       availableAppointments[doctor.id].normal_appointments.date + ' at ' +
-                       availableAppointments[doctor.id].normal_appointments.available_times[0] :
-                       'No upcoming appointments' }}
+                      availableAppointments[doctor.id].normal_appointments.date ?
+                      availableAppointments[doctor.id].normal_appointments.date + ' at ' +
+                      availableAppointments[doctor.id].normal_appointments.available_times[0] :
+                      'No upcoming appointments' }}
                   </p>
                 </div>
 
@@ -156,11 +182,8 @@ const goToAppointmentPage = (doctor) => {
           </div>
         </div>
 
-        <div v-if="doctors.length === 0 && !isLoadingDoctors" class="text-center mt-4">
+        <div v-if="doctors.length === 0" class="text-center mt-4">
           No Results Found...
-        </div>
-        <div v-if="isLoadingDoctors" class="text-center mt-4">
-          Loading doctors...
         </div>
       </div>
     </div>
@@ -168,7 +191,6 @@ const goToAppointmentPage = (doctor) => {
 </template>
 
 <style scoped>
-/* Your existing styles */
 .card {
   transition: transform 0.2s ease-in-out, filter 0.2s ease-in-out;
 }
@@ -179,7 +201,6 @@ const goToAppointmentPage = (doctor) => {
 
 .card.loading {
   filter: blur(2px);
-  pointer-events: none; /* Disable clicks while loading */
 }
 
 .card-title {

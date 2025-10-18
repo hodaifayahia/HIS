@@ -14,16 +14,19 @@ return new class extends Migration
        Schema::create('fiche_navette_items', function (Blueprint $table) {
             $table->id(); // Primary key, auto-incrementing
             $table->foreignId('fiche_navette_id')->constrained('fiche_navettes')->onDelete('cascade'); // Not null foreign key
-            $table->foreignId('prestation_id')->constrained('prestations')->onDelete('cascade'); // Not null foreign key
+            $table->foreignId('prestation_id')->nullable()->constrained('prestations')->onDelete('cascade'); // Not null foreign key
             $table->string('status')->comment('The core status engine for a single service, e.g., scheduled, awaiting-payment, visa-granted'); // Not null
             $table->decimal('base_price', 15, 2); // Not null
             $table->decimal('final_price', 15, 2)->comment('Price after all calculations'); // Not null
-            $table->decimal('patient_share', 15, 2); // Not null
-            $table->decimal('organisme_share', 15, 2); // Not null
+            $table->decimal('patient_share', 15, 2)->nullable(); // Nullable
+            $table->decimal('organisme_share', 15, 2)->nullable(); // Nullable
             $table->foreignId('primary_clinician_id')->nullable()->constrained('users')->onDelete('set null'); // Nullable foreign key
             $table->foreignId('assistant_clinician_id')->nullable()->constrained('users')->onDelete('set null'); // Nullable foreign key
             $table->foreignId('technician_id')->nullable()->constrained('users')->onDelete('set null'); // Nullable foreign key
             $table->foreignId('modality_id')->nullable()->constrained('modalities')->onDelete('set null'); // Nullable foreign key
+            $table->foreignId('doctor_id')->nullable()->constrained('doctors')->onDelete('set null'); // Nullable foreign key
+            $table->text('notes')->nullable(); // Nullable text field
+            $table->text('custom_name')->nullable(); // Nullable text field
             $table->date('prise_en_charge_date')->nullable()->comment('The crucial date from the B2B guarantee document'); // Nullable date
             $table->timestamps(); // Adds created_at and updated_at columns
         });

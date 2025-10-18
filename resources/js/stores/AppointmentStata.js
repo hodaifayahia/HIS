@@ -39,38 +39,32 @@ export const useAppointmentStore = defineStore('appointmentState', {
   actions: {
     // --- Core Appointment Fetching ---
     async getAppointments(doctorId, page = 1, status = null, filter = null, date = null) {
-      console.log('Store: getAppointments called with:', { doctorId, page, status, filter, date });
       this.loading = true;
-      this.error = null;
-      this.currentFilter = status;
+      this.error = null; // Clear previous errors
+      this.currentFilter = status; // Update the filter in store
 
       try {
-        const params = new URLSearchParams({
-          page: page.toString(),
-        });
+        const params = {
+          page,
+          status: status ?? this.currentFilter, // Use filter from store if not provided
+          filter,
+          date,
+        };
 
-        // Only add non-null parameters
-        if (status !== null) params.append('status', status.toString());
-        if (filter) params.append('filter', filter);
-        if (date) params.append('date', date);
+        const { data } = await axios.get(`/api/appointments/${doctorId}`, { params });
 
-        const apiUrl = `/api/appointments/${doctorId}?${params.toString()}`;
-        console.log('Store: Making API request to:', apiUrl);
-
-        const { data } = await axios.get(apiUrl);
-        console.log('Store: Fetched appointments data:', data);
-        
         if (data.success) {
           this.appointments = data.data;
           this.pagination = data.meta;
-          console.log('Store: Successfully set appointments:', this.appointments.length, 'items');
+          // You might also want to update the counts in the status objects here
+          // if your API returns them with the main appointment fetch.
+          // Otherwise, getAppointmentsStatus() handles it.
         } else {
           throw new Error(data.message || 'Failed to fetch appointments.');
         }
       } catch (err) {
-        console.error('Store: Error fetching appointments:', err);
+        console.error('Error fetching appointments:', err);
         this.error = 'Failed to load appointments. Please try again.';
-        this.appointments = []; // Clear appointments on error
       } finally {
         this.loading = false;
       }
@@ -79,40 +73,41 @@ export const useAppointmentStore = defineStore('appointmentState', {
     async getTodaysAppointments(doctorId) {
       this.loading = true;
       this.error = null;
-      this.currentFilter = 'TODAY';
-      
+      this.currentFilter = 'TODAY'; // Set filter to 'TODAY'
       try {
-        const { data } = await axios.get(`/api/appointments/${doctorId}?filter=today`);
+        const response = await axios.get(`/api/appointments/${doctorId}`, {
+          params: { filter: 'today' }
+        });
 
-        if (data.success) {
-          this.appointments = data.data;
-          this.pagination = data.meta;
-          this.todaysAppointmentsCount = data.data.length;
+        if (response.data.success) {
+          this.appointments = response.data.data;
+          this.pagination = response.data.meta; // Make sure today's appts also paginate
+          this.todaysAppointmentsCount = response.data.data.length;
         } else {
-          throw new Error(data.message);
+          throw new Error(response.data.message);
         }
       } catch (err) {
         console.error('Error fetching today\'s appointments:', err);
         this.error = 'Failed to load today\'s appointments. Please try again later.';
-        this.appointments = [];
       } finally {
         this.loading = false;
       }
     },
 
     async getAppointmentsStatus(doctorId) {
+      this.loading = true;
+      this.error = null;
+
       try {
-        const { data } = await axios.get(`/api/appointmentStatus/${doctorId}`);
-        
-        if (data) {
+        const response = await axios.get(`/api/appointmentStatus/${doctorId}`);
+        if (response.data) {
           // Update counts for each status in the store's statuses array
           this.statuses = this.statuses.map(status => {
-            const apiStatus = data.find(s => s.value === status.value);
+            const apiStatus = response.data.find(s => s.value === status.value);
             return { ...status, count: apiStatus ? apiStatus.count : 0 };
           });
-          
-          // Update the "ALL" count
-          const totalCount = data.reduce((sum, s) => sum + s.count, 0);
+          // Update the "ALL" count specifically if your API returns total or calculate it
+          const totalCount = response.data.reduce((sum, s) => sum + s.count, 0);
           const allStatus = this.statuses.find(s => s.name === 'ALL');
           if (allStatus) {
             allStatus.count = totalCount;
@@ -121,6 +116,8 @@ export const useAppointmentStore = defineStore('appointmentState', {
       } catch (err) {
         console.error('Error fetching appointment statuses:', err);
         this.error = 'Failed to load status filters. Please try again later.';
+      } finally {
+        this.loading = false;
       }
     },
 
@@ -161,55 +158,111 @@ export const useAppointmentStore = defineStore('appointmentState', {
       this.selectedFiles.splice(index, 1);
     },
 
-    async uploadFiles(doctorId) {
-      if (!this.selectedFiles.length) return;
+async uploadFiles(doctorId) {
+  if (!this.selectedFiles.length) return;
 
-      this.loading = true;
-      this.uploadProgress = 0;
-      this.currentFileIndex = 0;
-      this.uploadResults = { success: [], errors: [] }; // Reset results
+  this.loading = true;
+  this.uploadProgress = 0;
+  this.uploadResults = { success: [], errors: [] }; // Reset results
 
-      for (let i = 0; i < this.selectedFiles.length; i++) {
-        this.currentFileIndex = i;
-        const file = this.selectedFiles[i];
-        const formData = new FormData();
-        formData.append('file', file);
+  try {
+    // Create all upload promises at once
+    const uploadPromises = this.selectedFiles.map(async (file, index) => {
+      const formData = new FormData();
+      formData.append('file', file);
 
-        try {
-          const response = await axios.post(
-            `/api/import/appointment/${doctorId}`,
-            formData,
-            {
-              headers: { 'Content-Type': 'multipart/form-data' },
-              onUploadProgress: (progressEvent) => {
-                this.uploadProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-              },
-            }
-          );
-          this.uploadResults.success.push({
-            filename: file.name,
-            message: response.data.message
-          });
-        } catch (error) {
-          this.uploadResults.errors.push({
-            filename: file.name,
-            error: error.response?.data?.message || 'Upload failed'
-          });
-        }
+      try {
+        const response = await axios.post(
+          `/api/import/appointment/${doctorId}`,
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            onUploadProgress: (progressEvent) => {
+              const fileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              // Update overall progress based on completed + current file progress
+              const completedFiles = this.uploadResults.success.length + this.uploadResults.errors.length;
+              const overallProgress = Math.round(
+                ((completedFiles * 100) + fileProgress) / this.selectedFiles.length
+              );
+              this.uploadProgress = Math.min(overallProgress, 100);
+            },
+          }
+        );
+        
+        return {
+          success: true,
+          filename: file.name,
+          message: response.data.message
+        };
+      } catch (error) {
+        return {
+          success: false,
+          filename: file.name,
+          error: error.response?.data?.message || 'Upload failed'
+        };
       }
+    });
 
-      // Refresh appointments and statuses after upload
-      await Promise.all([
-        this.getAppointments(doctorId, 1, this.currentFilter), // Re-fetch current view
-        this.getAppointmentsStatus(doctorId)
-      ]);
+    // Wait for all uploads to complete
+    const results = await Promise.all(uploadPromises);
+    
+    // Process results
+    results.forEach(result => {
+      if (result.success) {
+        this.uploadResults.success.push({
+          filename: result.filename,
+          message: result.message
+        });
+      } else {
+        this.uploadResults.errors.push({
+          filename: result.filename,
+          error: result.error
+        });
+      }
+    });
 
-      // showResults will be called in the component based on changes to uploadResults
-      this.loading = false;
-      this.selectedFiles = []; // Clear selected files after upload
-      this.uploadProgress = 0; // Reset progress
-      this.currentFileIndex = 0; // Reset index
-    },
+    this.uploadProgress = 100;
+
+    // Refresh appointments and statuses after upload
+    await Promise.all([
+      this.getAppointments(doctorId, 1, this.currentFilter),
+      this.getAppointmentsStatus(doctorId)
+    ]);
+
+  } catch (error) {
+    console.error('Error during file upload:', error);
+    this.error = 'Failed to upload files. Please try again.';
+  } finally {
+    this.loading = false;
+    this.selectedFiles = []; // Clear selected files after upload
+    this.uploadProgress = 0; // Reset progress
+    this.currentFileIndex = 0; // Reset index
+  }
+},
+    async searchAppointments(doctorId, query) {
+      this.loading = true;
+      this.error = null;
+      this.currentFilter = null; // Reset the filter when searching
+
+      try {
+        const response = await axios.get(`/api/appointments/search`, {
+          params: {
+            query: query,
+            doctor_id: doctorId,
+          },
+        });
+
+        if (response.data) {
+          this.appointments = response.data.data;
+          this.pagination = response.data.meta;
+        }
+      } catch (error) {
+        console.error('Error searching appointments:', error);
+        this.error = 'Failed to search appointments.';
+      } finally {
+        this.loading = false;
+      }
+    },
 
     async exportAppointments() {
       try {

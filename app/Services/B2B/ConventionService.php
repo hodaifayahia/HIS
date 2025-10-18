@@ -25,7 +25,7 @@ class ConventionService
             $convention->conventionDetail()->create([
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
-                'family_auth' => $data['family_auth'],
+                'family_auth' => json_encode($data['family_auth']),
                 'max_price' => $data['max_price'],
                 'min_price' => $data['min_price'],
                 'discount_percentage' => $data['discount_percentage'],
@@ -51,7 +51,7 @@ class ConventionService
                 [
                     'start_date' => $data['start_date'],
                     'end_date' => $data['end_date'],
-                    'family_auth' => $data['family_auth'],
+                    'family_auth' => json_encode($data['family_auth']),
                     'max_price' => $data['max_price'],
                     'min_price' => $data['min_price'],
                     'discount_percentage' => $data['discount_percentage'],

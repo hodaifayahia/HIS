@@ -51,22 +51,32 @@ class AvenantService
 
             // Duplicate Prestations
             foreach ($prestations as $oldPrestation) {
-                // Insert duplicated prestation linked to the new Avenant with head = 'no'
-                $newPrestation = PrestationPricing::create([
-                    'prestation_id' => $oldPrestation->prestation_id, // CHANGED FROM prestation_list_id
-                    'prix' => $oldPrestation->prix, // Consistent with model
-                    'patient_price' => $oldPrestation->patient_price, // Consistent with model
-                    'company_price' => $oldPrestation->company_price, // Consistent with model
-                    'annex_id' => $oldPrestation->annex_id,
-                    'avenant_id' => $newAvenantId,
-                    'head' => 'no',
-                    // 'activation_at' will be set when the avenant is activated
-                ]);
+                // Check if a record with this prestation_id and annex_id already exists (unique constraint violation check)
+                $existingRecord = PrestationPricing::where('prestation_id', $oldPrestation->prestation_id)
+                                                  ->where('annex_id', $oldPrestation->annex_id)
+                                                  ->first();
+                
+                if (!$existingRecord) {
+                    // Insert duplicated prestation linked to the new Avenant with head = 'no'
+                    $newPrestation = PrestationPricing::create([
+                        'prestation_id' => $oldPrestation->prestation_id, // CHANGED FROM prestation_list_id
+                        'prix' => $oldPrestation->prix, // Consistent with model
+                        'patient_price' => $oldPrestation->patient_price, // Consistent with model
+                        'company_price' => $oldPrestation->company_price, // Consistent with model
+                        'annex_id' => $oldPrestation->annex_id,
+                        'avenant_id' => $newAvenantId,
+                        'head' => 'no',
+                        // 'activation_at' will be set when the avenant is activated
+                    ]);
 
-                // Update the old prestation to point to the new duplicated prestation
-                $oldPrestation->update(['updated_by_id' => $newPrestation->id]);
+                    // Update the old prestation to point to the new duplicated prestation
+                    $oldPrestation->update(['updated_by_id' => $newPrestation->id]);
 
-                $newPrestationIds[] = ['oldId' => $oldPrestation->id, 'newId' => $newPrestation->id];
+                    $newPrestationIds[] = ['oldId' => $oldPrestation->id, 'newId' => $newPrestation->id];
+                } else {
+                    // Log warning for duplicate and skip creation
+                    \Log::warning("Duplicate prestation pricing found for prestation_id: {$oldPrestation->prestation_id}, annex_id: {$oldPrestation->annex_id}. Existing record ID: {$existingRecord->id}");
+                }
             }
 
             // Duplicate ConventionDetail (only the latest where updated_by_id is NULL)
@@ -148,23 +158,33 @@ class AvenantService
                                             ->whereNull('updated_by_id') // Assuming this marks the latest
                                             ->get();
 
-            // 6. Duplicate Prestations
+            // Duplicate Prestations
             foreach ($prestations as $oldPrestation) {
-                $newPrestation = PrestationPricing::create([
-                    'prestation_id' => $oldPrestation->prestation_id, // CHANGED FROM prestation_list_id
-                    'prix' => $oldPrestation->prix, // Consistent with model
-                    'patient_price' => $oldPrestation->patient_price, // Consistent with model
-                    'company_price' => $oldPrestation->company_price, // Consistent with model
-                    'annex_id' => $oldPrestation->annex_id,
-                    'avenant_id' => $newAvenantId,
-                    'head' => 'no',
-                    // 'activation_at' will be set when the avenant is activated
-                ]);
+                // Check if a record with this prestation_id and annex_id already exists (unique constraint violation check)
+                $existingRecord = PrestationPricing::where('prestation_id', $oldPrestation->prestation_id)
+                                                  ->where('annex_id', $oldPrestation->annex_id)
+                                                  ->first();
+                
+                if (!$existingRecord) {
+                    $newPrestation = PrestationPricing::create([
+                        'prestation_id' => $oldPrestation->prestation_id, // CHANGED FROM prestation_list_id
+                        'prix' => $oldPrestation->prix, // Consistent with model
+                        'patient_price' => $oldPrestation->patient_price, // Consistent with model
+                        'company_price' => $oldPrestation->company_price, // Consistent with model
+                        'annex_id' => $oldPrestation->annex_id,
+                        'avenant_id' => $newAvenantId,
+                        'head' => 'no',
+                        // 'activation_at' will be set when the avenant is activated
+                    ]);
 
-                // Update the old prestation to point to the new one
-                $oldPrestation->update(['updated_by_id' => $newPrestation->id]);
+                    // Update the old prestation to point to the new one
+                    $oldPrestation->update(['updated_by_id' => $newPrestation->id]);
 
-                $newPrestationIds[] = ['oldId' => $oldPrestation->id, 'newId' => $newPrestation->id];
+                    $newPrestationIds[] = ['oldId' => $oldPrestation->id, 'newId' => $newPrestation->id];
+                } else {
+                    // Log warning for duplicate and skip creation
+                    \Log::warning("Duplicate prestation pricing found for prestation_id: {$oldPrestation->prestation_id}, annex_id: {$oldPrestation->annex_id}. Existing record ID: {$existingRecord->id}");
+                }
             }
 
             // 7. Duplicate ConventionDetail

@@ -59,14 +59,26 @@ class UserController extends Controller
 
     public function role()
     {
-        $user = Auth::user();
-        return response()->json([
-            'role' => $user->role,
-            'id' => $user->doctor->id ?? null,
-            'specialization_id' => $user->doctor->specialization_id ?? null,
-            'specializations' => $user->activeSpecializations->pluck('id')->toArray(),
-            'all_specializations' => $user->getAllSpecializations()->pluck('id')->toArray(),
-        ]);
+        try {
+            $user = Auth::user();
+            
+            // Load the doctor relationship to avoid N+1 queries
+            $user->load('doctor', 'activeSpecializations');
+            
+            return response()->json([
+                'role' => $user->role,
+                'id' => $user->doctor?->id ?? null,
+                'specialization_id' => $user->doctor?->specialization_id ?? null,
+                'specializations' => $user->activeSpecializations->pluck('id')->toArray(),
+                'all_specializations' => $user->getAllSpecializations()->pluck('id')->toArray(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching user role information',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

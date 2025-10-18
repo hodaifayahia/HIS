@@ -7,7 +7,7 @@ use App\Models\Coffre\Caisse;
 use App\Models\Coffre\Coffre;
 use App\Models\Coffre\CaisseSession;
 use App\Models\Coffre\CaisseSessionDenomination;
-use App\Models\caisse\CaisseTransfer;
+use App\Models\Caisse\CaisseTransfer;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;

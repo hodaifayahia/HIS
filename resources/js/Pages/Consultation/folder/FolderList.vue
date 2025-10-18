@@ -88,7 +88,7 @@ const getFolders = async () => {
   loading.value = true; // Set loading state before the call
   try {
     // Pass currentDoctorId.value to access the actual value of the ref
-    const response = await axios.get('/folders', {
+    const response = await axios.get('/api/folders', {
       params: { // Use 'params' for GET requests to send query parameters
         doctorid: currentDoctorId.value, 
       },
@@ -118,7 +118,7 @@ const deleteFolder = async (id, name) => {
 
   if (result.isConfirmed) {
     try {
-      await axios.delete(`/folders/${id}`);
+      await axios.delete(`/api/folders/${id}`);
       folders.value = folders.value.filter(f => f.id !== id);
       toaster.success('Folder deleted successfully');
     } catch (err) {

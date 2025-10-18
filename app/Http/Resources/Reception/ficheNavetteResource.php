@@ -79,6 +79,7 @@ class ficheNavetteResource extends JsonResource
                             'id' => $item->prestation->id,
                             'name' => $item->prestation->name,
                             'internal_code' => $item->prestation->internal_code,
+                            'Urgent_Prestation' => $item->Urgent_Prestation,
                             'price' => $item->prestation->public_price,
                             'specialization_name' => $item->prestation->specialization?->name,
                         ] : null;

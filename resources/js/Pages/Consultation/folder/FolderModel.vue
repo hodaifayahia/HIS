@@ -51,8 +51,8 @@ const saveFolder = async () => {
         errors.value = {};
 
         const url = props.isEdit
-            ? `/folders/${props.folder.id}`
-            : '/folders';
+            ? `/api/folders/${props.folder.id}`
+            : '/api/folders';
 
         const method = props.isEdit ? 'put' : 'post';
 

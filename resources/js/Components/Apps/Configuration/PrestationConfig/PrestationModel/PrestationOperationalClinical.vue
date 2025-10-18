@@ -161,6 +161,24 @@ const props = defineProps({
                 </div>
             </div>
         </div>
+        <div class="form-card">
+            <div class="card-header">
+                <div class="section-info">
+                    <i class="fas fa-calendar-check section-icon"></i>
+                    <h4 class="subsection-title">Urgent Prestation</h4>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="form-group full-width">
+                    <label class="checkbox-label">
+                        <input v-model="form.Urgent_Prestation" type="checkbox" class="checkbox-input" />
+                        <span class="checkbox-custom"></span>
+                        <span class="checkbox-text">Urgent Prestation </span>
+                    </label>
+                    <small class="form-help">Check if this prestation is should be included in Urgent </small>
+                </div>
+            </div>
+        </div>
 
     </div>
 </template>

@@ -303,7 +303,7 @@ const closeCloseModal = () => {
 
 const handleSessionSaved = (message) => {
   closeModal();
-  showToast('success', 'Success', message);
+  showToast('success', 'Success', 'Session saved successfully');
   fetchSessions();
 };
 

@@ -90,12 +90,12 @@ const handleSearch = debounce(async (event) => {
                 op.value.hide();
             }
         } else if (patients.value.length > 0) {
-            if (op.value && searchInputRef.value && searchInputRef.value.$el) {
-                 op.value.show(event, searchInputRef.value.$el);
+            if (op.value && searchInputRef.value) {
+                 op.value.show(event, searchInputRef.value.$el || event.target);
             }
         } else {
-            if (op.value && searchInputRef.value && searchInputRef.value.$el) {
-                op.value.show(event, searchInputRef.value.$el); // Show "No results"
+            if (op.value && searchInputRef.value) {
+                op.value.show(event, searchInputRef.value.$el || event.target); // Show "No results"
             }
         }
 
@@ -175,8 +175,8 @@ const selectPatient = (patient) => {
 const onInputFocus = (event) => {
     // Only show if there's a query and results, or to show "No results" immediately
     if (searchQuery.value && patients.value.length > 0 || (searchQuery.value && searchQuery.value.length >= 2 && patients.value.length === 0 && !isLoading.value)) {
-        if (op.value && searchInputRef.value && searchInputRef.value.$el) {
-            op.value.show(event, searchInputRef.value.$el);
+        if (op.value && searchInputRef.value) {
+            op.value.show(event, searchInputRef.value.$el || event.target);
         }
     }
 };
@@ -226,13 +226,13 @@ const onInputFocus = (event) => {
             </div>
         </div>
 
-        <OverlayPanel ref="op"  appendTo="self"  :showCloseIcon="false" class="p-overlaypanel-fixed-width">
+        <OverlayPanel ref="op" :showCloseIcon="false" class="p-overlaypanel-fixed-width">
             <div v-if="isLoading" class="p-d-flex p-ai-center p-jc-center p-py-3">
                 <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="6" animationDuration=".8s" />
                 <span class="p-ml-2">Searching...</span>
             </div>
             <template v-else>
-                <div v-if="patients.length > 0" class="patient-list-container">
+                <div v-if="patients.length > 0" class="patient-list-container tw-w-full" >
                     <div class="p-text-bold p-mb-2">Search Results</div>
                     <div v-for="patient in patients" :key="patient.id" class="patient-item p-d-flex p-ai-center p-py-2 p-px-1" @click="selectPatient(patient)">
                         <span class="p-text-sm p-mr-2 p-text-bold">{{ patient.first_name }} {{ patient.last_name }}</span>
@@ -269,13 +269,19 @@ const onInputFocus = (event) => {
 
 /* Custom width for the OverlayPanel to ensure it aligns well with the input */
 .p-overlaypanel-fixed-width {
-    width: var(--inputtext-width, 100%); /* Use CSS variable if defined, or set a fixed width/max-width */
-    min-width: 300px; /* Example minimum width */
-    max-width: 600px; /* Example maximum width */
+    min-width: 400px; /* Minimum width to match input */
+    max-width: 600px; /* Maximum width */
+    z-index: 1000; /* Ensure it appears above other elements */
+}
+
+/* Ensure the overlay panel appears directly under the input */
+:deep(.p-overlaypanel) {
+    margin-top: 2px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .patient-list-container {
-    max-height: 350px; /* Adjust height as needed */
+    max-height: 500px; /* Adjust height as needed */
     overflow-y: auto;
     border-radius: var(--border-radius);
     background-color: var(--surface-card);

@@ -17,7 +17,6 @@ class StoreCaisseTransferRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'id' => ['required', 'exists:caisse_transfers,id'],
             'caisse_id' => ['required', 'exists:caisses,id'],
             'to_user_id' => ['required', 'exists:users,id', 'different:from_user_id'],
             'amount_sended' => ['required', 'numeric', 'min:0.01'],

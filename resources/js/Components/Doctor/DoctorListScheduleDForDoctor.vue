@@ -11,13 +11,13 @@ const loading = ref(true);
 const error = ref(null);
 const route = useRoute();
 const doctorName = ref("");
-const excludedDates = ref();
+const excludedDates = ref([]);
 const patients_based_on_time = ref("");
 
 const doctor = ref([]);
 
 const doctors = useAuthStoreDoctor(); // Initialize Pinia store
-const doctorId = doctors.doctorData.id;
+const doctorId = ref(null);
 
 const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -26,23 +26,22 @@ const monthNames = [
 
 const monthwork = async () => {
   try {
-    const response = await axios.get(`/api/monthwork/${doctorId}`);
+    const response = await axios.get(`/api/monthwork/${doctorId.value}`);
     months.value = response.data.map(month => ({
       ...month,
       month_name: monthNames[month.month - 1] // Convert month integer to name
     }));
   } catch (e) {
-    console.error("Error fetching schedules:", e);
-    loading.value = false; // Still set loading to false on error
+    console.error("Error fetching month data:", e);
     error.value = "Failed to fetch month data."; // Set an error message
   }
 };
 
 const fetchSchedules = async () => {
   try {
-    const response = await axios.get(`/api/schedules/${doctorId}`, {
+    const response = await axios.get(`/api/schedules/${doctorId.value}`, {
       params: {
-        doctor_id: doctorId,
+        doctor_id: doctorId.value,
       },
     });
 
@@ -85,15 +84,16 @@ const fetchSchedules = async () => {
 // Fetch excluded dates from the backend
 const fetchExcludedDates = async () => {
   try {
-    const response = await axios.get(`/api/excluded-dates/${doctorId}`);
+    const response = await axios.get(`/api/excluded-dates/${doctorId.value}`);
     console.log(response.data);
     excludedDates.value = response.data.data.map(item => ({
       start_date: item.start_date,
       end_date: item.end_date || null // Handle cases where end_date is missing
     }));
-  } catch (error) {
-    error.value = "Failed to fetch Excluded Dates."; // Set user-friendly error
-    console.error('Error fetching excluded dates:', error);
+  } catch (fetchError) {
+    console.error('Error fetching excluded dates:', fetchError);
+    // Don't override the main error state, just log the error
+    excludedDates.value = []; // Set to empty array on error
   }
 };
 
@@ -106,14 +106,38 @@ const formatDate = (dateString) => {
   });
 };
 
-onMounted(() => {
-  fetchSchedules();
-  monthwork();
-  fetchExcludedDates(); // Fetch excluded dates on mount
+onMounted(async () => {
+  try {
+    // First, ensure doctor data is loaded
+    await doctors.getDoctor();
+    
+    console.log('Doctor data loaded:', doctors.doctorData);
+    
+    // Then set the doctorId from the store
+    if (doctors.doctorData && doctors.doctorData.id) {
+      doctorId.value = doctors.doctorData.id;
+      console.log('Doctor ID set to:', doctorId.value);
+      
+      // Now fetch the data with the correct doctorId
+      await Promise.all([
+        fetchSchedules(),
+        monthwork(),
+        fetchExcludedDates()
+      ]);
+    } else {
+      console.error('Doctor data or ID is missing:', doctors.doctorData);
+      error.value = "Unable to load doctor information";
+      loading.value = false;
+    }
+  } catch (mountError) {
+    console.error('Error in onMounted:', mountError);
+    error.value = "Failed to initialize component";
+    loading.value = false;
+  }
 });
 </script>
 <template>
-  <div class="container mt-4 premium-ui">
+  <div class="w-100 mt-4 premium-ui px-3">
     <!-- Back Button -->
     <button class="float-left btn btn-light bg-primary rounded-pill mb-3" @click="router.go(-1)">
       <i class="fas fa-arrow-left"></i> Back
@@ -174,7 +198,7 @@ onMounted(() => {
       <div class="available-months mb-4">
         <h4 class="mb-3 d-flex align-items-center justify-content-center">Available Months</h4>
         <div class="row">
-          <div v-for="month in months" :key="month.month" class="col-md-3 mb-3">
+          <div v-for="month in months" :key="month.month" class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
             <div class="card card-aviable h-100 shadow-sm  d-flex align-items-center justify-content-center">
               <div class="card-body">
                 <h5 class="card-title ">{{ month.month_name }} {{ month.year }}</h5>
@@ -189,7 +213,7 @@ onMounted(() => {
       <div class="excluded-dates mb-4 ">
         <h4 class="mb-3 d-flex align-items-center justify-content-center">Days Off</h4>
         <div v-if="excludedDates.length > 0" class="row">
-          <div v-for="(date, index) in excludedDates" :key="index" class="col-md-3 mb-3">
+          <div v-for="(date, index) in excludedDates" :key="index" class="col-lg-2 col-md-3 col-sm-4 col-6 mb-3">
             <div class="card card-dayoff h-100 shadow-sm hover-effect">
               <div class="card-body d-flex align-items-center justify-content-center">
                 <p class="card-text mb-0 ">

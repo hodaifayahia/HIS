@@ -2,7 +2,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { useToast } from 'primevue/usetoast';
+import Toast from 'primevue/toast';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import { useAuthStoreDoctor } from '../stores/AuthDoctor.js';
 
+const toast = useToast();
+
+const authStore = useAuthStoreDoctor();
 
 const appointments = ref([]);
 const loading = ref(false);
@@ -12,9 +20,19 @@ const pagination = ref(null);
 const currentDate = ref(new Date());
 const selectedDate = ref(new Date());
 const doctors = ref([]);
-const doctor_id = ref(null);
-const role = ref(null);
-const displayMode = ref('working'); // 'all', 'holidays', or 'working'
+const displayMode = ref('calendar'); // 'calendar' or 'table'
+const selectedAppointments = ref([]);
+const showTransferModal = ref(false);
+const transferData = ref({
+  newDoctorId: '',
+  newDate: '',
+  availableDoctors: []
+});
+const transferLoading = ref(false);
+
+// Use computed properties to get doctor data from the store
+const doctor_id = computed(() => authStore.doctorData.id);
+const role = computed(() => authStore.doctorData.id ? 'doctor' : null);
 
 const filters = ref({
   patientName: '',
@@ -25,18 +43,16 @@ const filters = ref({
   doctorName: '',
 });
 
-const initializeRole = async () => {
+const initializeDoctor = async () => {
   try {
-    const user = await axios.get('/api/role');
-    if (user.data.role === 'doctor') {
-      role.value = user.data.role;
-      doctor_id.value = user.data.id;
-
-      // Immediately fetch appointments after setting doctor_id
+    await authStore.getDoctor();
+    
+    // If doctor data is loaded, fetch appointments
+    if (authStore.doctorData.id) {
       await getAppointments();
     }
   } catch (err) {
-    console.error('Error fetching user role:', err);
+    console.error('Error fetching doctor data:', err);
   }
 };
 
@@ -406,41 +422,160 @@ const filteredAppointments = computed(() => {
 });
 const generatePdf = async () => {
   try {
-    const response = await axios.post('/generate-appointments-pdf', filters.value, {
-      responseType: 'blob',
+    const response = await axios.post('/api/generate-appointments-pdf', {
+      appointments: filteredAppointments.value,
+      date: formattedSelectedDate.value
+    }, {
+      responseType: 'blob'
     });
 
-    // 🔍 Extract filename from headers
-    const disposition = response.headers['content-disposition'];
-    let filename = 'appointments.pdf'; // fallback
-    const match = disposition && disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-    if (match && match[1]) {
-      filename = match[1].replace(/['"]/g, ''); // clean quotes
-    }
-
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', filename); // ✅ Use dynamic filename
+    link.download = `appointments-${formattedSelectedDate.value}.pdf`;
     document.body.appendChild(link);
     link.click();
-
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error generating PDF:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'PDF Generation Failed',
+      detail: 'Failed to generate PDF',
+      life: 3000
+    });
   }
 };
 
-const printTable = () => {
+const printAppointments = () => {
   window.print();
 };
 
-// Modified onMounted to ensure role is initialized first
+// Transfer functionality
+const toggleAppointmentSelection = (appointmentId) => {
+  const index = selectedAppointments.value.indexOf(appointmentId);
+  if (index > -1) {
+    selectedAppointments.value.splice(index, 1);
+  } else {
+    selectedAppointments.value.push(appointmentId);
+  }
+};
+
+const selectAllAppointments = () => {
+  if (selectedAppointments.value.length === filteredAppointments.value.length) {
+    selectedAppointments.value = [];
+  } else {
+    selectedAppointments.value = filteredAppointments.value.map(apt => apt.id);
+  }
+};
+
+const openTransferModal = async () => {
+  if (selectedAppointments.value.length === 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'No Selection',
+      detail: 'Please select at least one appointment to transfer.',
+      life: 3000
+    });
+    return;
+  }
+  
+  try {
+    // Fetch available doctors
+    const response = await axios.get('/api/doctors');
+    transferData.value.availableDoctors = response.data.data || response.data;
+    transferData.value.newDate = formatLocalDate(new Date());
+    showTransferModal.value = true;
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Loading Failed',
+      detail: 'Failed to load doctors for transfer.',
+      life: 3000
+    });
+  }
+};
+
+const closeTransferModal = () => {
+  showTransferModal.value = false;
+  transferData.value.newDoctorId = '';
+  transferData.value.newDate = '';
+  transferData.value.availableDoctors = [];
+};
+
+const transferAppointments = async () => {
+  if (!transferData.value.newDoctorId || !transferData.value.newDate) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Incomplete Selection',
+      detail: 'Please select both doctor and date for transfer.',
+      life: 3000
+    });
+    return;
+  }
+  
+  transferLoading.value = true;
+  
+  try {
+    const response = await axios.post('/api/appointments/transfer', {
+      appointment_ids: selectedAppointments.value,
+      new_doctor_id: transferData.value.newDoctorId,
+      new_date: transferData.value.newDate
+    });
+    
+    if (response.data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Transfer Successful',
+        detail: `Successfully transferred ${response.data.data.transferred_count} appointments with ${response.data.data.conflict_resolutions.length} conflict resolutions.`,
+        life: 5000
+      });
+      
+      // Show conflict details if any
+      if (response.data.data.conflict_resolutions.length > 0) {
+        const conflicts = response.data.data.conflict_resolutions
+          .map(c => `Appointment ID ${c.appointment_id}: ${c.original_time} → ${c.new_time}`)
+          .join(', ');
+        toast.add({
+          severity: 'info',
+          summary: 'Time Conflicts Resolved',
+          detail: conflicts,
+          life: 8000
+        });
+      }
+      
+      // Refresh appointments and close modal
+      await getAppointments();
+      selectedAppointments.value = [];
+      closeTransferModal();
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Transfer Failed',
+        detail: response.data.message,
+        life: 4000
+      });
+    }
+  } catch (error) {
+    console.error('Error transferring appointments:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Transfer Error',
+      detail: 'Failed to transfer appointments: ' + (error.response?.data?.message || error.message),
+      life: 4000
+    });
+  } finally {
+    transferLoading.value = false;
+  }
+};
+
+// Modified onMounted to ensure doctor data is initialized first
 onMounted(async () => {
-  await initializeRole(); // Only fetch all appointments if user is not a doctor
+  await initializeDoctor();
   fetchDoctorsworkingDates(formatMonthYear(currentDate.value));
-  initializeRole();
 });
 </script>
 <template>
@@ -452,7 +587,8 @@ onMounted(async () => {
           <button @click="previousMonth" class="btn btn-light btn-sm me-2">
             &lt; <!-- Left arrow for previous month -->
           </button>
-          <span class="fw-bold mx-3 fs-5">{{ currentMonthYear }}</span>
+         
+          <span class="fw-bold mx-3 fs-5 text-black" style="color:black;">{{ currentMonthYear }}</span>
           <button @click="nextMonth" class="btn btn-light btn-sm ms-2">
             &gt; <!-- Right arrow for next month -->
           </button>
@@ -521,86 +657,297 @@ onMounted(async () => {
 
       <!-- Filters and Table -->
       <div class="card shadow-sm">
-        <div class="mb-2 bg-light d-flex justify-content-between align-items-center ">
-          <h5 class="mb-0"></h5>
-          <button @click="generatePdf" class="btn btn-primary">
-            <i class="fas fa-file-pdf me-2 "></i> Export PDF
-          </button>
+        <div class="mb-2 bg-light d-flex justify-content-between align-items-center p-3">
+          <div class="d-flex align-items-center gap-3">
+            <h5 class="mb-0">Appointments</h5>
+            <span v-if="selectedAppointments.length > 0" class="badge bg-info">
+              {{ selectedAppointments.length }} selected
+            </span>
+          </div>
+          <div class="d-flex gap-2">
+            <button 
+              v-if="(selectedAppointments.length > 0 ) " 
+              @click="openTransferModal" 
+              class="btn btn-warning btn-sm"
+              :disabled="transferLoading">
+              <i class="fas fa-exchange-alt me-2"></i> Transfer Selected
+            </button>
+            <button @click="generatePdf" class="btn btn-primary btn-sm">
+              <i class="fas fa-file-pdf me-2"></i> Export PDF
+            </button>
+          </div>
         </div>
-        <div class="card-body">
-          <div class="table-responsive">
-            <table class="table table-hover table-striped">
-              <thead class="table-primary">
-                <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">
-                    <input v-model="filters.patientName" class="form-control form-control-sm" placeholder="Patient Name" />
-                  </th>
-                  <th scope="col">
-                    <input v-model="filters.phone" class="form-control form-control-sm" placeholder="Phone" />
-                  </th>
-                  <th scope="col">
-                    <input v-model="filters.dateOfBirth" class="form-control form-control-sm" placeholder="Date of Birth" />
-                  </th>
-                  <th scope="col">
-                    <input v-model="filters.date" class="form-control form-control-sm" placeholder="Date" />
-                  </th>
-                  <th scope="col">
-                    <input v-model="filters.time" class="form-control form-control-sm" placeholder="Time" />
-                  </th>
-                  <th scope="col">
-                    <select v-model="filters.status" class="form-select form-select-sm">
-                      <option value="">All Statuses</option>
-                      <option v-for="status in statusOptions" :key="status.value" :value="status.value">
-                        {{ status.label }}
-                      </option>
-                    </select>
-                  </th>
-                  <th scope="col">
-                    <input v-model="filters.doctorName" class="form-control form-control-sm" placeholder="Doctor Name" />
-                  </th>
-                </tr>
-                <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">Patient Name</th>
-                  <th scope="col">Phone</th>
-                  <th scope="col">Date Of Birth</th>
-                  <th scope="col">Appointment Date</th>
-                  <th scope="col">Appointment Time</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Doctor Name</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="(appointment, index) in filteredAppointments" :key="appointment.id">
-                  <td>{{ index + 1 }}</td>
-                  <td>{{ appointment.patient_first_name }} {{ appointment.patient_last_name }}</td>
-                  <td>{{ appointment.phone }}</td>
-                  <td>{{ formatDate(appointment.patient_Date_Of_Birth) }}</td>
-                  <td>{{ formatDate(appointment.appointment_date) }}</td>
-                  <td>{{ formatTime(appointment.appointment_time) }}</td>
-                  <td>
-                    <span class="badge rounded-pill" :class="`bg-${appointment.status.color}`">
-                      {{ appointment.status.name }}
-                    </span>
-                  </td>
-                  <td>{{ appointment.doctor_name }}</td>
-                </tr>
-                <tr v-if="filteredAppointments.length === 0">
-                  <td colspan="8" class="text-center py-4">
-                    <div class="text-muted">
-                      <i class="fas fa-calendar-times fs-4 mb-2"></i>
-                      <p>No appointments found.</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <div class="tw-p-4">
+          <div class="tw-mb-4 tw-grid tw-grid-cols-1 md:tw-grid-cols-4 lg:tw-grid-cols-8 tw-gap-2">
+            <input v-model="filters.patientName" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm" placeholder="Patient Name" />
+            <input v-model="filters.phone" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm" placeholder="Phone" />
+            <input v-model="filters.dateOfBirth" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm" placeholder="Date of Birth" />
+            <input v-model="filters.date" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm" placeholder="Date" />
+            <input v-model="filters.time" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm" placeholder="Time" />
+            <select v-model="filters.status" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm">
+              <option value="">All Statuses</option>
+              <option v-for="status in statusOptions" :key="status.value" :value="status.value">
+                {{ status.label }}
+              </option>
+            </select>
+            <input v-if="role !== 'doctor'" v-model="filters.doctorName" class="tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-text-sm" placeholder="Doctor Name" />
+            <div class="tw-flex tw-items-center">
+              <input 
+                type="checkbox" 
+                @change="selectAllAppointments" 
+                :checked="selectedAppointments.length === filteredAppointments.length && filteredAppointments.length > 0"
+                class="tw-mr-2"
+              />
+              <span class="tw-text-sm tw-text-gray-600">Select All</span>
+            </div>
+          </div>
+          
+          <DataTable 
+            :value="filteredAppointments" 
+            :paginator="true" 
+            :rows="10" 
+            :rowsPerPageOptions="[5, 10, 20, 50]"
+            class="tw-w-full"
+            tableClass="tw-min-w-full tw-bg-white tw-border tw-border-gray-200"
+            :emptyMessage="'No appointments found.'"
+          >
+            <Column 
+              field="select" 
+              header="Select" 
+              :sortable="false"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ data }">
+                <input 
+                  type="checkbox" 
+                  :value="data.id" 
+                  @change="toggleAppointmentSelection(data.id)"
+                  :checked="selectedAppointments.includes(data.id)"
+                  class="tw-rounded tw-border-gray-300"
+                />
+              </template>
+            </Column>
+            
+            <Column 
+              field="index" 
+              header="#" 
+              :sortable="false"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ index }">
+                {{ index + 1 }}
+              </template>
+            </Column>
+            
+            <Column 
+              field="patient_name" 
+              header="Patient Name" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ data }">
+                {{ data.patient_first_name }} {{ data.patient_last_name }}
+              </template>
+            </Column>
+            
+            <Column 
+              field="phone" 
+              header="Phone" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            />
+            
+            <Column 
+              field="patient_Date_Of_Birth" 
+              header="Date Of Birth" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ data }">
+                {{ formatDate(data.patient_Date_Of_Birth) }}
+              </template>
+            </Column>
+            
+            <Column 
+              field="appointment_date" 
+              header="Appointment Date" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ data }">
+                {{ formatDate(data.appointment_date) }}
+              </template>
+            </Column>
+            
+            <Column 
+              field="appointment_time" 
+              header="Appointment Time" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ data }">
+                {{ formatTime(data.appointment_time) }}
+              </template>
+            </Column>
+            
+            <Column 
+              field="status" 
+              header="Status" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            >
+              <template #body="{ data }">
+                  <span class="tw-inline-flex tw-px-2 tw-py-1 tw-text-xs tw-font-semibold tw-rounded-full" :class="`bg-${data.status.color.toLowerCase()}`">
+                    {{ data.status.name }}
+                  </span>
+                </template>
+            </Column>
+            
+            <Column 
+              v-if="role !== 'doctor'"
+              field="doctor_name" 
+              header="Doctor Name" 
+              :sortable="true"
+              headerClass="tw-bg-blue-50 tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+              bodyClass="tw-px-4 tw-py-3 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+            />
+          </DataTable>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transfer Modal -->
+    <div v-if="showTransferModal" class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fas fa-exchange-alt me-2"></i>
+              Transfer Appointments
+            </h5>
+            <button type="button" class="btn-close" @click="closeTransferModal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Select New Doctor:</label>
+                  <select v-model="transferData.newDoctorId" class="form-select" required>
+                    <option value="">Choose a doctor...</option>
+                    <option v-for="doctor in transferData.availableDoctors" :key="doctor.id" :value="doctor.id">
+                      {{ doctor.name}} - {{ doctor.specialization || 'General' }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label class="form-label fw-bold">Select New Date:</label>
+                  <input 
+                    v-model="transferData.newDate" 
+                    type="date" 
+                    class="form-control" 
+                    :min="formatLocalDate(new Date())"
+                    required
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>Transfer Details:</strong>
+              <ul class="mb-0 mt-2">
+                <li>{{ selectedAppointments.length }} appointment(s) will be transferred</li>
+                <li>Original appointment times will be preserved when possible</li>
+                <li>Time conflicts will be resolved by adding 5-minute intervals</li>
+                <li>All appointment details and patient information will remain unchanged</li>
+              </ul>
+            </div>
+            
+            <div class="mt-3">
+              <h6 class="fw-bold">Selected Appointments:</h6>
+              <div class="tw-max-h-48 tw-overflow-y-auto">
+                <DataTable 
+                  :value="filteredAppointments.filter(apt => selectedAppointments.includes(apt.id))" 
+                  class="tw-w-full"
+                  tableClass="tw-min-w-full tw-bg-white tw-border tw-border-gray-200"
+                  :emptyMessage="'No appointments selected.'"
+                  :paginator="false"
+                >
+                  <Column 
+                    field="patient_name" 
+                    header="Patient" 
+                    headerClass="tw-bg-gray-50 tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+                    bodyClass="tw-px-3 tw-py-2 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+                  >
+                    <template #body="{ data }">
+                      {{ data.patient_first_name }} {{ data.patient_last_name }}
+                    </template>
+                  </Column>
+                  
+                  <Column 
+                    field="appointment_date" 
+                    header="Current Date" 
+                    headerClass="tw-bg-gray-50 tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+                    bodyClass="tw-px-3 tw-py-2 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+                  >
+                    <template #body="{ data }">
+                      {{ formatDate(data.appointment_date) }}
+                    </template>
+                  </Column>
+                  
+                  <Column 
+                    field="appointment_time" 
+                    header="Current Time" 
+                    headerClass="tw-bg-gray-50 tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+                    bodyClass="tw-px-3 tw-py-2 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+                  >
+                    <template #body="{ data }">
+                      {{ formatTime(data.appointment_time) }}
+                    </template>
+                  </Column>
+                  
+                  <Column 
+                    field="doctor_name" 
+                    header="Current Doctor" 
+                    headerClass="tw-bg-gray-50 tw-px-3 tw-py-2 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider tw-border-b tw-border-gray-200"
+                    bodyClass="tw-px-3 tw-py-2 tw-whitespace-nowrap tw-text-sm tw-border-b tw-border-gray-200"
+                  />
+                </DataTable>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" @click="closeTransferModal" :disabled="transferLoading">
+              Cancel
+            </button>
+            <button 
+              type="button" 
+              class="btn btn-warning" 
+              @click="transferAppointments" 
+              :disabled="transferLoading || !transferData.newDoctorId || !transferData.newDate"
+            >
+              <span v-if="transferLoading" class="spinner-border spinner-border-sm me-2"></span>
+              <i v-else class="fas fa-exchange-alt me-2"></i>
+              {{ transferLoading ? 'Transferring...' : 'Transfer Appointments' }}
+            </button>
           </div>
         </div>
       </div>
     </div>
   </div>
+  
+  <!-- Toast component for notifications -->
+  <Toast />
 </template>
 
 <style scoped>
@@ -762,6 +1109,112 @@ onMounted(async () => {
   text-overflow: ellipsis;
 }
 
+/* Transfer functionality styles */
+.form-check-input:checked {
+  background-color: #0d6efd;
+  border-color: #0d6efd;
+}
+
+.badge.bg-info {
+  background-color: #0dcaf0 !important;
+}
+
+.modal.show {
+  display: block !important;
+}
+
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  color: #000;
+}
+
+.btn-warning:hover {
+  background-color: #ffca2c;
+  border-color: #ffc720;
+  color: #000;
+}
+
+.btn-warning:disabled {
+  background-color: #ffc107;
+  border-color: #ffc107;
+  opacity: 0.65;
+}
+
+.alert-info {
+  background-color: #d1ecf1;
+  border-color: #bee5eb;
+  color: #0c5460;
+}
+
+.table-responsive {
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+}
+
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Status Badge Classes */
+.status-scheduled {
+  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+}
+
+.status-confirmed {
+  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+}
+
+.status-canceled {
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+}
+
+.status-cancelled {
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+}
+
+.status-pending {
+  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+}
+
+.status-done {
+  @apply tw-bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
+}
+
+.status-onworking {
+  @apply tw-bg-orange-100 tw-text-orange-800 tw-border tw-border-orange-200;
+}
+
+/* PrimeVue severity mapping to Tailwind classes */
+.status-primary {
+  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+}
+
+.status-success {
+  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+}
+
+.status-danger {
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+}
+
+.status-warning {
+  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+}
+
+.status-info {
+  @apply tw-bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
+}
+
+.status-secondary {
+  @apply tw-bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
+}
+
 @media (max-width: 768px) {
   .toggle-buttons {
     flex-wrap: wrap;
@@ -786,6 +1239,19 @@ onMounted(async () => {
     top: 30px;
     right: 25px;
     bottom: 25px;
+  }
+  
+  .modal-dialog {
+    margin: 1rem;
+  }
+  
+  .d-flex.gap-2 {
+    flex-direction: column;
+    gap: 0.5rem !important;
+  }
+  
+  .btn-sm {
+    font-size: 0.75rem;
   }
 }
 </style>

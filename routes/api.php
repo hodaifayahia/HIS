@@ -31,4 +31,5 @@ require __DIR__ . '/api/modalities.php';
 require __DIR__ . '/api/infrastructure.php';
 require __DIR__ . '/api/crm.php';
 require __DIR__ . '/api/b2b.php';
+require __DIR__ . '/api/service_demands.php';
 require __DIR__ . '/api/general_api.php'; // For any leftovers

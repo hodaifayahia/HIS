@@ -15,7 +15,7 @@ class StoreFinancialTransactionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiche_navette_id' => 'nullable|integer|exists:fiche_navette,id',
+            'fiche_navette_id' => 'nullable|integer|exists:fiche_navettes,id',
             'caisse_session_id' => 'nullable|integer',
             'fiche_navette_item_id' => 'required|integer',
             'item_dependency_id' => 'nullable|integer|exists:item_dependencies,id',

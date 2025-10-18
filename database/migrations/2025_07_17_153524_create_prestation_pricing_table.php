@@ -24,7 +24,7 @@ return new class extends Migration
             // Foreign key to the 'annexes' table.
             // This links a pricing entry to a specific annex, as seen in the Vue.js code.
             $table->unsignedBigInteger('annex_id');
-            $table->foreign('annex_id')->references('id')->on('annexes')->onDelete('cascade');
+            $table->foreign('annex_id')->nullable()->references('id')->on('annexes')->onDelete('cascade');
 
             // Global price of the prestation. This remains a decimal as it's the base price.
             $table->decimal('prix', 10, 2)->default(0.00);
@@ -44,9 +44,11 @@ return new class extends Migration
 
             $table->unsignedBigInteger('updated_by_id')->unsigned();
             $table->unsignedBigInteger('avenant_id')->unsigned();
-            $table->foreign('avenant_id')->references('id')->on('avenants')->onDelete('cascade');
-            $table->foreign('updated_by_id')->references('id')->on('users')->onDelete('cascade');
-            
+            $table->foreign('avenant_id')->nullable()->references('id')->on('avenants')->onDelete('cascade');
+            $table->foreign('updated_by_id')->nullable()->references('id')->on('users')->onDelete('cascade');
+            $table->string('subname')->nullable();
+            $table->string('head')->nullable();
+
 
 
             // Adds 'created_at' and 'updated_at' columns for timestamps.

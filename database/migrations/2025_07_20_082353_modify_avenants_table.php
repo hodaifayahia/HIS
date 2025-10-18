@@ -17,8 +17,8 @@ return new class extends Migration
             
             // Add new columns
             $table->timestamp('inactive_at')->nullable()->comment('The exact moment the changes become inactive');
-            $table->string('head')->comment('yes, no');
-            $table->foreignId('updated_by_id')->constrained('users')->onDelete('cascade')->comment('User who last updated this record');
+            $table->string('head')->nullable()->comment('yes, no');
+            $table->foreignId('updated_by_id')->nullable()->constrained('users')->onDelete('cascade')->comment('User who last updated this record');
         });
     }
 

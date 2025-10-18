@@ -369,14 +369,20 @@ onMounted(() => {
 });
 </script>
 <template>
-    <div>
+    <div class="doctor-availability-page">
+        <div class="header-section">
+            <div class="container-fluid">
+                <h1 class="header-title">
+                    <i class="fas fa-user-md me-2"></i>
+                    Doctor Availability Settings
+                </h1>
+            </div>
+        </div>
 
-        <div class="">
-            <div class="modal-content">
-                <div class="modal-header">
-                </div>
-
-                <div class="modal-body ">
+        <div class="content">
+            <div class="container-fluid">
+                <div class="card main-card">
+                    <div class="card-body">
                     <Form v-slot="{ errors: validationErrors }" @submit="submitForm"
                         :validation-schema="getDoctorSchema(isEditMode)"> <!-- First Row: Name and Email -->
                         <div class="row" hidden>
@@ -528,8 +534,8 @@ onMounted(() => {
                         </div>
 
 
-                        <!-- Modal Footer -->
-                        <div class="modal-footer">
+                        <!-- Form Footer -->
+                        <div class="form-footer">
                 <button type="button" class="btn btn-outline-secondary" @click="closeModal">Cancel</button>
                 <button type="submit" class="btn btn-outline-primary" :disabled="isLoading">
                   {{ isEditMode ? 'Update Doctor' : 'Add Doctor' }}
@@ -537,12 +543,13 @@ onMounted(() => {
                     aria-hidden="true"></span>
                 </button>
               </div>
-              <div v-if="loading" class="modal-overlay">
+              <div v-if="loading" class="loading-overlay">
                 <div class="spinner-border text-primary" role="status">
                   <span class="visually-hidden">Loading...</span>
                 </div>
               </div>
                     </Form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -550,23 +557,205 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.modal.show {
-    display: block;
-    background-color: rgba(0, 0, 0, 0.5);
+/* Main Layout */
+.doctor-availability-page {
+    min-height: 100vh;
+    background-color: #f8f9fa;
 }
 
+.header-section {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 2rem 0;
+    box-shadow: 0 2px 10px rgba(0, 123, 255, 0.15);
+}
+
+.header-title {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.content {
+    padding: 2rem 0;
+}
+
+.main-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    background: white;
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+.form-footer {
+    background-color: #f8f9fa;
+    padding: 20px 30px;
+    border-top: 1px solid #dee2e6;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin: 2rem -2rem -2rem -2rem;
+}
+
+/* Form Styling */
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+}
+
+.form-control {
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn {
+    border-radius: 8px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-primary {
+    border-color: #007bff;
+    color: #007bff;
+}
+
+.btn-outline-primary:hover {
+    background-color: #007bff;
+    border-color: #007bff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    transform: translateY(-1px);
+}
+
+/* Input Group Styling */
 .input-group {
     display: flex;
     align-items: center;
 }
 
-.invalid-feedback {
-    display: block;
-    color: red;
-    font-size: 0.875rem;
+.input-group .btn {
+    border-radius: 0 8px 8px 0;
 }
 
-.modal-dialog {
-    max-width: 800px;
+.input-group .form-control {
+    border-radius: 8px 0 0 8px;
+}
+
+/* Validation Styling */
+.invalid-feedback {
+    display: block;
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Image Preview */
+.img-thumbnail {
+    border-radius: 8px;
+    border: 2px solid #dee2e6;
+    padding: 0.25rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .header-section {
+        padding: 1.5rem 0;
+    }
+    
+    .header-title {
+        font-size: 1.5rem;
+    }
+    
+    .content {
+        padding: 1rem 0;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .form-footer {
+        padding: 15px 20px;
+        flex-direction: column;
+        margin: 1.5rem -1.5rem -1.5rem -1.5rem;
+    }
+    
+    .form-footer .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .btn {
+        padding: 0.625rem 1.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .form-footer {
+        margin: 1rem -1rem -1rem -1rem;
+    }
 }
 </style>

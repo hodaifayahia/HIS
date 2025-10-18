@@ -70,7 +70,6 @@ public function index(Request $request)
 
     // Get filtered waitlists
     $waitlists = $query->get();
-
     return response()->json([
         'data' => WaitListResource::collection($waitlists),
         'count' => $waitlists->count(),

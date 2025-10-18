@@ -11,7 +11,7 @@ export const usePaymentHelpers = () => {
   // Helper: return the effective paid amount for an item, preferring dependency-specific fields
   const getItemPaidAmount = (it) => {
     if (!it) return 0
-    if (it.is_dependency) return Number(it.paid_amount ?? it.payed_amount ?? it.paid ?? 0)
+    if (it.is_dependency) return Number(it.paid_amount ?? it.payed_amount ?? it.paid ?? it.dependencyPrestation.paid_amount ?? 0)
     return Number(it.paid_amount ?? 0)
   }
 
@@ -21,7 +21,7 @@ export const usePaymentHelpers = () => {
     if (it.is_dependency) {
       // For dependencies, calculate remaining from dependency fields
       const finalPrice = Number(it.final_price ?? it.base_price ?? it.dependency_price ?? 0)
-      const paid = Number(it.paid_amount ?? it.payed_amount ?? it.paid ?? 0)
+      const paid = Number(it.paid_amount ?? it.payed_amount ?? it.paid ?? it.dependencyPrestation.paid_amount ?? 0)
       const calculated = Math.max(0, finalPrice - paid)
       
       // Only trust remaining_amount if it matches our calculation or if both final_price and paid are 0

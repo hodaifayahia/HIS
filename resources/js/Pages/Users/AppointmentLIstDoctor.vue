@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import AppointmentListItem from '../Appointments/AppointmentListItem.vue';
 import headerDoctorAppointment from '@/Components/Doctor/headerDoctorAppointment.vue';
-import DoctorWaitlist from '@/Components/Doctor/DoctorWaitlist.vue';
+import PrimeWaitlistModal from '@/Components/Doctor/PrimeWaitlistModal.vue';
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
 import { useAppointmentStore } from '../../stores/AppointmentStata';
 import { useAuthStoreDoctor } from '../../stores/AuthDoctor';
@@ -31,22 +31,44 @@ const userRole = ref(null);
 const appointmentStore = useAppointmentStore();
 const doctors = useAuthStoreDoctor(); // Initialize Pinia store
 
-onMounted( async() => {
- await  appointmentStore.getAppointments(doctorId, 1, 0);
-  appointments.value = appointmentStore.appointments;
-  pagination.value = appointmentStore.pagination;
-});
+// Removed problematic onMounted call - appointments will be loaded after doctorId is initialized
 
 
 const initializeRole = async () => {
   try {
-    const user = await axios.get('/api/role');
+    // Use the AuthDoctor store instead of direct API call
+    await doctors.getDoctor();
+    
+    // Get doctor data from the store
+    const doctorData = doctors.doctorData;
+    
+    if (doctorData.id) {
+      doctorId.value = doctorData.id;
+      specializationId.value = doctorData.specialization_id;
+      userRole.value = 'doctor'; // Assuming this is a doctor page
+      
+      // Load appointments after doctorId is initialized
+      await getAppointments(1, 0);
+    } else {
+      console.error('No doctor data found');
+    }
+
+  } catch (err) {
+    console.error('Error fetching doctor data:', err);
+    // Fallback to the original API call if store fails
+    try {
+      const user = await axios.get('/api/role');
       userRole.value = user.data.role;
       doctorId.value = user.data.id;
       specializationId.value = user.data.specialization_id;
 
-  } catch (err) {
-    console.error('Error fetching user role:', err);
+      // Load appointments after doctorId is initialized
+      if (doctorId.value) {
+        await getAppointments(1, 0);
+      }
+    } catch (fallbackErr) {
+      console.error('Error with fallback role fetch:', fallbackErr);
+    }
   }
 };
 
@@ -158,17 +180,23 @@ const fetchWaitlists = async (filters = {}) => {
 };
 
 const openWaitlistForYouModal = () => {
+  console.log('Opening waitlist for you modal');
+  NotForYou.value = false; // Set the NotForYou state to false first
   WaitlistDcotro.value = true; // Open the Waitlist modal
-  NotForYou.value = false; // Set the NotForYou state to false
+  console.log('WaitlistDcotro:', WaitlistDcotro.value, 'NotForYou:', NotForYou.value);
 };
 
 const openWaitlistNotForYouModal = () => {
+  console.log('Opening waitlist not for you modal');
+  NotForYou.value = true; // Set the NotForYou state to true first
   WaitlistDcotro.value = true; // Open the Waitlist modal
-  NotForYou.value = true; // Set the NotForYou state to true
+  console.log('WaitlistDcotro:', WaitlistDcotro.value, 'NotForYou:', NotForYou.value);
 };
 
 const closeWaitlistModal = () => {
+  console.log('Closing waitlist modal');
   WaitlistDcotro.value = false; // Close the Waitlist modal
+  console.log('WaitlistDcotro:', WaitlistDcotro.value);
 };
 
 
@@ -210,9 +238,11 @@ const statuses = ref([
 const goToAddAppointmentPage = () => {
   router.push({
     name: 'admin.appointments.create',
-    params: {id : doctorId.value }
+    params: {
+      id: doctorId.value,
+      specializationId: specializationId.value
+    }
   });
-  
 };
 const getTodaysAppointments = async () => {
   getAppointments(1, 'TODAY', 'today');
@@ -228,11 +258,12 @@ watch(
   }
 );
 
-onMounted(  ()=>{
-  
-  initializeRole();
-  getAppointmentsStatus();
-  fetchWaitlists();
+onMounted(async () => {
+  await initializeRole();
+  if (doctorId.value) {
+    await getAppointmentsStatus();
+    await fetchWaitlists();
+  }
 });
 </script>
 <template>
@@ -340,7 +371,7 @@ onMounted(  ()=>{
       </div>
     </div>
     <!-- Waitlist Modal -->
-    <DoctorWaitlist :WaitlistDcotro="WaitlistDcotro" :NotForYou="NotForYou" :specializationId="specializationId"
+    <PrimeWaitlistModal :WaitlistDcotro="WaitlistDcotro" :NotForYou="NotForYou" :specializationId="specializationId"
       :doctorId="doctorId" @close="closeWaitlistModal" />
   </div>
 </template>

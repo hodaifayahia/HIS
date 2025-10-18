@@ -17,6 +17,9 @@ use App\Http\Requests\Caisse\OverpaymentHandlingRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+ use Log;
+//improt Log
+
 
 class FinancialTransactionController extends Controller
 {
@@ -648,6 +651,47 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load transactions',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get transactions by caisse session
+     */
+    public function getBySession(Request $request): JsonResponse
+    {
+        $sessionId = $request->integer('session_id');
+
+        if (!$sessionId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'session_id is required'
+            ], 400);
+        }
+
+        try {
+            $session = \App\Models\Coffre\CaisseSession::findOrFail($sessionId);
+
+            // Get all payment transactions for this session's cashier within the session date range
+            $totalAmount = FinancialTransaction::where('caisse_session_id', $sessionId)
+                ->where('transaction_type', 'payment')
+                ->sum('amount');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'total_amount' => $totalAmount,
+                    'session_id' => $sessionId,
+                    'cashier_id' => $session->user_id,
+                    'date_from' => $session->ouverture_at->toDateString(),
+                    'date_to' => ($session->cloture_at ?? now())->toDateString()
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load session transactions',
                 'error' => $e->getMessage()
             ], 500);
         }

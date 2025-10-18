@@ -122,6 +122,20 @@ class ScheduleController extends Controller
                     $request
                 );
             }
+
+            // Handle evening shift
+            if (!empty($dateInfo['eveningStartTime'])) {
+                $customSchedules[] = $this->prepareScheduleData(
+                    $doctor,
+                    Carbon::parse($dateInfo['date']),
+                    'evening',
+                    $dateInfo['eveningStartTime'],
+                    $dateInfo['eveningEndTime'],
+                    strtolower(Carbon::parse($dateInfo['date'])->format('l')),
+                    $dateInfo['eveningPatients'],
+                    $request
+                );
+            }
         }
 
         if (!empty($customSchedules)) {

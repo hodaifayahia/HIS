@@ -3,10 +3,13 @@ import { ref, watch, onMounted } from 'vue'
 import axios from 'axios';
 import { useToastr } from '../../Components/toster';
 import PatientModel from "../../Components/PatientModel.vue";
+// Removed PatientPortal import as we're now using a separate page
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
 import { useSweetAlert } from '../../Components/useSweetAlert';
 import { useAuthStore } from '../../stores/auth'; // Import your Pinia store
+import { storeToRefs } from 'pinia';
 const authStore = useAuthStore(); // Use the Pinia store
+const { user } = storeToRefs(authStore); // Get reactive user reference
 const swal = useSweetAlert();
 import { useRouter } from 'vue-router';
 
@@ -31,6 +34,7 @@ const successMessage = ref('');
 const fileInput = ref(null);
 
 const isModalOpen = ref(false);
+// Removed PatientPortal state variables as we're now using a separate page
 const selectedPatient = ref([]);
 const pagiante = ref([]);
 
@@ -198,6 +202,12 @@ const closeModal = () => {
     isModalOpen.value = false;
 };
 
+// Removed PatientPortal functions as we're now using a separate page
+
+const handlePatientUpdated = () => {
+    getPatient();
+};
+
 // Function to refresh the patient list
 const refreshPatient = async () => {
     await getPatient();
@@ -228,25 +238,14 @@ const GotoConsulatoinpage = (appointment) => {
 
 // New function to handle patient row clicks conditionally based on role
 const handlePatientRowClick = (patient) => {
-   
-
-    if (authStore.user.role === 'doctor') {
-        if (!hasNavigatedToConsultation.value) {
-            // First click for a doctor: Go to consultation
-            GotoConsulatoinpage({
-                id: null, // Placeholder for a new consultation or to be fetched
-                patient_id: patient.id,
-                doctor_id: null // Placeholder for the logged-in doctor's ID
-            });
-        } else {
-            // Subsequent click for a doctor: Go to patient's appointments
-            goToPatientAppointmentsPage(patient.id);
-            // After navigating to appointments, reset for future clicks on THIS component instance
-            hasNavigatedToConsultation.value = false;
-        }
+    if (user.value.role === 'doctor') {
+        GotoConsulatoinpage(patient);
     } else {
-        // For all other roles: Always navigate to the patient's appointments page.
-        goToPatientAppointmentsPage(patient.id);
+        // Navigate to the new patient portal page
+        router.push({ 
+            name: 'patient.portal', 
+            params: { id: patient.id } 
+        });
     }
 };
 
@@ -421,6 +420,8 @@ onMounted(() => {
         <PatientModel :show-modal="isModalOpen" :spec-data="selectedPatient" @close="closeModal"
             @patientsUpdate="refreshPatient" />
     </div>
+
+    <!-- Removed PatientPortal modal as we're now using a separate page -->
 </template>
 
 <style scoped>

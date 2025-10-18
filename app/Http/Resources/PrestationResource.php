@@ -24,6 +24,7 @@ class PrestationResource extends JsonResource
             'convenience_prixe' => $this->convenience_price,
             'service_id' => $this->service_id,
             'specialization_id' => $this->specialization_id,
+            'Urgent_Prestation' => $this->Urgent_Prestation,
             'service' => [
                 'id' => $this->service->id,
                 'name' => $this->service->name,

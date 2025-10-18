@@ -417,48 +417,7 @@ onMounted(() => {
               </div>
             </div>
             <!-- Second Row: Phone and Specialization -->
-            <div class="row ms-4">
-              <!-- Force Setting Label -->
-              <div class="col-12 mb-3">
-                <h5 class="mb-0">Force Setting</h5>
-                <small class="text-muted">Configure the appointment booking window.</small>
-              </div>
-
-              <!-- Start Time -->
-              <div class="col-md-6 mb-3">
-                <label for="start_time_force" class="form-label">Start Time</label>
-                <Field type="time" id="start_time_force" name="start_time_force" v-model="doctor.start_time_force"
-                  :class="{ 'is-invalid': validationErrors.start_time_force }" class="form-control form-control-md" />
-                <span class="text-sm invalid-feedback">{{ validationErrors.start_time_force }}</span>
-              </div>
-          <div class="form-check mb-3">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="allowed_appointment_today"
-              v-model="doctor.allowed_appointment_today"
-            />
-            <label class="form-check-label" for="allowed_appointment_today">
-              Allow Appointments Today
-            </label>
-          </div>
-              <!-- End Time -->
-              <div class="col-md-6 mb-3">
-                <label for="end_time_force" class="form-label">End Time</label>
-                <Field type="time" id="end_time_force" name="end_time_force" v-model="doctor.end_time_force"
-                  :class="{ 'is-invalid': validationErrors.end_time_force }" class="form-control form-control-md" />
-                <span class="text-sm invalid-feedback">{{ validationErrors.end_time_force }}</span>
-              </div>
-
-              <!-- Number of Patients -->
-              <div class="col-md-8 mb-3">
-                <label for="number_of_patients" class="form-label">Patients</label>
-                <Field type="text" id="number_of_patients" name="number_of_patients" v-model="doctor.number_of_patients"
-                  :class="{ 'is-invalid': validationErrors.number_of_patients }" class="form-control form-control-md" />
-                <span class="text-sm invalid-feedback">{{ validationErrors.number_of_patients }}</span>
-              </div>
-                 
-            </div>
+      
             </div>
 
               <div class="row">
@@ -616,6 +575,6 @@ onMounted(() => {
 }
 
 .modal-dialog {
-  max-width: 800px;
+  max-width: 1100px;
 }
 </style>

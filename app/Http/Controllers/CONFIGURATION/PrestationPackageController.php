@@ -5,6 +5,8 @@ namespace App\Http\Controllers\CONFIGURATION;
 use App\Http\Controllers\Controller;
 use App\Models\CONFIGURATION\PrestationPackage;
 use App\Models\CONFIGURATION\PrestationPackageitem;
+use App\Http\Resources\Reception\PrestationPackageResource;
+
 use App\Http\Requests\CONFIGURATION\StorePrestationPackageRequest;
 use App\Http\Requests\CONFIGURATION\UpdatePrestationPackageRequest;
 use App\Services\CONFIGURATION\PrestationPackageService;
@@ -36,12 +38,12 @@ class PrestationPackageController extends Controller
      *
      * @return JsonResponse
      */
-    public function index(): JsonResponse
-    {
-        // Load all packages with their items and associated prestation details.
-        $packages = PrestationPackage::with('items.prestation')->get();
-        return response()->json($packages);
-    }
+    
+public function index(): JsonResponse
+{
+    $packages = PrestationPackage::with('items.prestation')->get();
+    return response()->json(PrestationPackageResource::collection($packages));
+}
 
     /**
      * Store a newly created resource in storage.

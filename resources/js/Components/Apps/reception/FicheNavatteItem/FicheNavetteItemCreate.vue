@@ -104,9 +104,7 @@ const fetchInitialData = async () => {
       loadingProgress.value = ((i + 1) / steps.length) * 100
     }
     
-    console.log('Initial data loaded successfully')
-    console.log('Doctors loaded:', allDoctors.value.length)
-    console.log('Specializations loaded:', specializations.value.length)
+ 
   } catch (error) {
     console.error('Error loading initial data:', error)
     toast.add({
@@ -197,6 +195,9 @@ const createFicheNavette = async (data) => {
       result = await ficheNavetteService.createFicheNavette(data)
     }
     if (result.success) {
+      // Update frontend state immediately without refetching
+      updateFrontendStateAfterCreation(data, result.data)
+      
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -218,6 +219,46 @@ const createFicheNavette = async (data) => {
     })
   } finally {
     creating.value = false
+  }
+}
+
+// Update frontend state without API call
+const updateFrontendStateAfterCreation = (requestData, responseData) => {
+  // Update local prestations state if new prestations were created
+  if (requestData.prestations && requestData.prestations.length > 0) {
+    requestData.prestations.forEach(prestation => {
+      // If it's a new custom prestation, add it to the list
+      if (!allPrestations.value.find(p => p.id === prestation.id)) {
+        allPrestations.value.push({
+          ...prestation,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      }
+    })
+  }
+
+  // Update packages state if new packages were created
+  if (requestData.packages && requestData.packages.length > 0) {
+    requestData.packages.forEach(packageItem => {
+      if (!availablePackages.value.find(p => p.id === packageItem.id)) {
+        availablePackages.value.push({
+          ...packageItem,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      }
+    })
+  }
+
+  // Clear appointment states for completed items
+  if (responseData && responseData.items) {
+    responseData.items.forEach(item => {
+      if (prestationAppointments.value[item.prestation_id]) {
+        delete prestationAppointments.value[item.prestation_id]
+      }
+    })
+    saveAppointmentData()
   }
 }
 
@@ -442,32 +483,43 @@ const onSameDayAppointmentBooked = (appointment) => {
   console.log('=== onSameDayAppointmentBooked called ===')
   console.log('Appointment data:', appointment)
   
+  // Update frontend state immediately without API calls
   if (currentPrestationForAppointment.value) {
     prestationAppointments.value[currentPrestationForAppointment.value.id] = {
       id: appointment.id,
       datetime: appointment.appointment_datetime,
       doctor_name: appointment.doctor_name,
-      status: 'confirmed'
+      status: 'confirmed',
+      created_at: new Date().toISOString()
     }
     saveAppointmentData()
+    
+    // Update appointment loading state immediately
+    appointmentLoading.value = null
   }
   
-  toast.add({ severity: 'success', summary: 'Appointment Booked!', life: 5000 })
+  toast.add({ 
+    severity: 'success', 
+    summary: 'Appointment Booked!', 
+    detail: `Appointment scheduled for ${formatAppointmentDateTime(appointment.appointment_datetime)}`,
+    life: 5000 
+  })
   
+  // Clean up modal states
   showSameDayModal.value = false
   showDoctorSelectionModal.value = false
   showAppointmentAlert.value = false
   showCancelReasonModal.value = false
   
+  // Reset current selection states
   currentPrestationForAppointment.value = null
   selectedPrestationForAppointment.value = null
-  appointmentLoading.value = null
   
   toast.add({
     severity: 'info', 
-    summary: 'Appointment Booked', 
-    detail: 'You can now proceed to create the fiche navette with all selected items.',
-    life: 5000
+    summary: 'Ready to Proceed', 
+    detail: 'You can now create the fiche navette with all selected items.',
+    life: 3000
   })
 }
 
@@ -475,33 +527,44 @@ const onAddedToWaitingList = (waitListEntry) => {
   console.log('=== onAddedToWaitingList called ===')
   console.log('Waitlist entry:', waitListEntry)
   
+  // Update frontend state immediately without API calls
   if (currentPrestationForAppointment.value) {
     prestationAppointments.value[currentPrestationForAppointment.value.id] = {
       id: waitListEntry.id,
       type: 'waitlist',
       date: waitListEntry.date,
       doctor_name: waitListEntry.doctor_name,
-      status: 'waiting'
+      status: 'waiting',
+      created_at: new Date().toISOString()
     }
     saveAppointmentData()
+    
+    // Update loading state immediately
+    appointmentLoading.value = null
   }
   
-  toast.add({ severity: 'info', summary: 'Added to Waiting List', life: 5000 })
+  toast.add({ 
+    severity: 'info', 
+    summary: 'Added to Waiting List', 
+    detail: `Added to waitlist for ${waitListEntry.date}`,
+    life: 5000 
+  })
   
+  // Clean up modal states
   showSameDayModal.value = false
   showDoctorSelectionModal.value = false
   showAppointmentAlert.value = false
   showCancelReasonModal.value = false
   
+  // Reset current selection states
   currentPrestationForAppointment.value = null
   selectedPrestationForAppointment.value = null
-  appointmentLoading.value = null
   
   toast.add({
     severity: 'info', 
-    summary: 'Added to Waiting List', 
-    detail: 'You can now proceed to create the fiche navette with all selected items.',
-    life: 5000
+    summary: 'Ready to Proceed', 
+    detail: 'You can now create the fiche navette with all selected items.',
+    life: 3000
   })
 }
 
@@ -558,21 +621,59 @@ const cancelAppointment = (prestation) => {
 
 const onReasonSubmitted = async (reason) => {
   if (!prestationToCancel.value) return
+  
   try {
     const appointment = prestationAppointments.value[prestationToCancel.value.id]
+    
+    // Update frontend state immediately (optimistic update)
+    const prestationId = prestationToCancel.value.id
+    const appointmentInfo = { ...appointment, status: 'cancelling' }
+    prestationAppointments.value[prestationId] = appointmentInfo
+    saveAppointmentData()
+    
+    // Show immediate feedback
+    toast.add({ 
+      severity: 'info', 
+      summary: 'Cancelling...', 
+      detail: 'Processing appointment cancellation',
+      life: 2000 
+    })
+    
     const result = await appointmentService.cancelAppointment({
       appointment_id: appointment.id,
       reason: reason,
     })
+    
     if (result.success) {
-      delete prestationAppointments.value[prestationToCancel.value.id]
+      // Remove from frontend state after successful cancellation
+      delete prestationAppointments.value[prestationId]
       saveAppointmentData()
-      toast.add({ severity: 'success', summary: 'Appointment Cancelled', life: 5000 })
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Appointment Cancelled', 
+        detail: 'Appointment has been cancelled successfully',
+        life: 3000 
+      })
     } else {
+      // Revert optimistic update on failure
+      prestationAppointments.value[prestationId] = { ...appointment, status: appointment.status }
+      saveAppointmentData()
       throw new Error(result.message)
     }
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Cancellation Failed', detail: 'Failed to cancel appointment', life: 3000 })
+    // Revert optimistic update on error
+    const appointment = prestationAppointments.value[prestationToCancel.value.id]
+    if (appointment && appointment.status === 'cancelling') {
+      appointment.status = 'confirmed'
+      saveAppointmentData()
+    }
+    
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Cancellation Failed', 
+      detail: error.message || 'Failed to cancel appointment. Please try again.',
+      life: 5000 
+    })
   } finally {
     showCancelReasonModal.value = false
     prestationToCancel.value = null
@@ -1021,15 +1122,16 @@ onMounted(() => {
 /* Responsive Design */
 @media (max-width: 768px) {
   .tw-p-6 {
-    @apply tw-p-4;
+    padding: 1rem;
   }
   
   .tw-gap-6 {
-    @apply tw-gap-4;
+    gap: 1rem;
   }
   
   .tw-text-2xl {
-    @apply tw-text-xl;
+    font-size: 1.25rem;
+    line-height: 1.75rem;
   }
 }
 

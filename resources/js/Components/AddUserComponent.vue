@@ -106,7 +106,7 @@ const userSchema = computed(() =>
       .string()
       .matches(/^[0-9]{10,15}$/, 'Phone number must be between 10 and 15 digits')
       .required('Phone number is required'),
-    role: yup.string().oneOf(['admin', 'receptionist', 'doctor', 'SuperAdmin','manager'], 'Invalid role').required('Role is required'),
+    role: yup.string().oneOf(['admin', 'receptionist', 'doctor', 'SuperAdmin','manager' , 'purchaser'], 'Invalid role').required('Role is required'),
     is_active: yup.boolean(),
     fichenavatte_max: yup.number().integer().min(0).nullable(),
     salary: yup.number().min(0).nullable(),
@@ -229,7 +229,7 @@ const submitForm = async (values) => {
 
 // Check if specializations should be shown for the selected role
 const shouldShowspecializations = computed(() => {
-  return ['doctor', 'admin','manager'].includes(user.value.role);
+  return ['doctor', 'admin','manager' ,'purchaser'].includes(user.value.role);
 });
 </script>
 
@@ -327,6 +327,7 @@ const shouldShowspecializations = computed(() => {
                 <option value="receptionist">Receptionist</option>
                 <option value="doctor">Doctor</option>
                 <option value="manager">Manager</option>
+                <option value="purchaser">Purchaser</option>
               </Field>
               <span class="text-sm invalid-feedback">
                 {{ validationErrors.role || (errors.role && errors.role[0]) }}

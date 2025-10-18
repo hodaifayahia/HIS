@@ -8,6 +8,7 @@ Route::get('/appointments/search', [AppointmentController::class, 'search']);
 Route::get('/appointments/checkAvailability', [AppointmentController::class, 'checkAvailability']);
 Route::get('/appointments/canceledappointments', [AppointmentController::class, 'getAllCanceledAppointments']);
 Route::get('/appointments/available', [AppointmentController::class, 'AvailableAppointments']);
+Route::get('/appointments/{doctorId}', [AppointmentController::class, 'index']);
 Route::get('/appointmentStatus/{doctorid}', [AppointmentStatus::class, 'appointmentStatus']);
 Route::get('/appointment-statuses', [AppointmentStatus::class, 'allAppointmentStatuses']);
 Route::get('/appointmentStatus/patient/{patientid}', [AppointmentStatus::class, 'appointmentStatusPatient']);

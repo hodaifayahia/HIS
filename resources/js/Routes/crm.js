@@ -27,6 +27,12 @@ const crmRoutes = [
         props: true
       },
       {
+        path: 'patient-portal/:id',
+        name: 'patient.portal',
+        component: () => import('../Pages/Patient/PatientPortalPage.vue'),
+        props: true
+      },
+      {
         path: 'campaigns',
         name: 'crm.campaigns',
         component: () => import('../Pages/Apps/crm/Campaigns/CampaignList.vue'),

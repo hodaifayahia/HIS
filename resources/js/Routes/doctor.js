@@ -47,12 +47,17 @@ const doctorRoutes = [  {
             {
                 path: 'schedule',
                 name: 'doctor.schedule',
-                component: () => import('../Components/Doctor/DoctorListScheduleDForDoctor.vue'),
+                component: () => import('../Components/Doctor/DoctorScheduleAuthView.vue'),
+            },
+            {
+                path: 'availability',
+                name: 'doctor.availability',
+                component: () => import('../Components/Doctor/DoctorAvilibilte.vue'),
             },
             {
                 path: 'avilability',
                 name: 'doctor.avilability',
-                component: () => import('../Components/Doctor/DoctorAvilibilte.vue'),
+                component: () => import('../Components/Doctor/DoctorScheduleAuthView.vue'),
             },
             {
                 path: 'excludeDates',

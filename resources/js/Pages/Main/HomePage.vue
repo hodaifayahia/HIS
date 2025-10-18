@@ -315,7 +315,7 @@ const allApps = ref([
     name: 'Pharmacy',
     icon: 'fas fa-prescription-bottle-alt',
     color: '#2563EB',
-    route: '/admin/pharmacy',
+    route: '/pharmacy',
     category: 'clinical'
   },
   {
@@ -339,7 +339,7 @@ const allApps = ref([
     name: 'Purchasing',
     icon: 'fas fa-shopping-cart',
     color: '#EC4899',
-    route: '/admin/purchasing',
+    route: '/purchasing',
     category: 'financial'
   },
   {
@@ -424,10 +424,10 @@ const allApps = ref([
   },
   {
     id: 37,
-    name: 'Soon',
-    icon: 'fas fa-gift',
-    color: '#DC2785',
-    route: '/admin/maintenance',
+    name: 'Stock',
+    icon: 'fas fa-warehouse',
+    color: '#6366F1',
+    route: '/stock',
     category: 'administrative'
   },
   {
@@ -533,6 +533,7 @@ const getAppDescription = (appName) => {
     'Human Resources': 'Staff management',
     'Dashboard': 'Analytics and reporting',
     'Maintenance': 'Facility maintenance',
+    'Stock': 'Inventory management',
     'Soon': 'Upcoming features and improvements'
   };
   return descriptions[appName] || `Manage ${appName.toLowerCase()} operations`;

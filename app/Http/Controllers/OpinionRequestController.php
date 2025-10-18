@@ -13,6 +13,44 @@ use App\Events\OpinionRequestReplied; // Import the reply event
 class OpinionRequestController extends Controller
 {
     /**
+     * Get pending opinion requests count for a specific doctor
+     *
+     * @param int $doctorId
+     * @return \Illuminate\Http\Response
+     */
+    public function pendingOpinionRequestsCount($doctorId)
+    {
+        try {
+            // Validate doctor exists
+            $doctor = Doctor::find($doctorId);
+            if (!$doctor) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid doctor ID'
+                ], 404);
+            }
+
+            // Count pending opinion requests for this doctor
+            $count = OpinionRequest::where(function ($query) use ($doctorId) {
+                $query->where('reciver_doctor_id', $doctorId)
+                      ->orWhere('sender_doctor_id', $doctorId);
+            })
+            ->where('status', 'pending')
+            ->count();
+
+            return response()->json([
+                'success' => true,
+                'count' => $count
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching pending opinion requests count',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    /**
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response

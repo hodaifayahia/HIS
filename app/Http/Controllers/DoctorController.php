@@ -23,6 +23,29 @@ use Illuminate\Support\Facades\Validator;
 
 class DoctorController extends Controller
 {
+    /**
+     * Clear all availability-related cache for a specific doctor
+     *
+     * @param int $doctorId
+     * @return void
+     */
+    private function clearDoctorAvailabilityCache(int $doctorId): void
+    {
+        // Clear the availability data cache
+        \Cache::forget("doctor_availability_data_{$doctorId}");
+        
+        // Clear working hours cache for the next 30 days
+        $startDate = now();
+        $endDate = now()->addDays(30);
+        
+        while ($startDate <= $endDate) {
+            $dateStr = $startDate->format('Y-m-d');
+            \Cache::forget("doctor_{$doctorId}_hours_{$dateStr}");
+            \Cache::forget("booked_slots_{$doctorId}_{$dateStr}");
+            \Cache::forget("request_working_hours_{$doctorId}_{$dateStr}");
+            $startDate->addDay();
+        }
+    }
     public function index(Request $request)
     {
         // Get the filter query parameters
@@ -35,7 +58,7 @@ class DoctorController extends Controller
         // Base query for doctors with eager loading
         $doctorsQuery = Doctor::with([
             'user:id,name,email,avatar,is_active', // Load only necessary fields
-            'specialization:id,name',
+            'specialization:id,name,is_active',
             'schedules',
             'appointmentAvailableMonths',
             'appointmentForce'
@@ -319,6 +342,9 @@ class DoctorController extends Controller
    
 public function store(Request $request)
 {
+    // Clear optimization cache on create
+    \Artisan::call('optimize:clear');
+    
     $validated = $request->validate([
         'name' => 'required|string|max:255',
         'email' => 'required',
@@ -439,6 +465,9 @@ public function store(Request $request)
     }
 }
 private function createCustomSchedules(Request $request, Doctor $doctor) {
+    // Clear doctor-specific availability cache
+    $this->clearDoctorAvailabilityCache($doctor->id);
+    
     // Group custom schedules by date to process all shifts for the same date together
     $schedulesByDate = collect($request->customDates)
         ->groupBy('date')
@@ -835,7 +864,8 @@ private function prepareScheduleData(Doctor $doctor, Carbon $date, string $shift
     // Make sure your DoctorResource handles JSON days properly
     public function update(Request $request, $doctorid)
     {
-        // dd($request->all());
+        // Clear optimization cache on update
+        \Artisan::call('optimize:clear');
      
         $validated = $request->validate([
            'name' => 'required|string|max:255',

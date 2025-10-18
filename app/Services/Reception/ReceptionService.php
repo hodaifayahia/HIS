@@ -216,15 +216,15 @@ class ReceptionService
         // Get package with its items and prestations
         $package = PrestationPackage::with([
             'items.prestation.service',
+            'items.prestations',
             'items.prestation.specialization'
         ])->findOrFail($packageId);
-
         $prestations = $package->items->map(function($packageItem) {
             return [
                 'id' => $packageItem->prestation->id,
                 'name' => $packageItem->prestation->name,
                 'internal_code' => $packageItem->prestation->internal_code,
-                'public_price' => $packageItem->prestation->public_price,
+                'public_price' => $packageItem->prestation->getPublicPrice(),
                 'service_name' => $packageItem->prestation->service->name ?? null,
                 'specialization_name' => $packageItem->prestation->specialization->name ?? null,
                 'specialization_id' => $packageItem->prestation->specialization_id,
@@ -471,7 +471,8 @@ class ReceptionService
     array $globalConventionData
 ): ficheNavetteItem {
     $prestation = Prestation::findOrFail($prestationData['prestation_id']);
-    $finalPrice = $prestationData['convention_price'] ?? $prestation->public_price;
+    $finalPrice = $prestationData['convention_price'] ?? $prestation->getPublicPrice()
+;
 
     // Handle multiple file uploads
     $fileMetas = [];
@@ -506,7 +507,8 @@ class ReceptionService
         'insured_id' => $globalConventionData['adherent_patient_id'] ?? $ficheNavette->patient_id,
         'doctor_id' => $prestationData['doctor_id'],
         'status' => 'pending',
-        'base_price' => $prestation->public_price,
+        'base_price' => $prestation->getPublicPrice()
+,
         'final_price' => $finalPrice,
         'patient_share' => $finalPrice,
         'prise_en_charge_date' => $globalConventionData['prise_en_charge_date'],
@@ -774,7 +776,8 @@ class ReceptionService
         $prestation = Prestation::findOrFail($prestationData['prestation_id']);
         
         // Calculate pricing
-        $basePrice = $prestation->public_price;
+        $basePrice = $prestation->getPublicPrice()
+;
         $finalPrice = $basePrice;
         
         // Apply convention pricing if available
@@ -976,7 +979,8 @@ private function addPackageToFiche(
             $prestation = Prestation::findOrFail($dependencyData['prestation_id']);
             
             // Calculate pricing for dependency
-            $basePrice = $prestation->public_price;
+            $basePrice = $prestation->getPublicPrice()
+;
             $finalPrice = $basePrice;
             
             if (!empty($conventionData) && isset($dependencyData['convention_price']) && $dependencyData['convention_price'] !== null) {
@@ -1024,7 +1028,8 @@ private function addPackageToFiche(
                         'prestation_code' => $prestation->internal_code,
                         'service_name' => $prestation->service->name ?? null,
                         'specialization_id' => $prestation->specialization_id,
-                        'base_price' => $prestation->public_price,
+                        'base_price' => $prestation->getPublicPrice()
+,
                         'convention_price' => $conventionPrice,
                         'convention_id' => $conventionId,
                     ];
@@ -1054,17 +1059,21 @@ private function addPackageToFiche(
         // For now, return the public price (you can modify this logic)
         // You might want to check convention_pricing table or apply discounts
         
-        return $prestation->public_price;
+        return $prestation->getPublicPrice()
+;
         
         // Example of more complex pricing logic:
         /*
         $convention = Convention::find($conventionId);
         if ($convention && $convention->discount_percentage) {
-            $discount = ($prestation->public_price * $convention->discount_percentage) / 100;
-            return $prestation->public_price - $discount;
+            $discount = ($prestation->getPublicPrice()
+ * $convention->discount_percentage) / 100;
+            return $prestation->getPublicPrice()
+ - $discount;
         }
         
-        return $prestation->public_price;
+        return $prestation->getPublicPrice()
+;
         */
     }
 

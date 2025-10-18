@@ -20,8 +20,10 @@ return new class extends Migration
             $table->decimal('max_price', 10, 2)->nullable();
             $table->decimal('min_price', 10, 2)->nullable();
             $table->decimal('discount_percentage', 5, 2)->nullable();
-            $table->foreignId('avenant_id')->constrained('avenants')->onDelete('cascade'); // Added onDelete for referential integrity
+            $table->foreignId('avenant_id')->nullable()->constrained('avenants')->onDelete('cascade'); // Added onDelete for referential integrity
              $table->foreignId('convention_id')->constrained('conventions');
+             $table->foreignId('updated_by_id')->nullalble()->constrained('users');
+             $table->string('head')->nullable();
 
             $table->softDeletes(); // Added soft deletes for logical deletion
             $table->timestamps();

@@ -1,6 +1,20 @@
 <script setup>
 import { computed } from 'vue';
 
+// Utility function to parse currency strings
+const parseCurrency = (value) => {
+    if (typeof value === 'number') {
+        return value;
+    }
+    if (typeof value === 'string') {
+        // Remove currency symbols, spaces, and commas, then parse
+        const cleanValue = value.replace(/[^0-9.-]/g, '');
+        const parsed = parseFloat(cleanValue);
+        return isNaN(parsed) ? 0 : parsed;
+    }
+    return 0;
+};
+
 const props = defineProps({
     form: {
         type: Object,
@@ -16,13 +30,119 @@ const props = defineProps({
     }
 });
 
+// Calculate total distribution
+const totalDistribution = computed(() => {
+    let total = 0;
+    const estimatedTotal = parseCurrency(props.estimatedTotal);
+    
+    console.log('Debug totalDistribution calculation:', {
+        estimatedTotal: props.estimatedTotal,
+        estimatedTotalParsed: estimatedTotal,
+        formData: props.form
+    });
+    
+    // Primary Doctor
+    const primaryShare = parseFloat(props.form.primary_doctor_share) || 0;
+    let primaryAmount = 0;
+    if (props.form.primary_doctor_is_percentage) {
+        const percentageAmount = (estimatedTotal * primaryShare) / 100;
+        primaryAmount = isNaN(percentageAmount) ? 0 : percentageAmount;
+    } else {
+        primaryAmount = isNaN(primaryShare) ? 0 : primaryShare;
+    }
+    total += primaryAmount;
+    
+    // Assistant Doctor
+    const assistantShare = parseFloat(props.form.assistant_doctor_share) || 0;
+    let assistantAmount = 0;
+    if (props.form.assistant_doctor_is_percentage) {
+        const percentageAmount = (estimatedTotal * assistantShare) / 100;
+        assistantAmount = isNaN(percentageAmount) ? 0 : percentageAmount;
+    } else {
+        assistantAmount = isNaN(assistantShare) ? 0 : assistantShare;
+    }
+    total += assistantAmount;
+    
+    // Technician
+    const technicianShare = parseFloat(props.form.technician_share) || 0;
+    let technicianAmount = 0;
+    if (props.form.technician_is_percentage) {
+        const percentageAmount = (estimatedTotal * technicianShare) / 100;
+        technicianAmount = isNaN(percentageAmount) ? 0 : percentageAmount;
+    } else {
+        technicianAmount = isNaN(technicianShare) ? 0 : technicianShare;
+    }
+    total += technicianAmount;
+    
+    // Clinic
+    const clinicShare = parseFloat(props.form.clinic_share) || 0;
+    let clinicAmount = 0;
+    if (props.form.clinic_is_percentage) {
+        const percentageAmount = (estimatedTotal * clinicShare) / 100;
+        clinicAmount = isNaN(percentageAmount) ? 0 : percentageAmount;
+    } else {
+        clinicAmount = isNaN(clinicShare) ? 0 : clinicShare;
+    }
+    total += clinicAmount;
+    
+    console.log('Debug individual amounts:', {
+        primaryAmount,
+        assistantAmount,
+        technicianAmount,
+        clinicAmount,
+        total
+    });
+    
+    const finalTotal = isNaN(total) ? 0 : total;
+    console.log('Final totalDistribution:', finalTotal);
+    return finalTotal;
+});
+
+// Check if total exceeds estimated total
+const isOverDistributed = computed(() => {
+    const estimated = parseCurrency(props.estimatedTotal);
+    const distributed = parseFloat(totalDistribution.value) || 0;
+    return distributed > estimated;
+});
+
+// Calculate remaining amount
+const remainingAmount = computed(() => {
+    const estimated = parseCurrency(props.estimatedTotal);
+    const distributed = parseFloat(totalDistribution.value) || 0;
+    
+    console.log('Debug remainingAmount:', {
+        estimatedTotal: props.estimatedTotal,
+        estimatedParsed: estimated,
+        totalDistribution: totalDistribution.value,
+        distributedParsed: distributed,
+        formData: props.form
+    });
+    
+    const remaining = estimated - distributed;
+    return isNaN(remaining) ? 0 : remaining;
+});
+
+// Format currency
+const formatCurrency = (amount) => {
+    // Handle NaN, null, undefined, and invalid numbers
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount)) {
+        return 'DZD 0.00';
+    }
+    
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'DZD'
+    }).format(numericAmount);
+};
+
 
 </script>
 
 <template>
     <div class="tab-content">
         <div class="header-section">
-            <h3 class="section-title">Revenue Distribution (HT)</h3> <h4 class="fs-3">{{ props.estimatedTotal }}</h4>
+            <h3 class="section-title">Revenue Distribution (TTC)</h3> <h4 class="fs-3">{{ props.estimatedTotal }}</h4>
             <p class="section-description">Configure how revenue is distributed among different roles</p>
         </div>
 
@@ -150,6 +270,52 @@ const props = defineProps({
                             <span class="input-suffix">{{ form.clinic_is_percentage ? '%' : 'HT' }}</span>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distribution Summary -->
+        <div class="form-card">
+            <div class="card-header">
+                <div class="section-info">
+                    <i class="fas fa-chart-pie section-icon"></i>
+                    <h4 class="subsection-title">Distribution Summary</h4>
+                </div>
+            </div>
+            <div class="card-content">
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Distributed:</span>
+                        <span class="summary-value" :class="{ 'over-distributed': isOverDistributed }">
+                            {{ formatCurrency(totalDistribution) }}
+                        </span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Available Total:</span>
+                        <span class="summary-value">{{ props.estimatedTotal }}</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Remaining:</span>
+                        <span class="summary-value" :class="{ 'negative': remainingAmount < 0, 'positive': remainingAmount > 0 }">
+                            {{ formatCurrency(remainingAmount) }}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Validation Warning -->
+                <div v-if="isOverDistributed" class="validation-warning">
+                    <i class="fas fa-exclamation-triangle warning-icon"></i>
+                    <span class="warning-text">
+                        Warning: Total distribution exceeds available amount by {{ formatCurrency(Math.abs(remainingAmount)) }}
+                    </span>
+                </div>
+                
+                <!-- Success Message -->
+                <div v-else-if="totalDistribution > 0" class="validation-success">
+                    <i class="fas fa-check-circle success-icon"></i>
+                    <span class="success-text">
+                        Distribution is valid. {{ formatCurrency(remainingAmount) }} remaining.
+                    </span>
                 </div>
             </div>
         </div>
@@ -344,6 +510,95 @@ const props = defineProps({
 
 .help-list li:last-child {
     margin-bottom: 0;
+}
+
+/* Distribution Summary Styles */
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #f1f5f9;
+    border-radius: 0.5rem;
+    border-left: 4px solid #3b82f6;
+}
+
+.summary-label {
+    font-weight: 500;
+    color: #475569;
+    font-size: 0.875rem;
+}
+
+.summary-value {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #1e293b;
+}
+
+.summary-value.over-distributed {
+    color: #dc2626;
+    background: #fef2f2;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.summary-value.negative {
+    color: #dc2626;
+}
+
+.summary-value.positive {
+    color: #059669;
+}
+
+.validation-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: #fef3cd;
+    border: 1px solid #f59e0b;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+}
+
+.warning-icon {
+    color: #f59e0b;
+    font-size: 1.125rem;
+}
+
+.warning-text {
+    color: #92400e;
+    font-weight: 500;
+    font-size: 0.875rem;
+}
+
+.validation-success {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: #d1fae5;
+    border: 1px solid #059669;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+}
+
+.success-icon {
+    color: #059669;
+    font-size: 1.125rem;
+}
+
+.success-text {
+    color: #065f46;
+    font-weight: 500;
+    font-size: 0.875rem;
 }
 
 /* Responsive Design */

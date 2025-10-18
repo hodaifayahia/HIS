@@ -20,12 +20,11 @@ const estimatedTotal = computed(() => {
     const price = parseFloat(props.form.public_price) || 0;
     const vatRate = parseFloat(props.form.vat_rate) || 0;
     const consumables = parseFloat(props.form.consumables_cost) || 0;
-    const nightTariff = props.form.night_tariff_active ? (parseFloat(props.form.night_tariff) || 0) : 0;
-
-    const basePrice = props.form.night_tariff_active ? nightTariff : price;
+    const nightTariff = props.form.Tarif_de_nuit_is_active ? (parseFloat(props.form.night_tariff) || 0) : 0;
+    const basePrice = price;
 
     const vatAmount = (basePrice * vatRate) / 100;
-    const total = basePrice + vatAmount + consumables;
+    const total = basePrice + vatAmount + consumables ;
 
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -56,7 +55,7 @@ const estimatedTotal = computed(() => {
                     <span class="breakdown-label">Base Price (HT):</span>
                     <span class="breakdown-value">
                         {{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'DZD' }).format(
-                            form.night_tariff_active ? (parseFloat(form.night_tariff) || 0) : (parseFloat(form.public_price) || 0)
+                            form.Tarif_de_nuit_is_active ? (parseFloat(form.night_tariff) || 0) : (parseFloat(form.public_price) || 0)
                         ) }}
                     </span>
                 </div>
@@ -64,7 +63,7 @@ const estimatedTotal = computed(() => {
                     <span class="breakdown-label">VAT ({{ form.vat_rate || 0 }}%):</span>
                     <span class="breakdown-value">
                         {{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'DZD' }).format(
-                            ((form.night_tariff_active ? (parseFloat(form.night_tariff) || 0) : (parseFloat(form.public_price) || 0)) * (parseFloat(form.vat_rate) || 0)) / 100
+                            ((form.Tarif_de_nuit_is_active ? (parseFloat(form.night_tariff) || 0) : (parseFloat(form.public_price) || 0)) * (parseFloat(form.vat_rate) || 0)) / 100
                         ) }}
                     </span>
                 </div>
@@ -141,15 +140,15 @@ const estimatedTotal = computed(() => {
                 <div class="form-group full-width">
                     <div class="checkbox-group">
                         <label class="checkbox-label">
-                            <input v-model="form.night_tariff_active" type="checkbox" class="checkbox-input" />
+                            <input v-model="form.Tarif_de_nuit_is_active" type="checkbox" class="checkbox-input" />
                             <span class="checkbox-custom"></span>
                             <span class="checkbox-text">Enable Night Tariff</span>
                         </label>
                     </div>
                 </div>
 
-                <div v-if="form.night_tariff_active" class="form-group">
-                    <label class="form-label required">Night Tariff (HT)</label>
+                <div v-if="form.Tarif_de_nuit_is_active" class="form-group">
+                    <label class="form-label required">Night Tariff (TTC)</label>
                     <div class="input-with-icon">
                         <i class="fas fa-moon input-icon"></i>
                         <input v-model="form.night_tariff" type="number" step="0.01" class="form-input with-icon"

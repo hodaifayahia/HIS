@@ -289,7 +289,6 @@ const formatCurrency = (amount) => {
 <template>
   <!-- Enhanced Modal Backdrop -->
   <div class="tw-fixed tw-inset-0 tw-bg-gradient-to-br tw-from-slate-900/80 tw-via-slate-800/60 tw-to-slate-900/80 tw-backdrop-blur-sm tw-flex tw-items-center tw-justify-center tw-z-[1050] tw-p-4">
-    
     <!-- Enhanced Modal Container (smaller size) -->
     <div class="tw-bg-white tw-w-full tw-max-w-md tw-rounded-xl tw-overflow-hidden tw-shadow-xl tw-border tw-border-gray-100 tw-transform tw-transition-all tw-duration-300">
       

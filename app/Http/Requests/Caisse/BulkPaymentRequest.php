@@ -14,7 +14,7 @@ class BulkPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiche_navette_id' => 'required|integer|exists:fiche_navette,id',
+            'fiche_navette_id' => 'required|integer|exists:fiche_navettes,id',
             'caisse_session_id' => 'nullable|integer',
             'cashier_id' => 'required|integer|exists:users,id',
             'patient_id' => 'required|integer|exists:patients,id',

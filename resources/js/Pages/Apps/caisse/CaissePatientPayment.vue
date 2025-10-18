@@ -244,8 +244,19 @@ const summaryItems = computed(() => {
 });
 
 const itemRemaining = (it) => {
+    console.log('Calculating remaining for item:', it);
+    
   if (!it) return 0
-  // Use the helper function that properly handles both dependencies and regular items
+  
+  // Handle both regular items and dependencies
+  if (it.is_dependency) {
+    // For dependencies, check both dependency and parent item transactions
+    const dependencyAmount = Number(it.amount || it.final_price || 0)
+    const paidAmount = getItemPaidAmount(it)
+    return Math.max(0, dependencyAmount - paidAmount)
+  }
+  
+  // For regular items use the helper function
   return getItemRemainingAmount(it)
 }
 
@@ -260,11 +271,18 @@ const isMinVersementPaid = (item) => {
 
 // Get payment status based on minimum versement
 const getPaymentStatus = (item) => {
-  const finalPrice = getItemFinalPrice(item)
+  const finalPrice = item.is_dependency ? Number(item.amount || item.final_price || 0) : getItemFinalPrice(item)
   const paidAmount = getItemPaidAmount(item)
   const remaining = itemRemaining(item)
-  const minVersement = Number(item.prestation?.min_versement_amount || 0)
-  const defaultPaymentType = item.default_payment_type || item.prestation?.default_payment_type
+  // For dependencies, check both dependency and parent prestation settings
+  const minVersement = Number(
+    item.is_dependency 
+      ? (item.min_versement_amount || item.dependencyPrestation?.min_versement_amount || 0)
+      : (item.prestation?.min_versement_amount || 0)
+  )
+  const defaultPaymentType = item.is_dependency
+    ? (item.default_payment_type || item.dependencyPrestation?.default_payment_type)
+    : (item.default_payment_type || item.prestation?.default_payment_type)
 
   if (remaining <= 0) {
     return { status: 'paid', color: 'green', text: 'Payé' }
@@ -1500,8 +1518,15 @@ const payDependency = async (parentItem, dep) => {
 
 const processDependencyDirectPayment = async (parentItem, dep, amount, paymentMethod) => {
   const cashierId = cashier_id?.value ?? null
+  const patient_id = patientId?.value ?? null
+  
   if (!cashierId) {
     toast.add({ severity: 'error', summary: 'Cashier missing', detail: 'cashier_id is required', life: 4000 })
+    return
+  }
+  
+  if (!patient_id) {
+    toast.add({ severity: 'error', summary: 'Patient missing', detail: 'patient_id is required', life: 4000 })
     return
   }
 
@@ -1517,10 +1542,16 @@ const processDependencyDirectPayment = async (parentItem, dep, amount, paymentMe
     transaction_type: 'payment',
     status: 'pending',
     cashier_id: cashierId,
-    patient_id: patientId?.value ?? null,
-    notes: `Payment for dependency ${dep.display_name || 'dependency'}`,
+    patient_id: patient_id,
+    notes: `Payment for ${dep.display_name ?? dep.dependencyPrestation?.name ?? 'dependency'}`,
     created_at: now,
-    updated_at: now
+    updated_at: now,
+    // Add dependency-specific fields
+    dependency_info: {
+      parent_item_id: parentItem.id,
+      dependency_id: dep.id,
+      prestation_id: dep.dependent_prestation_id ?? dep.prestation_id ?? dep.prestation?.id
+    }
   }
 
   // Apply optimistic update immediately for dependency

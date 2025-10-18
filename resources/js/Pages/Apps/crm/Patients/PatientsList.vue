@@ -19,7 +19,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="patient in filteredPatients" :key="patient.id">
+          <tr v-for="patient in filteredPatients" :key="patient.id" class="hover:bg-gray-50 transition-colors duration-200 cursor-pointer" @click="handlePatientRowClick(patient)">
             <td>
               <img :src="patient.avatar || defaultAvatar" class="table-avatar" alt="avatar" />
               {{ patient.full_name }}
@@ -68,14 +68,24 @@
       </div>
     </div>
   </div>
+
+    <!-- Removed PatientPortal modal as we're now using a separate page -->
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import PatientModel from "../../../../Components/PatientModel.vue";
+// Removed PatientPortal import as we're now using a separate page
+
+const router = useRouter();
 
 const defaultAvatar = 'https://ui-avatars.com/api/?name=Patient&background=2563eb&color=fff&size=128';
 const search = ref('');
 const showAddModal = ref(false);
+const showModal = ref(false);
+// Removed PatientPortal state variables as we're now using a separate page
+const specData = ref({});
 
 const patients = ref([
   {
@@ -152,6 +162,26 @@ function savePatient() {
     notes: ''
   };
 }
+
+const closeModal = () => {
+    showModal.value = false;
+    specData.value = {};
+};
+
+// Removed PatientPortal functions as we're now using a separate page
+
+const handlePatientUpdated = () => {
+    // Refresh patient list if needed
+    console.log('Patient updated');
+};
+
+const handlePatientRowClick = (patient) => {
+    // Navigate to the new patient portal page
+    router.push({ 
+        name: 'patient.portal', 
+        params: { id: patient.id } 
+    });
+};
 </script>
 
 <style scoped>

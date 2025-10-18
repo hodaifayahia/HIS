@@ -10,7 +10,7 @@ const CoffreRoutes = [
       {
         path: 'dashboard', // <-- changed from '' to 'dashboard' so /coffre/dashboard works
         name: 'coffre.dashboard',
-        component: () => import('../Pages/Apps/coffre/Coffre/'),
+        component: () => import('../Pages/Apps/coffre/CoffreDashboard.vue'),
         meta: { title: 'Coffre Dashboard' }
       },
       {
@@ -39,6 +39,28 @@ const CoffreRoutes = [
         meta: { title: 'Coffre Caisse' }
       },
       {
+        path: 'caisse/:caisse_id/transfers', // <-- keep param name
+        name: 'coffre.caisse.transfers',
+        component: () => import('../Pages/Apps/coffre/caisse/CaisseTransfersList.vue'),
+        meta: {
+            title: 'Caisse Transfers',
+            requiresAuth: true
+          },
+        // map route param 'caisse_id' to prop 'caisseId' expected by CaisseTransfersList.vue
+        props: (route) => ({ caisseId: route.params.caisse_id })
+      },
+      {
+        path: 'caisse/:caisse_id/financial-transactions', // <-- new route for financial transactions
+        name: 'coffre.caisse.financial-transactions',
+        component: () => import('../Pages/Apps/coffre/caisse/CaisseFinancialTransactionsList.vue'),
+        meta: {
+            title: 'Caisse Financial Transactions',
+            requiresAuth: true
+          },
+        // map route param 'caisse_id' to prop 'caisseId' expected by CaisseFinancialTransactionsList.vue
+        props: (route) => ({ caisseId: route.params.caisse_id })
+      },
+        {
         path: 'caisse/:caisse_id', // <-- keep param name
         name: 'coffre.caisse.operation',
         component: () => import('../Pages/Apps/coffre/caisse/CaisseSessionList.vue'),
@@ -49,6 +71,7 @@ const CoffreRoutes = [
         // map route param 'caisse_id' to prop 'id' expected by CaisseSessionList.vue
         props: (route) => ({ id: route.params.caisse_id })
       },
+     
      
     ]
   }
