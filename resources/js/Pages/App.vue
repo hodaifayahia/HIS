@@ -15,6 +15,7 @@ const { user, isLoading } = storeToRefs(authStore);
 // List of routes that should NOT show the dashboard layout at all (e.g., login, home)
 const noLayoutRoutes = [
   'home',
+  'calander.public',
   'auth.login',
   // Add more routes as needed that are full-page layouts without any dashboard elements
 ];

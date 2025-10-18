@@ -7,7 +7,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'admin-lte/dist/css/adminlte.min.css';
 import 'admin-lte';
 
-import { createApp } from 'vue/dist/vue.esm-bundler.js';
+import { createApp } from 'vue/dist/vue.runtime.esm-bundler.js';
 import { createPinia } from 'pinia';
 import { createRouter, createWebHistory } from 'vue-router';
 import { allRoutes as AppRoutes } from '../js/Routes/Routes.js';
@@ -16,10 +16,12 @@ import App from '../js/Pages/App.vue';
 
 // ✅ PrimeVue imports (only config and services)
 import PrimeVue from 'primevue/config';
+ 
 import 'primevue/resources/themes/saga-blue/theme.css';
 import 'primevue/resources/primevue.min.css';
 import ToastService from 'primevue/toastservice';
 import ConfirmDialog from 'primevue/confirmdialog'
+import Toast from 'primevue/toast';
 
 import ConfirmationService from 'primevue/confirmationservice';
 
@@ -30,6 +32,7 @@ const pinia = createPinia();
 const app = createApp(App);
 app.use(pinia);
     app.component('ConfirmDialog', ConfirmDialog)
+    app.component('Toast', Toast)
 
 // ✅ Configure PrimeVue with custom theme
 app.use(PrimeVue, {

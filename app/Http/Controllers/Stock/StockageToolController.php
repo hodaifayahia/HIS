@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Stock;
 
 use App\Http\Controllers\Controller;
-use App\Models\StockageTool;
 use App\Models\Stockage;
-use Illuminate\Http\Request;
+use App\Models\StockageTool;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class StockageToolController extends Controller
@@ -27,21 +27,21 @@ class StockageToolController extends Controller
 
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('tool_number', 'like', "%{$search}%")
-                  ->orWhere('block', 'like', "%{$search}%")
-                  ->orWhere('shelf_level', 'like', "%{$search}%");
+                    ->orWhere('block', 'like', "%{$search}%")
+                    ->orWhere('shelf_level', 'like', "%{$search}%");
             });
         }
 
         $tools = $query->orderBy('tool_type')
-                      ->orderBy('tool_number')
-                      ->paginate($request->get('per_page', 15));
+            ->orderBy('tool_number')
+            ->paginate($request->get('per_page', 15));
 
         return response()->json([
             'success' => true,
             'data' => $tools,
-            'stockage' => $stockage
+            'stockage' => $stockage,
         ]);
     }
 
@@ -56,31 +56,31 @@ class StockageToolController extends Controller
             'tool_type' => ['required', Rule::in(['RY', 'AR', 'CF', 'FR', 'CS', 'CH', 'PL'])],
             'tool_number' => ['required', 'integer', 'min:1'],
             'block' => ['nullable', 'string', 'size:1', 'regex:/^[A-M]$/', Rule::requiredIf($request->tool_type === 'RY')],
-            'shelf_level' => ['nullable', 'integer', 'min:1', Rule::requiredIf($request->tool_type === 'RY')]
+            'shelf_level' => ['nullable', 'integer', 'min:1', Rule::requiredIf($request->tool_type === 'RY')],
         ]);
 
         // Check for unique constraint
         $exists = StockageTool::where('stockage_id', $stockage->id)
-                             ->where('tool_type', $validated['tool_type'])
-                             ->where('tool_number', $validated['tool_number'])
-                             ->exists();
+            ->where('tool_type', $validated['tool_type'])
+            ->where('tool_number', $validated['tool_number'])
+            ->exists();
 
         if ($exists) {
             return response()->json([
                 'success' => false,
-                'message' => 'A tool with this type and number already exists in this stockage.'
+                'message' => 'A tool with this type and number already exists in this stockage.',
             ], 422);
         }
 
         $tool = StockageTool::create([
             'stockage_id' => $stockage->id,
-            ...$validated
+            ...$validated,
         ]);
 
         return response()->json([
             'success' => true,
             'data' => $tool->load('stockage.service'),
-            'message' => 'Stockage tool created successfully.'
+            'message' => 'Stockage tool created successfully.',
         ], 201);
     }
 
@@ -90,12 +90,12 @@ class StockageToolController extends Controller
     public function show($stockage, $toolId): JsonResponse
     {
         $tool = StockageTool::where('stockage_id', $stockage)
-                           ->with('stockage')
-                           ->findOrFail($toolId);
+            ->with('stockage')
+            ->findOrFail($toolId);
 
         return response()->json([
             'success' => true,
-            'data' => $tool
+            'data' => $tool,
         ]);
     }
 
@@ -110,20 +110,20 @@ class StockageToolController extends Controller
             'tool_type' => ['required', Rule::in(['RY', 'AR', 'CF', 'FR', 'CS', 'CH', 'PL'])],
             'tool_number' => ['required', 'integer', 'min:1'],
             'block' => ['nullable', 'string', 'size:1', 'regex:/^[A-M]$/', Rule::requiredIf($request->tool_type === 'RY')],
-            'shelf_level' => ['nullable', 'integer', 'min:1', Rule::requiredIf($request->tool_type === 'RY')]
+            'shelf_level' => ['nullable', 'integer', 'min:1', Rule::requiredIf($request->tool_type === 'RY')],
         ]);
 
         // Check for unique constraint (excluding current record)
         $exists = StockageTool::where('stockage_id', $stockage)
-                             ->where('tool_type', $validated['tool_type'])
-                             ->where('tool_number', $validated['tool_number'])
-                             ->where('id', '!=', $toolId)
-                             ->exists();
+            ->where('tool_type', $validated['tool_type'])
+            ->where('tool_number', $validated['tool_number'])
+            ->where('id', '!=', $toolId)
+            ->exists();
 
         if ($exists) {
             return response()->json([
                 'success' => false,
-                'message' => 'A tool with this type and number already exists in this stockage.'
+                'message' => 'A tool with this type and number already exists in this stockage.',
             ], 422);
         }
 
@@ -132,7 +132,7 @@ class StockageToolController extends Controller
         return response()->json([
             'success' => true,
             'data' => $tool->fresh('stockage.service'),
-            'message' => 'Stockage tool updated successfully.'
+            'message' => 'Stockage tool updated successfully.',
         ]);
     }
 
@@ -147,7 +147,7 @@ class StockageToolController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Stockage tool deleted successfully.'
+            'message' => 'Stockage tool deleted successfully.',
         ]);
     }
 
@@ -163,12 +163,12 @@ class StockageToolController extends Controller
             ['value' => 'FR', 'label' => 'Frigo'],
             ['value' => 'CS', 'label' => 'Caisson'],
             ['value' => 'CH', 'label' => 'Chariot'],
-            ['value' => 'PL', 'label' => 'Palette']
+            ['value' => 'PL', 'label' => 'Palette'],
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $types
+            'data' => $types,
         ]);
     }
 
@@ -181,9 +181,9 @@ class StockageToolController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => array_map(function($block) {
+            'data' => array_map(function ($block) {
                 return ['value' => $block, 'label' => $block];
-            }, $blocks)
+            }, $blocks),
         ]);
     }
 }

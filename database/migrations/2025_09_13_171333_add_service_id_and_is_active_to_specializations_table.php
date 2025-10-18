@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('specializations', function (Blueprint $table) {
-            if (!Schema::hasColumn('specializations', 'service_id')) {
+            if (! Schema::hasColumn('specializations', 'service_id')) {
                 $table->unsignedBigInteger('service_id')->default(1)->after('id');
             }
-            if (!Schema::hasColumn('specializations', 'is_active')) {
+            if (! Schema::hasColumn('specializations', 'is_active')) {
                 $table->tinyInteger('is_active')->default(1)->after('service_id');
             }
         });
@@ -27,7 +27,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('specializations', function (Blueprint $table) {
-                        $table->dropColumn(['service_id', 'is_active']);
+            $table->dropColumn(['service_id', 'is_active']);
         });
     }
 };

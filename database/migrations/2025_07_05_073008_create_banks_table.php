@@ -1,4 +1,5 @@
 <?php
+
 // database/migrations/create_banks_table.php
 
 use Illuminate\Database\Migrations\Migration;
@@ -23,7 +24,7 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->integer('sort_order')->default(0);
             $table->timestamps();
-            
+
             $table->index(['is_active', 'sort_order']);
             $table->index('name');
         });

@@ -59,6 +59,7 @@ const showFilters = ref(false);
 // Modal State
 const showPrescriptionModal = ref(false);
 const selectedPrescriptionId = ref(null);
+const modalMode = ref('edit'); // 'edit' or 'view'
 
 const primaryColor = '#2563eb';
 
@@ -226,11 +227,13 @@ const selectedPrescription = ref(null);
 
 const editPrescription = (prescription) => {
     selectedPrescription.value = prescription; // Store the prescription data
+    modalMode.value = 'edit'; // Set to edit mode
     showPrescriptionModal.value = true; // Show the modal
 };
 
 const addPrescription = () => {
     selectedPrescription.value = null; // Clear selected prescription for new entry
+    modalMode.value = 'edit'; // Set to edit mode (for new)
     showPrescriptionModal.value = true;
 };
 
@@ -238,10 +241,12 @@ const closePrescriptionModal = () => {
     showPrescriptionModal.value = false;
     selectedPrescription.value = null; // Clear the selected prescription
     selectedPrescriptionId.value = null; // Clear the selected ID
+    modalMode.value = 'edit'; // Reset to edit mode
 };
 
 const viewPrescription = (prescription) => {
-    selectedPrescriptionId.value = prescription.id;
+    selectedPrescription.value = prescription; // Store the prescription data for viewing
+    modalMode.value = 'view'; // Set to view mode
     showPrescriptionModal.value = true;
 };
 
@@ -619,7 +624,7 @@ onMounted(() => {
                 </div>
 
                 <PrescriptionModel :showModal="showPrescriptionModal" :prestationData="selectedPrescription"
-                    @close="closePrescriptionModal" @prestation-added="handlePrestationAdded"
+                    :viewMode="modalMode === 'view'" @close="closePrescriptionModal" @prestation-added="handlePrestationAdded"
                     @prestation-updated="handlePrestationUpdated" />
 
                 <div v-if="showImportModal" class="modal-overlay">

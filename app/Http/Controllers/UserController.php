@@ -2,16 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Storage;
 use App\Http\Enum\RoleSystemEnum;
-use App\Http\Resources\UserDoctorResource;
 use App\Http\Resources\UserResource;
 use App\Models\Doctor;
-use App\Models\User;
 use App\Models\Specialization;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Storage;
 
 class UserController extends Controller
 {
@@ -24,7 +23,7 @@ class UserController extends Controller
         $users = User::with(['activeSpecializations', 'specialization'])
             ->where('deleted_at', null)
             ->paginate();
-    
+
         return UserResource::collection($users);
     }
 
@@ -34,15 +33,16 @@ class UserController extends Controller
         $users = User::with(['activeSpecializations', 'specialization'])
             ->where('role', 'receptionist')
             ->paginate();
-    
+
         return UserResource::collection($users);
     }
-    
+
     public function getCurrentUser()
     {
         try {
 
             $user = Auth::user()->load(['activeSpecializations', 'specialization', 'doctor']);
+
             return response()->json([
                 'success' => true,
                 'data' => new UserResource($user),
@@ -61,16 +61,18 @@ class UserController extends Controller
     {
         try {
             $user = Auth::user();
-            
+
             // Load the doctor relationship to avoid N+1 queries
             $user->load('doctor', 'activeSpecializations');
-            
+
             return response()->json([
                 'role' => $user->role,
                 'id' => $user->doctor?->id ?? null,
                 'specialization_id' => $user->doctor?->specialization_id ?? null,
-                'specializations' => $user->activeSpecializations->pluck('id')->toArray(),
-                'all_specializations' => $user->getAllSpecializations()->pluck('id')->toArray(),
+                // activeSpecializations holds UserSpecialization pivot models, so pluck the specialization_id
+                'specializations' => $user->activeSpecializations->pluck('specialization_id')->toArray(),
+                // getAllSpecializations() returns a relation joining specializations, qualify the id to avoid ambiguity
+                'all_specializations' => $user->getAllSpecializations()->pluck('specializations.id')->toArray(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -92,7 +94,7 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $specializations
+            'data' => $specializations,
         ]);
     }
 
@@ -115,15 +117,15 @@ class UserController extends Controller
             'specializations.*' => 'exists:specializations,id',
             'main_specialization_id' => 'nullable|exists:specializations,id', // For doctor table
         ]);
-    
+
         // Handle file upload for avatar
         $avatarPath = null;
         if ($request->hasFile('avatar')) {
             $avatar = $request->file('avatar');
-            $fileName = $validatedData['name'] . '-' . time() . '.' . $avatar->getClientOriginalExtension();
+            $fileName = $validatedData['name'].'-'.time().'.'.$avatar->getClientOriginalExtension();
             $avatarPath = $avatar->storeAs('Users', $fileName, 'public');
         }
-    
+
         // Create the user
         $user = User::create([
             'name' => $validatedData['name'],
@@ -151,10 +153,10 @@ class UserController extends Controller
         }
 
         // Sync multiple specializations if provided
-        if (isset($validatedData['specializations']) && !empty($validatedData['specializations'])) {
+        if (isset($validatedData['specializations']) && ! empty($validatedData['specializations'])) {
             $user->syncSpecializations($validatedData['specializations']);
         }
-    
+
         return new UserResource($user->load(['activeSpecializations', 'specialization']));
     }
 
@@ -178,7 +180,7 @@ class UserController extends Controller
 
         $validatedData = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|unique:users,email,' . $id,
+            'email' => 'required|unique:users,email,'.$id,
             'phone' => 'required|string|min:10|max:15',
             'is_active' => 'nullable|boolean',
             'salary' => 'nullable|numeric',
@@ -222,8 +224,6 @@ class UserController extends Controller
         // Update role using Spatie
         $user->syncRoles([$validatedData['role']]);
 
-       
-
         // Sync multiple specializations if provided
         if (isset($validatedData['specializations'])) {
             if (empty($validatedData['specializations'])) {
@@ -244,7 +244,7 @@ class UserController extends Controller
     public function ChangeRole($userId, Request $request)
     {
         $user = User::findOrFail($userId);
-        
+
         $validatedData = $request->validate([
             'role' => 'required|string|in:admin,doctor,receptionist',
         ]);
@@ -255,12 +255,12 @@ class UserController extends Controller
 
         // Sync roles using Spatie
         $user->syncRoles([$validatedData['role']]);
-        
+
         return response()->json([
-            "success" => true,
+            'success' => true,
         ]);
     }
-    
+
     /**
      * Display the specified resource.
      */
@@ -268,7 +268,7 @@ class UserController extends Controller
     {
         $user = User::with(['activeSpecializations', 'specialization', 'doctor'])
             ->findOrFail($id);
-            
+
         return new UserResource($user);
     }
 
@@ -276,7 +276,7 @@ class UserController extends Controller
     {
         $searchTerm = $request->query('query');
         $role = $request->query('role');
-        
+
         // If search term is empty, return an empty collection
         if (empty($searchTerm)) {
             return UserResource::collection(
@@ -285,21 +285,21 @@ class UserController extends Controller
                     ->get()
             );
         }
-    
+
         $users = User::with(['activeSpecializations', 'specialization'])
-            ->where(function($query) use ($searchTerm) {
+            ->where(function ($query) use ($searchTerm) {
                 $query->where('name', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('email', 'LIKE', "%{$searchTerm}%")
-                      ->orWhere('phone', 'LIKE', "%{$searchTerm}%");
+                    ->orWhere('email', 'LIKE', "%{$searchTerm}%")
+                    ->orWhere('phone', 'LIKE', "%{$searchTerm}%");
             });
 
         if ($role) {
             $users->where('role', $role);
         }
-        
+
         $users = $users->orderBy('created_at', 'desc')
             ->paginate();
-    
+
         return UserResource::collection($users);
     }
 
@@ -326,7 +326,7 @@ class UserController extends Controller
     {
         $ids = $request->input('ids'); // Retrieves 'ids' from the request body
 
-        if (!is_array($ids) || empty($ids)) {
+        if (! is_array($ids) || empty($ids)) {
             return response()->json(['message' => 'Invalid input'], 422);
         }
 
@@ -349,7 +349,7 @@ class UserController extends Controller
     {
         $request->validate([
             'amount' => 'required|numeric|min:0',
-            'message' => 'nullable|string'
+            'message' => 'nullable|string',
         ]);
 
         $user = User::findOrFail($id);
@@ -361,7 +361,7 @@ class UserController extends Controller
         if ($max > 0 && ($current + $amount) > $max) {
             return response()->json([
                 'success' => false,
-                'message' => "Adding {$amount} would exceed maximum allowed balance ({$max})"
+                'message' => "Adding {$amount} would exceed maximum allowed balance ({$max})",
             ], 422);
         }
 
@@ -374,8 +374,8 @@ class UserController extends Controller
             'message' => 'User notified successfully',
             'data' => [
                 'user' => new UserResource($user),
-                'amount_added' => $amount
-            ]
+                'amount_added' => $amount,
+            ],
         ]);
     }
 }

@@ -235,7 +235,7 @@ const allApps = ref([
     name: 'Facturation',
     icon: 'fas fa-file-invoice-dollar',
     color: '#0EA5E9',
-    route: '/admin/facturation',
+    route: '/facturation',
     category: 'financial'
   },
   {
@@ -267,7 +267,7 @@ const allApps = ref([
     name: 'Emergency',
     icon: 'fas fa-ambulance',
     color: '#DC2626',
-    route: '/admin/emergency',
+    route: '/emergency',
     category: 'clinical'
   },
   {
@@ -275,7 +275,7 @@ const allApps = ref([
     name: 'Nursing',
     icon: 'fas fa-user-nurse',
     color: '#F472B6',
-    route: '/admin/Nursing',
+    route: '/nursing',
     category: 'clinical'
   },
   {
@@ -432,11 +432,11 @@ const allApps = ref([
   },
   {
     id: 38,
-    name: 'Soon',
+    name: 'modality',
     icon: 'fas fa-gift',
     color: '#DC2785',
-    route: '/admin/maintenance',
-    category: 'administrative'
+    route: '/modality',
+    category: 'modality'
   },
   {
     id: 39,
@@ -453,11 +453,11 @@ const filteredApps = computed(() => {
   let filtered = allApps.value;
 
   // Role-based filtering
-  if (user.value?.data?.role?.toLowerCase() === 'doctor') {
+  if (user.value?.role?.toLowerCase() === 'doctor') {
     filtered = filtered.filter(app =>
       app.name === 'Calendar' || app.name === 'Consultation'
     );
-  } else if (user.value?.data?.role?.toLowerCase() === 'receptionist') {
+  } else if (user.value?.role?.toLowerCase() === 'receptionist') {
     filtered = filtered.filter(app =>
       app.name === 'Appointments' || app.name === 'portal'
     );

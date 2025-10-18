@@ -53,7 +53,7 @@ class PharmacyMovementAuditLog extends Model
     // Helper methods
     public function getFormattedChangesAttribute(): string
     {
-        if (!$this->old_values || !$this->new_values) {
+        if (! $this->old_values || ! $this->new_values) {
             return 'No changes recorded';
         }
 
@@ -92,7 +92,7 @@ class PharmacyMovementAuditLog extends Model
 
     public function getVerificationMethodLabelAttribute(): string
     {
-        return match($this->verification_method) {
+        return match ($this->verification_method) {
             'manual_review' => 'Manual Review',
             'electronic_signature' => 'Electronic Signature',
             'biometric' => 'Biometric Verification',
@@ -116,7 +116,7 @@ class PharmacyMovementAuditLog extends Model
             'dosage_adjusted',
             'substitution_made',
             'patient_counseled',
-            'prescription_validated'
+            'prescription_validated',
         ]);
     }
 
@@ -126,19 +126,19 @@ class PharmacyMovementAuditLog extends Model
             'drug_interaction_check',
             'allergy_check',
             'prescription_validated',
-            'patient_counseled'
+            'patient_counseled',
         ]);
     }
 
     public function hasRegulatoryImplications(): bool
     {
-        return !empty($this->regulatory_reference) || $this->isComplianceAction();
+        return ! empty($this->regulatory_reference) || $this->isComplianceAction();
     }
 
     public function isPatientSafetyRelated(): bool
     {
-        return $this->drug_interaction_checked || 
-               $this->allergy_check_performed || 
+        return $this->drug_interaction_checked ||
+               $this->allergy_check_performed ||
                in_array($this->action, ['dosage_adjusted', 'substitution_made']);
     }
 
@@ -147,7 +147,7 @@ class PharmacyMovementAuditLog extends Model
         $checks = [
             'patient_consent_verified',
             'drug_interaction_checked',
-            'allergy_check_performed'
+            'allergy_check_performed',
         ];
 
         $completedChecks = 0;
@@ -162,12 +162,13 @@ class PharmacyMovementAuditLog extends Model
         } elseif ($completedChecks > 0) {
             return 'partially_compliant';
         }
+
         return 'non_compliant';
     }
 
     public function getComplianceStatusLabelAttribute(): string
     {
-        return match($this->compliance_status) {
+        return match ($this->compliance_status) {
             'fully_compliant' => 'Fully Compliant',
             'partially_compliant' => 'Partially Compliant',
             'non_compliant' => 'Non-Compliant',
@@ -209,7 +210,7 @@ class PharmacyMovementAuditLog extends Model
             'dosage_adjusted',
             'substitution_made',
             'patient_counseled',
-            'prescription_validated'
+            'prescription_validated',
         ]);
     }
 
@@ -219,7 +220,7 @@ class PharmacyMovementAuditLog extends Model
             'drug_interaction_check',
             'allergy_check',
             'prescription_validated',
-            'patient_counseled'
+            'patient_counseled',
         ]);
     }
 
@@ -227,8 +228,8 @@ class PharmacyMovementAuditLog extends Model
     {
         return $query->where(function ($q) {
             $q->where('drug_interaction_checked', true)
-              ->orWhere('allergy_check_performed', true)
-              ->orWhereIn('action', ['dosage_adjusted', 'substitution_made']);
+                ->orWhere('allergy_check_performed', true)
+                ->orWhereIn('action', ['dosage_adjusted', 'substitution_made']);
         });
     }
 

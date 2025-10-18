@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch  } from 'vue';
 import axios from 'axios';
 import { useToastr } from '../../../Components/toster';
 import { useRouter } from 'vue-router';
-import DoctorWaitlist from '../../../Components/Doctor/DoctorWaitlist.vue';
+import PrimeWaitlistModal from '@/Components/Doctor/PrimeWaitlistModal.vue';
 import SpeedAppointmentModel from '../../../Components/appointments/SpeedAppointmentModel.vue'; // Adjust path if necessary
 import { useAuthStoreDoctor } from '../../../stores/AuthDoctor';
 import OldConsulation from '../OldConsulation/OldConsulation.vue'
@@ -70,6 +70,23 @@ onMounted(async () => {
   await loadDoctorData();
   getAppointments(1, 'all_relevant_statuses');
 
+  // Setup WebSocket listeners for consultation events
+  if (window.Echo && currentDoctorId.value) {
+    // Listen for blocked consultation attempts on private doctor channel
+    window.Echo.private(`doctor.${currentDoctorId.value}`)
+      .listen('.consultation.blocked', (e) => {
+        console.log('Consultation blocked:', e);
+        toaster.warning(e.message, { duration: 5000 });
+      });
+
+    // Listen for consultation completions on public channel
+    window.Echo.channel('consultations')
+      .listen('.consultation.completed', (e) => {
+        console.log('Consultation completed:', e);
+        // Refresh appointments to show updated availability
+        getAppointments(currentPage.value, selectedStatus.value);
+      });
+  }
 });
 
 
@@ -143,7 +160,7 @@ if (status === 'all_relevant_statuses') {
       params.search = search;
     }
 
-    const { data } = await axios.get(`/api/appointments/consulationappointment/${currentDoctorId.value}`, {
+    const { data } = await axios.get(`/api/consulations/consulationappointment/${currentDoctorId.value}`, {
       params,
     });
 
@@ -175,6 +192,79 @@ const GotoConsulatoinpage = (appointment) => {
     });
 };
 
+// Open quick check-in modal for a specific appointment
+const openQuickCheckIn = async (appointment) => {
+    // Build list of fiche_navette_item ids from appointment prestations
+    const ficheIds = (appointment.prestations || [])
+        .map(p => p.fiche_navette_item?.id ?? null)
+        .filter(id => id !== null);
+
+    if (ficheIds.length === 0) {
+        toaster.warning('No fiche items available for check-in');
+        return;
+    }
+
+    try {
+        // Determine unique specializations for the appointment prestations
+        const specIds = Array.from(new Set((appointment.prestations || [])
+            .map(p => p.prestation?.specialization_id ?? p.specialization_id)
+            .filter(s => s != null)));
+
+        // Collect available salles for these specializations and pick the first one
+        const allSalles = new Map();
+
+        for (const specId of specIds) {
+            try {
+                const resp = await axios.get(`/api/patient-tracking/available-salles/${specId}`);
+                if (resp.data && resp.data.success && Array.isArray(resp.data.data)) {
+                    resp.data.data.forEach(s => {
+                        if (!allSalles.has(s.id)) allSalles.set(s.id, s);
+                    });
+                }
+            } catch (err) {
+                // ignore a single specialization failure and continue
+                console.warn('Failed to load salles for specialization', specId, err);
+            }
+        }
+        console.log(allSalles )
+
+        const sallesArray = Array.from(allSalles.values());
+        // if (sallesArray.length === 0) {
+        //     toaster.warning('No salles available for the prestation specializations');
+        //     return;
+        // }
+
+        // Per user's request: automatically take the first salle when multiple exist
+        const chosenSalle = sallesArray[0];
+        if (!chosenSalle) {
+            toaster.warning('No salles available for the prestation specializations');
+            return;
+        }
+
+        // Perform check-in for each fiche item using the chosen salle
+        const promises = ficheIds.map(fid => axios.post('/api/patient-tracking/check-in', {
+            fiche_navette_item_id: fid,
+            salle_id: chosenSalle.id,
+            notes: null,
+            update_item_status: true,
+        }).then(r => ({ success: r.data?.success ?? true, data: r.data })).catch(e => ({ success: false, error: e?.response?.data?.message || e.message })));
+
+        const results = await Promise.all(promises);
+
+        const successCount = results.filter(r => r.success).length;
+        const failureCount = results.length - successCount;
+
+        if (successCount > 0) toaster.success(`${successCount} prestation(s) checked in (salle: ${chosenSalle.name})`);
+        if (failureCount > 0) toaster.warning(`${failureCount} prestation(s) failed to check in`);
+
+        // Refresh appointments to reflect status changes
+        if (currentDoctorId.value) getAppointments(1, 'all_relevant_statuses');
+    } catch (err) {
+        console.error('Auto check-in error', err);
+        toaster.error('Auto check-in failed');
+    }
+};
+
 const openWaitlistForYouModal = () => {
     WaitlistDcotro.value = true; // Open the Waitlist modal
     NotForYou.value = false; // Set the NotForYou state to false
@@ -192,16 +282,29 @@ const createConsultation = async (appointment) => {
         return;
     }
     try {
-        // Update appointment status to 'onWorking' (status value 5)
-         axios.patch(`/api/appointment/${appointment.id}/status`, {
-            status: 5
-        });
-      const consulation =   await axios.post('/api/consulations', {
+        // First, attempt to create the consultation. If the backend rejects this because
+        // the prestation is not present in the fiche_navette, we should NOT change the
+        // appointment status.
+        const consulation = await axios.post('/api/consulations', {
             appointment_id: appointment.id,
             patient_id: appointment.patient_id,
             doctor_id: appointment.doctor_id,
-        });        
+        });
 
+        if (consulation.data && consulation.data.success === false) {
+            const msg = consulation.data.message || 'Unable to create consultation.';
+            if (msg === 'Appointment not found.') {
+                toaster.warning('Cannot create consultation yet: the prestation is not present in the fiche. Please create the fiche and set its status to ONWORKING.');
+            } else {
+                toaster.error(msg);
+            }
+            return;
+        }
+
+        // Consultation created successfully — now update appointment status to 'onWorking' (value 5)
+        await axios.patch(`/api/appointment/${appointment.id}/status`, {
+            status: 5
+        });
 
         toaster.success('Appointment status updated to On Working.');
 
@@ -212,12 +315,96 @@ const createConsultation = async (appointment) => {
                 specialization_id: appointment.specialization_id,
                 patientId: appointment.patient_id,
                 doctorId: appointment.doctor_id,
-                consulationId:consulation.data.data.id
+                consulationId: consulation.data.data.id
             }
         });
     } catch (err) {
         console.error('Error updating appointment status:', err);
-        toaster.error('Failed to update appointment status.');
+        
+        // Handle concurrent consultation error (409 Conflict)
+        if (err?.response?.status === 409 && err?.response?.data?.in_consultation) {
+            const data = err.response.data;
+            const activeDoctor = data.active_doctor || 'another doctor';
+            const prestation = data.prestation || '';
+            toaster.warning(
+                `Patient is currently in consultation with ${activeDoctor}${prestation ? ' for ' + prestation : ''}. Please wait until the consultation is completed.`,
+                { duration: 5000 }
+            );
+            return;
+        }
+        
+        // If backend returns a structured error, show it, otherwise show a generic message
+        const remoteMessage = err?.response?.data?.message;
+        if (remoteMessage) {
+            toaster.error(remoteMessage);
+        } else {
+            toaster.error('Failed to update appointment status.');
+        }
+    }
+};
+
+// Normalize fiche item status (accept numeric or string shapes)
+const ficheStatusValue = (itemOrStatus) => {
+    if (itemOrStatus === null || itemOrStatus === undefined) return null;
+
+    // If it's an object with fields we added in resource
+    if (typeof itemOrStatus === 'object') {
+        const it = itemOrStatus;
+        if (it.status !== undefined && it.status !== null && typeof it.status === 'number') return it.status;
+        const raw = (it.status_raw ?? it.status ?? it.status_raw) || null;
+        if (raw === null) return null;
+        const s = String(raw).toLowerCase();
+        if (!isNaN(parseInt(s))) return parseInt(s);
+        if (['working', 'onworking', 'on_working', 'on working', 'on-working'].includes(s)) return 5;
+        if (['pending', 'wait', 'waiting'].includes(s)) return 3;
+        if (['done', 'completed', 'complete'].includes(s)) return 4;
+        return null;
+    }
+
+    // Primitive value
+    if (typeof itemOrStatus === 'number') return itemOrStatus;
+    const s = String(itemOrStatus).toLowerCase();
+    if (!isNaN(parseInt(s))) return parseInt(s);
+    if (['working', 'onworking', 'on_working', 'on working', 'on-working'].includes(s)) return 5;
+    if (['pending', 'wait', 'waiting'].includes(s)) return 3;
+    if (['done', 'completed', 'complete'].includes(s)) return 4;
+    return null;
+};
+
+const isItemOnWorking = (item) => {
+    return ficheStatusValue(item) === 5;
+};
+
+// Helper to map fiche item status to a human name. Accepts the item or raw status.
+const getFicheStatusName = (itemOrStatus) => {
+    const val = ficheStatusValue(itemOrStatus);
+    const map = {
+        0: 'SCHEDULED',
+        1: 'CONFIRMED',
+        2: 'CANCELED',
+        3: 'PENDING',
+        4: 'DONE',
+        5: 'ONWORKING',
+    };
+    return map[val] || (typeof itemOrStatus === 'object' ? (itemOrStatus?.status_raw ?? 'Unknown') : 'Unknown');
+};
+
+// Small helper to pick a bootstrap badge color based on fiche item status (accept item or status)
+const getFicheBadge = (itemOrStatus) => {
+    const status = ficheStatusValue(itemOrStatus) ?? -1;
+    switch (status) {
+        case 1:
+            return 'success';
+        case 2:
+            return 'danger';
+        case 4:
+            return 'info';
+        case 5:
+            return 'warning';
+        case 0:
+            return 'primary';
+        default:
+            return 'secondary';
     }
 };
 
@@ -359,7 +546,7 @@ let timeout = null;
                                     <tr>
                                         <th>#</th>
                                         <th>Patient</th>
-                                        <th>Doctor</th>
+                                        <th>Prestations</th>
                                         <th>Date & Time</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -381,9 +568,19 @@ let timeout = null;
                                             </div>
                                         </td>
                                         <td @click="GotoConsulatoinpage(appointment)">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-user-md text-info me-2"></i>
-                                                {{ appointment.doctor_name }}
+                                            <div>
+                                                <div v-if="appointment.prestations && appointment.prestations.length">
+                                                    <div v-for="p in appointment.prestations" :key="p.appointment_prestation_id" class="d-flex align-items-center mb-1">
+                                                        <span class="badge bg-light text-dark me-2">{{ p.prestation_name || '—' }}</span>
+                                                        <small v-if="p.fiche_navette_item" :class="[`badge`, `bg-${getFicheBadge(p.fiche_navette_item.status)}`, 'text-white']">
+                                                            {{ p.fiche_navette_item.status }}
+                                                        </small>
+                                                        <small v-else class="badge bg-secondary text-white">Not in fichenavatte </small>
+                                                    </div>
+                                                </div>
+                                                <div v-else>
+                                                    <small class="text-muted">No prestation</small>
+                                                </div>
                                             </div>
                                         </td>
                                         <td @click="GotoConsulatoinpage(appointment)">
@@ -401,6 +598,10 @@ let timeout = null;
                                                 {{ appointment.status.name }}
                                             </span>
                                         </td>
+                                        <pre>
+                                                                                        
+
+                                        </pre>
                                         <td>
                                             <div class="d-flex gap-2">
                                                 <button @click.stop.prevent="createConsultation(appointment)"
@@ -411,16 +612,39 @@ let timeout = null;
                                                 </button>
                                                 <button @click.stop="createConsultation(appointment)"
                                                     class="btn btn-primary btn-sm action-button"
-                                                    v-if="appointment.status.value === 0 || appointment.status.value === 1" >
+                                                    v-if="(appointment.status.value === 0 || appointment.status.value === 1) && appointment.can_start_consultation">
                                                     <i class="fas fa-plus-circle me-1"></i>
                                                     Create Consultation
+                                                </button>
+                                                
+                                                <!-- Informational disabled button when fiche items are not ready -->
+                                                <button class="btn btn-secondary btn-sm action-button"
+                                                    v-else-if="(appointment.status.value === 0 || appointment.status.value === 1) && !appointment.can_start_consultation"
+                                                    disabled
+                                                    title="Prestation fiche(s) not ready: create fiche and set status to ONWORKING to enable consultation">
+                                                    <i class="fas fa-hourglass-half me-1"></i>
+                                                    Waiting for prestation fiche
                                                 </button>
                                                 <button @click.stop="goToDetailConsultation(appointment)"
                                                     class="btn btn-primary btn-sm action-button"
                                                     v-if=" appointment.status.value === 4" >
                                                     <i class="fas fa-plus-circle me-1"></i>
-                                                    view Consultation
+                                                   
                                                 </button>
+                                                <!-- Show Quick Check-In button only when at least one prestation has a fiche item that is not yet ONWORKING (status !== 5) -->
+                                                <button @click.stop="openQuickCheckIn(appointment)"
+                                                    class="btn btn-success btn-sm action-button"
+                                                    title="Quick Check-In"
+                                                    v-if="appointment.prestations && appointment.prestations.length && appointment.prestations.some(p => p.fiche_navette_item && p.fiche_navette_item.status !== 5)">
+                                                    <i class="fas fa-sign-in-alt me-1"></i>
+                                                   
+                                                </button>
+                                                <!-- Show "Already Checked In" badge when all fiche items are ONWORKING (status === 5) -->
+                                                <span class="badge bg-info text-white"
+                                                    v-else-if="appointment.prestations && appointment.prestations.length && appointment.prestations.every(p => p.fiche_navette_item && p.fiche_navette_item.status === 'working')">
+                                                    <i class="fas fa-check-circle me-1"></i>
+                                                    
+                                                </span>
 
 
                                             </div>
@@ -461,14 +685,13 @@ let timeout = null;
       />
     </div>
   </div>
-    </div>
-
-    <DoctorWaitlist :WaitlistDcotro="WaitlistDcotro" :NotForYou="NotForYou" :specializationId="specializationId"
+    <PrimeWaitlistModal :WaitlistDcotro="WaitlistDcotro" :NotForYou="NotForYou" :specializationId="specializationId"
         :doctorId="currentDoctorId" @close="closeWaitlistModal" />
 
     <SpeedAppointmentModel v-if="showAppointmentModal" :doctorId="currentDoctorId" @close="closeAppointmentModal"
         @appointmentCreated=" getAppointments(1, 'all_relevant_statuses')" />
-    
+    <!-- Quick Check-In is automatic; modal removed -->
+    </div>
 </template>
 <style scoped>
 .consultation-page {

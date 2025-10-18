@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useRouter, useRoute } from 'vue-router';
 import { useSweetAlert } from '../../Components/useSweetAlert';
 import AddWaitlistModal from '../../Components/waitList/addWaitlistModel.vue';
+import AppointmentFormWaitlist from '../../Components/appointments/appointmentFormWaitlist.vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
@@ -32,6 +33,8 @@ const isEditMode = ref(false);
 const selectedWaitlist = ref(null);
 const doctors = ref([]);
 const loading = ref(false);
+const showAppointmentModal = ref(false);
+const selectedWaitlistForAppointment = ref(null);
 
 const fetchWaitlists = async (filters = {}) => {
   loading.value = true;
@@ -49,9 +52,25 @@ const fetchWaitlists = async (filters = {}) => {
 const fetchImportanceOptions = async () => {
   try {
     const response = await axios.get('/api/importance-enum');
-    importanceOptions.value = response.data;
+    // Convert object to array if needed
+    if (Array.isArray(response.data)) {
+      importanceOptions.value = response.data;
+    } else {
+      // Convert enum object to array format
+      importanceOptions.value = Object.entries(response.data).map(([key, value]) => ({
+        label: value.label || key,
+        value: parseInt(value.value || key),
+        color: value.color || 'info',
+        icon: value.icon || 'pi pi-info-circle'
+      }));
+    }
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch importance options', life: 3000 });
+    // Fallback to default options
+    importanceOptions.value = [
+      { label: 'Normal', value: 0, color: 'info', icon: 'pi pi-info-circle' },
+      { label: 'Urgent', value: 1, color: 'danger', icon: 'pi pi-exclamation-triangle' }
+    ];
   }
 };
 
@@ -88,18 +107,9 @@ const deleteWaitlist = async (id) => {
 };
 
 const moveToAppointments = async (waitlist) => {
-  try {
-    await axios.post(`/api/waitlists/${waitlist.id}/add-to-appointments`, {
-      doctor_id: waitlist.doctor_id,
-      waitlist_id: waitlist.id,
-      patient_id: waitlist.patient_id,
-      notes: waitlist.notes,
-    });
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Patient moved to appointments successfully', life: 3000 });
-    fetchWaitlists(currentFilter.value);
-  } catch (error) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to move patient to appointments', life: 3000 });
-  }
+  // For daily waitlist, auto-schedule immediately
+  selectedWaitlistForAppointment.value = waitlist;
+  showAppointmentModal.value = true;
 };
 
 const updateImportance = async (waitlist, importance) => {
@@ -132,6 +142,17 @@ const handleUpdate = () => {
   fetchWaitlists(currentFilter.value);
 };
 
+const handleAppointmentSaved = () => {
+  showAppointmentModal.value = false;
+  selectedWaitlistForAppointment.value = null;
+  fetchWaitlists(currentFilter.value);
+};
+
+const closeAppointmentModal = () => {
+  showAppointmentModal.value = false;
+  selectedWaitlistForAppointment.value = null;
+};
+
 const filterWaitlists = (importance = null, doctor_id = null) => {
   currentFilter.value = { importance, doctor_id };
   fetchWaitlists(currentFilter.value);
@@ -143,27 +164,32 @@ const clearFilters = () => {
 };
 
 const getImportanceSeverity = (importance) => {
-  const option = importanceOptions.value.find(opt => opt.value === importance);
-  return option ? option.color : 'info';
+  // Backend enum: 0 = Urgent (danger), 1 = Normal (primary/info)
+  if (importance === 0) return 'danger';
+  if (importance === 1) return 'info';
+  
+  // Fallback to options array if available and is an array
+  if (Array.isArray(importanceOptions.value)) {
+    const option = importanceOptions.value.find(opt => opt.value === importance);
+    if (option) return option.color;
+  }
+  
+  return 'info';
 };
 
 
 const getImportanceLabel = (importance) => {
-  // Handle the specific mapping: 0 = Normal (info), 1 = Urgent (danger)
-  if (importance === 0) return 'info';
-  if (importance === 1) return 'danger';
+  // Backend enum: 0 = Urgent, 1 = Normal
+  if (importance === 0) return 'Urgent';
+  if (importance === 1) return 'Normal';
   
-  // Fallback to options array if available
-  const option = importanceOptions.value.find(opt => opt.value === importance);
-  if (!option) return 'info';
-  
-  switch (option.color) {
-    case 'danger': return 'danger';
-    case 'warning': return 'warning';
-    case 'success': return 'success';
-    case 'primary': return 'info';
-    default: return 'info';
+  // Fallback to options array if available and is an array
+  if (Array.isArray(importanceOptions.value)) {
+    const option = importanceOptions.value.find(opt => opt.value === importance);
+    if (option) return option.label;
   }
+  
+  return 'Unknown';
 };
 
 const formatDate = (dateString) => {
@@ -318,7 +344,7 @@ onMounted(() => {
             <template #body="{ data }">
               <div class="tw-flex tw-items-center tw-gap-2">
                 <i class="pi pi-phone tw-text-gray-500"></i>
-                <span>{{ data?.phone }}</span>
+                <span>{{ data?.patient_phone }}</span>
               </div>
             </template>
           </Column>
@@ -389,6 +415,16 @@ onMounted(() => {
       @close="closeAddModal" 
       @save="handleSave"
       @update="handleUpdate" 
+    />
+
+    <!-- Appointment Form Modal -->
+    <AppointmentFormWaitlist
+      v-if="selectedWaitlistForAppointment"
+      :showModal="showAppointmentModal"
+      :waitlist="selectedWaitlistForAppointment"
+      :editMode="!!selectedWaitlistForAppointment.appointmentId"
+      @close="closeAppointmentModal"
+      @appointmentUpdated="handleAppointmentSaved"
     />
   </div>
 </template>

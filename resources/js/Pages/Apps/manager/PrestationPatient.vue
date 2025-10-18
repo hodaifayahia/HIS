@@ -16,20 +16,35 @@ import Dropdown from 'primevue/dropdown';
 import InputText from 'primevue/inputtext';
 import Calendar from 'primevue/calendar';
 import Badge from 'primevue/badge';
+import SelectButton from 'primevue/selectbutton';
+
+// Custom components
+import CheckInModal from '../../../Components/Apps/manager/CheckInModal.vue';
 
 const toast = useToast();
 const router = useRouter();
 
 const loading = ref(true);
 const prestations = ref([]);
+const groupedPrestations = ref([]);
 const errorMessage = ref('');
 const processingPrestationId = ref(null);
+
+// Check-in modal state
+const showCheckInModal = ref(false);
+const selectedPrestationsForCheckIn = ref([]);
 
 // Filter states
 const showFilters = ref(false);
 const searchQuery = ref('');
 const selectedStatus = ref(null);
 const selectedDateRange = ref(null);
+
+// Specialization and Doctor filters
+const specializations = ref([]);
+const selectedSpecialization = ref(null);
+const doctors = ref([]);
+const selectedDoctor = ref(null);
 
 const statusOptions = ref([
     { label: 'All', value: null, severity: 'secondary' },
@@ -52,8 +67,74 @@ const activeFiltersCount = computed(() => {
     return count;
 });
 
-const filteredPrestations = computed(() => {
+// Group prestations by patient and fiche
+const groupPrestationsByPatient = (prestationsList) => {
+    const grouped = new Map();
+    
+    prestationsList.forEach(item => {
+        const key = `${item.fiche_navette_id}_${item.patient_name}`;
+        
+        if (!grouped.has(key)) {
+            grouped.set(key, {
+                id: key,
+                fiche_navette_id: item.fiche_navette_id,
+                fiche_reference: item.fiche_reference,
+                fiche_date: item.fiche_date,
+                patient_name: item.patient_name,
+                patient_id: item.patient_id,
+                prestations: [],
+                specializations: new Map(),
+                doctors: new Map(),
+                statuses: new Set(),
+                payment_statuses: new Set(),
+                total_amount: 0,
+                paid_amount: 0,
+                fiche_status: item.fiche_status,
+            });
+        }
+        
+        const group = grouped.get(key);
+        group.prestations.push(item);
+        
+        // Collect unique specializations
+        if (item.specialization_id && item.specialization_name) {
+            group.specializations.set(item.specialization_id, {
+                id: item.specialization_id,
+                name: item.specialization_name
+            });
+        }
+        
+        // Collect unique doctors
+        if (item.doctor_id && item.doctor_name) {
+            group.doctors.set(item.doctor_id, {
+                id: item.doctor_id,
+                name: item.doctor_name,
+                specialization_id: item.specialization_id
+            });
+        }
+        
+        // Collect statuses and payment info
+        group.statuses.add(item.status);
+        if (item.payment_status) group.payment_statuses.add(item.payment_status);
+        group.total_amount += Number(item.amount || 0);
+        group.paid_amount += Number(item.paid_amount || 0);
+    });
+    
+    return Array.from(grouped.values());
+};
+
+const filteredGroupedPrestations = computed(() => {
     let filtered = prestations.value;
+
+    // Filter by specialization
+    if (selectedSpecialization.value) {
+        filtered = filtered.filter(p => String(p.specialization_id) === String(selectedSpecialization.value));
+    }
+
+    // Filter by doctor
+    if (selectedDoctor.value) {
+        filtered = filtered.filter(p => String(p.doctor_id) === String(selectedDoctor.value));
+    }
 
     if (searchQuery.value) {
         const query = searchQuery.value.toLowerCase();
@@ -79,7 +160,113 @@ const filteredPrestations = computed(() => {
         });
     }
 
-    return filtered;
+    // Group the filtered results
+    return groupPrestationsByPatient(filtered);
+});
+
+// Computed doctors based on selected specialization
+const filteredDoctors = computed(() => {
+    if (!selectedSpecialization.value) return doctors.value;
+    return doctors.value.filter(d => String(d.specialization_id) === String(selectedSpecialization.value));
+});
+
+// Extract unique specializations from prestations
+const extractSpecializations = () => {
+    const specializationMap = new Map();
+    prestations.value.forEach(p => {
+        if (p.specialization_id && p.specialization_name) {
+            specializationMap.set(p.specialization_id, {
+                id: p.specialization_id,
+                name: p.specialization_name
+            });
+        }
+    });
+    specializations.value = Array.from(specializationMap.values());
+};
+
+// Extract unique doctors from prestations
+const extractDoctors = () => {
+    const doctorMap = new Map();
+    prestations.value.forEach(p => {
+        if (p.doctor_id && p.doctor_name) {
+            doctorMap.set(p.doctor_id, {
+                id: p.doctor_id,
+                name: p.doctor_name,
+                specialization_id: p.specialization_id
+            });
+        }
+    });
+    doctors.value = Array.from(doctorMap.values());
+};
+
+// Load authenticated user's specializations
+const loadUserSpecializations = async () => {
+    try {
+        const resp = await axios.get('/api/setting/user');
+        const user = (resp.data && resp.data.data) ? resp.data.data : resp.data;
+        if (user) {
+            const specs = [];
+
+            if (user.activeSpecializations && Array.isArray(user.activeSpecializations)) {
+                user.activeSpecializations.forEach(as => {
+                    if (as.specialization && as.specialization.id) {
+                        specs.push({ id: as.specialization.id, name: as.specialization.name });
+                    }
+                });
+            }
+
+            if (user.specializations && Array.isArray(user.specializations)) {
+                user.specializations.forEach(s => {
+                    if (s.id) specs.push({ id: s.id, name: s.name });
+                });
+            }
+
+            if (specs.length === 0 && specializations.value.length > 0) {
+                specs.push(...specializations.value);
+            }
+
+            const map = new Map();
+            specs.forEach(s => map.set(s.id, s));
+            specializations.value = Array.from(map.values());
+        }
+    } catch (e) {
+        console.warn('Could not load user specializations:', e);
+    }
+};
+
+// Watch selected specialization and load doctors for it
+watch(selectedSpecialization, async (specId) => {
+    selectedDoctor.value = null;
+    if (!specId) {
+        extractDoctors();
+        return;
+    }
+
+    try {
+        const resp = await axios.get(`/api/doctors/specializations/${specId}`);
+        const list = (resp.data && resp.data.data) ? resp.data.data : resp.data;
+        if (Array.isArray(list)) {
+            doctors.value = list.map(d => {
+                let name = 'Unknown';
+                if (d.user) {
+                    name = d.user.name || d.user.fullname || ((d.user.Firstname && d.user.Lastname) ? `${d.user.Firstname} ${d.user.Lastname}` : 'Unknown');
+                } else if (d.name) {
+                    name = d.name;
+                }
+
+                return {
+                    id: d.id,
+                    name,
+                    specialization_id: d.specialization_id || specId
+                };
+            });
+        } else {
+            doctors.value = [];
+        }
+    } catch (err) {
+        console.error('Failed to load doctors for specialization', specId, err);
+        extractDoctors();
+    }
 });
 
 const loadPrestations = async () => {
@@ -89,11 +276,35 @@ const loadPrestations = async () => {
         const response = await axios.get('/api/reception/fiche-navette/today-pending');
         
         if (response.data.success) {
-            prestations.value = response.data.data.map(item => ({
-                ...item,
-                patient_name: item.patient_name || item.fiche?.patient?.name || 'Unknown Patient',
-                status: item.status ?? item.fiche_status ?? 'pending',
-            }));
+            prestations.value = response.data.data.map(item => {
+                let doctorId = item.doctor_id ?? null;
+                let doctorName = item.doctor_name ?? null;
+
+                if (!doctorName && item.doctor) {
+                    const d = item.doctor;
+                    if (d.user?.name) {
+                        doctorName = d.user.name;
+                    } else if (d.user?.Firstname && d.user?.Lastname) {
+                        doctorName = `${d.user.Firstname} ${d.user.Lastname}`;
+                    } else if (d.name) {
+                        doctorName = d.name;
+                    }
+                }
+
+                if (!doctorName && item.doctor_user_name) doctorName = item.doctor_user_name;
+                if (!doctorId && item.doctor?.id) doctorId = item.doctor.id;
+
+                return {
+                    ...item,
+                    patient_name: item.patient_name || item.fiche?.patient?.name || 'Unknown Patient',
+                    status: item.status ?? item.fiche_status ?? 'pending',
+                    doctor_id: doctorId ?? null,
+                    doctor_name: doctorName ?? null,
+                };
+            });
+            
+            extractSpecializations();
+            extractDoctors();
         } else {
             errorMessage.value = response.data.message || 'Failed to load prestations.';
             toast.add({
@@ -117,46 +328,12 @@ const loadPrestations = async () => {
     }
 };
 
-const changePrestationStatus = async (item, newStatus) => {
-    if (processingPrestationId.value) return;
-    processingPrestationId.value = item.id;
-    
-    try {
-        const response = await axios.post(`/api/reception/fiche-navette/${item.id}/update-status`, { status: newStatus });
-        
-        if (response.data.success) {
-            item.status = newStatus;
-            toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'Prestation status updated successfully.',
-                life: 3000,
-            });
-        } else {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: response.data.message || 'Failed to update status.',
-                life: 4000,
-            });
-        }
-    } catch (err) {
-        console.error('Status Update Error:', err);
-        toast.add({
-            severity: 'error',
-            summary: 'Network Error',
-            detail: 'Failed to connect to the server.',
-            life: 5000,
-        });
-    } finally {
-        processingPrestationId.value = null;
-    }
-};
-
 const clearFilters = () => {
     searchQuery.value = '';
     selectedStatus.value = null;
     selectedDateRange.value = null;
+    selectedSpecialization.value = null;
+    selectedDoctor.value = null;
 };
 
 const toggleFilters = () => {
@@ -183,68 +360,175 @@ const getFicheStatusSeverity = (status) => {
     }
 };
 
-// statuses that allow refund actions on their fiche
-const refundableFicheStatuses = ['pending', 'confirmed'];
+const getOverallStatus = (statuses) => {
+    // Priority order for overall status
+    if (statuses.has('working')) return 'working';
+    if (statuses.has('confirmed')) return 'confirmed';
+    if (statuses.has('pending')) return 'pending';
+    if (statuses.has('done')) return 'done';
+    if (statuses.has('canceled')) return 'canceled';
+    return 'pending';
+};
 
-// payment_status values that indicate there is something paid and can be refunded
-const refundablePaymentStatuses = ['paid', 'partial', 'partially_paid', 'partial_paid', 'partially'];
-
-const refundItem = (item) => {
-    const ficheStatus = (item.fiche_status ?? '').toString().toLowerCase();
-    const itemStatus = (item.status ?? '').toString().toLowerCase();
-
-    // block refunds if fiche or item/dependency is already done
-    if (ficheStatus === 'done' || itemStatus === 'done') {
-        toast.add({ severity: 'warn', summary: 'Not allowed', detail: 'Refunds are not allowed on completed fiches or items.', life: 4000 });
+const openCheckInModal = (groupedItem) => {
+    // Filter prestations based on current filters
+    let prestationsToCheckIn = groupedItem.prestations;
+    
+    // If specialization is selected, only include prestations for that specialization
+    if (selectedSpecialization.value) {
+        prestationsToCheckIn = prestationsToCheckIn.filter(p => 
+            String(p.specialization_id) === String(selectedSpecialization.value)
+        );
+    }
+    
+    // If doctor is selected, only include prestations for that doctor
+    if (selectedDoctor.value) {
+        prestationsToCheckIn = prestationsToCheckIn.filter(p => 
+            String(p.doctor_id) === String(selectedDoctor.value)
+        );
+    }
+    
+    if (prestationsToCheckIn.length === 0) {
+        toast.add({
+            severity: 'warn',
+            summary: 'No Prestations',
+            detail: 'No prestations match the current filters for check-in.',
+            life: 3000,
+        });
         return;
     }
+    
+    selectedPrestationsForCheckIn.value = prestationsToCheckIn;
+    showCheckInModal.value = true;
+};
 
-    // Determine payment eligibility: prefer payment_status, fallback to paid_amount
-    const paymentStatus = (item.payment_status ?? '').toString().toLowerCase();
-    const hasPaidAmount = Number(item.paid_amount ?? 0) > 0;
-    const isRefundableByStatus = refundablePaymentStatuses.includes(paymentStatus) || hasPaidAmount;
-
-    if (!isRefundableByStatus) {
-        toast.add({ severity: 'warn', summary: 'No payments', detail: 'This prestation has no payments to refund.', life: 4000 });
-        return;
+const canCheckIn = (groupedItem) => {
+    // Get prestations based on current filters
+    let relevantPrestations = groupedItem.prestations;
+    
+    if (selectedSpecialization.value) {
+        relevantPrestations = relevantPrestations.filter(p => 
+            String(p.specialization_id) === String(selectedSpecialization.value)
+        );
     }
-
-    // Ensure fiche status allows refund as well (user request: only when fiche is pending or confirmed)
-    if (!refundableFicheStatuses.includes(ficheStatus)) {
-        toast.add({ severity: 'warn', summary: 'Not allowed', detail: 'Refunds are allowed only when fiche is pending or confirmed.', life: 4000 });
-        return;
+    
+    if (selectedDoctor.value) {
+        relevantPrestations = relevantPrestations.filter(p => 
+            String(p.doctor_id) === String(selectedDoctor.value)
+        );
     }
+    
+    // Check if at least one prestation can be checked in
+    return relevantPrestations.some(item => {
+        // Can't check in if status is done, canceled, or already working
+        if (item.status === 'done' || item.status === 'canceled' || item.status === 'working') {
+            return false;
+        }
+        
+        if (!item.specialization_id) {
+            return false;
+        }
+        
+        const paymentType = (item.payment_type ?? '').toString().toLowerCase();
+        const paymentStatus = (item.payment_status ?? '').toString().toLowerCase();
+        
+        if (paymentType === 'pre-paid' || paymentType === 'prepaid') {
+            return paymentStatus === 'partial' || paymentStatus === 'paid' || 
+                   paymentStatus === 'partially_paid' || paymentStatus === 'partial_paid';
+        }
+        
+        return true;
+    });
+};
 
-    // Navigate to the caisse payment/refund page (adjust route if you have a named route)
-    router.push({ path: '/apps/caisse/payment', query: { fiche_navette_id: item.fiche_navette_id, fiche_navette_item_id: item.id } });
-}
+const handleCheckInSuccess = (trackingData) => {
+    // Update the status of checked-in prestations
+    selectedPrestationsForCheckIn.value.forEach(prestation => {
+        const item = prestations.value.find(p => p.id === prestation.id);
+        if (item) {
+            item.status = 'working';
+        }
+    });
+    
+    const count = selectedPrestationsForCheckIn.value.length;
+    toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: `${count} prestation(s) checked in successfully`,
+        life: 3000,
+    });
+    
+    showCheckInModal.value = false;
+    selectedPrestationsForCheckIn.value = [];
+};
 
-const canRefund = (item) => {
-    const ficheStatus = (item.fiche_status ?? '').toString().toLowerCase();
-    const itemStatus = (item.status ?? '').toString().toLowerCase();
-
-    // must not be done
-    if (ficheStatus === 'done' || itemStatus === 'done') return false;
-
-    // fiche must be in refundable states
-    if (!refundableFicheStatuses.includes(ficheStatus)) return false;
-
-    // payment check: prefer payment_status, fallback to paid_amount
-    const paymentStatus = (item.payment_status ?? '').toString().toLowerCase();
-    if (refundablePaymentStatuses.includes(paymentStatus)) return true;
-
-    if (Number(item.paid_amount ?? 0) > 0) return true;
-
-    return false;
-}
-
-onMounted(loadPrestations);
+onMounted(async () => {
+    await loadPrestations();
+    await loadUserSpecializations();
+});
 </script>
 
 <template>
     <div class="tw-bg-gray-100 tw-min-h-screen tw-p-6 tw-font-sans">
         <div class="tw-max-w-7xl tw-mx-auto">
             <h1 class="tw-text-3xl tw-font-bold tw-text-gray-900 tw-mb-6">Today's Prestations</h1>
+            
+            <!-- Specialization Filter -->
+            <Card v-if="specializations.length > 0" class="tw-mb-4 tw-shadow-md">
+                <template #content>
+                    <div class="tw-p-4">
+                        <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">Filter by Specialization</label>
+                        <div class="tw-flex tw-flex-wrap tw-gap-2">
+                            <Button
+                                label="All"
+                                :severity="selectedSpecialization === null ? 'primary' : 'secondary'"
+                                :outlined="selectedSpecialization !== null"
+                                @click="selectedSpecialization = null; selectedDoctor = null;"
+                                size="small"
+                            />
+                            <Button
+                                v-for="spec in specializations"
+                                :key="spec.id"
+                                :label="spec.name"
+                                :severity="selectedSpecialization === spec.id ? 'primary' : 'secondary'"
+                                :outlined="selectedSpecialization !== spec.id"
+                                @click="selectedSpecialization = spec.id; selectedDoctor = null;"
+                                size="small"
+                            />
+                        </div>
+                    </div>
+                </template>
+            </Card>
+
+            <!-- Doctor Filter -->
+            <Card v-if="selectedSpecialization" class="tw-mb-4 tw-shadow-md">
+                <template #content>
+                    <div class="tw-p-4">
+                        <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">Filter by Doctor</label>
+                        <div v-if="filteredDoctors.length > 0" class="tw-flex tw-flex-wrap tw-gap-2">
+                            <Button
+                                label="All Doctors"
+                                :severity="selectedDoctor === null ? 'info' : 'secondary'"
+                                :outlined="selectedDoctor !== null"
+                                @click="selectedDoctor = null"
+                                size="small"
+                            />
+                            <Button
+                                v-for="doctor in filteredDoctors"
+                                :key="doctor.id"
+                                :label="doctor.name"
+                                :severity="selectedDoctor === doctor.id ? 'info' : 'secondary'"
+                                :outlined="selectedDoctor !== doctor.id"
+                                @click="selectedDoctor = doctor.id"
+                                size="small"
+                            />
+                        </div>
+                        <div v-else class="tw-text-sm tw-text-gray-500">
+                            No doctors available for this specialization
+                        </div>
+                    </div>
+                </template>
+            </Card>
             
             <Card class="tw-shadow-xl tw-rounded-2xl tw-border-none tw-overflow-hidden">
                 <template #content>
@@ -315,7 +599,7 @@ onMounted(loadPrestations);
                         <p>{{ errorMessage }}</p>
                     </div>
                     
-                    <div v-else-if="filteredPrestations.length === 0" class="tw-bg-white tw-rounded-xl tw-p-8 tw-shadow-md tw-text-center">
+                    <div v-else-if="filteredGroupedPrestations.length === 0" class="tw-bg-white tw-rounded-xl tw-p-8 tw-shadow-md tw-text-center">
                         <i class="pi pi-check-circle tw-text-6xl tw-text-green-500 tw-mb-4"></i>
                         <h4 class="tw-text-xl tw-font-semibold tw-text-gray-900">All caught up!</h4>
                         <p class="tw-text-gray-600 tw-mt-2">You have no pending or scheduled prestations that match your criteria.</p>
@@ -323,68 +607,96 @@ onMounted(loadPrestations);
 
                     <DataTable
                         v-else
-                        :value="filteredPrestations"
+                        :value="filteredGroupedPrestations"
                         class="tw-rounded-xl tw-shadow-sm tw-overflow-hidden"
                         responsiveLayout="scroll"
                         rowHover
                         stripedRows
                         dataKey="id"
                     >
-                        
-                        
                         <Column field="patient_name" header="Patient" sortable class="tw-w-[15%]"></Column>
                         
-                        <Column field="prestation_name" header="Prestation" sortable class="tw-w-[20%]"></Column>
-
-                        <Column field="price" header="Price" sortable class="tw-w-[10%]">
+                        <Column header="Prestations" class="tw-w-[30%]">
                             <template #body="{ data }">
-                                <div class="tw-font-semibold tw-text-right">{{ formatCurrency(data.price) }}</div>
+                                <div class="tw-flex tw-flex-wrap tw-gap-1">
+                                    <Chip 
+                                        v-for="prestation in data.prestations" 
+                                        :key="prestation.id"
+                                        :label="prestation.prestation_name"
+                                        class="tw-text-xs"
+                                    />
+                                </div>
                             </template>
                         </Column>
 
-                        <Column field="specialization_name" header="Specialization" sortable class="tw-w-[15%]">
+                        <Column header="Specializations" class="tw-w-[15%]">
                             <template #body="{ data }">
-                                <Chip :label="data.specialization_name" class="tw-text-xs" />
+                                <div class="tw-flex tw-flex-wrap tw-gap-1">
+                                    <Tag 
+                                        v-for="spec in data.specializations.values()" 
+                                        :key="spec.id"
+                                        :value="spec.name"
+                                        severity="info"
+                                        class="tw-text-xs"
+                                    />
+                                </div>
                             </template>
                         </Column>
 
-                        <Column header="Status" sortable class="tw-w-[15%]">
+                        <Column header="Doctors" class="tw-w-[15%]">
                             <template #body="{ data }">
-                                <Dropdown 
-                                    v-model="data.status" 
-                                    :options="statusOptions" 
-                                    optionLabel="label" 
-                                    optionValue="value"
-                                    class="tw-w-full"
-                                    :placeholder="data.status"
-                                    @change="changePrestationStatus(data, data.status)"
-                                    :loading="processingPrestationId === data.id"
-                                >
-                                    <template #value="slotProps">
-                                        <Tag 
-                                            :value="slotProps.value" 
-                                            :severity="getFicheStatusSeverity(slotProps.value)"
-                                            class="tw-font-semibold"
-                                        />
-                                    </template>
-                                    <template #option="slotProps">
-                                        <Tag 
-                                            :value="slotProps.option.value" 
-                                            :severity="getFicheStatusSeverity(slotProps.option.value)"
-                                            class="tw-font-semibold"
-                                        />
-                                    </template>
-                                </Dropdown>
+                                <div class="tw-flex tw-flex-col tw-gap-1">
+                                    <span 
+                                        v-for="doctor in data.doctors.values()" 
+                                        :key="doctor.id"
+                                        class="tw-text-sm tw-text-gray-700"
+                                    >
+                                        {{ doctor.name }}
+                                    </span>
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column header="Status" sortable class="tw-w-[10%]">
+                            <template #body="{ data }">
+                                <Tag 
+                                    :value="getOverallStatus(data.statuses)" 
+                                    :severity="getFicheStatusSeverity(getOverallStatus(data.statuses))"
+                                    class="tw-font-semibold"
+                                />
                             </template>
                         </Column>
                         
-                        <Column field="notes" header="Notes" class="tw-w-[15%]"></Column>
+                        <Column header="Count" class="tw-w-[5%]">
+                            <template #body="{ data }">
+                                <Badge :value="data.prestations.length" severity="secondary" />
+                            </template>
+                        </Column>
                         
-                       
+                        <Column header="Actions" class="tw-w-[10%]">
+                            <template #body="{ data }">
+                                <Button
+                                    icon="pi pi-sign-in"
+                                    label="Check-In"
+                                    size="small"
+                                    @click="openCheckInModal(data)"
+                                    :disabled="!canCheckIn(data)"
+                                    :severity="canCheckIn(data) ? 'success' : 'secondary'"
+                                />
+                            </template>
+                        </Column>
                     </DataTable>
                 </template>
             </Card>
         </div>
+
+        <!-- Check-In Modal -->
+        <CheckInModal 
+            :visible="showCheckInModal"
+            @update:visible="showCheckInModal = $event"
+            :prestations="selectedPrestationsForCheckIn"
+            @check-in-success="handleCheckInSuccess"
+        />
     </div>
 </template>
 

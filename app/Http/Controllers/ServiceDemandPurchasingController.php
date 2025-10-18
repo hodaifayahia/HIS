@@ -2,19 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\ServiceDemendPurchcing;
-use App\Models\ServiceDemendPurchcingItem;
-use App\Models\ServiceDemandItemFournisseur;
-use App\Models\Fournisseur;
+use App\Models\CONFIGURATION\Service;
 use App\Models\FactureProforma;
 use App\Models\FactureProformaProduct;
-use App\Models\CONFIGURATION\Service;
+use App\Models\Fournisseur;
 use App\Models\Product;
+use App\Models\ServiceDemandItemFournisseur;
+use App\Models\ServiceDemendPurchcing;
+use App\Models\ServiceDemendPurchcingItem;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class ServiceDemandPurchasingController extends Controller
 {
@@ -36,9 +36,9 @@ class ServiceDemandPurchasingController extends Controller
             // Search by demand code or notes
             if ($request->has('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('demand_code', 'like', "%{$search}%")
-                      ->orWhere('notes', 'like', "%{$search}%");
+                        ->orWhere('notes', 'like', "%{$search}%");
                 });
             }
 
@@ -46,14 +46,15 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demands
+                'data' => $demands,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching demands: ' . $e->getMessage());
+            Log::error('Error fetching demands: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch demands'
+                'message' => 'Failed to fetch demands',
             ], 500);
         }
     }
@@ -73,7 +74,7 @@ class ServiceDemandPurchasingController extends Controller
                 'service_id' => $request->service_id,
                 'expected_date' => $request->expected_date,
                 'notes' => $request->notes,
-                'status' => 'draft'
+                'status' => 'draft',
             ]);
 
             DB::commit();
@@ -81,29 +82,30 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $demand->load(['service', 'items.product']),
-                'message' => 'Demand created successfully'
+                'message' => 'Demand created successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating demand: ' . $e->getMessage());
+            Log::error('Error creating demand: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create demand'
+                'message' => 'Failed to create demand',
             ], 500);
         }
     }
 
     public function show($id)
     {
-       
+
         try {
-          
+
             $demand = ServiceDemendPurchcing::with([
-                'service', 
+                'service',
                 'items.product',
                 'items.fournisseurAssignments.fournisseur:id,company_name,contact_person,email,phone',
-                'items.fournisseurAssignments.assignedBy:id,name'
+                'items.fournisseurAssignments.assignedBy:id,name',
             ])
                 ->findOrFail($id);
 
@@ -114,20 +116,22 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand
+                'data' => $demand,
             ]);
 
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::warning("Demand not found with ID: " . $id);
+            Log::warning('Demand not found with ID: '.$id);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Demand not found'
+                'message' => 'Demand not found',
             ], 404);
         } catch (\Exception $e) {
-            Log::error('Error fetching demand: ' . $e->getMessage());
+            Log::error('Error fetching demand: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch demand'
+                'message' => 'Failed to fetch demand',
             ], 500);
         }
     }
@@ -147,7 +151,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->status !== 'draft') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot update demand that has been sent'
+                    'message' => 'Cannot update demand that has been sent',
                 ], 403);
             }
 
@@ -160,14 +164,15 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $demand->load(['service', 'items.product']),
-                'message' => 'Demand updated successfully'
+                'message' => 'Demand updated successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error updating demand: ' . $e->getMessage());
+            Log::error('Error updating demand: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update demand'
+                'message' => 'Failed to update demand',
             ], 500);
         }
     }
@@ -181,7 +186,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->status !== 'draft') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot delete demand that has been sent'
+                    'message' => 'Cannot delete demand that has been sent',
                 ], 403);
             }
 
@@ -189,14 +194,15 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Demand deleted successfully'
+                'message' => 'Demand deleted successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error deleting demand: ' . $e->getMessage());
+            Log::error('Error deleting demand: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete demand'
+                'message' => 'Failed to delete demand',
             ], 500);
         }
     }
@@ -218,7 +224,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->status !== 'draft') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot add items to demand that has been sent'
+                    'message' => 'Cannot add items to demand that has been sent',
                 ], 403);
             }
 
@@ -227,7 +233,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($existingItem) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product already exists in this demand'
+                    'message' => 'Product already exists in this demand',
                 ], 409);
             }
 
@@ -243,14 +249,15 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $item->load('product'),
-                'message' => 'Item added successfully'
+                'message' => 'Item added successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error adding item to demand: ' . $e->getMessage());
+            Log::error('Error adding item to demand: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add item'
+                'message' => 'Failed to add item',
             ], 500);
         }
     }
@@ -272,7 +279,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->status !== 'draft') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot update items for demand that has been sent'
+                    'message' => 'Cannot update items for demand that has been sent',
                 ], 403);
             }
 
@@ -286,14 +293,15 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $item->load('product'),
-                'message' => 'Item updated successfully'
+                'message' => 'Item updated successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error updating item: ' . $e->getMessage());
+            Log::error('Error updating item: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update item'
+                'message' => 'Failed to update item',
             ], 500);
         }
     }
@@ -308,7 +316,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->status !== 'draft') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot remove items from demand that has been sent'
+                    'message' => 'Cannot remove items from demand that has been sent',
                 ], 403);
             }
 
@@ -316,14 +324,15 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Item removed successfully'
+                'message' => 'Item removed successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error removing item: ' . $e->getMessage());
+            Log::error('Error removing item: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to remove item'
+                'message' => 'Failed to remove item',
             ], 500);
         }
     }
@@ -337,7 +346,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->status !== 'draft') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Demand has already been sent'
+                    'message' => 'Demand has already been sent',
                 ], 403);
             }
 
@@ -345,7 +354,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($demand->items()->count() === 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot send demand without items'
+                    'message' => 'Cannot send demand without items',
                 ], 400);
             }
 
@@ -354,14 +363,15 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $demand->load(['service', 'items.product']),
-                'message' => 'Demand sent successfully'
+                'message' => 'Demand sent successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error sending demand: ' . $e->getMessage());
+            Log::error('Error sending demand: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to send demand'
+                'message' => 'Failed to send demand',
             ], 500);
         }
     }
@@ -376,56 +386,57 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $services
+                'data' => $services,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching services: ' . $e->getMessage());
+            Log::error('Error fetching services: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch services'
+                'message' => 'Failed to fetch services',
             ], 500);
         }
     }
 
     public function getProducts(Request $request)
     {
-        try {
-            $query = Product::query();
+        // try {
+        $query = Product::query();
 
-            // Filter by service if provided
-            if ($request->has('service_id')) {
-                // Add logic to filter products by service if there's a relationship
-                // This depends on your product-service relationship structure
-            }
-
-            // Search by product name or code
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('code_interne', 'like', "%{$search}%")
-                      ->orWhere('designation', 'like', "%{$search}%");
-                });
-            }
-
-            $products = $query->select('id', 'name', 'code_interne as product_code', 'designation', 'forme as unit', 'nom_commercial')
-                ->whereIn('status', ['In Stock', 'Available', 'Active'])
-                ->orderBy('name')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $products
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error('Error fetching products: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch products'
-            ], 500);
+        // Filter by service if provided
+        if ($request->has('service_id')) {
+            // Add logic to filter products by service if there's a relationship
+            // This depends on your product-service relationship structure
         }
+
+        // Search by product name or code
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('code_interne', 'like', "%{$search}%")
+                    ->orWhere('designation', 'like', "%{$search}%");
+            });
+        }
+
+        $products = $query->select('id', 'name', 'code_interne as product_code', 'designation', 'forme as unit', 'nom_commercial')
+            ->whereIn('status', ['In Stock', 'Available', 'Active'])
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $products,
+        ]);
+
+        // } catch (\Exception $e) {
+        //     Log::error('Error fetching products: ' . $e->getMessage());
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Failed to fetch products'
+        //     ], 500);
+        // }
     }
 
     public function getStats()
@@ -442,14 +453,15 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching stats: ' . $e->getMessage());
+            Log::error('Error fetching stats: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch statistics'
+                'message' => 'Failed to fetch statistics',
             ], 500);
         }
     }
@@ -459,16 +471,16 @@ class ServiceDemandPurchasingController extends Controller
         try {
             // Critical low stock items (quantity <= 5)
             $criticalLowStock = collect();
-            
+
             // Low stock items (quantity <= 20 but > 5)
             $lowStock = collect();
-            
+
             // Expiring soon items (expiry within 30 days)
             $expiringSoon = collect();
-            
+
             // Expired items
             $expired = collect();
-            
+
             // Controlled substances (flagged items)
             $controlledSubstances = collect();
 
@@ -499,7 +511,7 @@ class ServiceDemandPurchasingController extends Controller
                             'id' => $item->product_id,
                             'name' => $item->product_name,
                             'forme' => $item->forme,
-                            'product_code' => $item->product_code
+                            'product_code' => $item->product_code,
                         ],
                         'current_stock' => $quantity,
                         'suggested_quantity' => max(50, $quantity * 2), // Suggest double current stock or minimum 50
@@ -507,7 +519,7 @@ class ServiceDemandPurchasingController extends Controller
                         'reason' => '',
                         'stockage_name' => $item->stockage_name,
                         'batch_number' => $item->batch_number,
-                        'expiry_date' => $item->expiry_date
+                        'expiry_date' => $item->expiry_date,
                     ];
 
                     // Critical low stock
@@ -544,7 +556,7 @@ class ServiceDemandPurchasingController extends Controller
                     }
 
                     // Controlled substances (example: check for specific keywords or categories)
-                    if (stripos($item->product_name, 'morphine') !== false || 
+                    if (stripos($item->product_name, 'morphine') !== false ||
                         stripos($item->product_name, 'opioid') !== false ||
                         stripos($item->product_name, 'narcotic') !== false) {
                         $productData['reason'] = 'Controlled substance monitoring';
@@ -560,7 +572,7 @@ class ServiceDemandPurchasingController extends Controller
                 $controlledSubstances = $controlledSubstances->unique('product_id')->values();
 
             } catch (\Exception $e) {
-                Log::warning('Error fetching stock data for suggestions: ' . $e->getMessage());
+                Log::warning('Error fetching stock data for suggestions: '.$e->getMessage());
                 // Continue with empty collections
             }
 
@@ -577,16 +589,17 @@ class ServiceDemandPurchasingController extends Controller
                         'low_stock' => $lowStock->count(),
                         'expiring_soon' => $expiringSoon->count(),
                         'expired' => $expired->count(),
-                        'controlled_substances' => $controlledSubstances->count()
-                    ]
-                ]
+                        'controlled_substances' => $controlledSubstances->count(),
+                    ],
+                ],
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching suggestions: ' . $e->getMessage());
+            Log::error('Error fetching suggestions: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch suggestions'
+                'message' => 'Failed to fetch suggestions',
             ], 500);
         }
     }
@@ -612,20 +625,20 @@ class ServiceDemandPurchasingController extends Controller
             if ($item->status !== 'pending') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Can only assign fournisseurs to pending items'
+                    'message' => 'Can only assign fournisseurs to pending items',
                 ], 400);
             }
 
             // Check if this fournisseur is already assigned to this item
             $existingAssignment = ServiceDemandItemFournisseur::where([
                 'service_demand_purchasing_item_id' => $itemId,
-                'fournisseur_id' => $request->fournisseur_id
+                'fournisseur_id' => $request->fournisseur_id,
             ])->first();
 
             if ($existingAssignment) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This supplier is already assigned to this item'
+                    'message' => 'This supplier is already assigned to this item',
                 ], 400);
             }
 
@@ -634,7 +647,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($totalAssigned + $request->assigned_quantity > $item->quantity) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Assigned quantity exceeds remaining item quantity'
+                    'message' => 'Assigned quantity exceeds remaining item quantity',
                 ], 400);
             }
 
@@ -646,7 +659,7 @@ class ServiceDemandPurchasingController extends Controller
                 'unit' => $request->unit ?? $item->product->unit ?? 'unit',
                 'notes' => $request->notes,
                 'assigned_by' => Auth::id(),
-                'status' => 'pending'
+                'status' => 'pending',
             ]);
 
             $assignment->load(['fournisseur:id,company_name,contact_person,email,phone', 'assignedBy:id,name']);
@@ -654,14 +667,15 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $assignment,
-                'message' => 'Supplier assigned to item successfully'
+                'message' => 'Supplier assigned to item successfully',
             ], 201);
 
         } catch (\Exception $e) {
-            Log::error('Error assigning fournisseur to item: ' . $e->getMessage());
+            Log::error('Error assigning fournisseur to item: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to assign supplier to item'
+                'message' => 'Failed to assign supplier to item',
             ], 500);
         }
     }
@@ -695,26 +709,25 @@ class ServiceDemandPurchasingController extends Controller
                     // Check if item status allows assignment
                     if ($item->status !== 'pending') {
                         $errors[] = "Item {$item->product->name} is not in pending status";
+
                         continue;
                     }
 
                     // Check for existing assignment
                     $existingAssignment = ServiceDemandItemFournisseur::where([
                         'service_demand_purchasing_item_id' => $assignmentData['item_id'],
-                        'fournisseur_id' => $assignmentData['fournisseur_id']
+                        'fournisseur_id' => $assignmentData['fournisseur_id'],
                     ])->first();
 
                     if ($existingAssignment) {
                         $errors[] = "Supplier already assigned to item {$item->product->name}";
+
                         continue;
                     }
 
                     // Check quantity constraints
                     $totalAssigned = $item->fournisseurAssignments->sum('assigned_quantity');
-                    if ($totalAssigned + $assignmentData['assigned_quantity'] > $item->quantity) {
-                        $errors[] = "Assigned quantity exceeds remaining quantity for item {$item->product->name}";
-                        continue;
-                    }
+                   
 
                     $assignment = ServiceDemandItemFournisseur::create([
                         'service_demand_purchasing_item_id' => $assignmentData['item_id'],
@@ -724,14 +737,14 @@ class ServiceDemandPurchasingController extends Controller
                         'unit' => $assignmentData['unit'] ?? $item->product->unit ?? 'unit',
                         'notes' => $assignmentData['notes'] ?? null,
                         'assigned_by' => Auth::id(),
-                        'status' => 'pending'
+                        'status' => 'pending',
                     ]);
 
                     $assignment->load(['fournisseur:id,company_name,contact_person,email,phone', 'assignedBy:id,name']);
                     $createdAssignments[] = $assignment;
 
                 } catch (\Exception $e) {
-                    $errors[] = "Failed to assign item: " . $e->getMessage();
+                    $errors[] = 'Failed to assign item: '.$e->getMessage();
                 }
             }
 
@@ -741,16 +754,17 @@ class ServiceDemandPurchasingController extends Controller
                 'success' => count($createdAssignments) > 0,
                 'data' => $createdAssignments,
                 'errors' => $errors,
-                'message' => count($createdAssignments) . ' assignments created successfully' . 
-                            (count($errors) > 0 ? ', with ' . count($errors) . ' errors' : '')
+                'message' => count($createdAssignments).' assignments created successfully'.
+                            (count($errors) > 0 ? ', with '.count($errors).' errors' : ''),
             ], count($createdAssignments) > 0 ? 201 : 400);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error bulk assigning fournisseurs: ' . $e->getMessage());
+            Log::error('Error bulk assigning fournisseurs: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to bulk assign suppliers'
+                'message' => 'Failed to bulk assign suppliers',
             ], 500);
         }
     }
@@ -771,20 +785,20 @@ class ServiceDemandPurchasingController extends Controller
         try {
             $assignment = ServiceDemandItemFournisseur::where([
                 'id' => $assignmentId,
-                'service_demand_purchasing_item_id' => $itemId
+                'service_demand_purchasing_item_id' => $itemId,
             ])->firstOrFail();
 
             $item = $assignment->item;
-            
+
             // Check quantity constraints (excluding current assignment)
             $totalAssigned = $item->fournisseurAssignments()
                 ->where('id', '!=', $assignmentId)
                 ->sum('assigned_quantity');
-            
+
             if ($totalAssigned + $request->assigned_quantity > $item->quantity) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Updated quantity exceeds item quantity'
+                    'message' => 'Updated quantity exceeds item quantity',
                 ], 400);
             }
 
@@ -801,14 +815,15 @@ class ServiceDemandPurchasingController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $assignment,
-                'message' => 'Assignment updated successfully'
+                'message' => 'Assignment updated successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error updating fournisseur assignment: ' . $e->getMessage());
+            Log::error('Error updating fournisseur assignment: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update assignment'
+                'message' => 'Failed to update assignment',
             ], 500);
         }
     }
@@ -821,14 +836,14 @@ class ServiceDemandPurchasingController extends Controller
         try {
             $assignment = ServiceDemandItemFournisseur::where([
                 'id' => $assignmentId,
-                'service_demand_purchasing_item_id' => $itemId
+                'service_demand_purchasing_item_id' => $itemId,
             ])->firstOrFail();
 
             // Check if assignment can be removed
             if ($assignment->status === 'received') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot remove received assignments'
+                    'message' => 'Cannot remove received assignments',
                 ], 400);
             }
 
@@ -836,14 +851,15 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Assignment removed successfully'
+                'message' => 'Assignment removed successfully',
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error removing fournisseur assignment: ' . $e->getMessage());
+            Log::error('Error removing fournisseur assignment: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to remove assignment'
+                'message' => 'Failed to remove assignment',
             ], 500);
         }
     }
@@ -863,12 +879,12 @@ class ServiceDemandPurchasingController extends Controller
             DB::beginTransaction();
 
             $demand = ServiceDemendPurchcing::findOrFail($demandId);
-            
+
             // Verify all assignments belong to the specified fournisseur and demand
             $assignments = ServiceDemandItemFournisseur::with(['item.product'])
                 ->whereIn('id', $request->assignment_ids)
                 ->where('fournisseur_id', $request->fournisseur_id)
-                ->whereHas('item', function($query) use ($demandId) {
+                ->whereHas('item', function ($query) use ($demandId) {
                     $query->where('service_demand_purchasing_id', $demandId);
                 })
                 ->get();
@@ -876,7 +892,7 @@ class ServiceDemandPurchasingController extends Controller
             if ($assignments->count() !== count($request->assignment_ids)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Some assignments not found or do not belong to the specified supplier'
+                    'message' => 'Some assignments not found or do not belong to the specified supplier',
                 ], 400);
             }
 
@@ -885,7 +901,7 @@ class ServiceDemandPurchasingController extends Controller
                 'fournisseur_id' => $request->fournisseur_id,
                 'service_demand_purchasing_id' => $demandId,
                 'created_by' => Auth::id(),
-                'status' => 'draft'
+                'status' => 'draft',
             ]);
 
             // Create facture proforma products from assignments
@@ -908,21 +924,22 @@ class ServiceDemandPurchasingController extends Controller
                 'fournisseur:id,company_name,contact_person,email,phone',
                 'serviceDemand.service:id,name',
                 'creator:id,name',
-                'products.product:id,name,product_code'
+                'products.product:id,name,product_code',
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $facture,
-                'message' => 'Facture proforma created successfully'
+                'message' => 'Facture proforma created successfully',
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error('Error creating facture proforma from assignments: ' . $e->getMessage());
+            Log::error('Error creating facture proforma from assignments: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create facture proforma'
+                'message' => 'Failed to create facture proforma',
             ], 500);
         }
     }
@@ -940,14 +957,15 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $fournisseurs
+                'data' => $fournisseurs,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching fournisseurs: ' . $e->getMessage());
+            Log::error('Error fetching fournisseurs: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch suppliers'
+                'message' => 'Failed to fetch suppliers',
             ], 500);
         }
     }
@@ -960,7 +978,7 @@ class ServiceDemandPurchasingController extends Controller
         try {
             $demand = ServiceDemendPurchcing::with([
                 'items.product:id,name,product_code',
-                'items.fournisseurAssignments.fournisseur:id,company_name'
+                'items.fournisseurAssignments.fournisseur:id,company_name',
             ])->findOrFail($demandId);
 
             $summary = [
@@ -970,14 +988,14 @@ class ServiceDemandPurchasingController extends Controller
                 'fully_assigned_items' => 0,
                 'partially_assigned_items' => 0,
                 'unassigned_items' => 0,
-                'assignments_by_supplier' => []
+                'assignments_by_supplier' => [],
             ];
 
             $supplierAssignments = [];
 
             foreach ($demand->items as $item) {
                 $totalAssigned = $item->fournisseurAssignments->sum('assigned_quantity');
-                
+
                 if ($totalAssigned === 0) {
                     $summary['unassigned_items']++;
                 } elseif ($totalAssigned >= $item->quantity) {
@@ -989,14 +1007,14 @@ class ServiceDemandPurchasingController extends Controller
                 // Group by supplier
                 foreach ($item->fournisseurAssignments as $assignment) {
                     $supplierId = $assignment->fournisseur_id;
-                    
-                    if (!isset($supplierAssignments[$supplierId])) {
+
+                    if (! isset($supplierAssignments[$supplierId])) {
                         $supplierAssignments[$supplierId] = [
                             'supplier_id' => $supplierId,
                             'supplier_name' => $assignment->fournisseur->company_name,
                             'total_items' => 0,
                             'total_quantity' => 0,
-                            'total_amount' => 0
+                            'total_amount' => 0,
                         ];
                     }
 
@@ -1010,15 +1028,441 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $summary
+                'data' => $summary,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error fetching assignment summary: ' . $e->getMessage());
+            Log::error('Error fetching assignment summary: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to fetch assignment summary'
+                'message' => 'Failed to fetch assignment summary',
             ], 500);
+        }
+    }
+
+    /**
+     * Update service demand status to 'factureprofram'
+     */
+    public function updateToFactureProforma(Request $request, $id)
+    {
+        try {
+            $demand = ServiceDemendPurchcing::findOrFail($id);
+
+            // Validate current status allows transition
+            if (! in_array($demand->status, ['sent', 'approved'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Demand must be sent or approved to create proforma',
+                ], 403);
+            }
+
+            $demand->update([
+                'status' => 'factureprofram',
+                'proforma_confirmed' => false,
+                'proforma_confirmed_at' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'message' => 'Service demand updated to proforma status successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating to facture proforma status: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update status',
+            ], 500);
+        }
+    }
+
+    /**
+     * Update service demand status to 'boncommend'
+     */
+    public function updateToBonCommend(Request $request, $id)
+    {
+        try {
+            $demand = ServiceDemendPurchcing::findOrFail($id);
+
+            // Validate current status allows transition
+            if (! in_array($demand->status, ['factureprofram', 'approved', 'sent'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Demand must be in proforma, approved, or sent status to create bon commend',
+                ], 403);
+            }
+
+            $demand->update([
+                'status' => 'boncommend',
+                'boncommend_confirmed' => false,
+                'boncommend_confirmed_at' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'message' => 'Service demand updated to bon commend status successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error updating to bon commend status: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update status',
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm proforma for service demand
+     */
+    public function confirmProforma(Request $request, $id)
+    {
+        try {
+            $demand = ServiceDemendPurchcing::findOrFail($id);
+
+            $demand->update([
+                'proforma_confirmed' => true,
+                'proforma_confirmed_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'message' => 'Proforma confirmed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error confirming proforma: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm proforma',
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm bon commend for service demand
+     */
+    public function confirmBonCommend(Request $request, $id)
+    {
+        try {
+            $demand = ServiceDemendPurchcing::findOrFail($id);
+
+            $demand->update([
+                'boncommend_confirmed' => true,
+                'boncommend_confirmed_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'message' => 'Bon commend confirmed successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error confirming bon commend: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to confirm bon commend',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get detailed pricing history for a specific product-supplier combination
+     */
+    public function getDetailedSupplierHistory($productId, $supplierId)
+    {
+        try {
+            // Get pricing history from bon_entree_items (actual purchase prices)
+            $pricingHistory = DB::table('bon_entree_items')
+                ->join('bon_entrees', 'bon_entree_items.bon_entree_id', '=', 'bon_entrees.id')
+                ->join('bon_receptions', 'bon_entrees.bon_reception_id', '=', 'bon_receptions.id')
+                ->join('fournisseurs', 'bon_receptions.fournisseur_id', '=', 'fournisseurs.id')
+                ->select([
+                    'bon_entree_items.id',
+                    'bon_entree_items.purchase_price as price',
+                    'bon_entree_items.quantity',
+                    'bon_entree_items.remarks as notes',
+                    'bon_entrees.created_at as order_date',
+                    'bon_entrees.bon_entree_code as document_reference',
+                    'bon_entree_items.created_at',
+                    DB::raw("'entree' as order_type"),
+                    'fournisseurs.company_name as supplier_name',
+                    'bon_entree_items.batch_number',
+                    'bon_entree_items.expiry_date',
+                    'bon_entrees.status',
+                ])
+                ->where('bon_entree_items.product_id', $productId)
+                ->where('bon_receptions.fournisseur_id', $supplierId)
+                ->where('bon_entree_items.purchase_price', '>', 0)
+                ->whereIn('bon_entrees.status', ['Draft', 'Validated', 'Transferred'])
+                ->orderBy('bon_entrees.created_at', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $pricingHistory,
+                'message' => 'Detailed pricing history retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve detailed pricing history: '.$e->getMessage(),
+                'data' => [],
+            ], 500);
+        }
+    }
+
+    /**
+     * Get supplier pricing history for a product
+     */
+    public function getSupplierPricingForProduct($productId)
+    {
+        try {
+            // Get pricing history from bon_entree_items (actual purchase prices)
+            $pricingHistory = DB::table('bon_entree_items as bei')
+                ->join('bon_entrees as be', 'bei.bon_entree_id', '=', 'be.id')
+                ->join('bon_receptions as br', 'be.bon_reception_id', '=', 'br.id')
+                ->join('fournisseurs as f', 'br.fournisseur_id', '=', 'f.id')
+                ->join('products as p', 'bei.product_id', '=', 'p.id')
+                ->where('bei.product_id', $productId)
+                ->where('bei.purchase_price', '>', 0) // Only include records with valid prices
+                ->select(
+                    'f.id as supplier_id',
+                    'f.company_name',
+                    'f.contact_person',
+                    'bei.purchase_price as price',
+                    'bei.quantity as quantity',
+                    'be.created_at as order_date',
+                    'bei.created_at',
+                    'be.status as entree_status'
+                )
+                ->orderBy('bei.created_at', 'desc')
+                ->get();
+
+            // Calculate supplier statistics from bon_entree_items data
+            $supplierStats = [];
+            foreach ($pricingHistory as $record) {
+                $supplierId = $record->supplier_id;
+
+                if (! isset($supplierStats[$supplierId])) {
+                    $supplierStats[$supplierId] = [
+                        'supplier_id' => $supplierId,
+                        'company_name' => $record->company_name,
+                        'contact_person' => $record->contact_person,
+                        'prices' => [],
+                        'quantities' => [],
+                        'order_dates' => [],
+                        'total_orders' => 0,
+                        'last_price' => null,
+                        'average_price' => 0,
+                        'min_price' => null,
+                        'max_price' => null,
+                        'price_trend' => 'stable', // increasing, decreasing, stable
+                        'reliability_score' => 0,
+                    ];
+                }
+
+                $supplierStats[$supplierId]['prices'][] = $record->price;
+                $supplierStats[$supplierId]['quantities'][] = $record->quantity;
+                $supplierStats[$supplierId]['order_dates'][] = $record->order_date;
+                $supplierStats[$supplierId]['total_orders']++;
+            }
+
+            // Calculate final statistics for each supplier
+            foreach ($supplierStats as $supplierId => &$stats) {
+                if (count($stats['prices']) > 0) {
+                    $stats['last_price'] = $stats['prices'][0]; // First price (most recent)
+                    $stats['average_price'] = round(array_sum($stats['prices']) / count($stats['prices']), 2);
+                    $stats['min_price'] = min($stats['prices']);
+                    $stats['max_price'] = max($stats['prices']);
+
+                    // Calculate price trend
+                    if (count($stats['prices']) >= 2) {
+                        $recentPrices = array_slice($stats['prices'], 0, 3); // Last 3 orders
+                        $oldPrices = array_slice($stats['prices'], -3); // First 3 orders
+
+                        $recentAvg = array_sum($recentPrices) / count($recentPrices);
+                        $oldAvg = array_sum($oldPrices) / count($oldPrices);
+
+                        if ($recentAvg > $oldAvg * 1.05) {
+                            $stats['price_trend'] = 'increasing';
+                        } elseif ($recentAvg < $oldAvg * 0.95) {
+                            $stats['price_trend'] = 'decreasing';
+                        }
+                    }
+
+                    // Calculate reliability score (0-100)
+                    $consistencyScore = 0;
+                    if (count($stats['prices']) > 1) {
+                        $priceVariation = ($stats['max_price'] - $stats['min_price']) / $stats['average_price'];
+                        $consistencyScore = max(0, 100 - ($priceVariation * 100));
+                    } else {
+                        $consistencyScore = 50; // Neutral score for single order
+                    }
+
+                    $orderFrequencyScore = min(100, $stats['total_orders'] * 10); // Max 100 for 10+ orders
+
+                    $stats['reliability_score'] = round(($consistencyScore + $orderFrequencyScore) / 2);
+                }
+            }
+
+            // Convert to array and sort by average price (lowest first) then by reliability
+            $finalData = array_values($supplierStats);
+            usort($finalData, function ($a, $b) {
+                // First sort by having pricing data
+                if (empty($a['prices']) && ! empty($b['prices'])) {
+                    return 1;
+                }
+                if (! empty($a['prices']) && empty($b['prices'])) {
+                    return -1;
+                }
+
+                // Then by average price (lower is better)
+                if ($a['average_price'] != $b['average_price']) {
+                    return $a['average_price'] <=> $b['average_price'];
+                }
+
+                // Finally by reliability score (higher is better)
+                return $b['reliability_score'] <=> $a['reliability_score'];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $finalData,
+                'summary' => [
+                    'total_suppliers' => count($finalData),
+                    'suppliers_with_history' => count(array_filter($finalData, fn ($s) => ! empty($s['prices']))),
+                    'best_price' => ! empty($finalData) && ! empty($finalData[0]['prices']) ? $finalData[0]['average_price'] : null,
+                    'price_range' => [
+                        'min' => ! empty($finalData) ? min(array_filter(array_column($finalData, 'min_price'))) : null,
+                        'max' => ! empty($finalData) ? max(array_filter(array_column($finalData, 'max_price'))) : null,
+                    ],
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching supplier pricing for product: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch supplier pricing data',
+            ], 500);
+        }
+    }
+
+    /**
+     * Get enhanced supplier ratings and performance metrics
+     */
+    public function getSupplierRatings()
+    {
+        try {
+            $suppliers = Fournisseur::where('is_active', true)->get();
+            $ratings = [];
+
+            foreach ($suppliers as $supplier) {
+                // Get performance metrics from bon receptions
+                $receptionStats = DB::table('bon_receptions as br')
+                    ->join('bon_reception_items as bri', 'br.id', '=', 'bri.bon_reception_id')
+                    ->where('br.fournisseur_id', $supplier->id)
+                    ->whereNotNull('br.date_reception')
+                    ->selectRaw('
+                        COUNT(DISTINCT br.id) as total_orders,
+                        AVG(bri.unit_price) as avg_price,
+                        COUNT(CASE WHEN br.status = "completed" THEN 1 END) as completed_orders,
+                        COUNT(CASE WHEN bri.quantity_received >= bri.quantity_ordered THEN 1 END) as full_deliveries,
+                        COUNT(bri.id) as total_items
+                    ')
+                    ->first();
+
+                // Calculate ratings
+                $totalOrders = $receptionStats->total_orders ?? 0;
+                $onTimeDelivery = $totalOrders > 0 ? (($receptionStats->completed_orders ?? 0) / $totalOrders) * 100 : 0;
+                $qualityScore = $totalOrders > 0 ? (($receptionStats->full_deliveries ?? 0) / ($receptionStats->total_items ?? 1)) * 100 : 0;
+
+                // Base rating calculation (1-5 stars)
+                $baseRating = 3.0; // Start with neutral rating
+
+                if ($totalOrders > 0) {
+                    // Adjust rating based on performance
+                    if ($onTimeDelivery >= 95) {
+                        $baseRating += 1.5;
+                    } elseif ($onTimeDelivery >= 85) {
+                        $baseRating += 1.0;
+                    } elseif ($onTimeDelivery >= 70) {
+                        $baseRating += 0.5;
+                    } elseif ($onTimeDelivery < 50) {
+                        $baseRating -= 1.0;
+                    }
+
+                    if ($qualityScore >= 95) {
+                        $baseRating += 0.5;
+                    } elseif ($qualityScore < 70) {
+                        $baseRating -= 0.5;
+                    }
+
+                    // Order frequency bonus
+                    if ($totalOrders >= 50) {
+                        $baseRating += 0.3;
+                    } elseif ($totalOrders >= 20) {
+                        $baseRating += 0.2;
+                    } elseif ($totalOrders >= 10) {
+                        $baseRating += 0.1;
+                    }
+                }
+
+                // Cap rating between 1 and 5
+                $finalRating = max(1.0, min(5.0, $baseRating));
+
+                $ratings[$supplier->id] = [
+                    'rating' => round($finalRating, 1),
+                    'total_orders' => $totalOrders,
+                    'on_time_delivery' => round($onTimeDelivery),
+                    'quality_score' => round($qualityScore),
+                    'avg_price' => $receptionStats->avg_price ?? null,
+                    'performance_tier' => $this->getPerformanceTier($finalRating, $totalOrders),
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $ratings,
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching supplier ratings: '.$e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch supplier ratings',
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper method to determine supplier performance tier
+     */
+    private function getPerformanceTier($rating, $totalOrders)
+    {
+        if ($rating >= 4.5 && $totalOrders >= 20) {
+            return 'premium';
+        } elseif ($rating >= 4.0 && $totalOrders >= 10) {
+            return 'excellent';
+        } elseif ($rating >= 3.5 && $totalOrders >= 5) {
+            return 'good';
+        } elseif ($rating >= 3.0) {
+            return 'average';
+        } else {
+            return 'poor';
         }
     }
 
@@ -1029,28 +1473,29 @@ class ServiceDemandPurchasingController extends Controller
     {
         try {
             $serviceDemand = ServiceDemendPurchcing::findOrFail($id);
-            
+
             $request->validate([
-                'note' => 'required|string|max:500'
+                'note' => 'required|string|max:500',
             ]);
 
             // Add the note to existing notes or create new
-            $existingNotes = $serviceDemand->notes ? $serviceDemand->notes . "\n" : '';
-            $newNote = now()->format('Y-m-d H:i:s') . ' - ' . $request->note;
-            $serviceDemand->notes = $existingNotes . $newNote;
+            $existingNotes = $serviceDemand->notes ? $serviceDemand->notes."\n" : '';
+            $newNote = now()->format('Y-m-d H:i:s').' - '.$request->note;
+            $serviceDemand->notes = $existingNotes.$newNote;
             $serviceDemand->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Workflow note added successfully',
-                'notes' => $serviceDemand->notes
+                'notes' => $serviceDemand->notes,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error adding workflow note: ' . $e->getMessage());
+            Log::error('Error adding workflow note: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add workflow note'
+                'message' => 'Failed to add workflow note',
             ], 500);
         }
     }

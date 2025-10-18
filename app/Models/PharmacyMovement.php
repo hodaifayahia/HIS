@@ -2,18 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\CONFIGURATION\Service;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\CONFIGURATION\Service;
-use App\Models\User;
-use App\Models\Product;
-use App\Models\PharmacyMovementItem;
 
 class PharmacyMovement extends Model
 {
     protected $table = 'pharmacy_stock_movements';
-    
+
     protected $fillable = [
         'movement_number',
         'product_id',
@@ -115,7 +112,7 @@ class PharmacyMovement extends Model
     {
         return $query->where(function ($q) use ($serviceId) {
             $q->where('requesting_service_id', $serviceId)
-              ->orWhere('providing_service_id', $serviceId);
+                ->orWhere('providing_service_id', $serviceId);
         });
     }
 
@@ -152,7 +149,7 @@ class PharmacyMovement extends Model
 
     public function getUrgencyLevelLabelAttribute(): string
     {
-        return match($this->urgency_level) {
+        return match ($this->urgency_level) {
             'urgent' => 'Urgent',
             'high' => 'High Priority',
             'normal' => 'Normal',
@@ -166,8 +163,8 @@ class PharmacyMovement extends Model
         parent::boot();
 
         static::creating(function ($movement) {
-            if (!$movement->movement_number) {
-                $movement->movement_number = 'PM-' . date('Y') . '-' . 
+            if (! $movement->movement_number) {
+                $movement->movement_number = 'PM-'.date('Y').'-'.
                     str_pad(static::count() + 1, 6, '0', STR_PAD_LEFT);
             }
         });

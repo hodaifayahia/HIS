@@ -30,6 +30,7 @@ return new class extends Migration
             $table->string('appointment_booking_window')->nullable(); // Example as string, adjust type if it's a specific ID
 
             $table->date('appointment_date');
+            $table->date('canceled_at')->nullable();
             $table->time('appointment_time');
             $table->text('reason')->nullable(); // Reason for the appointment
 
@@ -50,7 +51,7 @@ return new class extends Migration
                   ->onDelete('set null'); // If user is deleted, set updated_by to null
 
             $table->string('status')->default('pending'); // e.g., 'pending', 'confirmed', 'canceled', 'completed'
-
+            $table->softDeletes(); // Adds `deleted_at` column for soft deletes
             $table->timestamps(); // Adds `created_at` and `updated_at` columns
         });
     }

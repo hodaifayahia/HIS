@@ -17,7 +17,7 @@ class OverpaymentHandlingRequest extends FormRequest
         return [
             'fiche_navette_item_id' => 'required|exists:fiche_navette_items,id',
             'patient_id' => 'required|integer',
-            'cashier_id' => 'required|exists:users,id',
+            'cashier_id' => 'nullable|integer|exists:users,id',
             'required_amount' => 'required|numeric|min:0.01',
             'paid_amount' => 'required|numeric|min:0.01',
             'payment_method' => 'required|in:cash,card,check,transfer,insurance',
@@ -33,6 +33,7 @@ class OverpaymentHandlingRequest extends FormRequest
         return [
             'overpayment_action.required' => 'Please specify how to handle the overpayment.',
             'overpayment_action.in' => 'Overpayment action must be either donate or balance.',
+            'cashier_id.exists' => 'Cashier not found',
         ];
     }
 }

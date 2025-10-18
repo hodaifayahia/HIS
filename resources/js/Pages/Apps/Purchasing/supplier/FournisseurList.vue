@@ -6,6 +6,7 @@ import { useToast } from 'primevue/usetoast';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import ConfirmDialog from 'primevue/confirmdialog';
+import Dialog from 'primevue/dialog';
 import { useConfirm } from 'primevue/useconfirm';
 import FournisseurCreate from './FournisseurCreate.vue';
 
@@ -20,6 +21,8 @@ const searchQuery = ref('');
 const statusFilter = ref('all'); // 'all', 'active', 'inactive'
 const showCreateModal = ref(false);
 const editingFournisseur = ref(null);
+const showViewModal = ref(false);
+const viewingFournisseur = ref(null);
 
 // Computed properties
 const filteredFournisseurs = computed(() => {
@@ -65,8 +68,20 @@ const fetchFournisseurs = async () => {
     }
 };
 
-const viewFournisseur = (fournisseur) => {
-    router.push(`/purchasing/fournisseurs/${fournisseur.id}`);
+const viewFournisseur = async (fournisseur) => {
+    try {
+        const response = await axios.get(`/api/fournisseurs/${fournisseur.id}`);
+        viewingFournisseur.value = response.data;
+        showViewModal.value = true;
+    } catch (error) {
+        console.error('Error fetching fournisseur details:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load supplier details',
+            life: 3000
+        });
+    }
 };
 
 const goToCreate = () => {
@@ -84,12 +99,44 @@ const onModalClose = () => {
     editingFournisseur.value = null;
 };
 
+const closeViewModal = () => {
+    showViewModal.value = false;
+    viewingFournisseur.value = null;
+};
+
 const editFournisseur = (fournisseur) => {
-    router.push(`/purchasing/fournisseurs/${fournisseur.id}/edit`);
+    editingFournisseur.value = { ...fournisseur };
+    showCreateModal.value = true;
 };
 
 const deleteFournisseur = (fournisseur) => {
-    router.push(`/purchasing/fournisseurs/${fournisseur.id}/delete`);
+    confirm.require({
+        message: `Are you sure you want to delete "${fournisseur.company_name}"? This action cannot be undone.`,
+        header: 'Delete Supplier',
+        icon: 'pi pi-exclamation-triangle',
+        rejectClass: 'tw-p-3 tw-text-gray-600',
+        acceptClass: 'tw-p-3 tw-bg-red-600 tw-text-white',
+        accept: async () => {
+            try {
+                await axios.delete(`/api/fournisseurs/${fournisseur.id}`);
+                toast.add({
+                    severity: 'success',
+                    summary: 'Success',
+                    detail: 'Supplier deleted successfully',
+                    life: 3000
+                });
+                await fetchFournisseurs();
+            } catch (error) {
+                console.error('Error deleting fournisseur:', error);
+                toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: error.response?.data?.message || 'Failed to delete supplier',
+                    life: 3000
+                });
+            }
+        }
+    });
 };
 
 const clearFilters = () => {
@@ -294,6 +341,88 @@ onMounted(() => {
             @fournisseur-saved="onFournisseurCreated"
             @close="onModalClose"
         />
+
+        <!-- View Fournisseur Modal -->
+        <Dialog 
+            :visible="showViewModal" 
+            @update:visible="showViewModal = $event"
+            :style="{ width: '50rem' }" 
+            :breakpoints="{ '1199px': '75vw', '575px': '90vw' }" 
+            header="Supplier Details" 
+            :modal="true"
+            @hide="closeViewModal"
+        >
+            <div v-if="viewingFournisseur" class="supplier-details">
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <label class="detail-label">Company Name:</label>
+                        <span class="detail-value">{{ viewingFournisseur.company_name }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Contact Person:</label>
+                        <span class="detail-value">{{ viewingFournisseur.contact_person || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Email:</label>
+                        <span class="detail-value">{{ viewingFournisseur.email || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Phone:</label>
+                        <span class="detail-value">{{ viewingFournisseur.phone || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Address:</label>
+                        <span class="detail-value">{{ viewingFournisseur.address || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">City:</label>
+                        <span class="detail-value">{{ viewingFournisseur.city || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Country:</label>
+                        <span class="detail-value">{{ viewingFournisseur.country || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Tax ID:</label>
+                        <span class="detail-value">{{ viewingFournisseur.tax_id || '-' }}</span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Website:</label>
+                        <span class="detail-value">
+                            <a v-if="viewingFournisseur.website" :href="viewingFournisseur.website" target="_blank" class="website-link">
+                                {{ viewingFournisseur.website }}
+                            </a>
+                            <span v-else>-</span>
+                        </span>
+                    </div>
+                    
+                    <div class="detail-item">
+                        <label class="detail-label">Status:</label>
+                        <span :class="viewingFournisseur.is_active ? 'status-active' : 'status-inactive'">
+                            {{ viewingFournisseur.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </div>
+                    
+                    <div v-if="viewingFournisseur.notes" class="detail-item detail-item-full">
+                        <label class="detail-label">Notes:</label>
+                        <span class="detail-value">{{ viewingFournisseur.notes }}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <template #footer>
+                <Button label="Close" severity="secondary" @click="closeViewModal" />
+                <Button label="Edit" severity="primary" @click="editFournisseur(viewingFournisseur); closeViewModal()" />
+            </template>
+        </Dialog>
     </div>
 </template>
 
@@ -730,5 +859,58 @@ onMounted(() => {
 
 :deep(.p-button:hover) {
     background: rgba(0, 0, 0, 0.04);
+}
+
+/* Supplier Details Modal */
+.supplier-details {
+    padding: 1rem 0;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem 2rem;
+}
+
+.detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.detail-item-full {
+    grid-column: 1 / -1;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.detail-value {
+    color: #4b5563;
+    font-size: 1rem;
+    word-break: break-word;
+}
+
+.website-link {
+    color: #3b82f6;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.website-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .detail-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
 }
 </style>

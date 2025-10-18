@@ -204,33 +204,54 @@ const getStatusSeverity = (status) => {
 /**
  * Opens the ModalityModel for adding a new modality or editing an existing one.
  */
-const openModal = (modality = null) => {
-    selectedModality.value = modality ? { ...modality } : {
-        name: '',
-        internal_code: '',
-        modality_type_id: null,
-        dicom_ae_title: '',
-        port: null,
-        physical_location_id: null,
-        operational_status: 'Working',
-        specialization_id: null,
-        integration_protocol: '',
-        connection_configuration: '',
-        data_retrieval_method: '',
-        ip_address: '',
-        frequency: 'Daily',
-        time_slot_duration: null,
-        slot_type: 'minutes',
-        booking_window: null,
-        is_active: true,
-        notes: '',
-        schedules: [],
-        customDates: [],
-        availability_months: [],
-        start_time_force: null,
-        end_time_force: null,
-        number_of_patients: null,
-    };
+const openModal = async (modality = null) => {
+    if (modality) {
+        // Fetch full modality data for editing to ensure all relationships are loaded
+        loading.value = true;
+        try {
+            const result = await modalityService.getById(modality.id);
+            if (result.success) {
+                selectedModality.value = result.data;
+            } else {
+                selectedModality.value = { ...modality };
+                customToastr.error('Failed to load full modality data, using cached data');
+            }
+        } catch (error) {
+            selectedModality.value = { ...modality };
+            customToastr.error('Error loading modality data, using cached data');
+        } finally {
+            loading.value = false;
+        }
+    } else {
+        selectedModality.value = {
+            name: '',
+            internal_code: '',
+            modality_type_id: null,
+            dicom_ae_title: '',
+            port: null,
+            physical_location_id: null,
+            operational_status: 'Working',
+            specialization_id: null,
+            integration_protocol: '',
+            connection_configuration: '',
+            data_retrieval_method: '',
+            ip_address: '',
+            frequency: 'Daily',
+            time_slot_duration: null,
+            slot_type: 'minutes',
+            booking_window: null,
+            is_active: true,
+            notes: '',
+            schedules: [],
+            customDates: [],
+            available_months: [],
+            start_time_force: null,
+            end_time_force: null,
+            number_of_patients: null,
+            consumption_type: '',
+            consumption_unit: null,
+        };
+    }
     isModalOpen.value = true;
 };
 

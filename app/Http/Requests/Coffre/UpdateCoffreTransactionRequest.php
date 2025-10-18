@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Coffre;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Contracts\Validation\Validator;
 
 class UpdateCoffreTransactionRequest extends FormRequest
 {
@@ -23,7 +23,7 @@ class UpdateCoffreTransactionRequest extends FormRequest
             'Designation' => 'nullable|string|max:255',
             'Payer' => 'nullable|string|max:255',
             'amount' => 'sometimes|required|numeric|min:0.01',
-            'description' => 'nullable|string|max:1000'
+            'description' => 'nullable|string|max:1000',
             // user_id removed
         ];
     }
@@ -45,7 +45,7 @@ class UpdateCoffreTransactionRequest extends FormRequest
         throw new HttpResponseException(
             response()->json([
                 'message' => 'The provided data is invalid.',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422)
         );
     }

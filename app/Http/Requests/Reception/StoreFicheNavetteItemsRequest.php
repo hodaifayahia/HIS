@@ -46,7 +46,7 @@ class StoreFicheNavetteItemsRequest extends FormRequest
             'customPrestations.*.convention_price' => 'nullable|numeric',
             'customPrestations.*.uses_convention' => 'nullable|boolean',
             'selectedSpecialization' => 'nullable|exists:specializations,id',
-            'selectedDoctor' => 'nullable|exists:users,id',
+            'selectedDoctor' => 'nullable|exists:doctors,id',
             'selectedConventions' => 'sometimes|array',
             'selectedConventions.*' => 'exists:conventions,id',
             'selectedOrganismes' => 'sometimes|array',

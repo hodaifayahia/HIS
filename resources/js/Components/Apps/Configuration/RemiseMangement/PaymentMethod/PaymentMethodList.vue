@@ -1,6 +1,7 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue';
+import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import { FilterMatchMode } from 'primevue/api';
@@ -71,7 +72,7 @@ const userForm = reactive({
   allowedMethods: [],
 });
 const submitted = ref(false);
-const userStatusOptions = ref(['Active', 'Inactive', 'Allowed']); // Added 'Allowed' as it appears in dummy data
+const userStatusOptions = ref(['Active', 'Inactive']); // Removed 'Allowed' as it's not in the API response
 
 // --- DataTable Filtering State ---
 const selectedPaymentMethodFilter = ref(null);
@@ -107,43 +108,82 @@ const filteredUsers = computed(() => {
 
 // --- Bulk Assignment Dialog State ---
 const assignPaymentDialogVisible = ref(false);
-const paymentMethodToAssign = ref(null);
+const paymentMethodsToAssign = ref([]);
 const selectedUsersForAssignment = ref([]);
 const assignSubmitted = ref(false);
 
 // --- Dummy Data ---
 onMounted(() => {
-  users.value = [
-    { id: 1, name: 'Alice Johnson', email: 'alice.j@example.com', status: 'Active', allowedMethods: ['prepayment', 'postpayment'] },
-    { id: 2, name: 'Bob Williams', email: 'bob.w@example.com', status: 'Inactive', allowedMethods: ['prepayment'] },
-    { id: 3, name: 'Charlie Davis', email: 'charlie.d@example.com', status: 'Allowed', allowedMethods: ['postpayment', 'versement'] },
-    { id: 4, name: 'Diana Miller', email: 'diana.m@example.com', status: 'Active', allowedMethods: ['prepayment'] },
-    { id: 5, name: 'Eve Brown', email: 'eve.b@example.com', status: 'Allowed', allowedMethods: ['prepayment', 'postpayment', 'versement'] },
-    { id: 6, name: 'Frank White', email: 'frank.w@example.com', status: 'Active', allowedMethods: ['prepayment'] },
-    { id: 7, name: 'Grace Green', email: 'grace.g@example.com', status: 'Inactive', allowedMethods: [] },
-    { id: 8, name: 'Harry Black', email: 'harry.b@example.com', status: 'Active', allowedMethods: ['prepayment'] },
-    { id: 9, name: 'Ivy King', email: 'ivy.k@example.com', status: 'Allowed', allowedMethods: ['postpayment'] },
-    { id: 10, name: 'Jack Lee', email: 'jack.l@example.com', status: 'Active', allowedMethods: ['prepayment', 'versement'] },
-    { id: 11, name: 'Karen Taylor', email: 'karen.t@example.com', status: 'Active', allowedMethods: ['prepayment'] },
-    { id: 12, name: 'Liam Hall', email: 'liam.h@example.com', status: 'Inactive', allowedMethods: ['postpayment'] },
-    { id: 13, name: 'Mia Young', email: 'mia.y@example.com', status: 'Allowed', allowedMethods: ['versement'] },
-    { id: 14, name: 'Noah Clark', email: 'noah.c@example.com', status: 'Active', allowedMethods: ['prepayment', 'postpayment'] },
-    { id: 15, name: 'Olivia Lewis', email: 'olivia.l@example.com', status: 'Inactive', allowedMethods: [] },
-    { id: 16, name: 'Peter Scott', email: 'peter.s@example.com', status: 'Active', allowedMethods: ['prepayment'] },
-    { id: 17, name: 'Quinn Adams', email: 'quinn.a@example.com', status: 'Allowed', allowedMethods: ['postpayment'] },
-    { id: 18, name: 'Rachel Baker', email: 'rachel.b@example.com', status: 'Active', allowedMethods: ['prepayment', 'versement'] },
-    { id: 19, name: 'Sam Nelson', email: 'sam.n@example.com', status: 'Inactive', allowedMethods: ['prepayment'] },
-    { id: 20, name: 'Tina Carter', email: 'tina.c@example.com', status: 'Allowed', allowedMethods: ['postpayment', 'versement'] },
-  ];
+  loadUsers();
 });
+
+const loadUsers = async () => {
+  try {
+    console.log('Starting loadUsers API call...');
+    const response = await axios.get('/api/users');
+    console.log('API Response status:', response.status);
+    console.log('API Response headers:', response.headers);
+    console.log('API Response data type:', typeof response.data);
+    console.log('API Response data:', response.data);
+    
+    // Handle both paginated and non-paginated responses
+    const userData = response.data.data || response.data || [];
+    console.log('Extracted userData:', userData);
+    console.log('userData type:', typeof userData);
+    console.log('userData is array:', Array.isArray(userData));
+    
+    if (Array.isArray(userData)) {
+      users.value = userData.map(user => {
+        console.log('Mapping user:', user);
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          status: user.is_active ? 'Active' : 'Inactive',
+          allowedMethods: [] // You may need to fetch this separately or adjust based on your API
+        };
+      });
+      
+      console.log('Successfully mapped users:', users.value);
+      console.log('Final users.value length:', users.value.length);
+      
+      // If no users loaded, show a message
+      if (users.value.length === 0) {
+        console.warn('No users loaded from API - empty array returned');
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'No users found in the system', life: 3000 });
+      } else {
+        console.log('Successfully loaded', users.value.length, 'users');
+        toast.add({ severity: 'success', summary: 'Success', detail: `Loaded ${users.value.length} users`, life: 3000 });
+      }
+    } else {
+      console.error('userData is not an array:', userData);
+      throw new Error('Invalid response format - expected array');
+    }
+  } catch (error) {
+    console.error('Error loading users:', error);
+    if (error.response) {
+      console.error('Error response status:', error.response.status);
+      console.error('Error response data:', error.response.data);
+    }
+    
+    // Fallback: load dummy data for testing
+    console.log('Loading fallback dummy data');
+    users.value = [
+      { id: 1, name: 'Admin User', email: 'admin@admin.com', status: 'Active', allowedMethods: ['prepayment'] },
+      { id: 2, name: 'Test Doctor', email: 'doctor@test.com', status: 'Active', allowedMethods: [] },
+      { id: 3, name: 'Receptionist', email: 'reception@test.com', status: 'Inactive', allowedMethods: ['versement'] },
+    ];
+    
+    console.log('Fallback users loaded:', users.value);
+    toast.add({ severity: 'info', summary: 'Info', detail: 'Loaded test data due to API error', life: 3000 });
+  }
+};
 
 // --- Helper Functions for Styling and Logic (will be passed as props) ---
 const getStatusBadgeClass = (status) => {
   switch (status) {
     case 'Active':
       return 'status-active';
-    case 'Allowed':
-      return 'status-info';
     case 'Inactive':
       return 'status-inactive';
     default:
@@ -257,6 +297,27 @@ const deleteUser = (userId) => {
 
 // --- Bulk Assignment Dialog Logic ---
 const showAssignPaymentDialog = () => {
+  console.log('Opening assign payment dialog');
+  console.log('Available users for assignment:', users.value);
+  console.log('Users count:', users.value.length);
+  console.log('Users value type:', typeof users.value);
+  console.log('Is users.value an array?', Array.isArray(users.value));
+  
+  if (users.value.length > 0) {
+    console.log('Sample user:', users.value[0]);
+    console.log('Sample user keys:', Object.keys(users.value[0]));
+  } else {
+    console.log('No users available - triggering loadUsers and loading fallback data');
+    // Load fallback data immediately for testing
+    users.value = [
+      { id: 1, name: 'Admin User', email: 'admin@admin.com', status: 'Active', allowedMethods: ['prepayment'] },
+      { id: 2, name: 'Test Doctor', email: 'doctor@test.com', status: 'Active', allowedMethods: [] },
+      { id: 3, name: 'Receptionist', email: 'reception@test.com', status: 'Inactive', allowedMethods: ['versement'] },
+    ];
+    console.log('Loaded immediate fallback users:', users.value);
+    loadUsers();
+  }
+  
   resetAssignPaymentForm();
   assignPaymentDialogVisible.value = true;
   assignSubmitted.value = false;
@@ -268,18 +329,18 @@ const hideAssignPaymentDialog = () => {
 };
 
 const resetAssignPaymentForm = () => {
-  paymentMethodToAssign.value = null;
+  paymentMethodsToAssign.value = [];
   selectedUsersForAssignment.value = [];
 };
 
 const performBulkAssignment = () => {
   assignSubmitted.value = true;
 
-  if (!paymentMethodToAssign.value || selectedUsersForAssignment.value.length === 0) {
+  if (!paymentMethodsToAssign.value || paymentMethodsToAssign.value.length === 0 || selectedUsersForAssignment.value.length === 0) {
     toast.add({
       severity: 'error',
       summary: 'Validation Error',
-      detail: 'Please select a payment method and at least one user.',
+      detail: 'Please select payment methods and users.',
       life: 3000,
     });
     return;
@@ -290,10 +351,12 @@ const performBulkAssignment = () => {
     const userIndex = users.value.findIndex((u) => u.id === selectedUser.id);
     if (userIndex !== -1) {
       const currentUser = users.value[userIndex];
-      if (!currentUser.allowedMethods.includes(paymentMethodToAssign.value)) {
-        currentUser.allowedMethods.push(paymentMethodToAssign.value);
-        assignmentsMade++;
-      }
+      paymentMethodsToAssign.value.forEach((method) => {
+        if (!currentUser.allowedMethods.includes(method)) {
+          currentUser.allowedMethods.push(method);
+          assignmentsMade++;
+        }
+      });
     }
   });
 
@@ -301,14 +364,14 @@ const performBulkAssignment = () => {
     toast.add({
       severity: 'success',
       summary: 'Success',
-      detail: `${assignmentsMade} user(s) updated with new payment method.`,
+      detail: `${assignmentsMade} payment method assignments made.`,
       life: 3000,
     });
   } else {
     toast.add({
       severity: 'info',
       summary: 'No Changes',
-      detail: 'Selected users already had the chosen payment method assigned.',
+      detail: 'Selected users already have the chosen payment methods assigned.',
       life: 3000,
     });
   }
@@ -373,7 +436,7 @@ const removeUserChip = (userToRemove) => {
 
     <AssignPaymentMethodDialog
       :visible="assignPaymentDialogVisible"
-      :payment-method-to-assign="paymentMethodToAssign"
+      :payment-methods-to-assign="paymentMethodsToAssign"
       :selected-users-for-assignment="selectedUsersForAssignment"
       :assign-submitted="assignSubmitted"
       :payment-options-dropdown="paymentOptionsDropdown"
@@ -382,7 +445,7 @@ const removeUserChip = (userToRemove) => {
       @perform-bulk-assignment="performBulkAssignment"
       @select-all-active-users="selectAllActiveUsers"
       @remove-user-chip="removeUserChip"
-      @update:payment-method="(value) => (paymentMethodToAssign = value)"
+      @update:payment-methods="(value) => (paymentMethodsToAssign = value)"
       @update:selected-users="(value) => (selectedUsersForAssignment = value)"
     />
   </div>

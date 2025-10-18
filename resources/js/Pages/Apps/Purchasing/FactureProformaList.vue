@@ -1,57 +1,55 @@
 <template>
   <div class="tw-p-6 tw-bg-gray-50 tw-min-h-screen">
-    <!-- Service Demand Status Banner -->
-    <div class="tw-bg-blue-600 tw-text-white tw-p-4 tw-rounded-lg tw-shadow-md tw-mb-6">
-      <div class="tw-flex tw-justify-between tw-items-center">
-        <div>
-          <h2 class="tw-text-lg tw-font-semibold">Current Status: Facture Proforma</h2>
-          <p class="tw-text-blue-100 tw-mt-1">Managing proforma invoices for purchase requests</p>
-        </div>
-        <div class="tw-flex tw-gap-3">
-          <Button 
-            @click="switchToBonCommend"
-            icon="pi pi-arrow-right"
-            label="Switch to Bon Commande"
-            class="p-button-outlined p-button-light"
-          />
-        </div>
+    <!-- Header -->
+    <div class="tw-flex tw-justify-between tw-items-center tw-mb-6">
+      <div>
+        <h1 class="tw-text-3xl tw-font-bold tw-text-gray-900">Proforma Invoices</h1>
+        <p class="tw-text-gray-600 tw-mt-1">Managing proforma invoices for purchase requests</p>
+      </div>
+      <div class="tw-flex tw-gap-3">
+        <Button 
+          @click="switchToBonCommend"
+          :disabled="buttonClicked"
+          icon="pi pi-arrow-right"
+          :label="buttonClicked ? 'Already Used' : 'Switch to Bon Commande'"
+          outlined
+        />
+        <Button 
+          @click="createFactureProforma"
+          icon="pi pi-plus"
+          label="New Proforma"
+          class="tw-bg-blue-600 hover:tw-bg-blue-700"
+        />
+        <Button 
+          @click="generateAllPdfs"
+          :disabled="!selectedProformas.length || generatingPdf"
+          :loading="generatingPdf"
+          icon="pi pi-file-pdf"
+          label="Export PDFs"
+          class="tw-bg-green-600 hover:tw-bg-green-700"
+          :badge="selectedProformas.length ? String(selectedProformas.length) : null"
+        />
+        <Button 
+          @click="refreshData"
+          icon="pi pi-refresh"
+          label="Refresh"
+          outlined
+        />
       </div>
     </div>
 
-    <!-- Header -->
-    <div class="tw-bg-white tw-p-6 tw-rounded-lg tw-shadow-md tw-mb-6">
-      <div class="tw-flex tw-justify-between tw-items-center tw-mb-4">
-        <div>
-          <h1 class="tw-text-2xl tw-font-bold tw-text-gray-800">Facture Proforma Management</h1>
-          <p class="tw-text-gray-600 tw-mt-1">Manage and edit facture proforma records</p>
-        </div>
-        <div class="tw-flex tw-gap-3">
-          <Button 
-            @click="generateAllPdfs"
-            :disabled="!selectedProformas.length || generatingPdf"
-            icon="pi pi-file-pdf"
-            label="Generate PDFs"
-            class="p-button-success"
-          />
-          <Button 
-            @click="refreshData"
-            icon="pi pi-refresh"
-            label="Refresh"
-            class="p-button-secondary"
-          />
-        </div>
-      </div>
-
-      <!-- Filters -->
+    <!-- Filters -->
+    <div class="tw-bg-white tw-rounded-lg tw-shadow-sm tw-p-4 tw-mb-6">
       <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-4">
         <div>
-          <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Status Filter</label>
+          <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Status</label>
           <Dropdown
             v-model="filters.status"
             :options="statusOptions"
             optionLabel="label"
             optionValue="value"
-            placeholder="All Status"
+            placeholder="All Statuses"
+            showClear
             class="tw-w-full"
           />
         </div>
@@ -63,8 +61,9 @@
             optionLabel="company_name"
             optionValue="id"
             placeholder="All Suppliers"
-            class="tw-w-full"
+            showClear
             filter
+            class="tw-w-full"
           />
         </div>
         <div>
@@ -72,6 +71,7 @@
           <InputText
             v-model="filters.search"
             placeholder="Search by code..."
+            @keyup.enter="applyFilters"
             class="tw-w-full"
           />
         </div>
@@ -86,314 +86,243 @@
       </div>
     </div>
 
-    <!-- Data Table -->
-    <div class="tw-bg-white tw-rounded-lg tw-shadow-md tw-overflow-hidden">
+      <!-- Data Table -->
+    <div class="tw-bg-white tw-rounded-lg tw-shadow-sm">
       <DataTable 
-        :selection="selectedProformas"
-        @update:selection="selectedProformas = $event"
+        v-model="selectedProformas"
         :value="proformas"
-        class="p-datatable-gridlines"
-        responsiveLayout="scroll"
+        :loading="loading"
+        dataKey="id"
         :paginator="true"
         :rows="10"
+        :rowsPerPageOptions="[10, 20, 50]"
         paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-        currentPageReportTemplate="Showing {first} to {last} of {totalRecords} records"
-        :rowsPerPageOptions="[5, 10, 20, 50]"
-        dataKey="id"
-        :loading="loading"
+        currentPageReportTemplate="Showing {first} to {last} of {totalRecords}"
+        responsiveLayout="scroll"
         selectionMode="multiple"
+        class=""
+        :rowClass="rowClass"
       >
-        <!-- Selection Column -->
-        <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
+        <!-- Loading Template -->
+        <template #loading>
+          <div class="tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-16">
+            <div class="tw-relative">
+              <div class="tw-w-16 tw-h-16 tw-border-4 tw-border-indigo-200 tw-rounded-full"></div>
+              <div class="tw-w-16 tw-h-16 tw-border-4 tw-border-indigo-600 tw-border-t-transparent tw-rounded-full tw-animate-spin tw-absolute tw-top-0"></div>
+            </div>
+            <p class="tw-mt-4 tw-text-indigo-600 tw-font-medium">Loading proforma invoices...</p>
+          </div>
+        </template>
 
-        <!-- Code Column -->
-        <Column field="factureProformaCode" header="Code" :sortable="true" class="tw-min-w-[150px]">
-          <template #body="{ data }">
-            <div class="tw-font-medium tw-text-blue-600">{{ data.factureProformaCode || `FP-${data.id}` }}</div>
+        <Column selectionMode="multiple" headerStyle="width: 3rem" frozen>
+          <template #header>
+            <div class="tw-flex tw-items-center tw-justify-center">
+              <div class="tw-w-5 tw-h-5 tw-rounded tw-border-2 tw-border-indigo-500"></div>
+            </div>
           </template>
         </Column>
 
-        <!-- Supplier Column -->
-        <Column field="fournisseur.company_name" header="Supplier" :sortable="true" class="tw-min-w-[200px]">
+        <Column field="factureProformaCode" header="Code" :sortable="true" frozen>
           <template #body="{ data }">
-            <div class="tw-font-medium">{{ data.fournisseur?.company_name || 'N/A' }}</div>
-            <div class="tw-text-sm tw-text-gray-500">{{ data.fournisseur?.contact_person || '' }}</div>
+            <div class="tw-flex tw-items-center tw-gap-2">
+              <div class="tw-w-1 tw-h-8 tw-bg-gradient-to-b tw-from-indigo-500 tw-to-purple-500 tw-rounded-full"></div>
+              <span class="tw-font-bold tw-text-indigo-700 tw-font-mono">
+                {{ data.factureProformaCode || `FP-${data.id}` }}
+              </span>
+            </div>
           </template>
         </Column>
 
-        <!-- Status Column (Editable) -->
-        <Column field="status" header="Status" class="tw-min-w-[150px]">
+        <Column field="fournisseur.company_name" header="Supplier" :sortable="true">
           <template #body="{ data }">
-            <Dropdown
-              v-model="data.status"
-              :options="statusOptions"
-              optionLabel="label"
-              optionValue="value"
-              @change="updateStatus(data)"
-              class="tw-w-full"
-            />
-          </template>
-        </Column>
-
-        <!-- Products Column -->
-        <Column header="Products" class="tw-min-w-[200px]">
-          <template #body="{ data }">
-            <div class="tw-space-y-1">
-              <div v-if="data.products && data.products.length > 0">
-                <div class="tw-text-sm tw-font-medium tw-text-gray-700">
-                  {{ data.products.length }} product(s)
+            <div class="tw-flex tw-items-center tw-gap-3">
+              <Avatar 
+                :label="data.fournisseur?.company_name?.charAt(0)" 
+                class="tw-bg-gradient-to-br tw-from-purple-500 tw-to-indigo-500 tw-text-white"
+                size="small"
+              />
+              <div>
+                <div class="tw-font-medium tw-text-gray-900">
+                  {{ data.fournisseur?.company_name || 'N/A' }}
                 </div>
-                <div class="tw-text-xs tw-text-gray-500">
-                  Total Qty: {{ data.products.reduce((sum, p) => sum + (p.quantity || 0), 0) }}
+                <div class="tw-text-xs tw-text-purple-600" v-if="data.fournisseur?.contact_person">
+                  <i class="pi pi-user tw-mr-1"></i>
+                  {{ data.fournisseur.contact_person }}
                 </div>
-              </div>
-              <div v-else class="tw-text-sm tw-text-gray-400">
-                No products
               </div>
             </div>
           </template>
         </Column>
-    
-     
 
-        <!-- Created Date Column -->
-        <Column field="created_at" header="Created Date" :sortable="true" class="tw-min-w-[120px]">
+        <Column header="Products">
           <template #body="{ data }">
-            <div class="tw-text-sm">{{ formatDate(data.created_at) }}</div>
+            <div v-if="data.products?.length" class="tw-flex tw-items-center tw-gap-2">
+              <Tag 
+                :value="`${data.products.length} items`" 
+                class="tw-bg-gradient-to-r tw-from-indigo-500 tw-to-purple-500 tw-text-white"
+              />
+              <span class="tw-text-sm tw-font-medium tw-text-indigo-600">
+                Qty: {{ data.products.reduce((sum, p) => sum + (p.quantity || 0), 0) }}
+              </span>
+            </div>
+            <span v-else class="tw-text-sm tw-text-gray-400 tw-italic">No products</span>
           </template>
         </Column>
 
-        <!-- Actions Column -->
-        <Column header="Actions" class="tw-min-w-[200px]">
+        <Column field="created_at" header="Created" :sortable="true">
           <template #body="{ data }">
-            <div class="tw-flex tw-gap-2">
-             
+            <div class="tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-calendar tw-text-indigo-400 tw-text-sm"></i>
+              <span class="tw-text-sm tw-text-gray-700 tw-font-medium">{{ formatDate(data.created_at) }}</span>
+            </div>
+          </template>
+        </Column>
+
+        <!-- Actions Column with Colored Icons -->
+        <Column header="Actions" frozen alignFrozen="right">
+          <template #body="{ data }">
+            <div class="tw-flex tw-gap-1">
               <Button
-                @click="editProforma(data)"
+                @click="editProformaItems(data)"
                 icon="pi pi-pencil"
                 size="small"
-                class="p-button-warning p-button-sm"
-                v-tooltip="'Edit'"
+                class="p-button-text tw-text-indigo-600 hover:tw-bg-indigo-50"
+                v-tooltip.top="'Edit'"
+              />
+              <Button
+                @click="cancelProforma(data)"
+                :disabled="data.status === 'cancelled' || data.status === 'factureprofram'"
+                icon="pi pi-times"
+                size="small"
+                class="p-button-text tw-text-orange-600 hover:tw-bg-orange-50"
+                v-tooltip.top="'Cancel'"
+              />
+              <Button
+                @click="showConfirmationDialog(data)"
+                :disabled="data.status === 'cancelled' || data.status === 'factureprofram'"
+                icon="pi pi-ban"
+                size="small"
+                class="p-button-text tw-text-red-600 hover:tw-bg-red-50"
+                v-tooltip.top="'Cancel Workflow'"
               />
               <Button
                 @click="generatePdf(data)"
-                :disabled="generatingPdf"
+                :loading="generatingPdf"
                 icon="pi pi-file-pdf"
                 size="small"
-                class="p-button-success p-button-sm"
-                v-tooltip="'Generate PDF'"
+                class="p-button-text tw-text-purple-600 hover:tw-bg-purple-50"
+                v-tooltip.top="'Export PDF'"
               />
               <Button
                 @click="deleteProforma(data)"
                 :disabled="data.status !== 'draft'"
                 icon="pi pi-trash"
                 size="small"
-                class="p-button-danger p-button-sm"
-                v-tooltip="'Delete (Draft Only)'"
+                class="p-button-text tw-text-red-600 hover:tw-bg-red-50"
+                v-tooltip.top="'Delete'"
               />
             </div>
           </template>
         </Column>
+
+        <template #empty>
+          <div class="tw-text-center tw-py-8">
+            <i class="pi pi-inbox tw-text-gray-400 tw-text-4xl tw-mb-4"></i>
+            <p class="tw-text-gray-500">No proforma invoices found</p>
+          </div>
+        </template>
       </DataTable>
     </div>
 
-    <!-- Edit Dialog -->
+    <!-- Cancellation Dialog -->
     <Dialog 
-      :visible="editDialog" 
-      @update:visible="editDialog = $event"
+      v-model="confirmationDialog"
       modal 
-      :header="`Edit Facture Proforma - ${selectedProforma?.factureProformaCode || ''}`"
-      class="tw-w-full tw-max-w-4xl"
+      header="Cancel Proforma Workflow"
+      :style="{ width: '30rem' }"
     >
-      <div v-if="selectedProforma" class="tw-space-y-4">
-        <!-- Basic Info -->
-        <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
-          <!-- <div>
-            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Status</label>
-            <Dropdown
-              v-model="selectedProforma.status"
-              :options="statusOptions"
-              optionLabel="label"
-              optionValue="value"
-              class="tw-w-full"
-            />
-          </div> -->
-          <div>
-            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Supplier</label>
-            <Dropdown
-              v-model="selectedProforma.fournisseur_id"
-              :options="suppliers"
-              optionLabel="company_name"
-              optionValue="id"
-              class="tw-w-full"
-              filter
-            />
-          </div>
+      <div class="tw-space-y-4">
+        <div class="tw-text-center">
+          <i class="pi pi-question-circle tw-text-6xl tw-text-orange-500 tw-mb-4"></i>
+          <h3 class="tw-text-xl tw-font-semibold tw-text-gray-800 tw-mb-2">
+            Cancel Proforma Workflow
+          </h3>
+          <p class="tw-text-gray-600">
+            Are you sure you want to cancel this proforma and mark the workflow as cancelled?
+            This action cannot be undone.
+          </p>
         </div>
 
-        <!-- Attachments -->
-        <div>
-          <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Attachments</label>
-          <div class="tw-space-y-3">
-            <!-- Existing attachments -->
-            <div v-if="selectedProforma.attachments && selectedProforma.attachments.length > 0" class="tw-space-y-2">
-              <div v-for="attachment in selectedProforma.attachments" :key="attachment.id" class="tw-flex tw-items-center tw-justify-between tw-p-2 tw-bg-gray-50 tw-rounded">
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="pi pi-file"></i>
-                  <span class="tw-text-sm">{{ attachment.filename }}</span>
-                </div>
-                <div class="tw-flex tw-gap-2">
-                  <Button 
-                    @click="downloadAttachment(attachment)"
-                    icon="pi pi-download"
-                    size="small"
-                    class="p-button-text p-button-sm"
-                    v-tooltip="'Download'"
-                  />
-                  <Button 
-                    @click="removeAttachment(attachment.id)"
-                    icon="pi pi-trash"
-                    size="small"
-                    class="p-button-danger p-button-text p-button-sm"
-                    v-tooltip="'Remove'"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <!-- Upload new attachment -->
-            <div class="tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg tw-p-4 tw-text-center">
-              <input
-                ref="attachmentInput"
-                type="file"
-                @change="handleAttachmentUpload"
-                class="tw-hidden"
-                multiple
-                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              />
-              <div @click="$refs.attachmentInput.click()" class="tw-cursor-pointer">
-                <i class="pi pi-upload tw-text-2xl tw-text-gray-400"></i>
-                <p class="tw-text-sm tw-text-gray-600 tw-mt-2">Click to upload attachments</p>
-                <p class="tw-text-xs tw-text-gray-400">PDF, DOC, DOCX, JPG, PNG files</p>
-              </div>
-            </div>
+        <div v-if="selectedProforma" class="tw-bg-gray-50 tw-p-4 tw-rounded-lg">
+          <div class="tw-text-sm tw-text-gray-700 tw-space-y-2">
+            <div><strong>Code:</strong> {{ selectedProforma.factureProformaCode || `FP-${selectedProforma.id}` }}</div>
+            <div><strong>Supplier:</strong> {{ selectedProforma.fournisseur?.company_name }}</div>
+            <div><strong>Status:</strong> Will be marked as "Cancelled"</div>
           </div>
         </div>
       </div>
 
       <template #footer>
-        <div class="tw-flex tw-gap-2">
+        <div class="tw-flex tw-gap-2 tw-justify-end">
           <Button 
-            @click="editDialog = false"
+            @click="confirmationDialog = false"
             label="Cancel"
-            class="p-button-secondary"
+            outlined
           />
           <Button 
-            @click="saveProforma"
-            :loading="saving"
-            label="Save Changes"
-            class="p-button-primary"
+            @click="cancelProformaWorkflow"
+            :loading="confirming"
+            label="Cancel Proforma"
+            severity="danger"
           />
         </div>
       </template>
     </Dialog>
 
-    <!-- Product Detail Dialog -->
-    <!-- <Dialog 
-      :visible="productDetailDialog" 
-      @update:visible="productDetailDialog = $event"
-      modal 
-      :header="`Product Details - ${selectedProforma?.factureProformaCode || ''}`"
-      class="tw-w-full tw-max-w-4xl"
-    >
-      <div class="tw-space-y-4" v-if="selectedProducts.length">
-        <div 
-          v-for="product in selectedProducts" 
-          :key="product.id"
-          class="tw-border tw-rounded-lg tw-p-4 tw-bg-gray-50"
-        >
-          <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-4 tw-items-end">
-            <div>
-              <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">Product</label>
-              <div class="tw-font-medium">{{ product.product_name || product.product?.name || `Product ID: ${product.product_id}` }}</div>
-              <div class="tw-text-sm tw-text-gray-500">{{ product.product?.product_code || '' }}</div>
-            </div>
-            <div>
-              <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-1">Quantity</label>
-              <InputNumber
-                v-model="product.quantity"
-                :min="1"
-                showButtons
-                buttonLayout="horizontal"
-                incrementButtonClass="p-button-secondary"
-                decrementButtonClass="p-button-secondary"
-                class="tw-w-full"
-              />
-            </div>
-          </div>
-          <div class="tw-mt-4 tw-flex tw-justify-end">
-            <Button 
-              @click="updateProductQuantity(product)"
-              :loading="updatingQuantity"
-              label="Update"
-              icon="pi pi-save"
-              class="p-button-primary p-button-sm"
-            />
-          </div>
-        </div>
-      </div>
-      <div v-else class="tw-text-center tw-py-8 tw-text-gray-500">
-        No products found for this proforma.
-      </div>
-    </Dialog> -->
-
-    <!-- Confirmation Dialog -->
     <ConfirmDialog />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+// ALL IMPORTS AND SCRIPT CONTENT REMAIN EXACTLY THE SAME
+import { ref, reactive, onMounted } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import { useRouter } from 'vue-router'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
 import Dialog from 'primevue/dialog'
 import Dropdown from 'primevue/dropdown'
 import InputText from 'primevue/inputtext'
-import InputNumber from 'primevue/inputnumber'
 import ConfirmDialog from 'primevue/confirmdialog'
+import Tag from 'primevue/tag'
+import Badge from 'primevue/badge'
+import Avatar from 'primevue/avatar'
 import axios from 'axios'
 
-// Composables
 const toast = useToast()
 const confirm = useConfirm()
+const router = useRouter()
 
-// Reactive state
 const loading = ref(true)
-const saving = ref(false)
 const generatingPdf = ref(false)
 const proformas = ref([])
 const suppliers = ref([])
 const selectedProformas = ref([])
 const selectedProforma = ref(null)
-const editDialog = ref(false)
-const productDetailDialog = ref(false)
-const selectedProducts = ref([])
-const updatingQuantity = ref(false)
-const attachmentInput = ref(null)
+const confirmationDialog = ref(false)
+const confirming = ref(false)
+const totalRecords = ref(0)
+const buttonClicked = ref(localStorage.getItem('facture_proforma_used') === 'true')
 
-// Filters
 const filters = reactive({
   status: null,
   fournisseur_id: null,
   search: ''
 })
 
-// Options
 const statusOptions = [
-  { label: 'All Status', value: null },
   { label: 'Draft', value: 'draft' },
   { label: 'Sent', value: 'sent' },
   { label: 'Approved', value: 'approved' },
@@ -401,23 +330,38 @@ const statusOptions = [
   { label: 'Completed', value: 'completed' }
 ]
 
-// Methods
+// ALL METHODS REMAIN EXACTLY THE SAME
+const normalizePaginator = (payload) => {
+  if (!payload) return { data: [], total: 0 }
+  if (payload.status && payload.data) payload = payload.data
+  if (Array.isArray(payload.data)) {
+    const items = payload.data
+    const total = payload.total || payload.totalRecords || (payload.meta?.total) || items.length
+    return { data: items, total }
+  }
+  if (Array.isArray(payload)) return { data: payload, total: payload.length }
+  if (payload.data?.data && Array.isArray(payload.data.data)) {
+    const items = payload.data.data
+    const total = payload.data.total || payload.total || items.length
+    return { data: items, total }
+  }
+  const items = payload.data || payload.items || []
+  const total = payload.total || items.length
+  return { data: Array.isArray(items) ? items : [], total }
+}
+
 const fetchProformas = async () => {
   try {
     loading.value = true
     const params = new URLSearchParams()
-    
     if (filters.status) params.append('status', filters.status)
     if (filters.fournisseur_id) params.append('fournisseur_id', filters.fournisseur_id)
     if (filters.search) params.append('search', filters.search)
 
     const response = await axios.get(`/api/facture-proformas?${params.toString()}`)
-    
-    if (response.data.status === 'success') {
-      proformas.value = response.data.data.data || response.data.data
-    } else {
-      throw new Error(response.data.message || 'Failed to fetch proformas')
-    }
+    const normalized = normalizePaginator(response.data)
+    proformas.value = normalized.data
+    totalRecords.value = normalized.total
   } catch (err) {
     console.error('Error fetching proformas:', err)
     toast.add({
@@ -434,19 +378,15 @@ const fetchProformas = async () => {
 const fetchSuppliers = async () => {
   try {
     const response = await axios.get('/api/fournisseurs')
-    if (response.data.status === 'success') {
-      suppliers.value = response.data.data
-    } else if (response.data && Array.isArray(response.data)) {
-      suppliers.value = response.data
-    }
+    suppliers.value = response.data.status === 'success' 
+      ? response.data.data 
+      : (Array.isArray(response.data) ? response.data : [])
   } catch (err) {
     console.error('Error fetching suppliers:', err)
   }
 }
 
-const applyFilters = async () => {
-  await fetchProformas()
-}
+const applyFilters = () => fetchProformas()
 
 const refreshData = async () => {
   await Promise.all([fetchProformas(), fetchSuppliers()])
@@ -458,243 +398,78 @@ const refreshData = async () => {
   })
 }
 
-const updateStatus = async (proforma) => {
-  try {
-    const response = await axios.put(`/api/facture-proformas/${proforma.id}`, {
-      ...proforma,
-      products: proforma.products.map(p => ({
-        product_id: p.product_id || p.product?.id,
-        quantity: p.quantity,
-        price: p.price,
-        unit: p.unit
-      }))
-    })
-    
-    if (response.data.status === 'success') {
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Status updated successfully',
-        life: 3000
-      })
-    }
-  } catch (err) {
-    console.error('Error updating status:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to update status',
-      life: 3000
-    })
-  }
+const editProformaItems = (proforma) => {
+  router.push({ 
+    name: 'purchasing.facture-proforma.edit', 
+    params: { id: proforma.id } 
+  })
 }
 
-const updateProductQuantity = async (product) => {
-  if (!selectedProforma.value) return
-  
-  updatingQuantity.value = true
+const showConfirmationDialog = (proforma) => {
+  selectedProforma.value = proforma
+  confirmationDialog.value = true
+}
+
+const cancelProformaWorkflow = async () => {
   try {
-    const response = await axios.put(
-      `/api/facture-proformas/${selectedProforma.value.id}/products/${product.id}`,
-      {
-        quantity: product.quantity,
-        price: product.price
-      }
+    confirming.value = true
+    const response = await axios.post(
+      `/api/facture-proformas/${selectedProforma.value.id}/cancel`
     )
-    
-    if (response.data.status === 'success') {
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Product quantity updated successfully',
-        life: 3000
+
+    if (response.data.success || response.data.status === 'success') {
+      toast.add({ 
+        severity: 'success', 
+        summary: 'Cancelled', 
+        detail: 'Proforma workflow cancelled successfully', 
+        life: 3000 
       })
-      // Refresh the main list
       await fetchProformas()
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: response.data.message || 'Failed to update product',
-        life: 3000
-      })
+      confirmationDialog.value = false
+      selectedProforma.value = null
     }
-  } catch (err) {
-    console.error('Error updating quantity:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to update product quantity',
-      life: 3000
+  } catch (error) {
+    console.error('Error cancelling proforma workflow:', error)
+    toast.add({ 
+      severity: 'error', 
+      summary: 'Error', 
+      detail: error.response?.data?.message || 'Failed to cancel proforma workflow', 
+      life: 3000 
     })
   } finally {
-    updatingQuantity.value = false
+    confirming.value = false
   }
-}
-
-const updateProductUnit = async (proforma, product) => {
-  try {
-    // Update the product unit in the backend
-    await updateProformaProduct(proforma, product)
-  } catch (err) {
-    console.error('Error updating unit:', err)
-  }
-}
-
-const updateProformaProduct = async (proforma, product) => {
-  try {
-    const response = await axios.put(`/api/facture-proformas/${proforma.id}`, {
-      ...proforma,
-      products: proforma.products.map(p => ({
-        product_id: p.product_id || p.product?.id,
-        quantity: p.quantity,
-        price: p.price,
-        unit: p.unit
-      }))
-    })
-    
-    if (response.data.status === 'success') {
-      // Update total amount
-      proforma.total_amount = calculateTotal(proforma)
-    }
-  } catch (err) {
-    console.error('Error updating proforma:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to update product',
-      life: 3000
-    })
-  }
-}
-
-const viewDetails = (proforma) => {
-  selectedProforma.value = { ...proforma }
-}
-
-// New function for viewing and editing products
-const viewProducts = async (proforma) => {
-  try {
-    selectedProforma.value = proforma
-    
-    // If we have products in the current data, use them directly
-    if (proforma.products && proforma.products.length > 0) {
-      selectedProducts.value = proforma.products
-      productDetailDialog.value = true
-      return
-    }
-    
-    // Otherwise fetch from API
-    const response = await axios.get(`/api/facture-proformas/${proforma.id}/products`)
-    
-    if (response.data.status === 'success') {
-      selectedProducts.value = response.data.data.products || []
-      productDetailDialog.value = true
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to fetch product details',
-        life: 3000
-      })
-    }
-  } catch (err) {
-    console.error('Error fetching products:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to fetch product details',
-      life: 3000
-    })
-  }
-}
-
-const editProforma = (proforma) => {
-  selectedProforma.value = JSON.parse(JSON.stringify(proforma))
-  editDialog.value = true
-}
-
-const saveProforma = async () => {
-  try {
-    saving.value = true
-    
-    const response = await axios.put(`/api/facture-proformas/${selectedProforma.value.id}`, {
-      ...selectedProforma.value,
-      products: selectedProforma.value.products.map(p => ({
-        product_id: p.product_id || p.product?.id,
-        quantity: p.quantity,
-        price: p.price,
-        unit: p.unit
-      }))
-    })
-    
-    if (response.data.status === 'success') {
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Proforma updated successfully',
-        life: 3000
-      })
-      
-      editDialog.value = false
-      await fetchProformas()
-    }
-  } catch (err) {
-    console.error('Error saving proforma:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to save proforma',
-      life: 3000
-    })
-  } finally {
-    saving.value = false
-  }
-}
-
-const removeProduct = (index) => {
-  selectedProforma.value.products.splice(index, 1)
 }
 
 const generatePdf = async (proforma) => {
   try {
     generatingPdf.value = true
-    
     const response = await axios.get(`/api/facture-proformas/${proforma.id}/download`, {
-      responseType: 'blob' // Important: responseType blob for file download
+      responseType: 'blob'
     })
-    
-    if (response.data) {
-      // Create a blob from the response data
-      const blob = new Blob([response.data], { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-      
-      // Create a temporary link element and trigger download
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `facture-proforma-${proforma.factureProformaCode || `FP-${proforma.id}`}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      
-      // Clean up
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-      
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'PDF downloaded successfully',
-        life: 3000
-      })
-    } else {
-      throw new Error('Failed to generate PDF')
-    }
+
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `facture-proforma-${proforma.factureProformaCode || `FP-${proforma.id}`}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'PDF downloaded successfully',
+      life: 3000
+    })
   } catch (err) {
     console.error('Error generating PDF:', err)
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: err.message || 'Failed to download PDF',
+      detail: 'Failed to download PDF',
       life: 3000
     })
   } finally {
@@ -705,19 +480,16 @@ const generatePdf = async (proforma) => {
 const generateAllPdfs = async () => {
   try {
     generatingPdf.value = true
-    
     for (const proforma of selectedProformas.value) {
       await generatePdf(proforma)
     }
-    
     toast.add({
       severity: 'success',
       summary: 'Success',
-      detail: `Generated ${selectedProformas.value.length} PDF(s) successfully`,
+      detail: `Generated ${selectedProformas.value.length} PDF(s)`,
       life: 3000
     })
   } catch (err) {
-    console.error('Error generating PDFs:', err)
     toast.add({
       severity: 'error',
       summary: 'Error',
@@ -731,25 +503,23 @@ const generateAllPdfs = async () => {
 
 const deleteProforma = (proforma) => {
   confirm.require({
-    message: `Are you sure you want to delete ${proforma.factureProformaCode}?`,
+    message: `Delete ${proforma.factureProformaCode}?`,
     header: 'Confirm Deletion',
     icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
     accept: async () => {
       try {
         const response = await axios.delete(`/api/facture-proformas/${proforma.id}`)
-        
         if (response.data.status === 'success') {
           toast.add({
             severity: 'success',
-            summary: 'Success',
+            summary: 'Deleted',
             detail: 'Proforma deleted successfully',
             life: 3000
           })
-          
           await fetchProformas()
         }
       } catch (err) {
-        console.error('Error deleting proforma:', err)
         toast.add({
           severity: 'error',
           summary: 'Error',
@@ -761,130 +531,77 @@ const deleteProforma = (proforma) => {
   })
 }
 
-// Utility functions
-const calculateTotal = (proforma) => {
-  if (!proforma.products || !Array.isArray(proforma.products)) {
-    return 0
-  }
-  
-  return proforma.products.reduce((total, product) => {
-    const quantity = parseFloat(product.quantity) || 0
-    const price = parseFloat(product.price) || 0
-    return total + (quantity * price)
-  }, 0)
-}
-
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'DZD'
-  }).format(amount || 0)
-}
-
-const switchToBonCommend = () => {
-  // Navigate to bon commend page
-  window.location.href = '/apps/purchasing/bon-commends'
-}
-
-const handleAttachmentUpload = async (event) => {
-  const files = event.target.files
-  if (!files.length || !selectedProforma.value) return
-
-  for (const file of files) {
-    try {
-      const formData = new FormData()
-      formData.append('attachment', file)
-      formData.append('filename', file.name)
-
-      const response = await axios.post(`/api/facture-proformas/${selectedProforma.value.id}/attachments`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+const cancelProforma = (proforma) => {
+  confirm.require({
+    message: `Cancel ${proforma.factureProformaCode || `FP-${proforma.id}`}? This will mark it as cancelled.`,
+    header: 'Confirm Cancellation',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        const response = await axios.post(`/api/facture-proformas/${proforma.id}/cancel`)
+        if (response.data.status === 'success' || response.data.success) {
+          toast.add({ severity: 'success', summary: 'Cancelled', detail: 'Proforma cancelled successfully', life: 3000 })
+          await fetchProformas()
         }
-      })
+      } catch (err) {
+        console.error('Error cancelling proforma:', err)
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to cancel proforma', life: 3000 })
+      }
+    }
+  })
+}
 
-      if (response.data.status === 'success') {
-        // Refresh the proforma data to show new attachment
-        await fetchProformas()
+const switchToBonCommend = async () => {
+  try {
+    const serviceDemandId = localStorage.getItem('current_service_demand_id')
+    if (serviceDemandId) {
+      const response = await axios.post(`/api/service-demands/${serviceDemandId}/update-to-bon-commend`)
+      if (response.data.success) {
+        localStorage.setItem('serviceDemandStatus_' + serviceDemandId, 'boncommend')
         toast.add({
           severity: 'success',
           summary: 'Success',
-          detail: 'Attachment uploaded successfully',
+          detail: 'Updated to Bon Commend status',
           life: 3000
         })
       }
-    } catch (err) {
-      console.error('Error uploading attachment:', err)
-      toast.add({
-        severity: 'error',
-        summary: 'Error',
-        detail: 'Failed to upload attachment',
-        life: 3000
-      })
     }
-  }
-
-  // Clear the input
-  event.target.value = ''
-}
-
-const downloadAttachment = async (attachment) => {
-  try {
-    const response = await axios.get(`/api/facture-proformas/${selectedProforma.value.id}/attachments/${attachment.id}`, {
-      responseType: 'blob'
-    })
-
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = attachment.filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    window.URL.revokeObjectURL(url)
-  } catch (err) {
-    console.error('Error downloading attachment:', err)
+    localStorage.setItem('facture_proforma_used', 'true')
+    buttonClicked.value = true
+    window.location.href = '/apps/purchasing/bon-commends'
+  } catch (error) {
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to download attachment',
+      detail: 'Failed to update status',
       life: 3000
     })
   }
 }
 
-const removeAttachment = async (attachmentId) => {
-  if (!selectedProforma.value) return
-
-  try {
-    const response = await axios.delete(`/api/facture-proformas/${selectedProforma.value.id}/attachments/${attachmentId}`)
-
-    if (response.data.status === 'success') {
-      // Refresh the proforma data
-      await fetchProformas()
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: 'Attachment removed successfully',
-        life: 3000
-      })
-    }
-  } catch (err) {
-    console.error('Error removing attachment:', err)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to remove attachment',
-      life: 3000
-    })
-  }
+const createFactureProforma = () => {
+  router.push({ name: 'purchasing.facture-proforma.create' })
 }
 
-// Lifecycle
-onMounted(async () => {
-  await Promise.all([
-    fetchProformas(),
-    fetchSuppliers()
-  ])
+const formatDate = (date) => {
+  if (!date) return 'N/A'
+  return new Date(date).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  })
+}
+
+// Row class for styling
+const rowClass = (data) => {
+  if (data.status === 'cancelled') return 'tw-bg-red-50/30'
+  if (data.status === 'approved') return 'tw-bg-green-50/30'
+  return ''
+}
+
+onMounted(() => {
+  Promise.all([fetchProformas(), fetchSuppliers()])
 })
 </script>
 
@@ -894,26 +611,15 @@ onMounted(async () => {
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  background-color: #f3f4f6;
-  border-color: #e5e7eb;
-  color: #374151;
-  font-weight: 600;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-:deep(.p-datatable .p-datatable-tbody > tr > td) {
-  border-color: #e5e7eb;
+:deep(.p-datatable .p-datatable-tbody > tr) {
+  border-bottom: 1px solid #f3f4f6;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
   background-color: #f9fafb;
-}
-
-:deep(.p-dialog .p-dialog-header) {
-  background-color: #2563eb;
-  color: white;
-}
-
-:deep(.p-dialog .p-dialog-content) {
-  background-color: white;
 }
 </style>

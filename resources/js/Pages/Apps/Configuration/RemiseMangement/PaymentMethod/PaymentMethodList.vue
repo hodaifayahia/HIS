@@ -115,12 +115,56 @@ const fetchPaymentMethods = async () => {
   console.log('Using enum payment options:', paymentOptions.value);
 };
 
+const applyPaymentMethodAssignments = () => {
+  if (!Array.isArray(users.value) || users.value.length === 0) {
+    return;
+  }
+
+  if (!Array.isArray(UsersPaymentMethod.value) || UsersPaymentMethod.value.length === 0) {
+    return;
+  }
+
+  const assignmentMap = new Map(
+    UsersPaymentMethod.value.map((entry) => [
+      entry.id,
+      {
+        methods: Array.isArray(entry.allowedMethods) ? entry.allowedMethods : [],
+        status: entry.status || 'inactive',
+      },
+    ])
+  );
+
+  users.value = users.value.map((user) => {
+    const assignment = assignmentMap.get(user.id);
+    if (!assignment) {
+      return user;
+    }
+
+    return {
+      ...user,
+      allowedMethods: assignment.methods,
+      status: assignment.status || user.status,
+    };
+  });
+};
+
 const fetchPaymentMethodUsers = async () => {
   try {
     const result = await paymentMethodService.getAllUsersWithPaymentMethods();
     if (result.success) {
       // UPDATED: Normalize the data structure
-      UsersPaymentMethod.value = result.data.data.map(userPaymentMethod => ({
+      const payload = result.data;
+      let records = [];
+
+      if (Array.isArray(payload?.data)) {
+        records = payload.data;
+      } else if (Array.isArray(payload?.data?.data)) {
+        records = payload.data.data;
+      } else if (Array.isArray(payload)) {
+        records = payload;
+      }
+
+      UsersPaymentMethod.value = records.map(userPaymentMethod => ({
         id: userPaymentMethod.user?.id || userPaymentMethod.user_id,
         name: userPaymentMethod.user?.name || 'Unknown',
         email: userPaymentMethod.user?.email || 'No email',
@@ -130,6 +174,7 @@ const fetchPaymentMethodUsers = async () => {
           : []
       }));
       console.log('Fetched UsersPaymentMethod:', UsersPaymentMethod.value);
+      applyPaymentMethodAssignments();
     } else {
       throw new Error(result.message);
     }
@@ -146,18 +191,29 @@ const fetchPaymentMethodUsers = async () => {
 
 const fetchUsers = async () => {
   try {
-    // UPDATED: Use a different endpoint for all users (not payment-specific)
-    const result = await paymentMethodService.getAllUsersWithPaymentMethods();
+    // UPDATED: Pull the full user list
+    const result = await paymentMethodService.getAllUsers({ per_page: 500 });
     if (result.success) {
-      users.value = result.data.data.map(item => ({
-        id: item.user?.id || item.user_id,
-        name: item.user?.name || 'Unknown',
-        email: item.user?.email || 'No email',
-        status: item.status || 'inactive',
-        allowedMethods: Array.isArray(item.payment_method_key) 
-          ? item.payment_method_key 
-          : []
+      const payload = result.data;
+      let rawUsers = [];
+
+      if (Array.isArray(payload?.data)) {
+        rawUsers = payload.data;
+      } else if (Array.isArray(payload?.data?.data)) {
+        rawUsers = payload.data.data;
+      } else if (Array.isArray(payload)) {
+        rawUsers = payload;
+      }
+
+      users.value = rawUsers.map((item) => ({
+        id: item.id,
+        name: item.name || 'Unknown',
+        email: item.email || 'No email',
+        status: item.status || (item.is_active ? 'active' : 'inactive'),
+        allowedMethods: [],
       }));
+
+      applyPaymentMethodAssignments();
     } else {
       throw new Error(result.message);
     }

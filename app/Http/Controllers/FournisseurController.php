@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Fournisseur;
 use App\Services\FournisseurService;
-use Illuminate\Http\Request;
+use App\Http\Resources\FournisseurResource;
+use App\Http\Resources\FournisseurContactResource;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class FournisseurController extends Controller
@@ -17,22 +19,28 @@ class FournisseurController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request): View|JsonResponse
+    public function index(Request $request)
     {
         if ($request->wantsJson()) {
             $perPage = $request->get('per_page', 15);
             $fournisseurs = $this->fournisseurService->getAll($perPage);
-            return response()->json($fournisseurs);
+
+            // If paginator, return resource collection to preserve meta
+            if (method_exists($fournisseurs, 'withPath')) {
+                return FournisseurResource::collection($fournisseurs);
+            }
+
+            return FournisseurResource::collection($fournisseurs);
         }
 
         $fournisseurs = $this->fournisseurService->getAll();
+
         return view('fournisseurs.index', compact('fournisseurs'));
     }
 
     /**
      * Show the form for creating a new resource.
      */
-   
 
     /**
      * Store a newly created resource in storage.
@@ -62,21 +70,28 @@ class FournisseurController extends Controller
 
         $fournisseur = $this->fournisseurService->create($validated);
 
-        return response()->json([
-            'message' => 'Fournisseur created successfully',
-            'data' => $fournisseur
-        ], 201);
+        return (new FournisseurResource($fournisseur))
+            ->response()
+            ->setStatusCode(201);
     }
 
     /**
      * Display the specified resource.
      */
-   
 
     /**
      * Show the form for editing the specified resource.
      */
-  
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Fournisseur $fournisseur): JsonResponse
+    {
+        $fournisseurData = $this->fournisseurService->findById($fournisseur->id);
+
+        return new FournisseurResource($fournisseurData);
+    }
 
     /**
      * Update the specified resource in storage.
@@ -107,10 +122,9 @@ class FournisseurController extends Controller
 
         $fournisseur = $this->fournisseurService->update($fournisseur, $validated);
 
-        return response()->json([
-            'message' => 'Fournisseur updated successfully',
-            'data' => $fournisseur
-        ]);
+        return (new FournisseurResource($fournisseur))
+            ->response()
+            ->setStatusCode(200);
     }
 
     /**
@@ -119,9 +133,8 @@ class FournisseurController extends Controller
     public function destroy(Fournisseur $fournisseur): JsonResponse
     {
         $this->fournisseurService->delete($fournisseur);
-
         return response()->json([
-            'message' => 'Fournisseur deleted successfully'
+            'message' => 'Fournisseur deleted successfully',
         ]);
     }
 
@@ -131,12 +144,12 @@ class FournisseurController extends Controller
     public function search(Request $request): JsonResponse
     {
         $query = $request->validate([
-            'q' => 'required|string|min:2'
+            'q' => 'required|string|min:2',
         ])['q'];
 
         $fournisseurs = $this->fournisseurService->search($query);
 
-        return response()->json($fournisseurs);
+        return FournisseurResource::collection($fournisseurs);
     }
 
     /**
@@ -146,6 +159,6 @@ class FournisseurController extends Controller
     {
         $fournisseurs = $this->fournisseurService->getActive();
 
-        return response()->json($fournisseurs);
+        return FournisseurResource::collection($fournisseurs);
     }
 }

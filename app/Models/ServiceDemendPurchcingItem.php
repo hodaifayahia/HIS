@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class ServiceDemendPurchcingItem extends Model
 {
     protected $table = 'service_demand_purchasing_items';
-    
+
     protected $fillable = [
         'service_demand_purchasing_id',
         'product_id',
@@ -48,7 +47,7 @@ class ServiceDemendPurchcingItem extends Model
     public function bonCommends()
     {
         return BonCommend::where('service_demand_purchasing_id', $this->service_demand_purchasing_id)
-            ->whereHas('items', function($query) {
+            ->whereHas('items', function ($query) {
                 $query->where('product_id', $this->product_id);
             });
     }

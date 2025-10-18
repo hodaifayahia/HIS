@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->decimal('price', 10, 2);
             $table->string('unit');
+            $table->string('status')->nullable(); // 'pending', 'partially_received', 'fully_received'
             $table->timestamps();
         });
     }

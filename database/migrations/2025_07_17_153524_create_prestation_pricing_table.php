@@ -49,8 +49,6 @@ return new class extends Migration
             $table->string('subname')->nullable();
             $table->string('head')->nullable();
 
-
-
             // Adds 'created_at' and 'updated_at' columns for timestamps.
             $table->timestamp('activation_at');
             $table->timestamps();

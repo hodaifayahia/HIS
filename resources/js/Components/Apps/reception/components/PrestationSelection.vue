@@ -90,20 +90,49 @@ const hasSelectedItems = computed(() => {
   return selectedPrestation.value !== null || selectedPackage.value !== null
 })
 
-const packageTotalPrice = computed(() => {
-  if (selectedPackage.value && selectedPackage.value.price) {
-    return selectedPackage.value.price
+// Robust price resolver: accepts numbers, numeric strings, or objects with common price keys
+const resolvePrice = (value) => {
+  if (value === null || value === undefined) return 0
+  if (typeof value === 'number' && isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '' && !isNaN(Number(value))) return Number(value)
+
+  if (typeof value === 'object') {
+    // price_with_vat_and_consumables_variant may be object or scalar
+    if (value.price_with_vat_and_consumables_variant !== undefined) {
+      const pd = value.price_with_vat_and_consumables_variant
+      if (pd === null || pd === undefined) return 0
+      if (typeof pd === 'number' && isFinite(pd)) return pd
+      if (typeof pd === 'string' && pd.trim() !== '' && !isNaN(Number(pd))) return Number(pd)
+      if (typeof pd === 'object') {
+        return Number(pd.ttc_with_consumables_vat ?? pd.ttc ?? pd.public_price ?? pd.price ?? 0) || 0
+      }
+    }
+
+    return Number(value.ttc_with_consumables_vat ?? value.ttc ?? value.public_price ?? value.price ?? value.final_price ?? 0) || 0
   }
+
   return 0
+}
+
+const packageTotalPrice = computed(() => {
+  if (!selectedPackage.value) return 0
+  return resolvePrice(selectedPackage.value.price ?? selectedPackage.value.public_price ?? selectedPackage.value.price_with_vat_and_consumables_variant ?? selectedPackage.value)
 })
 
 const prestationsIndividualTotal = computed(() => {
   if (packagePrestations.value && packagePrestations.value.length > 0) {
     return packagePrestations.value.reduce((total, prestation) => {
-      return total + (prestation.public_price || 0)
+      return total + resolvePrice(prestation.public_price ?? prestation.price ?? prestation.price_with_vat_and_consumables_variant ?? prestation)
     }, 0)
   }
   return 0
+})
+
+const savingsPercent = computed(() => {
+  const indiv = prestationsIndividualTotal.value
+  const pkg = packageTotalPrice.value
+  if (!indiv || indiv <= 0) return 0
+  return Math.round(((indiv - pkg) / indiv) * 100)
 })
 
 const otherItemsCount = computed(() => {
@@ -142,7 +171,8 @@ const allSelectedItems = computed(() => {
 
 // Methods
 const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'DZD' }).format(amount || 0)
+  const num = resolvePrice(amount)
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'DZD' }).format(num || 0)
 }
 
 const getSeverity = (type) => {
@@ -292,14 +322,21 @@ const createFicheNavette = async () => {
         }
       })
     }
+    // Handle packages - when a package is selected, we only send the package data
+    // NOT the individual prestations to avoid duplication
     if (selectedPackage.value) {
-      packagePrestations.value.forEach(p => {
-        if (p.need_an_appointment) {
-          appointmentsNeeded.push(p)
-        } else {
-          prestationsToCreate.push(p)
-        }
-      })
+      // Check if any prestations in the package need appointments
+      const packageNeedsAppointments = packagePrestations.value.some(p => p.need_an_appointment)
+      
+      if (packageNeedsAppointments) {
+        // If package contains prestations needing appointments, add them to appointmentsNeeded
+        packagePrestations.value.forEach(p => {
+          if (p.need_an_appointment) {
+            appointmentsNeeded.push(p)
+          }
+        })
+      }
+      // Note: We don't add package prestations to prestationsToCreate to avoid duplication
     }
     
     const data = {
@@ -399,7 +436,7 @@ watch(selectedDoctorInternal, () => {
                 3
               </div>
               <span class="tw-text-sm tw-font-medium" :class="hasSelectedItems ? 'tw-text-blue-600' : 'tw-text-gray-500'">
-                Services
+                Prestations
               </span>
             </div>
           </div>
@@ -540,7 +577,7 @@ watch(selectedDoctorInternal, () => {
                   </div>
                 </div>
                 <div class="tw-text-right">
-                  <span class="tw-text-lg tw-font-bold tw-text-blue-600">{{ formatCurrency(option.price) }}</span>
+                  <span class="tw-text-lg tw-font-bold tw-text-blue-600">{{ formatCurrency(option.price ?? option.price_with_vat_and_consumables_variant ?? option.price?.ttc ?? option) }}</span>
                 </div>
               </div>
             </template>

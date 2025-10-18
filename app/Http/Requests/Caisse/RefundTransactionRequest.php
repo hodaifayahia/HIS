@@ -19,7 +19,7 @@ class RefundTransactionRequest extends FormRequest
             'refund_amount' => 'required|numeric|min:0.01',
             'fiche_navette_item_id'=>'nullable',
             'fiche_navette_id'=>'nullable',
-            'cashier_id' => 'required|exists:users,id',
+            'cashier_id' => 'nullable|integer|exists:users,id',
             'notes' => 'nullable|string|max:1000',
         ];
     }
@@ -30,7 +30,6 @@ class RefundTransactionRequest extends FormRequest
             'refund_authorization_id.exists' => 'Refund authorization not found.',
             'refund_amount.required' => 'Refund amount is required.',
             'refund_amount.min' => 'Refund amount must be greater than 0.',
-            'cashier_id.required' => 'Cashier is required.',
             'cashier_id.exists' => 'Cashier not found.',
             'authorization_or_transaction.required' => 'Either original_transaction_id or refund_authorization_id is required.',
         ];

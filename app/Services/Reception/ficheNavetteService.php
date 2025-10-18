@@ -112,6 +112,7 @@ class FicheNavetteService
                 'prestation_id' => $prestation->id,
                 'doctor_id' => $prestationData['doctor_id'] ?? null,
                 'quantity' => $quantity,
+                'default_payment_type' => $prestation->default_payment_type ?? null,
                 'unit_price' => $prestation->public_price,
                 'total_price' => $itemTotal,
                 'final_price' => $itemTotal,

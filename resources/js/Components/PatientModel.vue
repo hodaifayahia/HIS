@@ -125,182 +125,184 @@ const submitForm = async (values) => {
 </script>
 
 <template>
-    <div class="modal fade overflow-auto" :class="{ show: showModal }" tabindex="-1" aria-labelledby="specializationModalLabel"
-        aria-hidden="true" v-if="showModal">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">{{ isEditMode ? 'Edit Patient' : 'Add Patient' }}</h5>
-                    <button type="button" class="btn btn-danger" @click="closeModal" aria-label="Close">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <Form
-                        :validation-schema="PatientSchema"
-                        @submit="submitForm"
-                        v-slot="{ errors, handleSubmit }"
-                    >
-                        <div class="row">
-                            <!-- First Name -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label for="patient-first-name" class="text-muted">Patient Last Name</label>
-                                    <Field
-                                        name="Firstname"
-                                        v-model="Patient.Firstname"
-                                        type="text"
-                                        class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.Firstname }"
-                                        id="patient-first-name"
-                                        placeholder="Enter Patient First Name"
-                                    />
-                                    <span class="invalid-feedback">{{ errors.Firstname }}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Last Name -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label for="patient-last-name" class="text-muted">Patient First Name</label>
-                                    <Field
-                                        name="Lastname"
-                                        v-model="Patient.Lastname"
-                                        type="text"
-                                        class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.Lastname }"
-                                        id="patient-last-name"
-                                        placeholder="Enter Patient Last Name"
-                                    />
-                                    <span class="invalid-feedback">{{ errors.Lastname }}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Parent Name -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label for="patient-parent" class="text-muted">Parent Name</label>
-                                    <Field
-                                        name="Parent"
-                                        v-model="Patient.Parent"
-                                        type="text"
-                                        class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.Parent }"
-                                        id="patient-parent"
-                                        placeholder="Enter Parent Name"
-                                    />
-                                    <span class="invalid-feedback">{{ errors.Parent }}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Gender Selection -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label class="text-muted d-block mb-2">Gender</label>
-                                    <div class="d-flex justify-content-between">
-                                        <div class="form-check form-check-inline flex-grow-1 text-center">
-                                            <input 
-                                                class="form-check-input d-none" 
-                                                type="radio" 
-                                                id="gender-male" 
-                                                value="male" 
-                                                v-model="Patient.gender"
-                                            >
-                                            <label 
-                                                class="form-check-label gender-option p-3 rounded-3 d-flex flex-column align-items-center"
-                                                :class="{ 'bg-primary text-white': Patient.gender === 'male', 'bg-light': Patient.gender !== 'male' }"
-                                                for="gender-male"
-                                            >
-                                                <i class="fas fa-mars fa-2x mb-2"></i>
-                                                <span>Male</span>
-                                            </label>
-                                        </div>
-                                        
-                                        <div class="form-check form-check-inline flex-grow-1 text-center mx-2">
-                                            <input 
-                                                class="form-check-input d-none" 
-                                                type="radio" 
-                                                id="gender-female" 
-                                                value="female" 
-                                                v-model="Patient.gender"
-                                            >
-                                            <label 
-                                                class="form-check-label gender-option p-3 rounded-3 d-flex flex-column align-items-center"
-                                                :class="{ 'bg-primary text-white': Patient.gender === 'female', 'bg-light': Patient.gender !== 'female' }"
-                                                for="gender-female"
-                                            >
-                                                <i class="fas fa-venus fa-2x mb-2"></i>
-                                                <span>Female</span>
-                                            </label>
-                                        </div>
+    <teleport to="body">
+        <div class="modal fade overflow-auto" :class="{ show: showModal }" tabindex="-1" aria-labelledby="specializationModalLabel"
+            aria-hidden="true" v-if="showModal" style="z-index: 2100;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ isEditMode ? 'Edit Patient' : 'Add Patient' }}</h5>
+                        <button type="button" class="btn btn-danger" @click="closeModal" aria-label="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <Form
+                            :validation-schema="PatientSchema"
+                            @submit="submitForm"
+                            v-slot="{ errors, handleSubmit }"
+                        >
+                            <div class="row">
+                                <!-- First Name -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="patient-first-name" class="text-muted">Patient Last Name</label>
+                                        <Field
+                                            name="Firstname"
+                                            v-model="Patient.Firstname"
+                                            type="text"
+                                            class="form-control form-control-md rounded-pill"
+                                            :class="{ 'is-invalid': errors.Firstname }"
+                                            id="patient-first-name"
+                                            placeholder="Enter Patient First Name"
+                                        />
+                                        <span class="invalid-feedback">{{ errors.Firstname }}</span>
                                     </div>
-                                    <Field name="gender" v-model="Patient.gender" type="hidden" />
-                                    <span class="invalid-feedback d-block">{{ errors.gender }}</span>
+                                </div>
+                                
+                                <!-- Last Name -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="patient-last-name" class="text-muted">Patient First Name</label>
+                                        <Field
+                                            name="Lastname"
+                                            v-model="Patient.Lastname"
+                                            type="text"
+                                            class="form-control form-control-md rounded-pill"
+                                            :class="{ 'is-invalid': errors.Lastname }"
+                                            id="patient-last-name"
+                                            placeholder="Enter Patient Last Name"
+                                        />
+                                        <span class="invalid-feedback">{{ errors.Lastname }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Parent Name -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="patient-parent" class="text-muted">Parent Name</label>
+                                        <Field
+                                            name="Parent"
+                                            v-model="Patient.Parent"
+                                            type="text"
+                                            class="form-control form-control-md rounded-pill"
+                                            :class="{ 'is-invalid': errors.Parent }"
+                                            id="patient-parent"
+                                            placeholder="Enter Parent Name"
+                                        />
+                                        <span class="invalid-feedback">{{ errors.Parent }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Gender Selection -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label class="text-muted d-block mb-2">Gender</label>
+                                        <div class="d-flex justify-content-between">
+                                            <div class="form-check form-check-inline flex-grow-1 text-center">
+                                                <input 
+                                                    class="form-check-input d-none" 
+                                                    type="radio" 
+                                                    id="gender-male" 
+                                                    value="male" 
+                                                    v-model="Patient.gender"
+                                                >
+                                                <label 
+                                                    class="form-check-label gender-option p-3 rounded-3 d-flex flex-column align-items-center"
+                                                    :class="{ 'bg-primary text-white': Patient.gender === 'male', 'bg-light': Patient.gender !== 'male' }"
+                                                    for="gender-male"
+                                                >
+                                                    <i class="fas fa-mars fa-2x mb-2"></i>
+                                                    <span>Male</span>
+                                                </label>
+                                            </div>
+                                            
+                                            <div class="form-check form-check-inline flex-grow-1 text-center mx-2">
+                                                <input 
+                                                    class="form-check-input d-none" 
+                                                    type="radio" 
+                                                    id="gender-female" 
+                                                    value="female" 
+                                                    v-model="Patient.gender"
+                                                >
+                                                <label 
+                                                    class="form-check-label gender-option p-3 rounded-3 d-flex flex-column align-items-center"
+                                                    :class="{ 'bg-primary text-white': Patient.gender === 'female', 'bg-light': Patient.gender !== 'female' }"
+                                                    for="gender-female"
+                                                >
+                                                    <i class="fas fa-venus fa-2x mb-2"></i>
+                                                    <span>Female</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <Field name="gender" v-model="Patient.gender" type="hidden" />
+                                        <span class="invalid-feedback d-block">{{ errors.gender }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Phone -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="patient-phone" class="text-muted">Patient Phone</label>
+                                        <Field
+                                            name="phone"
+                                            v-model="Patient.phone"
+                                            type="text"
+                                            class="form-control form-control-md rounded-pill"
+                                            :class="{ 'is-invalid': errors.phone }"
+                                            id="patient-phone"
+                                            placeholder="Enter Patient Phone"
+                                        />
+                                        <span class="invalid-feedback">{{ errors.phone }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- ID Number -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="patient-idnum" class="text-muted">ID Number (optional)</label>
+                                        <Field
+                                            name="Idnum"
+                                            v-model="Patient.Idnum"
+                                            type="text"
+                                            class="form-control form-control-md rounded-pill"
+                                            :class="{ 'is-invalid': errors.Idnum }"
+                                            id="patient-idnum"
+                                            placeholder="Enter ID Number"
+                                        />
+                                        <span class="invalid-feedback">{{ errors.Idnum }}</span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Date of Birth -->
+                                <div class="col-md-12">
+                                    <div class="form-group mb-4">
+                                        <label for="patient-dob" class="text-muted">Date of Birth (optional)</label>
+                                        <Field
+                                            name="dateOfBirth"
+                                            v-model="Patient.dateOfBirth"
+                                            type="date"
+                                            class="form-control form-control-md rounded-pill"
+                                            :class="{ 'is-invalid': errors.dateOfBirth }"
+                                            id="patient-dob"
+                                        />
+                                        <span class="invalid-feedback">{{ errors.dateOfBirth }}</span>
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <!-- Phone -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label for="patient-phone" class="text-muted">Patient Phone</label>
-                                    <Field
-                                        name="phone"
-                                        v-model="Patient.phone"
-                                        type="text"
-                                        class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.phone }"
-                                        id="patient-phone"
-                                        placeholder="Enter Patient Phone"
-                                    />
-                                    <span class="invalid-feedback">{{ errors.phone }}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- ID Number -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label for="patient-idnum" class="text-muted">ID Number (optional)</label>
-                                    <Field
-                                        name="Idnum"
-                                        v-model="Patient.Idnum"
-                                        type="text"
-                                        class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.Idnum }"
-                                        id="patient-idnum"
-                                        placeholder="Enter ID Number"
-                                    />
-                                    <span class="invalid-feedback">{{ errors.Idnum }}</span>
-                                </div>
-                            </div>
-                            
-                            <!-- Date of Birth -->
-                            <div class="col-md-12">
-                                <div class="form-group mb-4">
-                                    <label for="patient-dob" class="text-muted">Date of Birth (optional)</label>
-                                    <Field
-                                        name="dateOfBirth"
-                                        v-model="Patient.dateOfBirth"
-                                        type="date"
-                                        class="form-control form-control-md rounded-pill"
-                                        :class="{ 'is-invalid': errors.dateOfBirth }"
-                                        id="patient-dob"
-                                    />
-                                    <span class="invalid-feedback">{{ errors.dateOfBirth }}</span>
-                                </div>
-                            </div>
-                        </div>
 
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-secondary" @click="closeModal">Cancel</button>
-                            <button type="submit" class="btn btn-outline-primary">
-                                {{ isEditMode ? 'Update Patient' : 'Add Patient' }}
-                            </button>
-                        </div>
-                    </Form>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-secondary" @click="closeModal">Cancel</button>
+                                <button type="submit" class="btn btn-outline-primary">
+                                    {{ isEditMode ? 'Update Patient' : 'Add Patient' }}
+                                </button>
+                            </div>
+                        </Form>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    </teleport>
 </template>
 
 <style scoped>

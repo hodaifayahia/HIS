@@ -13,36 +13,36 @@ return new class extends Migration
     {
         Schema::table('product_global_settings', function (Blueprint $table) {
             // Check if columns don't exist before adding them
-            if (!Schema::hasColumn('product_global_settings', 'product_id')) {
+            if (! Schema::hasColumn('product_global_settings', 'product_id')) {
                 $table->unsignedBigInteger('product_id')->after('id');
             }
-            if (!Schema::hasColumn('product_global_settings', 'setting_key')) {
+            if (! Schema::hasColumn('product_global_settings', 'setting_key')) {
                 $table->string('setting_key');
             }
-            if (!Schema::hasColumn('product_global_settings', 'setting_value')) {
+            if (! Schema::hasColumn('product_global_settings', 'setting_value')) {
                 $table->json('setting_value');
             }
-            if (!Schema::hasColumn('product_global_settings', 'description')) {
+            if (! Schema::hasColumn('product_global_settings', 'description')) {
                 $table->text('description')->nullable();
             }
         });
-        
+
         // Add constraints in a separate schema call to avoid conflicts
         try {
             Schema::table('product_global_settings', function (Blueprint $table) {
                 $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
             });
         } catch (\Exception $e) {
-             // Foreign key might already exist, ignore
-         }
-         
-         try {
-             Schema::table('product_global_settings', function (Blueprint $table) {
-                 $table->unique(['product_id', 'setting_key']);
-             });
-         } catch (\Exception $e) {
-             // Unique constraint might already exist, ignore
-         }
+            // Foreign key might already exist, ignore
+        }
+
+        try {
+            Schema::table('product_global_settings', function (Blueprint $table) {
+                $table->unique(['product_id', 'setting_key']);
+            });
+        } catch (\Exception $e) {
+            // Unique constraint might already exist, ignore
+        }
     }
 
     /**
@@ -59,7 +59,7 @@ return new class extends Migration
                     break;
                 }
             }
-            
+
             // Drop unique constraint if it exists
             $indexes = Schema::getConnection()->getDoctrineSchemaManager()->listTableIndexes('product_global_settings');
             foreach ($indexes as $index) {
@@ -68,7 +68,7 @@ return new class extends Migration
                     break;
                 }
             }
-            
+
             // Drop columns if they exist
             if (Schema::hasColumn('product_global_settings', 'description')) {
                 $table->dropColumn('description');

@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AdminLTE 3 | Starter</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  @if(app()->environment('local'))
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ws: wss: http: https:;">
+  @endif
 
   @vite(['resources/css/app.css', 'resources/js/app.js'])
   <link rel="icon" type="image/png" href="{{ asset('login.png') }}">

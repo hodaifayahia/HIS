@@ -5,12 +5,11 @@ namespace App\Http\Controllers\Pharmacy;
 use App\Models\PharmacyInventory;
 use App\Models\PharmacyProduct;
 use App\Models\PharmacyStockage;
-use App\Models\PharmacyStorage;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class PharmacyInventoryController extends \App\Http\Controllers\Controller
 {
@@ -24,36 +23,36 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('batch_number', 'like', "%{$search}%")
-                  ->orWhere('serial_number', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%")
-                  ->orWhereHas('pharmacyProduct', function($productQuery) use ($search) {
-                      $productQuery->where('name', 'like', "%{$search}%")
-                                  ->orWhere('brand_name', 'like', "%{$search}%")
-                                  ->orWhere('generic_name', 'like', "%{$search}%")
-                                  ->orWhere('active_ingredients', 'like', "%{$search}%");
-                  });
+                    ->orWhere('serial_number', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhereHas('pharmacyProduct', function ($productQuery) use ($search) {
+                        $productQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('brand_name', 'like', "%{$search}%")
+                            ->orWhere('generic_name', 'like', "%{$search}%")
+                            ->orWhere('active_ingredients', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Filter by product category (pharmacy-specific)
         if ($request->has('category') && $request->category) {
-            $query->whereHas('pharmacyProduct', function($q) use ($request) {
+            $query->whereHas('pharmacyProduct', function ($q) use ($request) {
                 $q->where('category', $request->category);
             });
         }
 
         // Filter by medication type
         if ($request->has('type_medicament') && $request->type_medicament) {
-            $query->whereHas('pharmacyProduct', function($q) use ($request) {
+            $query->whereHas('pharmacyProduct', function ($q) use ($request) {
                 $q->where('category', $request->type_medicament);
             });
         }
 
         // Filter by controlled substances
         if ($request->has('is_controlled')) {
-            $query->whereHas('pharmacyProduct', function($q) use ($request) {
+            $query->whereHas('pharmacyProduct', function ($q) use ($request) {
                 $q->where('is_controlled_substance', $request->boolean('is_controlled'));
             });
         }
@@ -66,23 +65,23 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             } elseif ($expiryStatus === 'expiring_soon') {
                 $query->whereBetween('expiry_date', [now(), now()->addDays(60)]);
             } elseif ($expiryStatus === 'valid') {
-                $query->where(function($q) {
+                $query->where(function ($q) {
                     $q->where('expiry_date', '>', now()->addDays(60))
-                      ->orWhereNull('expiry_date');
+                        ->orWhereNull('expiry_date');
                 });
             }
         }
 
         // Filter by storage type
         if ($request->has('storage_type') && $request->storage_type) {
-            $query->whereHas('pharmacyStockage', function($q) use ($request) {
+            $query->whereHas('pharmacyStockage', function ($q) use ($request) {
                 $q->where('type', $request->storage_type);
             });
         }
 
         // Filter by temperature controlled
         if ($request->has('temperature_controlled')) {
-            $query->whereHas('pharmacyStockage', function($q) use ($request) {
+            $query->whereHas('pharmacyStockage', function ($q) use ($request) {
                 $q->where('temperature_controlled', $request->boolean('temperature_controlled'));
             });
         }
@@ -95,9 +94,9 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         // Sort by expiry date for pharmacy priority
         $sortBy = $request->get('sort_by', 'expiry_date');
         $sortOrder = $request->get('sort_order', 'asc');
-        
+
         if ($sortBy === 'expiry_date') {
-            $query->orderByRaw('expiry_date IS NULL, expiry_date ' . $sortOrder);
+            $query->orderByRaw('expiry_date IS NULL, expiry_date '.$sortOrder);
         } else {
             $query->orderBy($sortBy, $sortOrder);
         }
@@ -123,7 +122,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             $item->requires_prescription = $item->pharmacyProduct->requires_prescription ?? false;
             $item->is_controlled_substance = $item->pharmacyProduct->is_controlled_substance ?? false;
             $item->controlled_substance_schedule = $item->pharmacyProduct->controlled_substance_schedule ?? null;
-            
+
             // Calculate total units considering unit of measure
             if ($item->pharmacyProduct && $item->pharmacyProduct->unit_of_measure) {
                 $item->total_units_calculated = $item->quantity;
@@ -143,8 +142,8 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 'per_page' => $inventory->perPage(),
                 'total' => $inventory->total(),
                 'from' => $inventory->firstItem(),
-                'to' => $inventory->lastItem()
-            ]
+                'to' => $inventory->lastItem(),
+            ],
         ]);
     }
 
@@ -168,13 +167,13 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             'ndc_number' => 'nullable|string|max:50',
             'pharmacist_verified' => 'boolean',
             'quality_check_passed' => 'boolean',
-            'temperature_log' => 'nullable|string'
+            'temperature_log' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -189,13 +188,13 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             // Update existing inventory quantity
             $existingInventory->update([
                 'quantity' => $existingInventory->quantity + $request->quantity,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $existingInventory->load(['pharmacyProduct', 'pharmacyStockage']),
-                'message' => 'Pharmacy product quantity adjusted successfully'
+                'message' => 'Pharmacy product quantity adjusted successfully',
             ]);
         }
 
@@ -224,7 +223,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             if (empty($data['batch_number'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Batch number is required for controlled substances'
+                    'message' => 'Batch number is required for controlled substances',
                 ], 422);
             }
         }
@@ -234,14 +233,14 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'data' => $inventory->load(['pharmacyProduct', 'pharmacyStockage']),
-            'message' => 'Pharmacy product added to inventory successfully'
+            'message' => 'Pharmacy product added to inventory successfully',
         ], 201);
     }
 
     public function show(PharmacyInventory $inventory)
     {
         $inventory->load(['pharmacyProduct', 'pharmacyStockage']);
-        
+
         // Add pharmacy-specific calculations
         if ($inventory->expiry_date) {
             $inventory->days_until_expiry = now()->diffInDays($inventory->expiry_date, false);
@@ -251,7 +250,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'data' => $inventory
+            'data' => $inventory,
         ]);
     }
 
@@ -270,13 +269,13 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             'ndc_number' => 'nullable|string|max:50',
             'pharmacist_verified' => 'boolean',
             'quality_check_passed' => 'boolean',
-            'temperature_log' => 'nullable|string'
+            'temperature_log' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -287,7 +286,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             if (isset($data['batch_number']) && empty($data['batch_number'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Batch number cannot be empty for controlled substances'
+                    'message' => 'Batch number cannot be empty for controlled substances',
                 ], 422);
             }
         }
@@ -297,7 +296,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'data' => $inventory->load(['pharmacyProduct', 'pharmacyStockage']),
-            'message' => 'Pharmacy inventory updated successfully'
+            'message' => 'Pharmacy inventory updated successfully',
         ]);
     }
 
@@ -307,7 +306,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         if ($inventory->pharmacyProduct && $inventory->pharmacyProduct->is_controlled_substance) {
             return response()->json([
                 'success' => false,
-                'message' => 'Controlled substances cannot be deleted without proper authorization'
+                'message' => 'Controlled substances cannot be deleted without proper authorization',
             ], 403);
         }
 
@@ -315,7 +314,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pharmacy inventory item removed successfully'
+            'message' => 'Pharmacy inventory item removed successfully',
         ]);
     }
 
@@ -325,13 +324,13 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             'adjustment_type' => 'required|in:increase,decrease',
             'quantity' => 'required|numeric',
             'reason' => 'required|string|max:255',
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -341,14 +340,14 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         $notes = $request->notes;
 
         // Calculate new quantity
-        $newQuantity = $adjustmentType === 'increase' 
-            ? $inventory->quantity + $quantity 
+        $newQuantity = $adjustmentType === 'increase'
+            ? $inventory->quantity + $quantity
             : $inventory->quantity - $quantity;
 
         if ($newQuantity < 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Insufficient stock for this adjustment'
+                'message' => 'Insufficient stock for this adjustment',
             ], 422);
         }
 
@@ -357,7 +356,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             if (empty($reason)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Reason is required for controlled substance adjustments'
+                    'message' => 'Reason is required for controlled substance adjustments',
                 ], 422);
             }
         }
@@ -375,40 +374,40 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             'quantity_changed' => $quantity,
             'reason' => $reason,
             'notes' => $notes,
-            'user_id' => Auth::id()
+            'user_id' => Auth::id(),
         ]);
 
         return response()->json([
             'success' => true,
             'data' => $inventory->fresh(['pharmacyProduct', 'pharmacyStockage']),
-            'message' => 'Stock adjusted successfully'
+            'message' => 'Stock adjusted successfully',
         ]);
     }
 
     public function transferStock(Request $request, PharmacyInventory $inventory)
     {
         $validator = Validator::make($request->all(), [
-            'quantity' => 'required|numeric|min:1|max:' . $inventory->quantity,
-            'destination_stockage_id' => 'required|exists:pharmacy_stockages,id|different:' . $inventory->pharmacy_stockage_id,
+            'quantity' => 'required|numeric|min:1|max:'.$inventory->quantity,
+            'destination_stockage_id' => 'required|exists:pharmacy_stockages,id|different:'.$inventory->pharmacy_stockage_id,
             'notes' => 'nullable|string|max:500',
             'pharmacist_license' => 'required|string|max:50',
-            'transfer_reason' => 'required|string|max:255'
+            'transfer_reason' => 'required|string|max:255',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         // Validate destination storage for controlled substances
         if ($inventory->pharmacyProduct && $inventory->pharmacyProduct->is_controlled_substance) {
             $destinationStorage = PharmacyStockage::find($request->destination_stockage_id);
-            if (!$destinationStorage || $destinationStorage->security_level < 3) {
+            if (! $destinationStorage || $destinationStorage->security_level < 3) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Controlled substances require high-security storage'
+                    'message' => 'Controlled substances require high-security storage',
                 ], 422);
             }
         }
@@ -426,7 +425,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 // Add to existing inventory
                 $destinationInventory->update([
                     'quantity' => $destinationInventory->quantity + $request->quantity,
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
             } else {
                 // Create new inventory entry
@@ -444,14 +443,14 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                     'manufacturer_lot' => $inventory->manufacturer_lot,
                     'ndc_number' => $inventory->ndc_number,
                     'pharmacist_verified' => true, // Verified during transfer
-                    'quality_check_passed' => $inventory->quality_check_passed
+                    'quality_check_passed' => $inventory->quality_check_passed,
                 ]);
             }
 
             // Reduce quantity from source
             $inventory->update([
                 'quantity' => $inventory->quantity - $request->quantity,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             // Log the transfer for pharmacy compliance
@@ -463,21 +462,22 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 'pharmacist_license' => $request->pharmacist_license,
                 'transfer_reason' => $request->transfer_reason,
                 'user_id' => Auth::id(),
-                'timestamp' => now()
+                'timestamp' => now(),
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pharmacy stock transferred successfully'
+                'message' => 'Pharmacy stock transferred successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to transfer pharmacy stock: ' . $e->getMessage()
+                'message' => 'Failed to transfer pharmacy stock: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -485,32 +485,32 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
     public function getServiceStock(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'service_id' => 'required|exists:services,id'
+            'service_id' => 'required|exists:services,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $query = PharmacyInventory::with(['pharmacyProduct', 'pharmacyStockage'])
-            ->whereHas('pharmacyStockage', function($q) use ($request) {
+            ->whereHas('pharmacyStockage', function ($q) use ($request) {
                 $q->where('service_id', $request->get('service_id'));
             });
 
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('batch_number', 'like', "%{$search}%")
-                  ->orWhereHas('pharmacyProduct', function($productQuery) use ($search) {
-                      $productQuery->where('name', 'like', "%{$search}%")
-                                  ->orWhere('brand_name', 'like', "%{$search}%")
-                                  ->orWhere('generic_name', 'like', "%{$search}%")
-                                  ->orWhere('active_ingredients', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('pharmacyProduct', function ($productQuery) use ($search) {
+                        $productQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('brand_name', 'like', "%{$search}%")
+                            ->orWhere('generic_name', 'like', "%{$search}%")
+                            ->orWhere('active_ingredients', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -535,10 +535,10 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 $item->is_expired = $item->expiry_date->isPast();
                 $item->is_expiring_soon = $item->days_until_expiry <= 60 && $item->days_until_expiry > 0;
             }
-            
+
             $item->requires_prescription = $item->pharmacyProduct->requires_prescription ?? false;
             $item->is_controlled_substance = $item->pharmacyProduct->is_controlled_substance ?? false;
-            
+
             return $item;
         });
 
@@ -550,7 +550,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 'last_page' => $inventory->lastPage(),
                 'per_page' => $inventory->perPage(),
                 'total' => $inventory->total(),
-            ]
+            ],
         ]);
     }
 
@@ -560,26 +560,27 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
     public function getExpiringMedications(Request $request)
     {
         $days = $request->get('days', 60); // Default 60 days for pharmacy
-        
+
         $query = PharmacyInventory::with(['pharmacyProduct', 'pharmacyStockage'])
             ->whereBetween('expiry_date', [now(), now()->addDays($days)])
             ->orderBy('expiry_date', 'asc');
 
         if ($request->has('service_id')) {
-            $query->whereHas('pharmacyStockage', function($q) use ($request) {
+            $query->whereHas('pharmacyStockage', function ($q) use ($request) {
                 $q->where('service_id', $request->service_id);
             });
         }
 
-        $expiringMedications = $query->get()->map(function($item) {
+        $expiringMedications = $query->get()->map(function ($item) {
             $item->days_until_expiry = now()->diffInDays($item->expiry_date, false);
+
             return $item;
         });
 
         return response()->json([
             'success' => true,
             'data' => $expiringMedications,
-            'total_count' => $expiringMedications->count()
+            'total_count' => $expiringMedications->count(),
         ]);
     }
 
@@ -589,13 +590,13 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
     public function getControlledSubstances(Request $request)
     {
         $query = PharmacyInventory::with(['pharmacyProduct', 'pharmacyStockage'])
-            ->whereHas('pharmacyProduct', function($q) {
+            ->whereHas('pharmacyProduct', function ($q) {
                 $q->where('is_controlled_substance', true);
             })
             ->orderBy('updated_at', 'desc');
 
         if ($request->has('service_id')) {
-            $query->whereHas('pharmacyStockage', function($q) use ($request) {
+            $query->whereHas('pharmacyStockage', function ($q) use ($request) {
                 $q->where('service_id', $request->service_id);
             });
         }
@@ -605,7 +606,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'data' => $controlledSubstances,
-            'total_count' => $controlledSubstances->count()
+            'total_count' => $controlledSubstances->count(),
         ]);
     }
 
@@ -629,13 +630,13 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             'items.*.ndc_number' => 'nullable|string|max:50',
             'items.*.pharmacist_verified' => 'boolean',
             'items.*.quality_check_passed' => 'boolean',
-            'items.*.temperature_log' => 'nullable|string'
+            'items.*.temperature_log' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -646,9 +647,10 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
 
             foreach ($request->items as $itemData) {
                 $inventory = PharmacyInventory::find($itemData['id']);
-                
-                if (!$inventory) {
+
+                if (! $inventory) {
                     $errors[] = "Inventory item with ID {$itemData['id']} not found";
+
                     continue;
                 }
 
@@ -656,13 +658,14 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 if ($inventory->pharmacyProduct && $inventory->pharmacyProduct->is_controlled_substance) {
                     if (isset($itemData['batch_number']) && empty($itemData['batch_number'])) {
                         $errors[] = "Batch number cannot be empty for controlled substance: {$inventory->pharmacyProduct->name}";
+
                         continue;
                     }
                 }
 
                 // Remove the ID from the data to avoid updating it
                 $updateData = collect($itemData)->except(['id'])->toArray();
-                
+
                 $inventory->update($updateData);
                 $updatedItems[] = $inventory->load(['pharmacyProduct', 'pharmacyStockage']);
 
@@ -672,17 +675,18 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                         'inventory_id' => $inventory->id,
                         'product_name' => $inventory->pharmacyProduct->name,
                         'updated_fields' => array_keys($updateData),
-                        'user_id' => Auth::id()
+                        'user_id' => Auth::id(),
                     ]);
                 }
             }
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 DB::rollBack();
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Bulk update failed',
-                    'errors' => $errors
+                    'errors' => $errors,
                 ], 422);
             }
 
@@ -692,19 +696,19 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 'success' => true,
                 'data' => $updatedItems,
                 'message' => 'Bulk update completed successfully',
-                'updated_count' => count($updatedItems)
+                'updated_count' => count($updatedItems),
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Pharmacy bulk update failed', [
                 'error' => $e->getMessage(),
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Bulk update failed: ' . $e->getMessage()
+                'message' => 'Bulk update failed: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -716,21 +720,22 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
                 'pharmacy_product_id',
                 DB::raw('SUM(quantity) as total_quantity')
             )
-            ->with('pharmacyProduct:id,name,brand_name,generic_name,category')
-            ->groupBy('pharmacy_product_id')
-            ->get();
+                ->with('pharmacyProduct:id,name,brand_name,generic_name,category')
+                ->groupBy('pharmacy_product_id')
+                ->get();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Inventory summary retrieved successfully',
-                'data' => $inventorySummary
+                'data' => $inventorySummary,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error retrieving inventory summary: ' . $e->getMessage());
+            Log::error('Error retrieving inventory summary: '.$e->getMessage());
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to retrieve inventory summary',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -748,14 +753,183 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Expiring items retrieved successfully',
-                'data' => $expiringItems
+                'data' => $expiringItems,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error retrieving expiring items: ' . $e->getMessage());
+            Log::error('Error retrieving expiring items: '.$e->getMessage());
+
             return response()->json([
                 'status' => 'error',
                 'message' => 'Failed to retrieve expiring items',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getAvailable(Request $request)
+    {
+        try {
+            $query = PharmacyInventory::where('quantity', '>', 0)
+                ->where('status', 'available')
+                ->with(['pharmacyProduct', 'pharmacyStockage']);
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('batch_number', 'like', "%{$search}%")
+                        ->orWhereHas('pharmacyProduct', function ($productQuery) use ($search) {
+                            $productQuery->where('name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            $availableItems = $query->get();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Available items retrieved successfully',
+                'data' => $availableItems,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve available items',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getByProduct($productId)
+    {
+        try {
+            $inventory = PharmacyInventory::where('pharmacy_product_id', $productId)
+                ->with(['pharmacyProduct', 'pharmacyStockage'])
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Product inventory retrieved successfully',
+                'data' => $inventory,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve product inventory',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getByStockage($stockageId)
+    {
+        try {
+            $inventory = PharmacyInventory::where('pharmacy_stockage_id', $stockageId)
+                ->with(['pharmacyProduct', 'pharmacyStockage'])
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Stockage inventory retrieved successfully',
+                'data' => $inventory,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve stockage inventory',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getCriticalStock(Request $request)
+    {
+        try {
+            $criticalItems = PharmacyInventory::whereRaw('quantity <= min_stock_level')
+                ->with(['pharmacyProduct', 'pharmacyStockage'])
+                ->orderBy('quantity', 'asc')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Critical stock items retrieved successfully',
+                'data' => $criticalItems,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve critical stock items',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getExpired(Request $request)
+    {
+        try {
+            $expiredItems = PharmacyInventory::where('expiry_date', '<', now())
+                ->with(['pharmacyProduct', 'pharmacyStockage'])
+                ->orderBy('expiry_date', 'asc')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Expired items retrieved successfully',
+                'data' => $expiredItems,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve expired items',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function getLowStock(Request $request)
+    {
+        try {
+            $lowStockItems = PharmacyInventory::whereRaw('quantity <= min_stock_level * 1.2')
+                ->whereRaw('quantity > min_stock_level')
+                ->with(['pharmacyProduct', 'pharmacyStockage'])
+                ->orderBy('quantity', 'asc')
+                ->get();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Low stock items retrieved successfully',
+                'data' => $lowStockItems,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to retrieve low stock items',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function generateBarcode(Request $request, PharmacyInventory $inventory)
+    {
+        try {
+            // Generate barcode logic here - you may want to use a barcode library
+            $barcodeData = [
+                'id' => $inventory->id,
+                'product_name' => $inventory->pharmacyProduct->name,
+                'batch_number' => $inventory->batch_number,
+                'expiry_date' => $inventory->expiry_date,
+                'barcode' => 'PH'.str_pad($inventory->id, 8, '0', STR_PAD_LEFT),
+            ];
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Barcode generated successfully',
+                'data' => $barcodeData,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to generate barcode',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

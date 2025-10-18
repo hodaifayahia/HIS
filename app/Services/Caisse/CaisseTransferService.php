@@ -1,53 +1,54 @@
 <?php
+
 // app/Services/Caisse/CaisseTransferService.php
 
 namespace App\Services\Caisse;
 
-use App\Models\Caisse\CaisseTransfer;
 use App\Models\Caisse\CaisseSession;
+use App\Models\Caisse\CaisseTransfer;
 use App\Models\Coffre\Caisse;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class CaisseTransferService
 {
     public function getAllPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = CaisseTransfer::with(['caisse', 'fromUser', 'toUser'])
-                              ->latest('created_at');
+            ->latest('created_at');
 
         // Apply filters
-        if (!empty($filters['caisse_id'])) {
+        if (! empty($filters['caisse_id'])) {
             $query->byCaisse($filters['caisse_id']);
         }
 
-        if (!empty($filters['caisse_session_id'])) {
+        if (! empty($filters['caisse_session_id'])) {
             $query->where('caisse_session_id', $filters['caisse_session_id']);
         }
 
-        if (!empty($filters['from_user_id'])) {
+        if (! empty($filters['from_user_id'])) {
             $query->where('from_user_id', $filters['from_user_id']);
         }
 
-        if (!empty($filters['to_user_id'])) {
+        if (! empty($filters['to_user_id'])) {
             $query->where('to_user_id', $filters['to_user_id']);
         }
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['user_id'])) {
+        if (! empty($filters['user_id'])) {
             $query->forUser($filters['user_id']);
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
@@ -61,20 +62,20 @@ class CaisseTransferService
 
     public function create(array $data): CaisseTransfer
     {
-        
+
         return DB::transaction(function () use ($data) {
 
             $data['from_user_id'] = auth()->id();
             // Mark previous transfers (from same user and caisse) as done
-            if ((!empty($data['caisse_id']) && !empty($data['caisse_session_id']))) {
-                CaisseTransfer::where('caisse_id',$data['caisse_id'])
+            if ((! empty($data['caisse_id']) && ! empty($data['caisse_session_id']))) {
+                CaisseTransfer::where('caisse_id', $data['caisse_id'])
                     ->where('caisse_session_id', $data['caisse_session_id'])
                     ->where('status', '<>', 'done')
                     ->update(['status' => 'done']);
             }
 
-            CaisseSession::where('id',$data['caisse_session_id'])
-                          ->update(['is_transfer' => 1]);
+            CaisseSession::where('id', $data['caisse_session_id'])
+                ->update(['is_transfer' => 1]);
             // Create new transfer
             $transfer = CaisseTransfer::create($data);
 
@@ -99,8 +100,7 @@ class CaisseTransferService
 
     public function acceptTransfer(CaisseTransfer $transfer, string $token, ?float $amountReceived = null): CaisseTransfer
     {
-        return DB::transaction(function () use ($transfer, $token, $amountReceived) {
-            
+        return DB::transaction(function () use ($transfer, $amountReceived) {
 
             // store received amount (use sent amount as fallback)
             if ($amountReceived !== null) {
@@ -112,7 +112,7 @@ class CaisseTransferService
             // persist amount before accepting to keep audit trail
             $transfer->save();
 
-            if (!$transfer->accept()) {
+            if (! $transfer->accept()) {
                 throw new \Exception('Cannot accept this transfer.');
             }
 
@@ -123,10 +123,9 @@ class CaisseTransferService
     public function rejectTransfer(CaisseTransfer $transfer): CaisseTransfer
     {
         return DB::transaction(function () use ($transfer) {
-            if (!$transfer->reject()) {
+            if (! $transfer->reject()) {
                 throw new \Exception('Cannot reject this transfer.');
             }
-            
 
             return $transfer->refresh();
         });
@@ -149,7 +148,7 @@ class CaisseTransferService
         return $expiredCount;
     }
 
-    public function getTransferStats(int $caisseId = null, int $userId = null): array
+    public function getTransferStats(?int $caisseId = null, ?int $userId = null): array
     {
         $query = CaisseTransfer::query();
 
@@ -188,7 +187,6 @@ class CaisseTransferService
             default:
                 $query->forUser($userId);
         }
-        
 
         return $query->latest('created_at')->get();
     }
@@ -196,8 +194,8 @@ class CaisseTransferService
     public function getTransferByToken(string $token): ?CaisseTransfer
     {
         return CaisseTransfer::with(['caisse', 'fromUser', 'toUser'])
-                           ->where('transfer_token', $token)
-                           ->first();
+            ->where('transfer_token', $token)
+            ->first();
     }
 
     public function delete(CaisseTransfer $transfer): void

@@ -6,23 +6,29 @@ use Illuminate\Database\Eloquent\Model;
 
 class FactureProforma extends Model
 {
-    
     protected $table = 'factureproformas';
-    
+
     protected $fillable = [
         'factureProformaCode',
         'fournisseur_id',
         'service_demand_purchasing_id',
         'created_by',
         'status',
+        'price', // Optional total price field
         'pdf_content', // New field for storing PDF content
         'pdf_generated_at', // New field for storing PDF generation timestamp
+        'is_confirmed',
+        'confirmed_at',
+        'confirmed_by',
+        'attachments',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'pdf_generated_at' => 'datetime',
+        'price' => 'decimal:2',
+        'attachments' => 'array',
     ];
 
     /**
@@ -32,6 +38,7 @@ class FactureProforma extends Model
     {
         return $this->belongsTo(\App\Models\Fournisseur::class, 'fournisseur_id');
     }
+
     public function products()
     {
         return $this->hasMany(FactureProformaProduct::class, 'factureproforma_id');

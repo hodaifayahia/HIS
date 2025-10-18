@@ -5,8 +5,8 @@
       <div class="tw-bg-gradient-to-r tw-from-purple-600 tw-to-indigo-600 tw-rounded-2xl tw-p-8 tw-mb-8 tw-text-white">
         <div class="tw-flex tw-items-center tw-justify-between">
           <div>
-            <h1 class="tw-text-3xl tw-font-bold tw-mb-2">Transfer Approval Limits</h1>
-            <p class="tw-text-purple-100">Manage maximum transfer amounts that users can approve</p>
+            <h1 class="tw-text-3xl tw-font-bold tw-mb-2">Caisse Approval & Transfer Limits</h1>
+            <p class="tw-text-purple-100">Manage user approval permissions and maximum transfer amounts</p>
           </div>
           <div class="tw-text-right">
             <div class="tw-text-purple-100 tw-text-sm">Active Limits</div>
@@ -138,6 +138,17 @@
               </template>
             </Column>
 
+            <!-- Approval Permission Column -->
+            <Column field="user.can_approve_caisse" header="Approval Permission" class="tw-text-center">
+              <template #body="{ data }">
+                <Tag 
+                  :value="data.user.can_approve_caisse ? 'Can Approve' : 'Cannot Approve'"
+                  :severity="data.user.can_approve_caisse ? 'success' : 'danger'"
+                  :icon="data.user.can_approve_caisse ? 'pi pi-check' : 'pi pi-times'"
+                />
+              </template>
+            </Column>
+
             <!-- Role Column -->
             <Column field="user.role" header="Role" sortable>
               <template #body="{ data }">
@@ -181,29 +192,54 @@
             </Column>
 
             <!-- Actions Column -->
-            <Column header="Actions" class="tw-text-center tw-min-w-[200px]">
+            <Column header="Actions" class="tw-text-center tw-min-w-[280px]">
               <template #body="{ data }">
                 <div class="tw-flex tw-justify-center tw-gap-2">
+                  <!-- Toggle Approval Permission -->
+                  <Button
+                    v-if="!data.user.can_approve_caisse"
+                    icon="pi pi-shield"
+                    label="Grant"
+                    class="p-button-success p-button-sm"
+                    @click="grantCaissePermission(data)"
+                    :loading="processingApprovalItems.includes(data.user.id)"
+                    v-tooltip="'Grant caisse approval permission'"
+                  />
+                  <Button
+                    v-else
+                    icon="pi pi-ban"
+                    label="Revoke"
+                    class="p-button-secondary p-button-sm"
+                    @click="confirmRevokeCaissePermission(data)"
+                    :loading="processingApprovalItems.includes(data.user.id)"
+                    v-tooltip="'Revoke caisse approval permission'"
+                  />
+                  
+                  <!-- Edit Limit -->
                   <Button
                     icon="pi pi-pencil"
                     class="p-button-info p-button-sm"
                     @click="openEditDialog(data)"
-                    v-tooltip="'Edit'"
+                    v-tooltip="'Edit Limit'"
                   />
+                  
+                  <!-- Toggle Limit Status -->
                   <Button
                     :icon="data.is_active ? 'pi pi-eye-slash' : 'pi pi-eye'"
-                    :class="data.is_active ? 'p-button-warning' : 'p-button-success'"
+                    :class="data.is_active ? 'p-button-warning' : 'p-button-help'"
                     class="p-button-sm"
                     @click="toggleStatus(data)"
                     :loading="processingItems.includes(data.id)"
-                    v-tooltip="data.is_active ? 'Deactivate' : 'Activate'"
+                    v-tooltip="data.is_active ? 'Deactivate Limit' : 'Activate Limit'"
                   />
+                  
+                  <!-- Delete -->
                   <Button
                     icon="pi pi-trash"
                     class="p-button-danger p-button-sm"
                     @click="confirmDelete(data)"
                     :disabled="processingItems.length > 0"
-                    v-tooltip="'Delete'"
+                    v-tooltip="'Delete Limit'"
                   />
                 </div>
               </template>
@@ -255,13 +291,13 @@
           </label>
           <Dropdown
             v-model="form.user_id"
-            :options="availableApprovers"
+            :options="availableUsers"
             option-label="name"
             option-value="id"
-            placeholder="Select a user with caisse approval permission"
+            placeholder="Select a user from the system"
             class="tw-w-full"
             :class="{ 'p-invalid': formErrors.user_id }"
-            :disabled="submitting || loadingApprovers"
+            :disabled="submitting || loadingUsers"
             filter
             showClear
           >
@@ -277,6 +313,7 @@
                 <div>
                   <div class="tw-font-semibold">{{ slotProps.option.name }}</div>
                   <div class="tw-text-sm tw-text-gray-500">{{ slotProps.option.email }}</div>
+                  <div v-if="slotProps.option.role" class="tw-text-xs tw-text-gray-400">{{ slotProps.option.role }}</div>
                 </div>
               </div>
             </template>
@@ -291,15 +328,18 @@
                 />
                 <span>{{ selectedUser?.name }}</span>
               </div>
-              <span v-else>Select a user with caisse approval permission</span>
+              <span v-else>Select a user from the system</span>
             </template>
           </Dropdown>
           <small v-if="formErrors.user_id" class="p-error tw-block tw-mt-1">
             {{ formErrors.user_id[0] }}
           </small>
-          <small v-if="loadingApprovers" class="tw-text-gray-500 tw-block tw-mt-1">
+          <small v-if="loadingUsers" class="tw-text-gray-500 tw-block tw-mt-1">
             <i class="pi pi-spin pi-spinner tw-mr-1"></i>
-            Loading users with caisse approval permissions...
+            Loading users from the system...
+          </small>
+          <small v-else class="tw-text-gray-500 tw-block tw-mt-1">
+            Select any user to set up their transfer approval limit and caisse permission
           </small>
         </div>
 
@@ -449,14 +489,15 @@ const confirm = useConfirm()
 // Reactive Data
 const loading = ref(false)
 const submitting = ref(false)
-const loadingApprovers = ref(false)
+const loadingUsers = ref(false)
 const transferApprovals = ref([])
-const availableApprovers = ref([])
+const availableUsers = ref([])
 const totalRecords = ref(0)
 const searchQuery = ref('')
 const statusFilter = ref(null)
 const rowsPerPage = ref(15)
 const processingItems = ref([])
+const processingApprovalItems = ref([]) // For caisse approval grant/revoke operations
 const showFormDialog = ref(false)
 const dialogMode = ref('add') // 'add' or 'edit'
 const selectedApproval = ref(null)
@@ -498,7 +539,7 @@ const statusFilterOptions = [
 
 // Computed Properties
 const selectedUser = computed(() => {
-  return availableApprovers.value.find(user => user.id === form.user_id)
+  return availableUsers.value.find(user => user.id === form.user_id)
 })
 
 const isFormValid = computed(() => {
@@ -579,29 +620,35 @@ const loadTransferApprovals = async () => {
   }
 }
 
-const loadAvailableApprovers = async () => {
-  loadingApprovers.value = true
+const loadAvailableUsers = async () => {
+  loadingUsers.value = true
   
   try {
-    const response = await axios.get('/api/user-caisse-approval/approvers')
+    // Load all users from the system
+    const response = await axios.get('/api/users', {
+      params: {
+        per_page: 1000, // Get a large number to include all users
+        active_only: true // Optional: only get active users
+      }
+    })
     
     if (response.data.data) {
       // Filter out users who already have transfer approval limits
       const existingUserIds = transferApprovals.value.map(approval => approval.user.id)
-      availableApprovers.value = response.data.data.filter(user => 
+      availableUsers.value = response.data.data.filter(user => 
         !existingUserIds.includes(user.id)
       )
     }
   } catch (error) {
-    console.error('Error loading approvers:', error)
+    console.error('Error loading users:', error)
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'Failed to load users with caisse approval permissions',
+      detail: 'Failed to load users from the system',
       life: 3000
     })
   } finally {
-    loadingApprovers.value = false
+    loadingUsers.value = false
   }
 }
 
@@ -618,7 +665,7 @@ const openAddDialog = async () => {
   })
   
   formErrors.value = {}
-  await loadAvailableApprovers()
+  await loadAvailableUsers()
   showFormDialog.value = true
 }
 
@@ -759,6 +806,103 @@ const deleteApproval = async (approval) => {
       detail: 'Failed to delete transfer approval limit',
       life: 4000
     })
+  }
+}
+
+const grantCaissePermission = async (approval) => {
+  processingApprovalItems.value.push(approval.user.id)
+  
+  try {
+    const response = await axios.post('/api/user-caisse-approval', {
+      user_id: approval.user.id
+    })
+
+    if (response.data.success) {
+      approval.user.can_approve_caisse = true
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Permission Granted',
+        detail: response.data.message || `${approval.user.name} can now approve caisse transactions`,
+        life: 4000
+      })
+      // Refresh data to ensure state persists across reloads
+      await loadTransferApprovals()
+      await loadAvailableUsers()
+      // Also ping the user-caisse-approval endpoints so other parts of the app
+      // (or paginated user lists) that depend on those endpoints will get fresh data.
+      try {
+        await Promise.all([
+          axios.get('/api/user-caisse-approval'),
+          axios.get('/api/user-caisse-approval/approvers')
+        ])
+      } catch (e) {
+        // non-blocking
+        console.debug('Auxiliary refresh failed', e)
+      }
+    }
+  } catch (error) {
+    console.error('Error granting caisse permission:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to grant caisse approval permission',
+      life: 4000
+    })
+  } finally {
+    processingApprovalItems.value = processingApprovalItems.value.filter(id => id !== approval.user.id)
+  }
+}
+
+const confirmRevokeCaissePermission = (approval) => {
+  confirm.require({
+    message: `Are you sure you want to revoke caisse approval permission from ${approval.user.name}? This will prevent them from approving caisse transactions.`,
+    header: 'Revoke Permission',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    acceptLabel: 'Revoke',
+    rejectLabel: 'Cancel',
+    accept: () => revokeCaissePermission(approval)
+  })
+}
+
+const revokeCaissePermission = async (approval) => {
+  processingApprovalItems.value.push(approval.user.id)
+  
+  try {
+    const response = await axios.delete(`/api/user-caisse-approval/${approval.user.id}`)
+
+    if (response.data.success) {
+      approval.user.can_approve_caisse = false
+      
+      toast.add({
+        severity: 'success',
+        summary: 'Permission Revoked',
+        detail: response.data.message || `${approval.user.name} can no longer approve caisse transactions`,
+        life: 4000
+      })
+      // Refresh data to ensure state persists across reloads
+      await loadTransferApprovals()
+      await loadAvailableUsers()
+      try {
+        await Promise.all([
+          axios.get('/api/user-caisse-approval'),
+          axios.get('/api/user-caisse-approval/approvers')
+        ])
+      } catch (e) {
+        console.debug('Auxiliary refresh failed', e)
+      }
+    }
+  } catch (error) {
+    console.error('Error revoking caisse permission:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to revoke caisse approval permission',
+      life: 4000
+    })
+  } finally {
+    processingApprovalItems.value = processingApprovalItems.value.filter(id => id !== approval.user.id)
   }
 }
 

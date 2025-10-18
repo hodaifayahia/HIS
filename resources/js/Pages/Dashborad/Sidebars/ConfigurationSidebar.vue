@@ -75,6 +75,7 @@ const hasPermission = (requiredRoles) => {
                             <p>Specializations</p>
                         </router-link>
                     </li>
+                   
                     <li class="nav-item">
                         <router-link to="/admin/configuration/services" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
@@ -137,7 +138,7 @@ const hasPermission = (requiredRoles) => {
             </li>
 
             <!-- Remise Management Section -->
-            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isRolePermissionOpen }">
+            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isRemiseConfigOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleRemiseConfig">
                     <i class="nav-icon fas fa-percent"></i> <!-- Changed from fas fa-boxes -->
                     <p>
@@ -180,32 +181,13 @@ const hasPermission = (requiredRoles) => {
                         </router-link>
                     </li>
                     <li class="nav-item">
-                        <router-link to="/admin/configuration/Role-caisse-permission" active-class="active"
-                            class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Caisse Permission </p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
                         <router-link to="/admin/configuration/transfer-approvals" active-class="active"
                             class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Transfer approval </p>
+                            <p>Caisse Approval & Limits</p>
                         </router-link>
                     </li>
-                    <li class="nav-item">
-                        <router-link to="/admin/configuration/permissions" active-class="active"
-                            class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Permission Management</p>
-                        </router-link>
-                    </li>
-                    <!-- <li class="nav-item" >
-                        <router-link to="/admin/configuration/payment-methods" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Payment Methods</p>
-                        </router-link>
-                    </li> -->
+                 
                 </ul>
             </li>
 

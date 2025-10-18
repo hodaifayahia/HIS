@@ -351,6 +351,7 @@ defineExpose({
                 id="yearSelect"
                 v-model="selectedYear"
                 :options="years"
+                appendTo="self"
                 :disabled="disabled"
                 class="tw-w-full"
                 panelClass="tw-shadow-lg tw-border tw-border-gray-200 tw-rounded-lg"
@@ -429,9 +430,10 @@ defineExpose({
               <div class="tw-max-h-80 tw-overflow-y-auto tw-p-2">
                 <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-2">
                   <button
+                    type="button"
                     v-for="month in monthsForSelectedYear"
                     :key="month.value"
-                    @click="toggleMonthSelection(month)"
+                    @click.stop="toggleMonthSelection(month)"
                     :disabled="month.isPastMonth || disabled"
                     class="tw-flex tw-items-center tw-justify-between tw-p-3 tw-rounded-lg tw-border tw-transition-all tw-duration-200 tw-text-left"
                     :class="{

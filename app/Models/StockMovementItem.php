@@ -51,7 +51,7 @@ class StockMovementItem extends Model
     {
         // Get available stock for this product in the providing service
         $providingServiceId = $this->stockMovement->providing_service_id;
-        
+
         return \DB::table('inventories')
             ->join('stockages', 'inventories.stockage_id', '=', 'stockages.id')
             ->where('inventories.product_id', $this->product_id)
@@ -64,6 +64,7 @@ class StockMovementItem extends Model
         if ($this->quantity_by_box && $this->product && $this->product->boite_de) {
             return $this->requested_quantity * $this->product->boite_de;
         }
+
         return $this->requested_quantity;
     }
 
@@ -72,6 +73,7 @@ class StockMovementItem extends Model
         if ($this->quantity_by_box && $this->product && $this->product->boite_de) {
             return $this->approved_quantity * $this->product->boite_de;
         }
+
         return $this->approved_quantity;
     }
 
@@ -80,6 +82,7 @@ class StockMovementItem extends Model
         if ($this->quantity_by_box && $this->product && $this->product->boite_de) {
             return $this->executed_quantity * $this->product->boite_de;
         }
+
         return $this->executed_quantity;
     }
 
@@ -88,6 +91,7 @@ class StockMovementItem extends Model
         if ($this->quantity_by_box) {
             return 'boxes';
         }
+
         return $this->product ? ($this->product->forme ?? 'units') : 'units';
     }
 
@@ -96,10 +100,10 @@ class StockMovementItem extends Model
         // Get suggested quantity based on low stock threshold
         $lowStockThreshold = $this->product->low_stock_threshold ?? 10;
         $availableStock = $this->getAvailableStock();
-        
+
         // Suggest quantity to reach the max stock level
         $maxStockLevel = $this->product->max_stock_level ?? ($lowStockThreshold * 2);
-        
+
         return max(0, $maxStockLevel - $availableStock);
     }
 
@@ -131,6 +135,7 @@ class StockMovementItem extends Model
         } elseif ($this->isRejected()) {
             return 'rejected';
         }
+
         return 'pending';
     }
 }

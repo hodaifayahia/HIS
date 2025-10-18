@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Fournisseur;
-use App\Models\FournisseurContact;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -41,22 +40,22 @@ class FournisseurTest extends TestCase
                     'phone' => '+1234567893',
                     'mobile' => '+1234567894',
                     'is_primary' => false,
-                ]
-            ]
+                ],
+            ],
         ];
 
         $response = $this->postJson('/api/fournisseurs', $fournisseurData);
 
         $response->assertStatus(201)
-                ->assertJson([
-                    'message' => 'Fournisseur created successfully',
-                    'data' => [
-                        'company_name' => 'Test Supplier Inc.',
-                        'contact_person' => 'John Doe',
-                        'email' => 'john@testsupplier.com',
-                        'is_active' => true,
-                    ]
-                ]);
+            ->assertJson([
+                'message' => 'Fournisseur created successfully',
+                'data' => [
+                    'company_name' => 'Test Supplier Inc.',
+                    'contact_person' => 'John Doe',
+                    'email' => 'john@testsupplier.com',
+                    'is_active' => true,
+                ],
+            ]);
 
         $this->assertDatabaseHas('fournisseurs', [
             'company_name' => 'Test Supplier Inc.',
@@ -86,18 +85,18 @@ class FournisseurTest extends TestCase
         $response = $this->getJson('/api/fournisseurs');
 
         $response->assertStatus(200)
-                ->assertJsonStructure([
-                    'data' => [
-                        '*' => [
-                            'id',
-                            'company_name',
-                            'contact_person',
-                            'email',
-                            'is_active',
-                            'contacts'
-                        ]
-                    ]
-                ]);
+            ->assertJsonStructure([
+                'data' => [
+                    '*' => [
+                        'id',
+                        'company_name',
+                        'contact_person',
+                        'email',
+                        'is_active',
+                        'contacts',
+                    ],
+                ],
+            ]);
     }
 
     public function test_can_search_fournisseurs()
@@ -108,14 +107,14 @@ class FournisseurTest extends TestCase
         $response = $this->getJson('/api/fournisseurs/search?q=ABC');
 
         $response->assertStatus(200)
-                ->assertJsonCount(1, 'data')
-                ->assertJson([
-                    'data' => [
-                        [
-                            'company_name' => 'ABC Corp'
-                        ]
-                    ]
-                ]);
+            ->assertJsonCount(1, 'data')
+            ->assertJson([
+                'data' => [
+                    [
+                        'company_name' => 'ABC Corp',
+                    ],
+                ],
+            ]);
     }
 
     public function test_can_get_active_fournisseurs()
@@ -126,6 +125,6 @@ class FournisseurTest extends TestCase
         $response = $this->getJson('/api/fournisseurs-active');
 
         $response->assertStatus(200)
-                ->assertJsonCount(1, 'data');
+            ->assertJsonCount(1, 'data');
     }
 }

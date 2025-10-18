@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\AppointmentSatatusEnum;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\AppointmentSatatusEnum;
 
 class AppointmentResource extends JsonResource
 {
@@ -18,15 +18,161 @@ class AppointmentResource extends JsonResource
         try {
             // Patient details with comprehensive null checking
             $patientData = $this->getPatientData();
-            
+
             // Doctor details with comprehensive null checking
             $doctorData = $this->getDoctorData();
-            
+
             // Waitlist details with comprehensive null checking
             $waitlistData = $this->getWaitlistData();
-            
+
             // Handle status safely
             $statusData = $this->getStatusData();
+
+            // Build prestation / fiche info if relation loaded
+            $prestationsInfo = [];
+            $canStart = false;
+            if ($this->relationLoaded('appointmentPrestations')) {
+                foreach ($this->appointmentPrestations as $ap) {
+                    $pre = $ap->prestation;
+                    $item = null;
+                    $ficheStatus = null;
+                    if ($pre) {
+                        $item = \App\Models\Reception\ficheNavetteItem::where('prestation_id', $pre->id)
+                            ->where('patient_id', $this->patient?->id)
+                            ->with('ficheNavette')
+                            ->first();
+
+                        if ($item && $item->ficheNavette) {
+                            $ficheStatus = $item->ficheNavette->status ?? null;
+                        }
+                    }
+
+                    $prestationsInfo[] = [
+                        'appointment_prestation_id' => $ap->id,
+                        'prestation_id' => $pre?->id ?? null,
+                        'prestation_name' => $pre?->name ?? $pre?->display_name ?? null,
+                        // Include specialization info for check-in logic
+                        'specialization_id' => $pre?->specialization_id ?? null,
+                        'specialization_name' => $pre?->specialization?->name ?? null,
+                        // expose the prestation's configured default payment type
+                        'default_payment_type' => $pre?->default_payment_type ?? null,
+                            'fiche_navette_item' => $item ? (function() use ($item, $ficheStatus, $pre) {
+                            // Normalize status to a numeric value when possible and keep raw value
+                            $rawStatus = $item->status;
+                            $statusValue = null;
+                            if (is_numeric($rawStatus)) {
+                                $statusValue = (int) $rawStatus;
+                            } else {
+                                $s = strtolower((string) $rawStatus);
+                                if (in_array($s, ['working', 'onworking', 'on_working', 'on working', 'on_working', 'on-working', 'on working'], true)) {
+                                    $statusValue = 5; // ONWORKING
+                                } elseif (in_array($s, ['pending', 'wait', 'waiting'], true)) {
+                                    $statusValue = 3; // PENDING
+                                } elseif (in_array($s, ['done', 'completed', 'complete'], true)) {
+                                    $statusValue = 4; // DONE
+                                } else {
+                                    // leave null if unknown
+                                    $statusValue = null;
+                                }
+                            }
+
+                            // Normalize payment status (keep raw and lowercased form)
+                            $rawPayment = $item->payment_status ?? null;
+                            $paymentNormalized = $rawPayment !== null ? strtolower((string) $rawPayment) : null;
+                            
+                            // Expose payment status only when the prestation expects pre-payment
+                            $rawPayment = null;
+                            $paymentNormalized = null;
+                            $defaultPaymentType = $pre?->default_payment_type ?? null;
+                            if ($defaultPaymentType !== null) {
+                                $ptype = strtolower((string) $defaultPaymentType);
+                                $ptype = str_replace([' ', '-', 'é', 'è', 'ê', 'à'], ['', '', 'e', 'e', 'e', 'a'], $ptype);
+                                if (strpos($ptype, 'prepaiement') !== false) {
+                                    $rawPayment = $item->payment_status ?? null;
+                                    $paymentNormalized = $rawPayment !== null ? strtolower((string) $rawPayment) : null;
+                                }
+                            }
+
+                            return [
+                                'id' => $item->id,
+                                'status_raw' => $rawStatus,
+                                'status' => $statusValue,
+                                'payment_status' => $rawPayment ?? null,
+                                'payment_status_normalized' => $paymentNormalized,
+                                'fiche_navette_status' => $ficheStatus,
+                            ];
+                        })() : null,
+                    ];
+                }
+
+                // determine canStart: all prestations must have a fiche item where
+                // - fiche_navette_item.payment_status is 'payed' or 'partial'
+                // - fiche_navette_item.status == ONWORKING (value 5)
+                // - fiche_navette.status == ONWORKING (value 5)
+                $canStart = false;
+                try {
+                    if (count($prestationsInfo) > 0) {
+                        $canStart = collect($prestationsInfo)->every(function ($p) {
+                            if (! isset($p['fiche_navette_item']) || ! is_array($p['fiche_navette_item'])) return false;
+
+                            $item = $p['fiche_navette_item'];
+
+                            // Determine normalized payment status (we provided payment_status_normalized)
+                            $paymentNormalized = $item['payment_status_normalized'] ?? (isset($item['payment_status']) ? strtolower((string) $item['payment_status']) : null);
+
+                            // Only require payment when the prestation's default payment type is Pré-paiement.
+                            $paymentType = $p['default_payment_type'] ?? null;
+                            $isPrePaid = false;
+                            if ($paymentType !== null) {
+                                $ptype = strtolower((string) $paymentType);
+                                // normalize: remove spaces/hyphens and common accents to match variants
+                                $ptype = str_replace([' ', '-', 'é', 'è', 'ê', 'à'], ['', '', 'e', 'e', 'e', 'a'], $ptype);
+                                if (strpos($ptype, 'prepaiement') !== false || strpos($ptype, 'prepaiement') !== false) {
+                                    $isPrePaid = true;
+                                }
+                            }
+
+                            $allowedPayment = false;
+                            if ($isPrePaid) {
+                                if ($paymentNormalized !== null) {
+                                    $allowedPayment = (strpos($paymentNormalized, 'paid') !== false)
+                                        || (strpos($paymentNormalized, 'paye') !== false)
+                                        || (strpos($paymentNormalized, 'partial') !== false)
+                                        || (strpos($paymentNormalized, 'parti') !== false);
+                                } else {
+                                    $allowedPayment = false;
+                                }
+                            } else {
+                                // payment not required for non pre-paid prestations
+                                $allowedPayment = true;
+                            }
+
+                            // Determine numeric status value: prefer 'status' (numeric) then attempt to interpret 'status_raw'
+                            $statusVal = null;
+                            if (isset($item['status']) && is_numeric($item['status'])) {
+                                $statusVal = (int) $item['status'];
+                            } elseif (isset($item['status_raw'])) {
+                                $sr = strtolower((string) $item['status_raw']);
+                                if (in_array($sr, ['working', 'onworking', 'on_working', 'on working', 'on-working'], true)) {
+                                    $statusVal = 5;
+                                } elseif (in_array($sr, ['pending', 'wait', 'waiting'], true)) {
+                                    $statusVal = 3;
+                                } elseif (in_array($sr, ['done', 'completed', 'complete'], true)) {
+                                    $statusVal = 4;
+                                }
+                            }
+
+                            // Only require the fiche_navette_item to be ONWORKING (5)
+                            return $allowedPayment && $statusVal === 5;
+                        });
+                    }
+                } catch (\Throwable $e) {
+                    \Log::warning('Failed computing can_start_consultation for appointment '.$this->id, [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $canStart = false;
+                }
+            }
 
             return [
                 'id' => $this->id ?? null,
@@ -66,19 +212,23 @@ class AppointmentResource extends JsonResource
                 // Waitlist data
                 'importance' => $waitlistData['importance'],
                 'is_Daily' => $waitlistData['is_daily'],
+
+                // Prestation/fiche info
+                'prestations' => $prestationsInfo,
+                'can_start_consultation' => $canStart,
             ];
         } catch (\Exception $e) {
             \Log::error('Error transforming appointment resource', [
                 'appointment_id' => $this->id ?? 'unknown',
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             // Return minimal safe data
             return [
                 'id' => $this->id ?? null,
                 'error' => 'Data transformation error',
-                'status' => $this->getDefaultStatusData()
+                'status' => $this->getDefaultStatusData(),
             ];
         }
     }
@@ -102,10 +252,10 @@ class AppointmentResource extends JsonResource
         } catch (\Exception $e) {
             \Log::warning('Error accessing patient data', [
                 'appointment_id' => $this->id ?? 'unknown',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-        
+
         return $this->getDefaultPatientData();
     }
 
@@ -117,12 +267,12 @@ class AppointmentResource extends JsonResource
         try {
             if (isset($this->doctor) && $this->doctor !== null) {
                 $doctorName = 'Unknown';
-                
+
                 // Safely access doctor.user.name
                 if (isset($this->doctor->user) && $this->doctor->user !== null) {
                     $doctorName = $this->doctor->user->name ?? 'Unknown';
                 }
-                
+
                 return [
                     'id' => $this->doctor->id ?? null,
                     'name' => $doctorName,
@@ -132,10 +282,10 @@ class AppointmentResource extends JsonResource
         } catch (\Exception $e) {
             \Log::warning('Error accessing doctor data', [
                 'appointment_id' => $this->id ?? 'unknown',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-        
+
         return $this->getDefaultDoctorData();
     }
 
@@ -154,10 +304,10 @@ class AppointmentResource extends JsonResource
         } catch (\Exception $e) {
             \Log::warning('Error accessing waitlist data', [
                 'appointment_id' => $this->id ?? 'unknown',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-        
+
         return $this->getDefaultWaitlistData();
     }
 
@@ -173,10 +323,10 @@ class AppointmentResource extends JsonResource
         } catch (\Exception $e) {
             \Log::warning('Error accessing createdByUser', [
                 'appointment_id' => $this->id ?? 'unknown',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-        
+
         return 'Unknown';
     }
 
@@ -192,10 +342,10 @@ class AppointmentResource extends JsonResource
         } catch (\Exception $e) {
             \Log::warning('Error accessing canceledByUser', [
                 'appointment_id' => $this->id ?? 'unknown',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-        
+
         return null;
     }
 
@@ -211,10 +361,10 @@ class AppointmentResource extends JsonResource
         } catch (\Exception $e) {
             \Log::warning('Error accessing updatedByUser', [
                 'appointment_id' => $this->id ?? 'unknown',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
-        
+
         return null;
     }
 
@@ -278,8 +428,8 @@ class AppointmentResource extends JsonResource
             }
 
             // If status is a primitive value, use manual mapping
-            $statusValue = is_numeric($this->status) ? (int)$this->status : $this->status;
-            
+            $statusValue = is_numeric($this->status) ? (int) $this->status : $this->status;
+
             return [
                 'name' => $this->getStatusName($statusValue),
                 'color' => $this->getStatusColor($statusValue),
@@ -292,7 +442,7 @@ class AppointmentResource extends JsonResource
                 'appointment_id' => $this->id ?? 'unknown',
                 'status_value' => $this->status ?? 'null',
                 'status_type' => gettype($this->status ?? 'null'),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return $this->getDefaultStatusData();

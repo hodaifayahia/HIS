@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 class UserCaisseApprovalController extends Controller
 {
@@ -25,7 +26,7 @@ class UserCaisseApprovalController extends Controller
                 ->when($searchQuery, function ($q) use ($searchQuery) {
                     return $q->where(function ($query) use ($searchQuery) {
                         $query->where('name', 'LIKE', "%{$searchQuery}%")
-                              ->orWhere('email', 'LIKE', "%{$searchQuery}%");
+                            ->orWhere('email', 'LIKE', "%{$searchQuery}%");
                     });
                 })
                 ->orderBy('name');
@@ -35,6 +36,7 @@ class UserCaisseApprovalController extends Controller
             // Add permission status to each user
             $users->getCollection()->transform(function ($user) {
                 $user->can_approve_caisse = $user->hasPermissionTo($this->permissionName);
+
                 return $user;
             });
 
@@ -42,7 +44,7 @@ class UserCaisseApprovalController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to load users',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -53,7 +55,7 @@ class UserCaisseApprovalController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'user_id' => 'required|exists:users,id'
+            'user_id' => 'required|exists:users,id',
         ]);
 
         try {
@@ -62,16 +64,19 @@ class UserCaisseApprovalController extends Controller
             // Ensure the permission exists
             $permission = Permission::firstOrCreate(['name' => $this->permissionName]);
 
-            if (!$user->hasPermissionTo($this->permissionName)) {
+            if (! $user->hasPermissionTo($this->permissionName)) {
                 $user->givePermissionTo($permission);
+
+                // Clear cached permissions so hasPermissionTo() reflects the change immediately
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
 
                 return response()->json([
                     'success' => true,
                     'message' => "Caisse approval permission granted to {$user->name}",
                     'data' => [
                         'user_id' => $user->id,
-                        'can_approve_caisse' => true
-                    ]
+                        'can_approve_caisse' => true,
+                    ],
                 ], 201);
             }
 
@@ -80,14 +85,14 @@ class UserCaisseApprovalController extends Controller
                 'message' => "{$user->name} already has caisse approval permission",
                 'data' => [
                     'user_id' => $user->id,
-                    'can_approve_caisse' => true
-                ]
+                    'can_approve_caisse' => true,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to grant permission',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 422);
         }
     }
@@ -101,13 +106,16 @@ class UserCaisseApprovalController extends Controller
             if ($user->hasPermissionTo($this->permissionName)) {
                 $user->revokePermissionTo($this->permissionName);
 
+                // Clear cached permissions so hasPermissionTo() reflects the change immediately
+                app(PermissionRegistrar::class)->forgetCachedPermissions();
+
                 return response()->json([
                     'success' => true,
                     'message' => "Caisse approval permission revoked from {$user->name}",
                     'data' => [
                         'user_id' => $user->id,
-                        'can_approve_caisse' => false
-                    ]
+                        'can_approve_caisse' => false,
+                    ],
                 ]);
             }
 
@@ -116,14 +124,14 @@ class UserCaisseApprovalController extends Controller
                 'message' => "{$user->name} doesn't have caisse approval permission",
                 'data' => [
                     'user_id' => $user->id,
-                        'can_approve_caisse' => false
-                    ]
-                ]);
+                    'can_approve_caisse' => false,
+                ],
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to revoke permission',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 422);
         }
     }
@@ -140,12 +148,12 @@ class UserCaisseApprovalController extends Controller
             return response()->json([
                 'can_approve_caisse' => $canApprove,
                 'user_id' => $user ? $user->id : null,
-                'user_name' => $user ? $user->name : null
+                'user_name' => $user ? $user->name : null,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'can_approve_caisse' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -163,12 +171,12 @@ class UserCaisseApprovalController extends Controller
 
             return response()->json([
                 'data' => $approvers,
-                'count' => $approvers->count()
+                'count' => $approvers->count(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Failed to load approvers',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -180,7 +188,7 @@ class UserCaisseApprovalController extends Controller
     public function setPermissionName(Request $request): JsonResponse
     {
         $request->validate([
-            'permission_name' => 'required|string|max:255'
+            'permission_name' => 'required|string|max:255',
         ]);
 
         try {
@@ -190,14 +198,14 @@ class UserCaisseApprovalController extends Controller
                 'success' => true,
                 'message' => "Caisse approval permission name updated to '{$this->permissionName}'",
                 'data' => [
-                    'permission_name' => $this->permissionName
-                ]
+                    'permission_name' => $this->permissionName,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update permission name',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 422);
         }
     }
@@ -208,7 +216,7 @@ class UserCaisseApprovalController extends Controller
     public function getPermissionName(): JsonResponse
     {
         return response()->json([
-            'permission_name' => $this->permissionName
+            'permission_name' => $this->permissionName,
         ]);
     }
 }

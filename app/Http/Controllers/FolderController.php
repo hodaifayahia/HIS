@@ -8,19 +8,20 @@ use Illuminate\Support\Facades\Validator;
 
 class FolderController extends Controller
 {
-   public function index(Request $request)
-{
-    $folders = Folder::where('doctor_id', $request->doctorid)->get();
-    return response()->json(['data' => $folders->values()->all()]);
-}
-    
+    public function index(Request $request)
+    {
+        $folders = Folder::where('doctor_id', $request->doctorid)->get();
+
+        return response()->json(['data' => $folders->values()->all()]);
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'doctor_id' => 'nullable|exists:doctors,id',
             'specializations_id' => 'nullable|exists:specializations,id',
-            'description' => 'nullable|string'
+            'description' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -33,11 +34,11 @@ class FolderController extends Controller
             'doctor_id' => $request->doctor_id ?? null,
             'specializations_id' => $request->specializations_id ?? null,
         ]);
-        
+
         return response()->json(['data' => $folder], 201);
     }
 
-     public function update(Request $request, Folder $folder)
+    public function update(Request $request, Folder $folder)
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
@@ -51,26 +52,26 @@ class FolderController extends Controller
         }
 
         $folder->update($validator->validated());
+
         return response()->json(['data' => $folder]);
     }
 
-     public function destroy(Folder $folder)
+    public function destroy(Folder $folder)
     {
         $folder->delete();
+
         return response()->json(null, 204);
     }
 
-   
-
-     public function search(Request $request)
+    public function search(Request $request)
     {
         $query = $request->get('query', '');
         $doctorId = $request->get('doctorid');
 
         $folders = Folder::where('doctor_id', $doctorId)
-            ->where(function($q) use ($query) {
+            ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('description', 'like', "%{$query}%");
+                    ->orWhere('description', 'like', "%{$query}%");
             })
             ->get();
 

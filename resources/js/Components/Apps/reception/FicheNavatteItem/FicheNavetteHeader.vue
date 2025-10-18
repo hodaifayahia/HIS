@@ -34,7 +34,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['go-back', 'toggle-create-form', 'show-convention-details', 'show-all-conventions'])
+const emit = defineEmits(['go-back', 'toggle-create-form', 'show-convention-details', 'show-all-conventions', 'print-ticket'])
 
 const toast = useToast()
 
@@ -241,8 +241,16 @@ const handleShowAllConventions = () => {
               </div>
             </div>
 
-            <!-- Right Section: Action Button -->
-            <div class="tw-flex-shrink-0">
+            <!-- Right Section: Action Buttons -->
+            <div class="tw-flex tw-gap-3 tw-flex-shrink-0">
+              <Button
+                icon="pi pi-print"
+                label="Imprimer"
+                class="p-button-outlined p-button-info tw-px-4 tw-py-3 tw-font-semibold tw-shadow-md tw-transition-all hover:tw-shadow-lg"
+                @click="$emit('print-ticket')"
+                size="large"
+                v-tooltip.bottom="'Imprimer le ticket'"
+              />
               <Button
                 :icon="showCreateForm ? 'pi pi-times' : 'pi pi-plus'"
                 :label="showCreateForm ? 'Annuler' : 'Ajouter'"

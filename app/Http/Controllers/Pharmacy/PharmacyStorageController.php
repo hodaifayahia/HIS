@@ -3,14 +3,11 @@
 namespace App\Http\Controllers\Pharmacy;
 
 use App\Http\Controllers\Controller;
+use App\Models\CONFIGURATION\Service;
 use App\Models\PharmacyStorage;
 use App\Models\PharmacyStorageTool;
-use App\Models\PharmacyStockage;
-use App\Models\PharmacyInventory;
-use App\Models\CONFIGURATION\Service;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class PharmacyStorageController extends Controller
@@ -40,15 +37,15 @@ class PharmacyStorageController extends Controller
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
         $storages = $query->orderBy('name', 'asc')
-                         ->paginate($request->get('per_page', 15));
+            ->paginate($request->get('per_page', 15));
 
         return response()->json($storages);
     }
@@ -84,11 +81,11 @@ class PharmacyStorageController extends Controller
 
             return response()->json([
                 'message' => 'Pharmacy storage created successfully',
-                'storage' => $storage->load('service')
+                'storage' => $storage->load('service'),
             ], 201);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to create pharmacy storage: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to create pharmacy storage: '.$e->getMessage()], 500);
         }
     }
 
@@ -100,7 +97,7 @@ class PharmacyStorageController extends Controller
         $storage = PharmacyStorage::with([
             'service',
             'stockages.inventories.product',
-            'tools'
+            'tools',
         ])->findOrFail($id);
 
         return response()->json($storage);
@@ -138,11 +135,11 @@ class PharmacyStorageController extends Controller
 
             return response()->json([
                 'message' => 'Pharmacy storage updated successfully',
-                'storage' => $storage->load('service')
+                'storage' => $storage->load('service'),
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to update pharmacy storage: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to update pharmacy storage: '.$e->getMessage()], 500);
         }
     }
 
@@ -164,7 +161,7 @@ class PharmacyStorageController extends Controller
             return response()->json(['message' => 'Pharmacy storage deleted successfully']);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to delete pharmacy storage: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to delete pharmacy storage: '.$e->getMessage()], 500);
         }
     }
 
@@ -175,7 +172,7 @@ class PharmacyStorageController extends Controller
     {
         $storage = PharmacyStorage::with(['stockages.inventories'])->findOrFail($id);
 
-        $totalItems = $storage->stockages->sum(function($stockage) {
+        $totalItems = $storage->stockages->sum(function ($stockage) {
             return $stockage->inventories->sum('quantity');
         });
 
@@ -224,12 +221,12 @@ class PharmacyStorageController extends Controller
     {
         $storage = PharmacyStorage::findOrFail($id);
         $tools = PharmacyStorageTool::where('pharmacy_storage_id', $id)
-                                   ->orderBy('name', 'asc')
-                                   ->get();
+            ->orderBy('name', 'asc')
+            ->get();
 
         return response()->json([
             'storage' => $storage->only(['id', 'name']),
-            'tools' => $tools
+            'tools' => $tools,
         ]);
     }
 
@@ -265,11 +262,11 @@ class PharmacyStorageController extends Controller
 
             return response()->json([
                 'message' => 'Storage tool added successfully',
-                'tool' => $tool
+                'tool' => $tool,
             ], 201);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to add storage tool: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to add storage tool: '.$e->getMessage()], 500);
         }
     }
 
@@ -279,8 +276,8 @@ class PharmacyStorageController extends Controller
     public function updateTool(Request $request, $storageId, $toolId)
     {
         $tool = PharmacyStorageTool::where('pharmacy_storage_id', $storageId)
-                                  ->where('id', $toolId)
-                                  ->firstOrFail();
+            ->where('id', $toolId)
+            ->firstOrFail();
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:100',
@@ -304,11 +301,11 @@ class PharmacyStorageController extends Controller
 
             return response()->json([
                 'message' => 'Storage tool updated successfully',
-                'tool' => $tool
+                'tool' => $tool,
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to update storage tool: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to update storage tool: '.$e->getMessage()], 500);
         }
     }
 
@@ -318,8 +315,8 @@ class PharmacyStorageController extends Controller
     public function removeTool($storageId, $toolId)
     {
         $tool = PharmacyStorageTool::where('pharmacy_storage_id', $storageId)
-                                  ->where('id', $toolId)
-                                  ->firstOrFail();
+            ->where('id', $toolId)
+            ->firstOrFail();
 
         try {
             $tool->delete();
@@ -327,7 +324,7 @@ class PharmacyStorageController extends Controller
             return response()->json(['message' => 'Storage tool removed successfully']);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'Failed to remove storage tool: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Failed to remove storage tool: '.$e->getMessage()], 500);
         }
     }
 
@@ -337,9 +334,9 @@ class PharmacyStorageController extends Controller
     public function getStatistics(Request $request)
     {
         $serviceId = $request->get('service_id');
-        
+
         $query = PharmacyStorage::query();
-        
+
         if ($serviceId) {
             $query->where('service_id', $serviceId);
         }
@@ -348,8 +345,8 @@ class PharmacyStorageController extends Controller
             'total_storages' => $query->count(),
             'active_storages' => $query->where('is_active', true)->count(),
             'storage_types' => $query->select('storage_type', DB::raw('count(*) as count'))
-                                   ->groupBy('storage_type')
-                                   ->get(),
+                ->groupBy('storage_type')
+                ->get(),
             'total_capacity' => $query->sum('capacity'),
             'average_utilization' => $this->calculateAverageUtilization($query->get()),
         ];
@@ -367,7 +364,7 @@ class PharmacyStorageController extends Controller
 
         foreach ($storages as $storage) {
             if ($storage->capacity) {
-                $totalItems = $storage->stockages->sum(function($stockage) {
+                $totalItems = $storage->stockages->sum(function ($stockage) {
                     return $stockage->inventories->sum('quantity');
                 });
                 $utilization = ($totalItems / $storage->capacity) * 100;

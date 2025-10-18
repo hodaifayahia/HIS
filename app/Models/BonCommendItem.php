@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class BonCommendItem extends Model
 {
     protected $table = 'bon_commend_items';
-    
+
     protected $fillable = [
         'bon_commend_id',
         'factureproforma_id', // Note: Based on migration, this links to factureproforma
@@ -16,15 +16,24 @@ class BonCommendItem extends Model
         'quantity',
         'quntity_by_box', // Note: Typo in migration - should be quantity_by_box
         'quantity_desired',
+        'quantity_sended',
         'price',
         'unit',
+        'source_type',
+        'source_id',
+        'confirmed_at',
+        'confirmed_by',
         'status',
+        'original_quantity_desired',
+        'modified_by_approver',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'quantity_desired' => 'integer',
+        'quantity_sended' => 'integer',
         'price' => 'decimal:2',
+        'confirmed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -107,6 +116,6 @@ class BonCommendItem extends Model
      */
     public function getQuantityByBoxAttribute()
     {
-        return !empty($this->quntity_by_box);
+        return ! empty($this->quntity_by_box);
     }
 }

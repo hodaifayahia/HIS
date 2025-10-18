@@ -1,25 +1,25 @@
 <?php
+
 // app/Http/Controllers/Caisse/FinancialTransactionController.php
 
 namespace App\Http\Controllers\Caisse;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Caisse\BulkPaymentRequest;
+use App\Http\Requests\Caisse\OverpaymentHandlingRequest;
+use App\Http\Requests\Caisse\RefundTransactionRequest;
 use App\Http\Requests\Caisse\StoreFinancialTransactionRequest;
 use App\Http\Requests\Caisse\UpdatePrestationPriceRequest;
-use App\Http\Requests\Caisse\BulkPaymentRequest;
-use App\Http\Requests\Caisse\RefundTransactionRequest;
 use App\Http\Resources\Caisse\FinancialTransactionResource;
-use App\Http\Resources\Caisse\FinancialTransactionCollection;
 use App\Models\Caisse\FinancialTransaction;
 use App\Models\manager\RefundAuthorization;
 use App\Services\Caisse\FinancialTransactionService;
-use App\Http\Requests\Caisse\OverpaymentHandlingRequest;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
- use Log;
-//improt Log
+use Log;
+use Illuminate\Support\Facades\Auth;
 
+// improt Log
 
 class FinancialTransactionController extends Controller
 {
@@ -33,19 +33,19 @@ class FinancialTransactionController extends Controller
     /**
      * Display a listing of financial transactions
      */
-           public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $perPage = $request->integer('per_page', 15);
-        
+
         $filters = $request->only([
-            'fiche_navette_item_id', 
-            'prestation_id', 
+            'fiche_navette_item_id',
+            'prestation_id',
             'transaction_type',
-            'payment_method', 
-            'cashier_id', 
-            'date_from', 
+            'payment_method',
+            'cashier_id',
+            'date_from',
             'date_to',
-            'fiche_navette_id'
+            'fiche_navette_id',
         ]);
 
         try {
@@ -58,7 +58,7 @@ class FinancialTransactionController extends Controller
 
             // load refund authorizations for those fiche_navette_item_ids
             $refundAuths = [];
-            if (!empty($itemIds)) {
+            if (! empty($itemIds)) {
                 $auths = RefundAuthorization::whereIn('fiche_navette_item_id', $itemIds)
                     ->orderBy('created_at', 'desc')
                     ->get();
@@ -90,12 +90,13 @@ class FinancialTransactionController extends Controller
 
             // Get the resource collection as array and return as JsonResponse
             $responseData = $resourceCollection->additional($additional)->response()->getData(true);
+
             return response()->json($responseData);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load transactions',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -106,24 +107,31 @@ class FinancialTransactionController extends Controller
     public function store(StoreFinancialTransactionRequest $request): JsonResponse
     {
         // Remove dd() for production
-        
+
         try {
-            $result = $this->service->processPaymentTransaction($request->validated());
+            // Ensure cashier_id defaults to the authenticated user when not provided by client
+            $data = $request->validated();
+            if (empty($data['cashier_id'])) {
+                $data['cashier_id'] = Auth::id();
+            }
+
+            $result = $this->service->processPaymentTransaction($data);
 
             return response()->json([
                 'success' => true,
                 'data' => new FinancialTransactionResource($result['transaction']),
                 'updated_items' => $result['updated_items'],
-                'message' => 'Transaction created successfully'
+                'message' => 'Transaction created successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
-public function processRefund(RefundTransactionRequest $request): JsonResponse
+
+    public function processRefund(RefundTransactionRequest $request): JsonResponse
     {
         try {
             // Support two refund flows:
@@ -143,26 +151,26 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
                 $isPriorityStatus = in_array($ficheItemStatus, ['pending', 'confirmed']);
 
-                if (!$isPriorityStatus && !$originalTransaction->canBeRefunded()) {
+                if (! $isPriorityStatus && ! $originalTransaction->canBeRefunded()) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'This transaction cannot be refunded'
+                        'message' => 'This transaction cannot be refunded',
                     ], 422);
                 }
 
                 // Prevent duplicate refunds: check if a refund already exists linked to this transaction
                 // Only check for non-priority status items
-                if (!$isPriorityStatus) {
+                if (! $isPriorityStatus) {
                     $existingRefund = FinancialTransaction::where('transaction_type', 'refund')
                         ->where(function ($q) use ($originalTransaction) {
                             $q->where('original_transaction_id', $originalTransaction->id)
-                              ->orWhere('fiche_navette_item_id', $originalTransaction->fiche_navette_item_id);
+                                ->orWhere('fiche_navette_item_id', $originalTransaction->fiche_navette_item_id);
                         })->first();
 
                     if ($existingRefund) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'A refund already exists for this payment or item.'
+                            'message' => 'A refund already exists for this payment or item.',
                         ], 422);
                     }
                 }
@@ -174,10 +182,10 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                     $patientId = $originalTransaction->ficheNavetteItem->ficheNavette->patient_id ?? null;
                 }
 
-                if (!$isPriorityStatus && empty($patientId)) {
+                if (! $isPriorityStatus && empty($patientId)) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Cannot determine patient for refund. Original transaction lacks associated patient.'
+                        'message' => 'Cannot determine patient for refund. Original transaction lacks associated patient.',
                     ], 422);
                 }
 
@@ -189,7 +197,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 $refundData = [
                     'fiche_navette_item_id' => $originalTransaction->fiche_navette_item_id,
                     'patient_id' => $patientId,
-                    'cashier_id' => $request->cashier_id,
+                    'cashier_id' => $request->cashier_id ?? Auth::id(),
                     'amount' => (float) $request->refund_amount,
                     'transaction_type' => 'refund',
                     'payment_method' => $originalTransaction->payment_method,
@@ -212,31 +220,31 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
                 // Authorization must be approved (frontend may call approve endpoint first)
                 // Only check for non-priority status items
-                if (!$isPriorityStatus && strtolower($auth->status) !== 'approved') {
+                if (! $isPriorityStatus && strtolower($auth->status) !== 'approved') {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Refund authorization must be approved before processing a refund.'
+                        'message' => 'Refund authorization must be approved before processing a refund.',
                     ], 422);
                 }
 
                 // Also disallow if authorization is already used/approved (defensive)
                 // Only check for non-priority status items
-                if (!$isPriorityStatus) {
+                if (! $isPriorityStatus) {
                     $st = strtolower($auth->status);
                     if (in_array($st, ['used'])) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Refund authorization has already been used.'
+                            'message' => 'Refund authorization has already been used.',
                         ], 422);
                     }
                 }
 
                 // Determine amount: prefer authorized_amount, fallback to requested_amount
                 $amount = (float) ($auth->authorized_amount ?? $auth->requested_amount ?? 0);
-                if (!$isPriorityStatus && $amount <= 0) {
+                if (! $isPriorityStatus && $amount <= 0) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Refund authorization does not contain a valid amount.'
+                        'message' => 'Refund authorization does not contain a valid amount.',
                     ], 422);
                 }
 
@@ -251,10 +259,10 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 $patientId = $ficheItem?->ficheNavette?->patient_id ?? null;
 
                 // Only validate patient for non-priority status items
-                if (!$isPriorityStatus && empty($patientId)) {
+                if (! $isPriorityStatus && empty($patientId)) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Cannot determine patient for refund. Fiche navette or patient missing for the authorized item.'
+                        'message' => 'Cannot determine patient for refund. Fiche navette or patient missing for the authorized item.',
                     ], 422);
                 }
 
@@ -266,7 +274,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 $refundData = [
                     'fiche_navette_item_id' => $ficheItemId,
                     'patient_id' => $patientId,
-                    'cashier_id' => $request->cashier_id,
+                    'cashier_id' => $request->cashier_id ?? Auth::id(),
                     'amount' => $amount,
                     'transaction_type' => 'refund',
                     'payment_method' => 'refund',
@@ -276,7 +284,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Either original_transaction_id or refund_authorization_id is required.'
+                    'message' => 'Either original_transaction_id or refund_authorization_id is required.',
                 ], 422);
             }
 
@@ -286,7 +294,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             $this->updateFicheNavetteItemAmounts($refundData['fiche_navette_item_id'], $refundData['item_dependency_id'] ?? null);
 
             // If we used an authorization, mark it as used
-            if (!empty($refundData['refund_authorization_id'])) {
+            if (! empty($refundData['refund_authorization_id'])) {
                 $auth = RefundAuthorization::find($refundData['refund_authorization_id']);
                 if ($auth) {
                     $auth->update(['status' => 'used']);
@@ -297,12 +305,12 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 'success' => true,
                 'data' => new FinancialTransactionResource($result['transaction']),
                 'updated_items' => $result['updated_items'],
-                'message' => 'Refund processed successfully'
+                'message' => 'Refund processed successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
@@ -313,10 +321,11 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     public function handleOverpayment(OverpaymentHandlingRequest $request): JsonResponse
     {
         try {
+            $cashierId = $request->cashier_id ?? Auth::id();
             $result = $this->service->processOverpayment(
                 $request->fiche_navette_item_id,
                 $request->patient_id,
-                $request->cashier_id,
+                $cashierId,
                 $request->required_amount,
                 $request->paid_amount,
                 $request->payment_method,
@@ -329,14 +338,14 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'data' => $result,
-                'message' => $request->overpayment_action === 'donate' 
+                'message' => $request->overpayment_action === 'donate'
                     ? 'Payment processed and extra amount donated successfully'
-                    : 'Payment processed and extra amount added to patient balance'
+                    : 'Payment processed and extra amount added to patient balance',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
@@ -347,11 +356,11 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     public function getRefundableTransactions(Request $request): JsonResponse
     {
         $ficheNavetteId = $request->integer('fiche_navette_id');
-        
-        if (!$ficheNavetteId) {
+
+        if (! $ficheNavetteId) {
             return response()->json([
                 'success' => false,
-                'message' => 'fiche_navette_id is required'
+                'message' => 'fiche_navette_id is required',
             ], 400);
         }
 
@@ -360,16 +369,17 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
             return response()->json([
                 'success' => true,
-                'data' => FinancialTransactionResource::collection($transactions)
+                'data' => FinancialTransactionResource::collection($transactions),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load refundable transactions',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     /**
      * Display the specified financial transaction
      */
@@ -380,13 +390,13 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
             return response()->json([
                 'success' => true,
-                'data' => new FinancialTransactionResource($transaction)
+                'data' => new FinancialTransactionResource($transaction),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Transaction not found',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
@@ -409,12 +419,12 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'data' => new FinancialTransactionResource($updatedTransaction),
-                'message' => 'Transaction updated successfully'
+                'message' => 'Transaction updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
@@ -429,12 +439,12 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
             return response()->json([
                 'success' => true,
-                'message' => 'Transaction deleted successfully'
+                'message' => 'Transaction deleted successfully',
             ], 204);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
@@ -455,12 +465,12 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'data' => $updatedItems,
-                'message' => 'Prestation price updated successfully'
+                'message' => 'Prestation price updated successfully',
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
@@ -468,43 +478,49 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     /**
      * Process bulk payments
      */
-   public function bulkPayment(BulkPaymentRequest $request): JsonResponse
+    public function bulkPayment(BulkPaymentRequest $request): JsonResponse
     {
         try {
-            $result = $this->service->createBulkPayments($request->validated());
+            $data = $request->validated();
+            // Ensure cashier_id present
+            if (empty($data['cashier_id'])) {
+                $data['cashier_id'] = Auth::id();
+            }
+            $result = $this->service->createBulkPayments($data);
 
             return response()->json([
                 'success' => true,
                 'data' => $result,
-                'message' => $result['message'] ?? 'Bulk payment processed successfully'
+                'message' => $result['message'] ?? 'Bulk payment processed successfully',
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
+
     /**
      * Get transaction statistics
      */
     public function stats(Request $request): JsonResponse
     {
         $ficheNavetteItemId = $request->integer('fiche_navette_item_id');
-        
+
         try {
             $stats = $this->service->getTransactionStats($ficheNavetteItemId);
 
             return response()->json([
                 'success' => true,
-                'data' => $stats
+                'data' => $stats,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load statistics',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -515,11 +531,11 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     public function getPrestationsWithDependencies(Request $request): JsonResponse
     {
         $ficheNavetteId = $request->integer('fiche_navette_id');
-        
-        if (!$ficheNavetteId) {
+
+        if (! $ficheNavetteId) {
             return response()->json([
                 'success' => false,
-                'message' => 'fiche_navette_id is required'
+                'message' => 'fiche_navette_id is required',
             ], 400);
         }
 
@@ -529,13 +545,13 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'data' => $prestations,
-                'summary' => $this->calculatePrestationsSummary($prestations)
+                'summary' => $this->calculatePrestationsSummary($prestations),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load prestations',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -546,11 +562,11 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     public function getPatientPrestations(Request $request): JsonResponse
     {
         $patientId = $request->integer('patient_id');
-        
-        if (!$patientId) {
+
+        if (! $patientId) {
             return response()->json([
                 'success' => false,
-                'message' => 'patient_id is required'
+                'message' => 'patient_id is required',
             ], 400);
         }
 
@@ -560,13 +576,13 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             return response()->json([
                 'success' => true,
                 'data' => $prestations,
-                'summary' => $this->calculatePrestationsSummary($prestations)
+                'summary' => $this->calculatePrestationsSummary($prestations),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load patient prestations',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -578,11 +594,11 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     {
         $ficheNavetteId = $request->integer('fiche_navette_id');
         $perPage = $request->integer('per_page', 15);
-        
-        if (!$ficheNavetteId) {
+
+        if (! $ficheNavetteId) {
             return response()->json([
                 'success' => false,
-                'message' => 'fiche_navette_id is required'
+                'message' => 'fiche_navette_id is required',
             ], 400);
         }
 
@@ -596,7 +612,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 'payment_method',
                 'cashier_id',
                 'date_from',
-                'date_to'
+                'date_to',
             ]);
 
             // ensure fiche_navette_id is present in filters
@@ -611,10 +627,10 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                     'ficheNavetteItem.fiche_navette.patient',
                     'ficheNavetteItem',
                     'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
-                    'originalTransaction'
+                    'originalTransaction',
                 ]);
             } catch (\Throwable $e) {
-                \Log::warning('Failed to load transaction relationships in getByFicheNavette: ' . $e->getMessage());
+                \Log::warning('Failed to load transaction relationships in getByFicheNavette: '.$e->getMessage());
             }
 
             // collect fiche_navette_item_ids from returned transactions
@@ -623,7 +639,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
 
             // load refund authorizations for those fiche_navette_item_ids
             $refundAuths = [];
-            if (!empty($itemIds)) {
+            if (! empty($itemIds)) {
                 $auths = RefundAuthorization::whereIn('fiche_navette_item_id', $itemIds)
                     ->orderBy('created_at', 'desc')
                     ->get();
@@ -645,13 +661,13 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 ],
                 'summary' => $this->calculateSummary($transactions->items()),
                 // add refund authorizations grouped by fiche_navette_item_id
-                'refund_authorizations' => $refundAuths
+                'refund_authorizations' => $refundAuths,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load transactions',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -663,10 +679,10 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     {
         $sessionId = $request->integer('session_id');
 
-        if (!$sessionId) {
+        if (! $sessionId) {
             return response()->json([
                 'success' => false,
-                'message' => 'session_id is required'
+                'message' => 'session_id is required',
             ], 400);
         }
 
@@ -685,14 +701,14 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                     'session_id' => $sessionId,
                     'cashier_id' => $session->user_id,
                     'date_from' => $session->ouverture_at->toDateString(),
-                    'date_to' => ($session->cloture_at ?? now())->toDateString()
-                ]
+                    'date_to' => ($session->cloture_at ?? now())->toDateString(),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load session transactions',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -703,14 +719,14 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     public function refund(Request $request, FinancialTransaction $originalTransaction): JsonResponse
     {
         $request->validate([
-            'amount' => 'required|numeric|min:0.01|max:' . $originalTransaction->amount,
-            'notes' => 'nullable|string|max:1000'
+            'amount' => 'required|numeric|min:0.01|max:'.$originalTransaction->amount,
+            'notes' => 'nullable|string|max:1000',
         ]);
 
-        if (!$originalTransaction->canBeRefunded()) {
+        if (! $originalTransaction->canBeRefunded()) {
             return response()->json([
                 'success' => false,
-                'message' => 'This transaction cannot be refunded'
+                'message' => 'This transaction cannot be refunded',
             ], 422);
         }
 
@@ -722,7 +738,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 'amount' => $request->amount,
                 'transaction_type' => 'refund',
                 'payment_method' => $originalTransaction->payment_method,
-                'notes' => $request->notes ?? "Refund for transaction #{$originalTransaction->reference}"
+                'notes' => $request->notes ?? "Refund for transaction #{$originalTransaction->reference}",
             ];
 
             $result = $this->service->processPaymentTransaction($refundData);
@@ -731,12 +747,12 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 'success' => true,
                 'data' => new FinancialTransactionResource($result['transaction']),
                 'updated_items' => $result['updated_items'],
-                'message' => 'Refund processed successfully'
+                'message' => 'Refund processed successfully',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 422);
         }
     }
@@ -756,32 +772,32 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 'total_transactions' => $transactions->count(),
                 'total_payments' => $transactions->where('transaction_type', 'payment')->sum('amount'),
                 'total_refunds' => $transactions->where('transaction_type', 'refund')->sum('amount'),
-                'net_amount' => $transactions->where('transaction_type', 'payment')->sum('amount') - 
+                'net_amount' => $transactions->where('transaction_type', 'payment')->sum('amount') -
                                $transactions->where('transaction_type', 'refund')->sum('amount'),
                 'by_payment_method' => $transactions->groupBy('payment_method')->map(function ($group) {
                     return [
                         'count' => $group->count(),
-                        'total' => $group->sum('amount')
+                        'total' => $group->sum('amount'),
                     ];
                 }),
                 'by_cashier' => $transactions->groupBy('cashier_id')->map(function ($group) {
                     return [
                         'count' => $group->count(),
                         'total' => $group->sum('amount'),
-                        'cashier_name' => $group->first()->cashier->name ?? 'Unknown'
+                        'cashier_name' => $group->first()->cashier->name ?? 'Unknown',
                     ];
-                })
+                }),
             ];
 
             return response()->json([
                 'success' => true,
-                'data' => $summary
+                'data' => $summary,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load daily summary',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -792,7 +808,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     private function calculateSummary($transactions): array
     {
         $collection = collect($transactions);
-        
+
         return [
             'total_transactions' => $collection->count(),
             'total_amount' => $collection->sum('amount'),
@@ -801,8 +817,8 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             'adjustment_count' => $collection->where('transaction_type', 'adjustment')->count(),
             'total_payments' => $collection->where('transaction_type', 'payment')->sum('amount'),
             'total_refunds' => $collection->where('transaction_type', 'refund')->sum('amount'),
-            'net_amount' => $collection->where('transaction_type', 'payment')->sum('amount') - 
-                           $collection->where('transaction_type', 'refund')->sum('amount')
+            'net_amount' => $collection->where('transaction_type', 'payment')->sum('amount') -
+                           $collection->where('transaction_type', 'refund')->sum('amount'),
         ];
     }
 
@@ -812,7 +828,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
     private function calculatePrestationsSummary($prestations): array
     {
         $collection = collect($prestations);
-        
+
         return [
             'total_prestations' => $collection->count(),
             'total_final_price' => $collection->sum('final_price'),
@@ -825,26 +841,27 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 return [
                     'count' => $group->count(),
                     'total_amount' => $group->sum('final_price'),
-                    'total_remaining' => $group->sum('remaining_amount')
+                    'total_remaining' => $group->sum('remaining_amount'),
                 ];
-            })
+            }),
         ];
     }
+
     private function updateFicheNavetteItemAmounts($ficheNavetteItemId, $itemDependencyId = null)
     {
         try {
             // Load the fiche navette item with its dependencies and transactions
             $ficheItem = \App\Models\Reception\ficheNavetteItem::with([
                 'dependencies',
-                'transactions' => function($query) {
+                'transactions' => function ($query) {
                     $query->whereIn('transaction_type', ['payment', 'refund']);
                 },
-                'dependencies.transactions' => function($query) {
+                'dependencies.transactions' => function ($query) {
                     $query->whereIn('transaction_type', ['payment', 'refund']);
-                }
+                },
             ])->find($ficheNavetteItemId);
 
-            if (!$ficheItem) {
+            if (! $ficheItem) {
                 return;
             }
 
@@ -864,7 +881,7 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
                 }
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to update fiche navette item amounts after refund: ' . $e->getMessage());
+            \Log::error('Failed to update fiche navette item amounts after refund: '.$e->getMessage());
         }
     }
 
@@ -879,12 +896,15 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             // Calculate total paid amount (payments - refunds)
             $totalPaid = $transactions->reduce(function ($carry, $transaction) {
                 if ($transaction->transaction_type === 'payment') {
-                    return $carry + $transaction->amount;
+                    return $carry + (float) $transaction->amount;
                 } elseif ($transaction->transaction_type === 'refund') {
-                    return $carry - $transaction->amount;
+                    // Refund transactions may be stored as negative values in the DB.
+                    // Use absolute value to ensure we subtract the refunded amount.
+                    return $carry - abs((float) $transaction->amount);
                 }
+
                 return $carry;
-            }, 0);
+            }, 0.0);
 
             // Get the final price (for main items) or amount (for dependencies)
             $finalPrice = $item->final_price ?? $item->amount ?? 0;
@@ -895,11 +915,11 @@ public function processRefund(RefundTransactionRequest $request): JsonResponse
             // Update the item with new amounts
             $item->update([
                 'paid_amount' => $totalPaid,
-                'remaining_amount' => $remainingAmount
+                'remaining_amount' => $remainingAmount,
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to update item amounts: ' . $e->getMessage());
+            \Log::error('Failed to update item amounts: '.$e->getMessage());
         }
     }
 }

@@ -4,18 +4,22 @@ namespace App\Http\Controllers;
 
 use App\AppointmentSatatusEnum;
 use App\DayOfWeekEnum;
-use App\Enum\AppointmentStatusEnum; // Make sure this enum is correctly namespaced
+// Make sure this enum is correctly namespaced
 use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
+use App\Models\Appointment\AppointmentPrestation;
 use App\Models\AppointmentAvailableMonth;
 use App\Models\AppointmentForcer;
+use App\Models\CONFIGURATION\Prestation;
+use App\Models\CONFIGURATION\PrestationPackage;
+use App\Models\CONFIGURATION\PrestationPackageitem;
 use App\Models\Doctor;
 use App\Models\ExcludedDate;
+use App\Models\MANAGER\PatientTracking;
 use App\Models\Patient;
 use App\Models\Schedule;
 use App\Models\WaitList;
-use App\Models\Appointment\AppointmentPrestation;
-use App\Models\CONFIGURATION\Prestation;
+use App\Events\ConsultationCompleted;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -29,6 +33,7 @@ class AppointmentController extends Controller
 {
     // Private property to store pre-loaded availability data
     private $availabilityData;
+
     private $bookedSlotsCache = []; // New: In-request memoization for booked slots
 
     public $excludedStatuses = [
@@ -41,15 +46,46 @@ class AppointmentController extends Controller
         2 => 'Canceled',
         3 => 'Pending',
         4 => 'Done',
-        5 => 'OnWorking'
+        5 => 'OnWorking',
     ];
+
+    /**
+     * Find a matching active package for the given prestation IDs
+     *
+     * @param array $prestationIds
+     * @return PrestationPackage|null
+     */
+    private function findMatchingPackage(array $prestationIds): ?PrestationPackage
+    {
+        if (empty($prestationIds)) {
+            return null;
+        }
+
+        // Sort prestation IDs for consistent comparison
+        sort($prestationIds);
+
+        // Get all active packages with their items
+        $activePackages = PrestationPackage::where('is_active', true)
+            ->with('items')
+            ->get();
+
+        foreach ($activePackages as $package) {
+            // Get prestation IDs from this package
+            $packagePrestationIds = $package->items->pluck('prestation_id')->toArray();
+            sort($packagePrestationIds);
+
+            // Check if arrays match exactly
+            if ($prestationIds === $packagePrestationIds) {
+                return $package;
+            }
+        }
+
+        return null;
+    }
 
     /**
      * Initializes pre-loaded availability data for a given doctor.
      * This method should be called once per request for performance.
-     *
-     * @param int $doctorId
-     * @return void
      */
     private function initAvailabilityData(int $doctorId): void
     {
@@ -87,7 +123,7 @@ class AppointmentController extends Controller
             $schedulesByDay = $allSchedules->filter(fn ($s) => is_null($s->date))
                 ->groupBy('day_of_week');
             // Group specific date schedules by their exact date string
-            $schedulesByDate = $allSchedules->filter(fn ($s) => !is_null($s->date))
+            $schedulesByDate = $allSchedules->filter(fn ($s) => ! is_null($s->date))
                 ->groupBy(fn ($s) => Carbon::parse($s->date)->format('Y-m-d'));
 
             $excludedDates = ExcludedDate::where(function ($query) use ($doctorId) {
@@ -99,17 +135,37 @@ class AppointmentController extends Controller
             $completeExcludedRanges = $excludedDates->filter(fn ($ed) => $ed->exclusionType === 'complete')
                 ->map(fn ($ed) => [
                     'start' => Carbon::parse($ed->start_date)->startOfDay(),
-                    'end' => Carbon::parse($ed->end_date ?? $ed->start_date)->endOfDay()
+                    'end' => Carbon::parse($ed->end_date ?? $ed->start_date)->endOfDay(),
                 ])->toArray();
 
             // Store the full excluded date models for 'limited' types
             // These contain scheduling info that overrides regular schedules
-            $limitedExcludedSchedules = $excludedDates->filter(fn ($ed) =>
-                $ed->exclusionType === 'limited' && $ed->is_active === true && // Ensure 'is_active' is considered
+            // Expand limited exclusions to cover all dates in their range
+            // Group by date and shift_period since morning/afternoon are separate records
+            $limitedExcludedSchedules = collect();
+            $excludedDates->filter(fn ($ed) => $ed->exclusionType === 'limited' && $ed->is_active == 1 && // Ensure 'is_active' is considered (use == for int comparison)
                 Carbon::parse($ed->end_date ?? $ed->start_date)->gte($now->startOfDay()) // Only active limited exclusions for future/current dates
-            )->keyBy(fn ($ed) => Carbon::parse($ed->start_date)->format('Y-m-d'));
+            )->each(function ($ed) use (&$limitedExcludedSchedules) {
+                $startDate = Carbon::parse($ed->start_date);
+                $endDate = Carbon::parse($ed->end_date ?? $ed->start_date);
 
-            return (object)[
+                // Add this exclusion to every date in the range
+                $currentDate = $startDate->copy();
+                while ($currentDate->lte($endDate)) {
+                    $dateKey = $currentDate->format('Y-m-d');
+
+                    // Initialize array for this date if not exists
+                    if (! $limitedExcludedSchedules->has($dateKey)) {
+                        $limitedExcludedSchedules->put($dateKey, collect());
+                    }
+
+                    // Add this shift to the collection
+                    $limitedExcludedSchedules->get($dateKey)->push($ed);
+                    $currentDate->addDay();
+                }
+            });
+
+            return (object) [
                 'doctor' => $doctor,
                 'availableMonths' => $availableMonths,
                 'schedulesByDay' => $schedulesByDay,
@@ -123,9 +179,6 @@ class AppointmentController extends Controller
     /**
      * Determines if a specific date is truly available for appointments, considering all rules.
      * This method uses the pre-loaded data from `initAvailabilityData`.
-     *
-     * @param Carbon $date
-     * @return bool
      */
     private function isDateTrulyAvailable(Carbon $date): bool
     {
@@ -146,30 +199,31 @@ class AppointmentController extends Controller
             }
         }
 
-        // 3. Is month available? (Check against pre-loaded available months)
-        if (!in_array($date->format('Y-m'), $data->availableMonths)) {
+        // 3. Check if this date has a limited exclusion (highest priority - bypasses month/schedule checks)
+        $hasLimitedExclusion = isset($data->limitedExcludedSchedules[$dateString])
+            && $data->limitedExcludedSchedules[$dateString]->isNotEmpty();
+
+        // 4. Is month available? (Skip this check if there's a limited exclusion)
+        if (! $hasLimitedExclusion && ! in_array($date->format('Y-m'), $data->availableMonths)) {
             return false;
         }
 
-        // 4. Check schedules: Specific date schedules & limited exclusions take precedence over recurring day schedules.
-        // The getDoctorWorkingHours method will handle the priority.
+        // 5. Check schedules: Limited exclusions take precedence and can open otherwise unavailable dates
         // If getDoctorWorkingHours returns an empty array, it means no valid schedule or limited exclusion applies.
         $workingHours = $this->getDoctorWorkingHours($doctorId, $dateString);
         if (empty($workingHours)) {
             return false; // No working hours defined or derived for this date
         }
 
-        // 5. Are there any free slots after accounting for already booked appointments?
+        // 6. Are there any free slots after accounting for already booked appointments?
         $bookedSlots = $this->getBookedSlots($doctorId, $dateString);
+
         return count(array_diff($workingHours, $bookedSlots)) > 0;
     }
 
     /**
      * Finds the next available appointment date starting from a given date.
      * Uses the pre-loaded availability data and optimized date iteration.
-     *
-     * @param Carbon $startDate
-     * @return Carbon|null
      */
     private function findNextAvailableAppointment(Carbon $startDate): ?Carbon
     {
@@ -177,16 +231,23 @@ class AppointmentController extends Controller
         $currentDate = $startDate->copy(); // Start searching from the given date
 
         while ($currentDate->lte($endOfSearchPeriod)) {
-            // Optimization: If the current month is not available, jump to the start of the next month.
-            // This relies on `availableMonths` being a simple Y-m array.
-            if (!in_array($currentDate->format('Y-m'), $this->availabilityData->availableMonths)) {
-                $currentDate->addMonthNoOverflow()->startOfMonth();
-                continue; // Restart loop with the new date
-            }
-
+            // Check if this specific date is truly available (handles limited exclusions)
             if ($this->isDateTrulyAvailable($currentDate)) {
                 return $currentDate; // Found an available date!
             }
+
+            // Optimization: If the current month is not available AND there's no limited exclusion for this date,
+            // jump to the start of the next month
+            $dateString = $currentDate->format('Y-m-d');
+            $hasLimitedExclusion = isset($this->availabilityData->limitedExcludedSchedules[$dateString])
+                && $this->availabilityData->limitedExcludedSchedules[$dateString]->isNotEmpty();
+
+            if (! $hasLimitedExclusion && ! in_array($currentDate->format('Y-m'), $this->availabilityData->availableMonths)) {
+                $currentDate->addMonthNoOverflow()->startOfMonth();
+
+                continue; // Restart loop with the new date
+            }
+
             $currentDate->addDay(); // Move to the next day
         }
 
@@ -195,10 +256,6 @@ class AppointmentController extends Controller
 
     /**
      * Finds the next available appointment date within a given range (backward and forward).
-     *
-     * @param Carbon $startDate
-     * @param int $range
-     * @return Carbon|null
      */
     private function findNextAvailableAppointmentWithinRange(Carbon $startDate, int $range): ?Carbon
     {
@@ -236,327 +293,207 @@ class AppointmentController extends Controller
 
         return null;
     }
-public function index(Request $request, $doctorId)
-{
-    try {
-        // Ensure doctor ID is present and valid
-        if (empty($doctorId) || !is_numeric($doctorId)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid doctor ID',
-            ], 400);
-        }
 
-        // First check if the doctor exists
-        $doctorExists = \App\Models\Doctor::where('id', $doctorId)
-            ->whereNull('deleted_at')
-            ->exists();
-
-        if (!$doctorExists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Doctor not found',
-            ], 404);
-        }
-
-        $query = Appointment::query()
-            ->with([
-                'patient:id,Lastname,Firstname,phone,dateOfBirth,Parent',
-                'doctor:id,user_id,specialization_id',
-                'doctor.user:id,name',
-                'createdByUser:id,name',
-                'updatedByUser:id,name',
-                'canceledByUser:id,name',
-                'waitlist:id,importance,is_Daily'
-            ])
-            ->where('doctor_id', $doctorId)
-            ->whereNull('deleted_at');
-
-        // Apply filters safely
-        if ($request->filled('status')) {
-            // Only apply future filter if status is not CANCELED
-            if ($request->status != AppointmentSatatusEnum::CANCELED->value) {
-                $query->filterFuture();
-            }
-            $query->filterByStatus($request->status);
-        } else {
-            // Default behavior: show today's appointments
-            $query->filterToday();
-        }
-
-        if ($request->filled('date')) {
-            $query->filterByDate($request->date);
-        }
-
-        // The 'filter' parameter is now redundant with the improved status logic, but we'll keep it for backward compatibility
-        if ($request->has('filter') && $request->filter === 'today') {
-            $query->filterToday();
-        }
-
-        $query->orderBy('appointment_date', 'asc')
-            ->orderBy('appointment_time', 'asc');
-
-        $appointments = $query->paginate(30);
-
-        // Check if we have any appointments
-        if ($appointments->isEmpty()) {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'meta' => [
-                    'current_page' => 1,
-                    'per_page' => 30,
-                    'total' => 0,
-                    'last_page' => 1,
-                    'from' => null,
-                    'to' => null,
-                    'path' => $request->url(),
-                ],
-                'links' => [
-                    'first' => null,
-                    'last' => null,
-                    'prev' => null,
-                    'next' => null,
-                ]
-            ]);
-        }
-
-        // Transform appointments safely
-        $transformedAppointments = [];
-        foreach ($appointments as $appointment) {
-            try {
-                $transformedAppointments[] = new AppointmentResource($appointment);
-            } catch (\Exception $e) {
-                \Log::warning('Failed to transform individual appointment', [
-                    'appointment_id' => $appointment->id ?? 'unknown',
-                    'error' => $e->getMessage()
-                ]);
-                // Skip this appointment or add minimal data
-                continue;
-            }
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => $transformedAppointments,
-            'meta' => [
-                'current_page' => $appointments->currentPage(),
-                'per_page' => $appointments->perPage(),
-                'total' => $appointments->total(),
-                'last_page' => $appointments->lastPage(),
-                'from' => $appointments->firstItem(),
-                'to' => $appointments->lastItem(),
-                'path' => $request->url(),
-            ],
-            'links' => [
-                'first' => $appointments->url(1),
-                'last' => $appointments->url($appointments->lastPage()),
-                'prev' => $appointments->previousPageUrl(),
-                'next' => $appointments->nextPageUrl(),
-            ]
-        ]);
-        
-    } catch (\Exception $e) {
-        \Log::error('Failed to fetch appointments', [
-            'doctorId' => $doctorId,
-            'request_params' => $request->all(),
-            'error_message' => $e->getMessage(),
-            'error_file' => $e->getFile(),
-            'error_line' => $e->getLine(),
-            'stack_trace' => $e->getTraceAsString()
-        ]);
-        
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to fetch appointments',
-            'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while fetching appointments'
-        ], 500);
-    }
-}
-
-
-public function bookSameDayAppointment(Request $request)
-{
-    try {
-        $validated = $request->validate([
-            'doctor_id' => 'required|exists:doctors,id',
-            'patient_id' => 'required|exists:patients,id',
-            'appointment_time' => 'required',
-            'prestation_id' => 'nullable|exists:prestations,id'
-        ]);
-        
-        $doctor = Doctor::find($validated['doctor_id']);
-        
-        if (!$doctor || !$doctor->allowed_appointment_today) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Doctor does not allow same-day appointments'
-            ], 400);
-        }
-        
-        $appointmentDateTime = Carbon::parse($validated['appointment_time']);
-        $appointmentDate = $appointmentDateTime->format('Y-m-d');
-        $appointmentTime = $appointmentDateTime->format('H:i');
-        
-        // Check if slot is still available using existing model method
-        if (!Appointment::isSlotAvailable(
-            $validated['doctor_id'],
-            $appointmentDate,
-            $appointmentTime,
-            $this->excludedStatuses
-        )) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected time slot is no longer available'
-            ], 400);
-        }
-        
-        // Create appointment
-        $appointment = Appointment::create([
-            'patient_id' => $validated['patient_id'],
-            'doctor_id' => $validated['doctor_id'],
-            'appointment_date' => $appointmentDate,
-            'appointment_time' => $appointmentTime,
-            'status' => 0, // Scheduled
-            'notes' => 'Same-day appointment',
-            'created_by' => Auth::id(),
-        ]);
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'Same-day appointment booked successfully',
-            'appointment' => new AppointmentResource($appointment)
-        ]);
-        
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error booking appointment: ' . $e->getMessage()
-        ], 500);
-    }
-}
-
-    public function consulationappointment(Request $request, $doctorId)
+    public function index(Request $request, $doctorId)
     {
         try {
+            // Ensure doctor ID is present and valid
+            if (empty($doctorId) || ! is_numeric($doctorId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid doctor ID',
+                ], 400);
+            }
+
+            // First check if the doctor exists
+            $doctorExists = \App\Models\Doctor::where('id', $doctorId)
+                ->whereNull('deleted_at')
+                ->exists();
+
+            if (! $doctorExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Doctor not found',
+                ], 404);
+            }
+
             $query = Appointment::query()
                 ->with([
-                    'patient:id,Lastname,Firstname,phone,dateOfBirth',
+                    'patient:id,Lastname,Firstname,phone,dateOfBirth,Parent',
                     'doctor:id,user_id,specialization_id',
                     'doctor.user:id,name',
                     'createdByUser:id,name',
                     'updatedByUser:id,name',
                     'canceledByUser:id,name',
-                    'waitlist'
+                    'waitlist:id,importance,is_Daily',
                 ])
-                ->whereHas('doctor', function ($query) {
-                    $query->whereNull('deleted_at')
-                        ->whereHas('user');
-                })
                 ->where('doctor_id', $doctorId)
                 ->whereNull('deleted_at');
 
-            // Handle multiple statuses or single status
-            if ($request->has('statuses') && is_array($request->statuses)) {
-                // Handle multiple statuses [0, 1, 4, 5]
-                $statuses = $request->statuses;
-
-                // Apply future filter for all statuses except ONWORKING (5) and DONE
-                $query->where(function ($q) use ($statuses) {
-                    foreach ($statuses as $status) {
-                        $q->orWhere(function ($subQuery) use ($status) {
-                            $subQuery->where('status', $status);
-
-                            // ONWORKING (5) gets all appointments regardless of date
-                            // DONE appointments should also show regardless of date (recently completed)
-                            // For other statuses, apply future filter
-                            if ($status != 5 && $status != AppointmentSatatusEnum::DONE->value) {
-                                $subQuery->where(function ($dateQuery) {
-                                    $dateQuery->where('appointment_date', '>', now()->toDateString())
-                                        ->orWhere(function ($todayQuery) {
-                                            $todayQuery->where('appointment_date', now()->toDateString())
-                                                ->where('appointment_time', '>=', now()->toTimeString());
-                                        });
-                                });
-                            }
-
-                            // For DONE status, show only appointments completed today
-                            if ($status == AppointmentSatatusEnum::DONE->value) {
-                                // Show only appointments that were marked as DONE today
-                                $subQuery->whereDate('updated_at', now()->toDateString());
-                            }
-                        });
-                    }
-                });
-            } else {
-                // Handle single status (existing logic with modifications)
+            // Apply filters safely
+            if ($request->filled('status')) {
+                // Only apply future filter if status is not CANCELED
                 if ($request->status != AppointmentSatatusEnum::CANCELED->value) {
-                    // Apply future filter only if status is not ONWORKING (5) and not DONE
-                    if ($request->status != 5 && $request->status != AppointmentSatatusEnum::DONE->value) {
-                        $query->filterFuture();
-                    }
-
-                    // For DONE status, show only appointments completed today
-                    if ($request->status == AppointmentSatatusEnum::DONE->value) {
-                        // Show only appointments marked as DONE today
-                        $query->whereDate('updated_at', now()->toDateString());
-                    }
+                    $query->filterFuture();
                 }
-
-                $query->filterByStatus($request->status)
-                    ->when($request->filled('date'), function ($q) use ($request) {
-                        return $q->filterByDate($request->date);
-                    })
-                    ->when($request->filter === 'today', function ($q) {
-                        return $q->filterToday();
-                    });
-            }
-
-            // Apply search if provided
-            if ($request->filled('search')) {
-                $searchTerm = $request->search;
-                $query->where(function ($q) use ($searchTerm) {
-                    $q->whereHas('patient', function ($patientQuery) use ($searchTerm) {
-                        $patientQuery->where('Firstname', 'like', "%{$searchTerm}%")
-                            ->orWhere('Lastname', 'like', "%{$searchTerm}%")
-                            ->orWhere('phone', 'like', "%{$searchTerm}%");
-                    });
-                });
-            }
-
-            // Modified ordering to show recently completed appointments first for DONE status
-            if (
-                $request->status == AppointmentSatatusEnum::DONE->value ||
-                (is_array($request->statuses) && in_array(AppointmentSatatusEnum::DONE->value, $request->statuses))
-            ) {
-                $query->orderBy('updated_at', 'desc') // Recently completed first
-                    ->orderBy('appointment_date', 'desc')
-                    ->orderBy('appointment_time', 'desc');
+                $query->filterByStatus($request->status);
             } else {
-                $query->orderBy('appointment_date', 'asc')
-                    ->orderBy('appointment_time', 'asc');
+                // Default behavior: show today's appointments
+                $query->filterToday();
             }
+
+            if ($request->filled('date')) {
+                $query->filterByDate($request->date);
+            }
+
+            // The 'filter' parameter is now redundant with the improved status logic, but we'll keep it for backward compatibility
+            if ($request->has('filter') && $request->filter === 'today') {
+                $query->filterToday();
+            }
+
+            $query->orderBy('appointment_date', 'asc')
+                ->orderBy('appointment_time', 'asc');
 
             $appointments = $query->paginate(30);
 
+            // Check if we have any appointments
+            if ($appointments->isEmpty()) {
+                return response()->json([
+                    'success' => true,
+                    'data' => [],
+                    'meta' => [
+                        'current_page' => 1,
+                        'per_page' => 30,
+                        'total' => 0,
+                        'last_page' => 1,
+                        'from' => null,
+                        'to' => null,
+                        'path' => $request->url(),
+                    ],
+                    'links' => [
+                        'first' => null,
+                        'last' => null,
+                        'prev' => null,
+                        'next' => null,
+                    ],
+                ]);
+            }
+
+            // Transform appointments safely
+            $transformedAppointments = [];
+            foreach ($appointments as $appointment) {
+                try {
+                    $transformedAppointments[] = new AppointmentResource($appointment);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to transform individual appointment', [
+                        'appointment_id' => $appointment->id ?? 'unknown',
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    // Skip this appointment or add minimal data
+                    continue;
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'data' => AppointmentResource::collection($appointments),
+                'data' => $transformedAppointments,
                 'meta' => [
                     'current_page' => $appointments->currentPage(),
                     'per_page' => $appointments->perPage(),
                     'total' => $appointments->total(),
                     'last_page' => $appointments->lastPage(),
-                ]
+                    'from' => $appointments->firstItem(),
+                    'to' => $appointments->lastItem(),
+                    'path' => $request->url(),
+                ],
+                'links' => [
+                    'first' => $appointments->url(1),
+                    'last' => $appointments->url($appointments->lastPage()),
+                    'prev' => $appointments->previousPageUrl(),
+                    'next' => $appointments->nextPageUrl(),
+                ],
             ]);
+
         } catch (\Exception $e) {
+            \Log::error('Failed to fetch appointments', [
+                'doctorId' => $doctorId,
+                'request_params' => $request->all(),
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
+                'stack_trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch appointments',
-                'error' => $e->getMessage()
+                'error' => config('app.debug') ? $e->getMessage() : 'An error occurred while fetching appointments',
             ], 500);
         }
     }
+
+    public function bookSameDayAppointment(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'doctor_id' => 'required|exists:doctors,id',
+                'patient_id' => 'required|exists:patients,id',
+                'appointment_time' => 'required',
+                'prestation_id' => 'nullable|exists:prestations,id',
+            ]);
+
+            $doctor = Doctor::find($validated['doctor_id']);
+
+            if (! $doctor || ! $doctor->allowed_appointment_today) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Doctor does not allow same-day appointments',
+                ], 400);
+            }
+
+            $appointmentDateTime = Carbon::parse($validated['appointment_time']);
+            $appointmentDate = $appointmentDateTime->format('Y-m-d');
+            $appointmentTime = $appointmentDateTime->format('H:i');
+
+            // Check if slot is still available using existing model method
+            if (! Appointment::isSlotAvailable(
+                $validated['doctor_id'],
+                $appointmentDate,
+                $appointmentTime,
+                $this->excludedStatuses
+            )) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Selected time slot is no longer available',
+                ], 400);
+            }
+
+            // Create appointment
+            $appointment = Appointment::create([
+                'patient_id' => $validated['patient_id'],
+                'doctor_id' => $validated['doctor_id'],
+                'appointment_date' => $appointmentDate,
+                'appointment_time' => $appointmentTime,
+                'status' => 0, // Scheduled
+                'notes' => 'Same-day appointment',
+                'created_by' => Auth::id(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Same-day appointment booked successfully',
+                'appointment' => new AppointmentResource($appointment),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error booking appointment: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
 
     public function generateAppointmentsPdf(Request $request)
     {
@@ -566,7 +503,7 @@ public function bookSameDayAppointment(Request $request)
                 ->with([
                     'patient:id,Lastname,Firstname,phone,dateOfBirth',
                     'doctor:id,user_id,specialization_id',
-                    'doctor.user:id,name'
+                    'doctor.user:id,name',
                 ])
                 ->whereHas('doctor', function ($query) {
                     $query->whereNull('deleted_at')
@@ -586,10 +523,10 @@ public function bookSameDayAppointment(Request $request)
                 $q->where('name', $request->doctorName);
             })->value('include_time'));
 
-
             // Transform appointments to include status labels
             $transformedAppointments = $appointments->map(function ($appointment) {
                 $appointment->status_label = 'Unknown';
+
                 return $appointment;
             });
             // Get the filter summary for the PDF header
@@ -614,7 +551,7 @@ public function bookSameDayAppointment(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate PDF',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -628,8 +565,8 @@ public function bookSameDayAppointment(Request $request)
                     $terms = explode(' ', $request->patientName);
                     foreach ($terms as $term) {
                         $subQ->where(function ($nameQ) use ($term) {
-                            $nameQ->where('Firstname', 'like', '%' . $term . '%')
-                                ->orWhere('Lastname', 'like', '%' . $term . '%');
+                            $nameQ->where('Firstname', 'like', '%'.$term.'%')
+                                ->orWhere('Lastname', 'like', '%'.$term.'%');
                         });
                     }
                 });
@@ -639,7 +576,7 @@ public function bookSameDayAppointment(Request $request)
         // Phone Filter
         if ($request->filled('phone')) {
             $query->whereHas('patient', function ($q) use ($request) {
-                $q->where('phone', 'like', '%' . $request->phone . '%');
+                $q->where('phone', 'like', '%'.$request->phone.'%');
             });
         }
 
@@ -657,7 +594,7 @@ public function bookSameDayAppointment(Request $request)
 
         // Appointment Time Filter
         if ($request->filled('time')) {
-            $query->where('appointment_time', 'like', '%' . $request->time . '%');
+            $query->where('appointment_time', 'like', '%'.$request->time.'%');
         }
 
         // Status Filter
@@ -668,7 +605,7 @@ public function bookSameDayAppointment(Request $request)
         // Doctor Name Filter
         if ($request->filled('doctorName')) {
             $query->whereHas('doctor.user', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->doctorName . '%');
+                $q->where('name', 'like', '%'.$request->doctorName.'%');
             });
         }
     }
@@ -678,25 +615,25 @@ public function bookSameDayAppointment(Request $request)
         $summary = [];
 
         if ($request->filled('patientName')) {
-            $summary[] = "Patient Name: " . $request->patientName;
+            $summary[] = 'Patient Name: '.$request->patientName;
         }
         if ($request->filled('phone')) {
-            $summary[] = "Phone: " . $request->phone;
+            $summary[] = 'Phone: '.$request->phone;
         }
         if ($request->filled('dateOfBirth')) {
-            $summary[] = "Date of Birth: " . $request->dateOfBirth;
+            $summary[] = 'Date of Birth: '.$request->dateOfBirth;
         }
         if ($request->filled('date')) {
-            $summary[] = "Appointment Date: " . $request->date;
+            $summary[] = 'Appointment Date: '.$request->date;
         }
         if ($request->filled('time')) {
-            $summary[] = "Appointment Time: " . $request->time;
+            $summary[] = 'Appointment Time: '.$request->time;
         }
         if ($request->filled('status') && $request->status !== 'ALL') {
-            $summary[] = "Status: " . ($this->statusLabels[$request->status] ?? $request->status);
+            $summary[] = 'Status: '.($this->statusLabels[$request->status] ?? $request->status);
         }
         if ($request->filled('doctorName')) {
-            $summary[] = "Doctor: " . $request->doctorName;
+            $summary[] = 'Doctor: '.$request->doctorName;
         }
 
         return $summary;
@@ -740,7 +677,7 @@ public function bookSameDayAppointment(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -772,7 +709,6 @@ public function bookSameDayAppointment(Request $request)
             // Paginate the results
             $appointments = $query->paginate(50);
 
-
             return response()->json([
                 'success' => true,
                 'data' => AppointmentResource::collection($appointments),
@@ -781,13 +717,13 @@ public function bookSameDayAppointment(Request $request)
                     'per_page' => $appointments->perPage(),
                     'total' => $appointments->total(),
                     'last_page' => $appointments->lastPage(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -806,7 +742,7 @@ public function bookSameDayAppointment(Request $request)
                     'users.name as doctor_name',
                     'doctors.id as doctor_id',
                     'doctors.specialization_id as specialization_id',
-                    'appointments.status as appointment_status'
+                    'appointments.status as appointment_status',
                 ])
                 ->join('patients', 'appointments.patient_id', '=', 'patients.id')
                 ->join('doctors', 'appointments.doctor_id', '=', 'doctors.id')
@@ -853,24 +789,24 @@ public function bookSameDayAppointment(Request $request)
                     'doctor_name' => $appointment->doctor_name,
                     'specialization_id' => $appointment->specialization_id,
                     'doctor_id' => $request->doctor_id ?? $appointment->doctor_id,
-                    'status' => $this->getStatusInfo($appointment->appointment_status)
+                    'status' => $this->getStatusInfo($appointment->appointment_status),
                 ];
             });
 
             return response()->json([
                 'success' => true,
-                'data' => $appointments
+                'data' => $appointments,
             ]);
         } catch (\Exception $e) {
             Log::error('Error in GetAllAppointments', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -890,7 +826,7 @@ public function bookSameDayAppointment(Request $request)
             'value' => $status,
             'name' => $statusMap[$status]['name'] ?? 'Unknown',
             'color' => $statusMap[$status]['color'] ?? 'secondary',
-            'icon' => $statusMap[$status]['icon'] ?? 'fas fa-question'
+            'icon' => $statusMap[$status]['icon'] ?? 'fas fa-question',
         ];
     }
 
@@ -939,28 +875,35 @@ public function bookSameDayAppointment(Request $request)
         if (isset($this->bookedSlotsCache[$requestCacheKey])) {
             return $this->bookedSlotsCache[$requestCacheKey];
         }
-    
-        $workingHours = Cache::remember($requestCacheKey, 300, function () use ($doctorId, $date) {
+
+        $workingHours = Cache::remember($requestCacheKey, 300, function () use ($date) {
             $data = $this->availabilityData;
             $dateObj = Carbon::parse($date);
             $dayOfWeek = DayOfWeekEnum::cases()[$dateObj->dayOfWeek]->value;
             $dateString = $dateObj->format('Y-m-d');
-    
+
             $doctor = $data->doctor;
             $activeSchedules = collect();
-    
+            $isLimitedExclusion = false;
+
             // 1. First, check for specific date limited exclusions (highest priority)
             if (isset($data->limitedExcludedSchedules[$dateString])) {
-                $limitedExclusion = $data->limitedExcludedSchedules[$dateString];
-                if ($dateObj->between(
-                    Carbon::parse($limitedExclusion->start_date),
-                    Carbon::parse($limitedExclusion->end_date ?? $limitedExclusion->start_date)
-                )) {
-                    $activeSchedules->push($limitedExclusion);
+                $limitedExclusions = $data->limitedExcludedSchedules[$dateString];
+                $isLimitedExclusion = true;
+
+                // Build schedules from the limited exclusion shifts
+                // Each shift (morning/afternoon) is a separate ExcludedDate record
+                foreach ($limitedExclusions as $exclusion) {
+                    if ($exclusion->shift_period === 'morning' || $exclusion->shift_period === 'afternoon' || $exclusion->shift_period === 'evening') {
+                        $activeSchedules->push((object) [
+                            'shift_period' => $exclusion->shift_period,
+                            'start_time' => $exclusion->start_time,
+                            'end_time' => $exclusion->end_time,
+                            'number_of_patients_per_day' => $exclusion->number_of_patients_per_day ?? 0,
+                        ]);
+                    }
                 }
-            }
-    
-            // 2. If no limited exclusion, check for specific date schedules
+            }            // 2. If no limited exclusion, check for specific date schedules
             if ($activeSchedules->isEmpty() && isset($data->schedulesByDate[$dateString])) {
                 $specificSchedules = $data->schedulesByDate[$dateString];
                 if ($specificSchedules instanceof \Illuminate\Support\Collection) {
@@ -973,78 +916,79 @@ public function bookSameDayAppointment(Request $request)
             elseif ($activeSchedules->isEmpty() && isset($data->schedulesByDay[$dayOfWeek])) {
                 $activeSchedules = collect($data->schedulesByDay[$dayOfWeek]);
             }
-    
+
             if ($activeSchedules->isEmpty()) {
                 return [];
             }
-    
+
             $calculatedWorkingHours = [];
             $now = Carbon::now();
             $isToday = $dateObj->isSameDay($now);
-            
+
             if ($dateObj->startOfDay()->isAfter($now->startOfDay())) {
                 $isToday = false;
             }
-            
+
             $bufferTime = $now->copy()->addMinutes(5);
-            $timeSlotMinutes = (int)$doctor->time_slot;
-    
+            $timeSlotMinutes = (int) $doctor->time_slot;
+
             // Process ALL shifts: morning, afternoon, and evening
             foreach (['morning', 'afternoon', 'evening'] as $shift) {
                 $schedule = $activeSchedules->firstWhere('shift_period', $shift);
-                if (!$schedule) {
+                if (! $schedule) {
                     continue;
                 }
-    
-                $startTime = Carbon::parse($dateString . ' ' . $schedule->start_time);
-                $endTime = Carbon::parse($dateString . ' ' . $schedule->end_time);
-    
-                if ($timeSlotMinutes > 0) {
-                    // Fixed time slot approach
+
+                $startTime = Carbon::parse($dateString.' '.$schedule->start_time);
+                $endTime = Carbon::parse($dateString.' '.$schedule->end_time);
+
+                if ($timeSlotMinutes > 0 && ! $isLimitedExclusion) {
+                    // Fixed time slot approach (only for regular schedules)
                     $currentTime = clone $startTime;
                     while ($currentTime->lt($endTime)) {
-                        if (!$isToday || $currentTime->greaterThan($bufferTime)) {
+                        if (! $isToday || $currentTime->greaterThan($bufferTime)) {
                             $calculatedWorkingHours[] = $currentTime->format('H:i');
                         }
                         $currentTime->addMinutes($timeSlotMinutes);
                     }
                 } else {
-                    // Patient-based calculation
-                    $patientsForShift = (int)($schedule->number_of_patients_per_day ?? 0);
-    
+                    // Patient-based calculation (for limited exclusions or when time_slot is not set)
+                    $patientsForShift = (int) ($schedule->number_of_patients_per_day ?? 0);
+
                     if ($patientsForShift <= 0) {
                         continue;
                     }
-    
+
                     $totalDuration = $endTime->diffInMinutes($startTime);
-    
+
                     if ($patientsForShift == 1) {
-                        if (!$isToday || $startTime->greaterThan($bufferTime)) {
+                        if (! $isToday || $startTime->greaterThan($bufferTime)) {
                             $calculatedWorkingHours[] = $startTime->format('H:i');
                         }
                     } else {
                         $slotDuration = abs($totalDuration / ($patientsForShift - 1));
-    
+
                         for ($i = 0; $i < $patientsForShift; $i++) {
                             $minutesToAdd = round($i * $slotDuration);
                             $slotTime = $startTime->copy()->addMinutes($minutesToAdd);
-    
-                            if (!$isToday || $slotTime->greaterThan($bufferTime)) {
+
+                            if (! $isToday || $slotTime->greaterThan($bufferTime)) {
                                 $calculatedWorkingHours[] = $slotTime->format('H:i');
                             }
                         }
                     }
                 }
             }
-            
+
             // Sort the slots chronologically and remove duplicates
             $calculatedWorkingHours = array_unique($calculatedWorkingHours);
             sort($calculatedWorkingHours);
-            
+
             return $calculatedWorkingHours;
         });
-    
+
         $this->bookedSlotsCache[$requestCacheKey] = $workingHours;
+
         return $workingHours;
     }
 
@@ -1064,6 +1008,7 @@ public function bookSameDayAppointment(Request $request)
             ->toArray();
 
         $this->bookedSlotsCache[$cacheKey] = $bookedSlots;
+
         return $bookedSlots;
     }
 
@@ -1076,7 +1021,7 @@ public function bookSameDayAppointment(Request $request)
         ]);
 
         $doctorId = $validated['doctor_id'];
-        $days = (int)($validated['days'] ?? 0); // Ensure days is an integer
+        $days = (int) ($validated['days'] ?? 0); // Ensure days is an integer
         $dateInput = $validated['date'] ?? null; // Get the date input if provided
 
         try {
@@ -1103,19 +1048,19 @@ public function bookSameDayAppointment(Request $request)
                     'start_time' => $limitedExcludedDate->start_time,
                     'end_time' => $limitedExcludedDate->end_time,
                     'number_of_patients_per_day' => $limitedExcludedDate->number_of_patients_per_day,
-                    'shift_period' => 'full_day' // Treat as a single block for calculation
+                    'shift_period' => 'full_day', // Treat as a single block for calculation
                 ];
             } else {
                 // If no limited exclusion, get regular schedules from pre-loaded data
                 $dayOfWeek = DayOfWeekEnum::cases()[$dateObj->dayOfWeek]->value;
                 $schedules = collect($doctorData->schedulesByDate[$date] ?? [])
-                            ->merge($doctorData->schedulesByDay[$dayOfWeek] ?? []);
+                    ->merge($doctorData->schedulesByDay[$dayOfWeek] ?? []);
 
                 $morningSchedule = $schedules->firstWhere('shift_period', 'morning');
                 $afternoonSchedule = $schedules->firstWhere('shift_period', 'afternoon');
 
                 // If no regular schedules, check for general AppointmentForcer
-                if (!$morningSchedule && !$afternoonSchedule) {
+                if (! $morningSchedule && ! $afternoonSchedule) {
                     $forcedSchedule = AppointmentForcer::where('doctor_id', $doctorId)->first();
                     if ($forcedSchedule) {
                         // Ensure it has start and end times to be considered a valid forced schedule
@@ -1128,7 +1073,7 @@ public function bookSameDayAppointment(Request $request)
 
             $gapSlots = [];
             $additionalSlots = [];
-            $finalTimeSlotMinutes = (int)$doctor->time_slot; // Start with doctor's default, then refine
+            $finalTimeSlotMinutes = (int) $doctor->time_slot; // Start with doctor's default, then refine
 
             if ($forcedSchedule) {
                 // Generate slots based on the forced schedule
@@ -1148,14 +1093,16 @@ public function bookSameDayAppointment(Request $request)
             } elseif ($morningSchedule || $afternoonSchedule) {
                 // Handle regular schedules (morning and/or afternoon)
                 if ($morningSchedule && $afternoonSchedule) {
-                    $morningEndTime = Carbon::parse($date . ' ' . $morningSchedule->end_time);
-                    $afternoonStartTime = Carbon::parse($date . ' ' . $afternoonSchedule->start_time);
+                    $morningEndTime = Carbon::parse($date.' '.$morningSchedule->end_time);
+                    $afternoonStartTime = Carbon::parse($date.' '.$afternoonSchedule->start_time);
 
                     $currentTime = clone $morningEndTime;
                     // Calculate `finalTimeSlotMinutes` based on the actual schedule for gap calculation
                     if ($finalTimeSlotMinutes <= 0) { // If doctor has no fixed time slot
                         $finalTimeSlotMinutes = $this->calculateTimeSlotMinutes($doctor, $date);
-                        if ($finalTimeSlotMinutes <= 0) $finalTimeSlotMinutes = 30; // Fallback
+                        if ($finalTimeSlotMinutes <= 0) {
+                            $finalTimeSlotMinutes = 30;
+                        } // Fallback
                     }
 
                     while ($currentTime < $afternoonStartTime) {
@@ -1173,7 +1120,7 @@ public function bookSameDayAppointment(Request $request)
                     'additional_slots' => [],
                     'next_available_date' => null, // No forced or regular schedule, so no slots
                     'time_slot_minutes' => $finalTimeSlotMinutes,
-                    'message' => 'No regular or forced schedule found for this date. Doctor might not be working.'
+                    'message' => 'No regular or forced schedule found for this date. Doctor might not be working.',
                 ], 200);
             }
 
@@ -1184,16 +1131,16 @@ public function bookSameDayAppointment(Request $request)
                 'time_slot_minutes' => $finalTimeSlotMinutes,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error calculating slots: ' . $e->getMessage(), [
+            Log::error('Error calculating slots: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
+
             return response()->json([
-                'error' => 'Error calculating appointment slots: ' . $e->getMessage(),
+                'error' => 'Error calculating appointment slots: '.$e->getMessage(),
             ], 500);
         }
     }
-
 
     /**
      * Fetch doctor details.
@@ -1206,6 +1153,7 @@ public function bookSameDayAppointment(Request $request)
         if ($this->availabilityData && $this->availabilityData->doctor->id == $doctorId) {
             return $this->availabilityData->doctor;
         }
+
         return Doctor::find($doctorId, ['time_slot']);
     }
 
@@ -1221,7 +1169,7 @@ public function bookSameDayAppointment(Request $request)
 
             // Fetch schedules from pre-loaded data
             $schedules = collect($this->availabilityData->schedulesByDate[Carbon::parse($date)->format('Y-m-d')] ?? [])
-                        ->merge($this->availabilityData->schedulesByDay[$dayOfWeek] ?? []);
+                ->merge($this->availabilityData->schedulesByDay[$dayOfWeek] ?? []);
 
             // Initialize patient counts
             $morningPatients = 0;
@@ -1243,7 +1191,7 @@ public function bookSameDayAppointment(Request $request)
             $totalAvailableTime = $this->calculateTotalAvailableTime($doctor->id, $date);
 
             if ($totalPatients > 0) {
-                $timeSlotMinutes = (int)(abs($totalAvailableTime) / $totalPatients);
+                $timeSlotMinutes = (int) (abs($totalAvailableTime) / $totalPatients);
             } else {
                 $timeSlotMinutes = 30; // Default to 30 minutes
             }
@@ -1252,9 +1200,9 @@ public function bookSameDayAppointment(Request $request)
         if ($timeSlotMinutes <= 0) {
             $timeSlotMinutes = 30;
         }
+
         return $timeSlotMinutes;
     }
-
 
     /**
      * Calculate total available time for the day.
@@ -1266,13 +1214,13 @@ public function bookSameDayAppointment(Request $request)
 
         // Fetch schedules from pre-loaded data (or fallback to DB if not pre-loaded for some reason)
         $schedules = collect($this->availabilityData->schedulesByDate[$dateObj->format('Y-m-d')] ?? [])
-                    ->merge($this->availabilityData->schedulesByDay[$dayOfWeek] ?? []);
+            ->merge($this->availabilityData->schedulesByDay[$dayOfWeek] ?? []);
 
         $totalAvailableTime = 0;
 
         foreach ($schedules as $schedule) {
-            $startTime = Carbon::parse($date . ' ' . $schedule->start_time);
-            $endTime = Carbon::parse($date . ' ' . $schedule->end_time);
+            $startTime = Carbon::parse($date.' '.$schedule->start_time);
+            $endTime = Carbon::parse($date.' '.$schedule->end_time);
             $totalAvailableTime += $endTime->diffInMinutes($startTime);
         }
 
@@ -1297,19 +1245,18 @@ public function bookSameDayAppointment(Request $request)
         return $this->availabilityData->schedulesByDay[$dayOfWeek] ?? collect();
     }
 
-
     /**
      * Generate slots based on a forced schedule (AppointmentForcer or limited ExcludedDate).
      *
-     * @param int $doctorId
-     * @param string $date
-     * @param object $forcedSchedule Can be an AppointmentForcer model or a limited ExcludedDate model
+     * @param  int  $doctorId
+     * @param  string  $date
+     * @param  object  $forcedSchedule  Can be an AppointmentForcer model or a limited ExcludedDate model
      * @return array
      */
     private function generateForcedSlots($doctorId, $date, $forcedSchedule)
     {
-        $startTime = Carbon::parse($date . ' ' . ($forcedSchedule->start_time ?? '08:00'));
-        $endTime = Carbon::parse($date . ' ' . ($forcedSchedule->end_time ?? '17:00'));
+        $startTime = Carbon::parse($date.' '.($forcedSchedule->start_time ?? '08:00'));
+        $endTime = Carbon::parse($date.' '.($forcedSchedule->end_time ?? '17:00'));
         $slots = [];
 
         // Get doctor's configured fixed time slot
@@ -1338,15 +1285,15 @@ public function bookSameDayAppointment(Request $request)
             $slotTime = $currentTime->format('H:i');
 
             // Only add slot if it's within the defined range and not booked
-            if ($currentTime->lessThanOrEqualTo($endTime) && !in_array($slotTime, $bookedSlots)) {
+            if ($currentTime->lessThanOrEqualTo($endTime) && ! in_array($slotTime, $bookedSlots)) {
                 $slots[] = $slotTime;
             }
 
             $currentTime->addMinutes($timeSlotMinutes);
         }
+
         return array_unique($slots);
     }
-
 
     public function printTicket(Request $request)
     {
@@ -1358,7 +1305,7 @@ public function bookSameDayAppointment(Request $request)
                 'doctor_id' => 'nullable|integer',
                 'appointment_date' => 'required',
                 'appointment_time' => 'required|date_format:H:i',
-                'description' => 'nullable|string|max:1000'
+                'description' => 'nullable|string|max:1000',
             ]);
             if ($data['doctor_id']) {
                 $doctor = Doctor::with('user')->find($data['doctor_id']);
@@ -1369,9 +1316,9 @@ public function bookSameDayAppointment(Request $request)
             $data['user_name'] = Auth::user()->name;
 
             // Set paper size for thermal printer (typically 80mm width)
-            $customPaper = array(0, 0, 226.77, 141.73); // 80mm x 50mm in points (1 inch = 72 points)
+            $customPaper = [0, 0, 226.77, 141.73]; // 80mm x 50mm in points (1 inch = 72 points)
             // Set paper size for 8 cm thermal printer (approximately 226.77 points width)
-            $customPaper = array(0, 0, 226.77, 283.46); // 8cm width x 10cm height in points
+            $customPaper = [0, 0, 226.77, 283.46]; // 8cm width x 10cm height in points
 
             $pdf = Pdf::setOptions([
                 'isHtml5ParserEnabled' => true,
@@ -1385,7 +1332,7 @@ public function bookSameDayAppointment(Request $request)
                 'margin-right' => 2,
                 'margin-bottom' => 2,
                 'margin-left' => 2,
-                'dpi' => 203 // Standard DPI for thermal printers
+                'dpi' => 203, // Standard DPI for thermal printers
             ])->loadView('tickets.appointment', $data);
 
             // Force the PDF to be black and white
@@ -1396,7 +1343,7 @@ public function bookSameDayAppointment(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate ticket',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1411,7 +1358,7 @@ public function bookSameDayAppointment(Request $request)
                 'doctor_name' => 'required|string|max:255',
                 'appointment_date' => 'required',
                 'appointment_time' => 'required|date_format:H:i',
-                'description' => 'nullable|string|max:1000'
+                'description' => 'nullable|string|max:1000',
             ]);
 
             $data['specialization_name'] = \App\Models\Specialization::find($data['specialization_id'])->name;
@@ -1440,7 +1387,7 @@ public function bookSameDayAppointment(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate ticket',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1457,14 +1404,16 @@ public function bookSameDayAppointment(Request $request)
         // Removed $additionalSlots as it's now handled by generateForcedSlots if applicable
 
         if ($morningSchedule && $afternoonSchedule) {
-            $morningEndTime = Carbon::parse($date . ' ' . $morningSchedule->end_time);
-            $afternoonStartTime = Carbon::parse($date . ' ' . $afternoonSchedule->start_time);
+            $morningEndTime = Carbon::parse($date.' '.$morningSchedule->end_time);
+            $afternoonStartTime = Carbon::parse($date.' '.$afternoonSchedule->start_time);
 
             // Ensure timeSlotMinutes is valid before using it
             if ($timeSlotMinutes <= 0) {
                 // Fallback to recalculate if it became invalid, though it should be set by ForceAppointment
                 $timeSlotMinutes = $this->calculateTimeSlotMinutes($this->availabilityData->doctor, $date);
-                if ($timeSlotMinutes <= 0) $timeSlotMinutes = 30; // Final fallback
+                if ($timeSlotMinutes <= 0) {
+                    $timeSlotMinutes = 30;
+                } // Final fallback
             }
 
             $currentTime = clone $morningEndTime;
@@ -1473,6 +1422,7 @@ public function bookSameDayAppointment(Request $request)
                 $currentTime->addMinutes($timeSlotMinutes);
             }
         }
+
         return [$gapSlots, []]; // Return empty array for additional slots
     }
 
@@ -1494,29 +1444,28 @@ public function bookSameDayAppointment(Request $request)
             ->where('id', $appointmentId)
             ->first();
 
-        if (!$appointment) {
+        if (! $appointment) {
             return response()->json([
                 'success' => false,
-                'message' => 'Appointment not found.'
+                'message' => 'Appointment not found.',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'data' => new AppointmentResource($appointment)
+            'data' => new AppointmentResource($appointment),
         ]);
     }
 
     public function checkAvailability(Request $request)
     {
-        
+
         try {
             $validated = $request->validate([
                 'doctor_id' => 'required|exists:doctors,id',
                 'date' => 'nullable|date_format:Y-m-d',
                 'days' => 'nullable|integer|min:0', // Changed min to 0 as it can be current day
                 'range' => 'nullable|integer|min:0',
-                'include_slots' => 'nullable|in:true,false,1,0'
             ]);
 
             $doctorId = $validated['doctor_id'];
@@ -1544,40 +1493,33 @@ public function bookSameDayAppointment(Request $request)
 
             // Build the response
             $response = [];
-            if (!$nextAvailableDate) {
+            if (! $nextAvailableDate) {
                 $response = [
                     'success' => true,
                     'is_available' => false,
                     'next_available_date' => null,
                     'available_slots' => [],
-                    'period' => null
+                    'period' => null,
                 ];
             } else {
                 // Calculate period difference from current date
                 $daysDifference = $nextAvailableDate->diffInDays(Carbon::now());
                 $period = $this->calculatePeriod($daysDifference);
 
+                // Always get available slots
+                $workingHours = $this->getDoctorWorkingHours($doctorId, $nextAvailableDate->format('Y-m-d'));
+                $bookedSlots = $this->getBookedSlots($doctorId, $nextAvailableDate->format('Y-m-d'));
+                // Find available slots by subtracting booked slots from working hours
+                $availableSlots = array_diff($workingHours, $bookedSlots);
+
                 $response = [
                     'success' => true,
                     'is_available' => true,
                     'current_date' => Carbon::now()->format('Y-m-d'),
                     'next_available_date' => $nextAvailableDate->format('Y-m-d'),
-                    'period' => $period
+                    'period' => $period,
+                    'available_slots' => array_values($availableSlots),
                 ];
-
-                // Convert string boolean to actual boolean
-                $includeSlots = isset($validated['include_slots']) &&
-                    in_array($validated['include_slots'], ['true', '1'], true);
-
-                if ($includeSlots) {
-                    $workingHours = $this->getDoctorWorkingHours($doctorId, $nextAvailableDate->format('Y-m-d'));
-                    $bookedSlots = $this->getBookedSlots($doctorId, $nextAvailableDate->format('Y-m-d'));
-                    // Find available slots by subtracting booked slots from working hours
-                    $availableSlots = array_diff($workingHours, $bookedSlots);
-
-                    // Add slots information to response
-                    $response['available_slots'] = array_values($availableSlots);
-                }
             }
 
             return response()->json($response);
@@ -1586,13 +1528,13 @@ public function bookSameDayAppointment(Request $request)
             Log::error('Error in checkAvailability', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             // Return a user-friendly error response
             return response()->json([
                 'message' => 'An error occurred while checking availability.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1637,15 +1579,15 @@ public function bookSameDayAppointment(Request $request)
                     foreach ($appointmentsOnDate as $appointment) {
                         $time = Carbon::parse($appointment->appointment_time)->format('H:i');
                         // Ensure the slot is within working hours and not re-booked
-                        if (in_array($time, $workingHours) && !in_array($time, $bookedSlots)) {
+                        if (in_array($time, $workingHours) && ! in_array($time, $bookedSlots)) {
                             $availableTimes[] = $time;
                         }
                     }
-                    if (!empty($availableTimes)) {
+                    if (! empty($availableTimes)) {
                         $availableCanceledSlots[] = [
                             'date' => $dateString,
                             'available_times' => $availableTimes,
-                            'appointments_details' => AppointmentResource::collection($appointmentsOnDate->whereIn('appointment_time', $availableTimes))
+                            'appointments_details' => AppointmentResource::collection($appointmentsOnDate->whereIn('appointment_time', $availableTimes)),
                         ];
                     }
                 }
@@ -1653,26 +1595,26 @@ public function bookSameDayAppointment(Request $request)
 
             return response()->json([
                 'current_date' => $now->format('Y-m-d'),
-                'available_canceled_appointments' => $availableCanceledSlots
+                'available_canceled_appointments' => $availableCanceledSlots,
             ]);
         } catch (\Exception $e) {
             Log::error('Error in getAllCanceledAppointments', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
+
             return response()->json([
                 'message' => 'An error occurred while fetching canceled appointments.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-
     /**
      * Calculate period in days/months/years.
      *
-     * @param int $days
+     * @param  int  $days
      * @return string
      */
     private function calculatePeriod($days)
@@ -1683,16 +1625,18 @@ public function bookSameDayAppointment(Request $request)
         if ($days >= 365) {
             $years = floor($days / 365);
             $remainingDays = $days % 365;
-            return $years . ' year(s)' . ($remainingDays ? ' and ' . $remainingDays . ' day(s)' : '');
+
+            return $years.' year(s)'.($remainingDays ? ' and '.$remainingDays.' day(s)' : '');
         }
 
         if ($days >= 30) {
             $months = floor($days / 30);
             $remainingDays = $days % 30;
-            return $months . ' month(s)' . ($remainingDays ? ' and ' . $remainingDays . ' day(s)' : '');
+
+            return $months.' month(s)'.($remainingDays ? ' and '.$remainingDays.' day(s)' : '');
         }
 
-        return $days . ' day(s)';
+        return $days.' day(s)';
     }
 
     public function store(Request $request)
@@ -1715,7 +1659,7 @@ public function bookSameDayAppointment(Request $request)
 
         // Check if the slot is already booked using the model method
         if (
-            !Appointment::isSlotAvailable(
+            ! Appointment::isSlotAvailable(
                 $validated['doctor_id'],
                 $validated['appointment_date'],
                 $validated['appointment_time'],
@@ -1724,7 +1668,7 @@ public function bookSameDayAppointment(Request $request)
         ) {
             return response()->json([
                 'message' => 'This time slot is already booked.',
-                'errors' => ['appointment_time' => ['The selected time slot is no longer available.']]
+                'errors' => ['appointment_time' => ['The selected time slot is no longer available.']],
             ], 422);
         }
 
@@ -1740,63 +1684,89 @@ public function bookSameDayAppointment(Request $request)
             'created_by' => Auth::id(),
         ]);
 
-        // Handle prestation storage with improved validation and error handling
-        try {
+        // Handle prestation storage with package detection and dependency handling
+        // try {
             $selectedPrestations = [];
 
             // Collect prestation IDs from both single and array inputs
-            if (!empty($validated['prestation_id'])) {
-                $selectedPrestations[] = (int)$validated['prestation_id'];
+            if (! empty($validated['prestation_id'])) {
+                $selectedPrestations[] = (int) $validated['prestation_id'];
             }
 
-            if (!empty($validated['prestations']) && is_array($validated['prestations'])) {
+            if (! empty($validated['prestations']) && is_array($validated['prestations'])) {
                 // Filter out null/empty values and ensure integers
-                $arrayPrestations = array_filter($validated['prestations'], function($prestationId) {
-                    return !is_null($prestationId) && is_numeric($prestationId);
+                $arrayPrestations = array_filter($validated['prestations'], function ($prestationId) {
+                    return ! is_null($prestationId) && is_numeric($prestationId);
                 });
                 $selectedPrestations = array_merge($selectedPrestations, array_map('intval', $arrayPrestations));
             }
 
             // Remove duplicates and filter out invalid IDs
-            $selectedPrestations = array_values(array_unique(array_filter($selectedPrestations, function($id) {
+            $selectedPrestations = array_values(array_unique(array_filter($selectedPrestations, function ($id) {
                 return $id > 0;
             })));
 
             // Store prestations if any are selected
-            if (!empty($selectedPrestations)) {
-                $prestationRecords = [];
-                foreach ($selectedPrestations as $prestationId) {
-                    $prestationRecords[] = [
+            if (! empty($selectedPrestations)) {
+                // Step 1: Check if selected prestations match an active package
+                $matchedPackage = $this->findMatchingPackage($selectedPrestations);
+
+                if ($matchedPackage) {
+                    // Store single record with package_id
+                    AppointmentPrestation::create([
                         'appointment_id' => $appointment->id,
-                        'prestation_id' => $prestationId,
-                        'description' => '',
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
+                        'package_id' => $matchedPackage->id,
+                        'prestation_id' => $selectedPrestations[0], // First prestation as reference
+                        'patient_id' => $appointment->patient_id,
+                        'description' => $matchedPackage->description ?? 'Package: ' . $matchedPackage->name,
+                        'appointment_date' => $validated['appointment_date'],
+                    ]);
+
+                    Log::info('Package matched and stored', [
+                        'appointment_id' => $appointment->id,
+                        'package_id' => $matchedPackage->id,
+                        'package_name' => $matchedPackage->name,
+                    ]);
+                } else {
+                    // No package match - store individual prestations with patient instructions
+                    $prestationRecords = [];
+                    $prestationsData = Prestation::whereIn('id', $selectedPrestations)
+                        ->get(['id', 'patient_instructions', 'name']);
+
+                    foreach ($prestationsData as $prestation) {
+                        $prestationRecords[] = [
+                            'appointment_id' => $appointment->id,
+                            'prestation_id' => $prestation->id,
+                            'patient_id' => $validated['patient_id'],
+                            'description' => $prestation->patient_instructions ?? '',
+                            'appointment_date' => $validated['appointment_date'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
+                    }
+
+                    // Use batch insert for better performance
+                    AppointmentPrestation::insert($prestationRecords);
+
+                    Log::info('Individual prestations stored (no package match)', [
+                        'appointment_id' => $appointment->id,
+                        'prestation_ids' => $selectedPrestations,
+                    ]);
                 }
-
-                // Use batch insert for better performance
-                AppointmentPrestation::insert($prestationRecords);
-
-                Log::info('Prestations stored successfully', [
-                    'appointment_id' => $appointment->id,
-                    'prestation_ids' => $selectedPrestations
-                ]);
             } else {
                 Log::info('No prestations selected for appointment', ['appointment_id' => $appointment->id]);
             }
-        } catch (\Throwable $e) {
-            Log::error('Failed to save appointment prestations (store)', [
-                'error' => $e->getMessage(),
-                'appointment_id' => $appointment->id,
-                'payload' => $validated,
-                'selected_prestations' => $selectedPrestations ?? []
-            ]);
+        // } catch (\Throwable $e) {
+        //     Log::error('Failed to save appointment prestations (store)', [
+        //         'error' => $e->getMessage(),
+        //         'appointment_id' => $appointment->id,
+        //         'payload' => $validated,
+        //         'selected_prestations' => $selectedPrestations ?? [],
+        //     ]);
 
-            // Consider whether to rollback the appointment creation
-            // For now, we'll keep the appointment but log the error
-            // You might want to delete the appointment if prestation storage is critical
-        }
+        //     // Consider whether to rollback the appointment creation
+        //     // For now, we'll keep the appointment but log the error
+        // }
 
         // If adding to the waitlist, create a record
         if ($validated['addToWaitlist'] ?? false) {
@@ -1815,7 +1785,7 @@ public function bookSameDayAppointment(Request $request)
             } catch (\Throwable $e) {
                 Log::error('Failed to create waitlist entry', [
                     'error' => $e->getMessage(),
-                    'appointment_id' => $appointment->id
+                    'appointment_id' => $appointment->id,
                 ]);
             }
         }
@@ -1828,6 +1798,21 @@ public function bookSameDayAppointment(Request $request)
         // Find the existing appointment and mark it as done
         $existingAppointment = Appointment::findOrFail($appointmentId);
         $existingAppointment->update(['status' => 4]); // Mark as DONE
+
+        // Update patient tracking to completed when appointment is done
+        PatientTracking::where('patient_id', $existingAppointment->patient_id)
+            ->where('status', 'in_progress')
+            ->update([
+                'status' => 'completed',
+                'check_out_time' => now()
+            ]);
+
+        // Fire consultation completed event to notify waiting doctors
+        $patient = Patient::find($existingAppointment->patient_id);
+        $doctor = Doctor::find($existingAppointment->doctor_id);
+        if ($patient && $doctor) {
+            event(new ConsultationCompleted($patient, $doctor, $existingAppointment->id));
+        }
 
         // Validate the request for the new appointment
         $validated = $request->validate([
@@ -1854,7 +1839,7 @@ public function bookSameDayAppointment(Request $request)
         if ($isSlotBooked) {
             return response()->json([
                 'message' => 'This time slot is already booked.',
-                'errors' => ['appointment_time' => ['The selected time slot is no longer available.']]
+                'errors' => ['appointment_time' => ['The selected time slot is no longer available.']],
             ], 422);
         }
 
@@ -1894,6 +1879,7 @@ public function bookSameDayAppointment(Request $request)
     public function show($id)
     {
         $appointment = Appointment::findOrFail($id);
+
         return new AppointmentResource($appointment);
     }
 
@@ -1941,16 +1927,16 @@ public function bookSameDayAppointment(Request $request)
                         $time = Carbon::parse($canceledAppt->appointment_time)->format('H:i');
 
                         // Check if this specific time slot is within working hours AND not currently booked by another non-canceled appointment
-                        if (in_array($time, $workingHours) && !in_array($time, $bookedSlots)) {
+                        if (in_array($time, $workingHours) && ! in_array($time, $bookedSlots)) {
                             $availableTimesOnDate[] = $time;
                         }
                     }
 
-                    if (!empty($availableTimesOnDate)) {
+                    if (! empty($availableTimesOnDate)) {
                         $canceledAppointmentsResult[] = [
                             'date' => $dateString,
                             'available_times' => $availableTimesOnDate,
-                            'appointments_details' => AppointmentResource::collection($appointmentsOnDate->whereIn('appointment_time', $availableTimesOnDate))
+                            'appointments_details' => AppointmentResource::collection($appointmentsOnDate->whereIn('appointment_time', $availableTimesOnDate)),
                         ];
                     }
                 }
@@ -1968,28 +1954,29 @@ public function bookSameDayAppointment(Request $request)
                 $availableSlots = array_values(array_diff($workingHours, $bookedSlots));
 
                 // Only return if there are actual slots available for this date
-                if (!empty($availableSlots)) {
+                if (! empty($availableSlots)) {
                     $normalAppointmentResult = [
                         'date' => $nextAvailableDate->format('Y-m-d'),
                         'available_times' => $availableSlots,
-                        'period' => $this->calculatePeriod($daysDifference)
+                        'period' => $this->calculatePeriod($daysDifference),
                     ];
                 }
             }
 
             return response()->json([
                 'canceled_appointments' => $canceledAppointmentsResult,
-                'normal_appointments' => $normalAppointmentResult
+                'normal_appointments' => $normalAppointmentResult,
             ]);
         } catch (\Exception $e) {
             Log::error('Error in AvailableAppointments', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
+
             return response()->json([
                 'message' => 'An error occurred while checking availability.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1997,8 +1984,8 @@ public function bookSameDayAppointment(Request $request)
     public function changeAppointmentStatus(Request $request, $id)
     {
         $validated = $request->validate([
-            'status' => 'required|integer|in:' . implode(',', array_column(AppointmentSatatusEnum::cases(), 'value')),
-            'reason' => 'nullable|string'
+            'status' => 'required|integer|in:'.implode(',', array_column(AppointmentSatatusEnum::cases(), 'value')),
+            'reason' => 'nullable|string',
         ]);
 
         $appointment = Appointment::findOrFail($id);
@@ -2014,6 +2001,22 @@ public function bookSameDayAppointment(Request $request)
 
         $appointment->save();
 
+        // If appointment is marked as DONE, complete patient tracking and notify
+        if ($validated['status'] == 4) { // AppointmentSatatusEnum::DONE->value
+            PatientTracking::where('patient_id', $appointment->patient_id)
+                ->where('status', 'in_progress')
+                ->update([
+                    'status' => 'completed',
+                    'check_out_time' => now()
+                ]);
+
+            $patient = Patient::find($appointment->patient_id);
+            $doctor = Doctor::find($appointment->doctor_id);
+            if ($patient && $doctor) {
+                event(new ConsultationCompleted($patient, $doctor, $appointment->id));
+            }
+        }
+
         return response()->json([
             'message' => 'Appointment status updated successfully.',
             'appointment' => new AppointmentResource($appointment),
@@ -2026,7 +2029,7 @@ public function bookSameDayAppointment(Request $request)
         $appointment->delete();
 
         return response()->json([
-            'message' => 'Appointment deleted successfully.'
+            'message' => 'Appointment deleted successfully.',
         ]);
     }
 
@@ -2055,7 +2058,7 @@ public function bookSameDayAppointment(Request $request)
             if ($appointments->isEmpty()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'No appointments found to transfer.'
+                    'message' => 'No appointments found to transfer.',
                 ], 404);
             }
 
@@ -2064,7 +2067,7 @@ public function bookSameDayAppointment(Request $request)
                 ->whereDate('appointment_date', $newDate)
                 ->whereNotIn('status', $this->excludedStatuses)
                 ->pluck('appointment_time')
-                ->map(function($time) {
+                ->map(function ($time) {
                     return Carbon::parse($time)->format('H:i');
                 })
                 ->toArray();
@@ -2083,9 +2086,9 @@ public function bookSameDayAppointment(Request $request)
                     $conflictResolutions[] = [
                         'appointment_id' => $appointment->id,
                         'original_time' => $originalTime,
-                        'new_time' => Carbon::parse($proposedTime)->addMinutes(5)->format('H:i')
+                        'new_time' => Carbon::parse($proposedTime)->addMinutes(5)->format('H:i'),
                     ];
-                    
+
                     $proposedTime = Carbon::parse($proposedTime)->addMinutes(5)->format('H:i');
                 }
 
@@ -2102,10 +2105,10 @@ public function bookSameDayAppointment(Request $request)
 
                 $transferredAppointments[] = [
                     'id' => $appointment->id,
-                    'patient_name' => $appointment->patient->Firstname . ' ' . $appointment->patient->Lastname,
+                    'patient_name' => $appointment->patient->Firstname.' '.$appointment->patient->Lastname,
                     'original_time' => $originalTime,
                     'new_time' => $proposedTime,
-                    'time_changed' => $originalTime !== $proposedTime
+                    'time_changed' => $originalTime !== $proposedTime,
                 ];
             }
 
@@ -2119,8 +2122,8 @@ public function bookSameDayAppointment(Request $request)
                     'appointments' => $transferredAppointments,
                     'conflict_resolutions' => $conflictResolutions,
                     'new_doctor_id' => $newDoctorId,
-                    'new_date' => $newDate
-                ]
+                    'new_date' => $newDate,
+                ],
             ]);
 
         } catch (\Exception $e) {
@@ -2128,12 +2131,12 @@ public function bookSameDayAppointment(Request $request)
             Log::error('Error transferring appointments', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to transfer appointments: ' . $e->getMessage()
+                'message' => 'Failed to transfer appointments: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -2180,10 +2183,10 @@ public function bookSameDayAppointment(Request $request)
         $this->initAvailabilityData($doctorId);
 
         // Check if the time slot is already booked, excluding the current appointment's ID
-        if (!Appointment::isSlotAvailableForUpdate($doctorId, $appointmentDate, $appointmentTime, $this->excludedStatuses, $appointment->id)) {
+        if (! Appointment::isSlotAvailableForUpdate($doctorId, $appointmentDate, $appointmentTime, $this->excludedStatuses, $appointment->id)) {
             return response()->json([
                 'message' => 'This time slot is already booked.',
-                'errors' => ['appointment_time' => ['The selected time slot is no longer available.']]
+                'errors' => ['appointment_time' => ['The selected time slot is no longer available.']],
             ], 422);
         }
 
@@ -2225,20 +2228,20 @@ public function bookSameDayAppointment(Request $request)
             // normalize incoming prestation ids
             $incomingPrestations = [];
             if ($request->filled('prestation_id')) {
-                $incomingPrestations[] = (int)$request->input('prestation_id');
+                $incomingPrestations[] = (int) $request->input('prestation_id');
             }
             if ($request->has('prestations') && is_array($request->input('prestations'))) {
                 $incomingPrestations = array_merge($incomingPrestations, $request->input('prestations'));
             }
             $incomingPrestations = array_values(array_unique(array_filter($incomingPrestations)));
 
-            if (!empty($incomingPrestations)) {
+            if (! empty($incomingPrestations)) {
                 // existing prestation ids for this appointment
-                $existing = AppointmentPrestation::where('appointment_id', $appointment->id)->pluck('prestation_id')->map(fn($v) => (int)$v)->toArray();
+                $existing = AppointmentPrestation::where('appointment_id', $appointment->id)->pluck('prestation_id')->map(fn ($v) => (int) $v)->toArray();
 
                 // delete ones removed
                 $toDelete = array_diff($existing, $incomingPrestations);
-                if (!empty($toDelete)) {
+                if (! empty($toDelete)) {
                     AppointmentPrestation::where('appointment_id', $appointment->id)->whereIn('prestation_id', $toDelete)->delete();
                 }
 
@@ -2247,8 +2250,8 @@ public function bookSameDayAppointment(Request $request)
                 foreach ($toAdd as $pid) {
                     AppointmentPrestation::create([
                         'appointment_id' => $appointment->id,
-                        'prestation_id' => (int)$pid,
-                        'description' => null
+                        'prestation_id' => (int) $pid,
+                        'description' => null,
                     ]);
                 }
             } else {

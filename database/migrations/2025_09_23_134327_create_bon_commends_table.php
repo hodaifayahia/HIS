@@ -15,6 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('bonCommendCode')->unique();
             $table->foreignId('fournisseur_id')->constrained('fournisseurs');
+            $table->date('order_date')->nullable();
+            $table->date('expected_delivery_date')->nullable();
+            $table->string('priority')->nullable();
+
             $table->foreignId('service_demand_purchasing_id')->constrained('service_demand_purchasings')->nullable();
             $table->foreignId('created_by')->constrained('users');
             $table->string('status')->default('draft'); // draft, sent, paid, cancelled

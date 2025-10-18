@@ -14,6 +14,10 @@ const props = defineProps({
     formOptions: {
         type: Object,
         required: true
+    },
+    viewMode: {
+        type: Boolean,
+        default: false
     }
 });
 </script>
@@ -36,10 +40,11 @@ const props = defineProps({
                 <div class="form-grid">
                     <div class="form-group">
                         <label class="form-label">Default Duration (Minutes)</label>
-                        <div class="input-with-icon">
+                        <div class="input-with-icon" :class="{ 'read-only-container': viewMode }">
                             <i class="fas fa-clock input-icon"></i>
                             <input v-model="form.default_duration_minutes" type="number" class="form-input with-icon"
-                                placeholder="60" />
+                                :class="{ 'read-only-input': viewMode }" :readonly="viewMode" placeholder="60" />
+                            <i v-if="viewMode" class="fas fa-lock read-only-icon-input" title="This field is read-only"></i>
                         </div>
                         <small class="form-help">Estimated time for this procedure</small>
                     </div>
@@ -105,9 +110,9 @@ const props = defineProps({
             </div>
             <div class="card-content">
                 <div class="form-group w-full">
-                    <label class="form-label">Required Prestations (Informational Only)</label>
+                    <label class="form-label" :class="{ 'read-only-label': viewMode }">Required Prestations (Informational Only)</label>
                     <!-- {{ formOptions.available_prestations }} -->
-                    <div class="select-container">
+                    <div class="select-container" :class="{ 'read-only-container': viewMode }">
                         <MultiSelect
                             v-model="form.required_prestations_info"
                             :options="formOptions.available_prestations"
@@ -116,9 +121,12 @@ const props = defineProps({
                             placeholder="Select Prestations"
                             display="chip"
                             class="primevue-multiselect"
+                            :disabled="viewMode"
+                            :class="{ 'read-only-multiselect': viewMode }"
                         />
+                        <i v-if="viewMode" class="fas fa-lock read-only-icon" title="This field is read-only"></i>
                     </div>
-                    <small class="form-help">Link other prestations typically required before this one</small>
+                    <small class="form-help" :class="{ 'read-only-help': viewMode }">Link other prestations typically required before this one</small>
                 </div>
             </div>
         </div>
@@ -454,6 +462,71 @@ const props = defineProps({
     .summary-value {
         text-align: left;
     }
+}
+
+/* Read-only styles for view mode */
+.read-only-label {
+    color: #6b7280 !important;
+    font-style: italic;
+}
+
+.read-only-container {
+    position: relative;
+}
+
+.read-only-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(107, 114, 128, 0.1) 2px,
+        rgba(107, 114, 128, 0.1) 4px
+    );
+    pointer-events: none;
+    border-radius: 4px;
+    z-index: 1;
+}
+
+.read-only-multiselect {
+    background-color: #f9fafb !important;
+    color: #6b7280 !important;
+    opacity: 0.8;
+}
+
+.read-only-input {
+    background-color: #f9fafb !important;
+    color: #6b7280 !important;
+    border-color: #d1d5db !important;
+}
+
+.read-only-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    color: #9ca3af;
+    font-size: 0.75rem;
+    z-index: 2;
+}
+
+.read-only-icon-input {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    font-size: 0.75rem;
+    z-index: 2;
+}
+
+.read-only-help {
+    color: #9ca3af !important;
+    font-style: italic;
 }
 
 /* Animation for smooth transitions */

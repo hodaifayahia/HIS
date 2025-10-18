@@ -61,6 +61,37 @@ const stockRoutes = [
         props: (route) => ({ serviceId: route.params.id }),
       },
       {
+        path: 'services/:id/orders',
+        name: 'stock.services.orders',
+        component: () => import('../Pages/Apps/stock/services/purchasing/ServiceDemandManagement.vue'),
+        props: (route) => ({ serviceId: route.params.id }),
+      },
+     
+      {
+        path: 'service-demands/create',
+        name: 'stock.service-demands.create',
+        component: () => import('../Pages/Apps/stock/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'create', ...route.params })
+      },
+      {
+        path: 'service-demands/create/:demandId',
+        name: 'stock.service-demands.create.edit',
+        component: () => import('../Pages/Apps/stock/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'create', ...route.params })
+      },
+      {
+        path: 'service-demands/edit/:demandId',
+        name: 'stock.service-demands.edit',
+        component: () => import('../Pages/Apps/stock/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'edit', demandId: route.params.demandId })
+      },
+      {
+        path: 'service-demands/view/:demandId',
+        name: 'stock.service-demands.view',
+        component: () => import('../Pages/Apps/stock/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'view', demandId: route.params.demandId })
+      },
+      {
         path: 'movements',
         name: 'stock.movements',
         component: () => import('../Pages/Apps/stock/StockMovement.vue'),

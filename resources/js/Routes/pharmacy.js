@@ -44,7 +44,7 @@ const pharmacyRoutes = [
         props: (route) => ({ stockageId: route.params.id }),
       },
       {
-        path: 'services-stock',
+        path: 'services',
         name: 'pharmacy.services',
         component: () => import('../Pages/Apps/pharmacy/services/servicesList.vue'),
       },

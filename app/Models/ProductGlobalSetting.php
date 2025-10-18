@@ -11,6 +11,7 @@ class ProductGlobalSetting extends Model
     use HasFactory;
 
     protected $fillable = ['product_id', 'setting_key', 'setting_value', 'description'];
+
     protected $casts = ['setting_value' => 'array']; // Auto-decode JSON
 
     /**
@@ -41,6 +42,7 @@ class ProductGlobalSetting extends Model
     public static function getSetting($productId, $key, $default = null)
     {
         $setting = self::byProductAndKey($productId, $key)->first();
+
         return $setting ? $setting->setting_value : $default;
     }
 
@@ -50,7 +52,7 @@ class ProductGlobalSetting extends Model
             ['product_id' => $productId, 'setting_key' => $key],
             [
                 'setting_value' => $value,
-                'description' => $description
+                'description' => $description,
             ]
         );
     }

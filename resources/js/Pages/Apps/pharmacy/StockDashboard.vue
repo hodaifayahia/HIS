@@ -210,7 +210,7 @@ export default {
 
     const loadExpiringItems = async () => {
       try {
-        const response = await axios.get('/api/pharmacy/inventory/expiring-items');
+        const response = await axios.get('/api/pharmacy/inventory/expiring-soon');
         console.log('Expiring Items API Response:', response.data);
         expiringItems.value = response.data.data || [];
       } catch (error) {

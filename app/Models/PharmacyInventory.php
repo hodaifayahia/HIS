@@ -29,7 +29,7 @@ class PharmacyInventory extends Model
         'purchase_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
         'expiry_date' => 'date',
-        'purchase_date' => 'date'
+        'purchase_date' => 'date',
     ];
 
     // Relationships
@@ -74,10 +74,10 @@ class PharmacyInventory extends Model
 
         if ($this->serial_number) {
             // Format: productCode-batchnumber-serialnumber-expirydate
-            return $productCode . '-' . $batchNumber . '-' . $this->serial_number . '-' . $expiryDate;
+            return $productCode.'-'.$batchNumber.'-'.$this->serial_number.'-'.$expiryDate;
         } else {
             // Format: productCode-batchnumber-expirydate
-            return $productCode . '-' . $batchNumber . '-' . $expiryDate;
+            return $productCode.'-'.$batchNumber.'-'.$expiryDate;
         }
     }
 

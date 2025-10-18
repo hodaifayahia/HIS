@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('products', function (Blueprint $table) {
             // Add quantity_by_box column if it doesn't exist
-            if (!Schema::hasColumn('products', 'quantity_by_box')) {
+            if (! Schema::hasColumn('products', 'quantity_by_box')) {
                 $table->boolean('quantity_by_box')->default(false)->after('boite_de');
             }
         });

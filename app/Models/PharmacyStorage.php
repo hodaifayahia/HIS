@@ -100,7 +100,7 @@ class PharmacyStorage extends Model
     // Pharmacy-specific methods
     public function getStorageTypeLabelAttribute(): string
     {
-        return match($this->type) {
+        return match ($this->type) {
             'general_pharmacy' => 'General Pharmacy Storage',
             'controlled_substances' => 'Controlled Substances Vault',
             'refrigerated' => 'Refrigerated Storage',
@@ -116,7 +116,7 @@ class PharmacyStorage extends Model
 
     public function getSecurityLevelLabelAttribute(): string
     {
-        return match($this->security_level) {
+        return match ($this->security_level) {
             'level_1' => 'Level 1 - Basic Security',
             'level_2' => 'Level 2 - Enhanced Security',
             'level_3' => 'Level 3 - High Security',
@@ -128,7 +128,7 @@ class PharmacyStorage extends Model
 
     public function getAccessControlLevelLabelAttribute(): string
     {
-        return match($this->access_control_level) {
+        return match ($this->access_control_level) {
             'open' => 'Open Access',
             'staff_only' => 'Staff Only',
             'pharmacist_only' => 'Pharmacist Only',
@@ -141,22 +141,22 @@ class PharmacyStorage extends Model
 
     public function isControlledSubstanceStorage(): bool
     {
-        return $this->controlled_substance_vault === true || 
+        return $this->controlled_substance_vault === true ||
                $this->type === 'controlled_substances' ||
                $this->dea_registration_required === true;
     }
 
     public function requiresSpecialHandling(): bool
     {
-        return $this->temperature_controlled || 
-               $this->humidity_controlled || 
+        return $this->temperature_controlled ||
+               $this->humidity_controlled ||
                $this->light_protection ||
                $this->isControlledSubstanceStorage();
     }
 
     public function isTemperatureCompliant($currentTemp = null): bool
     {
-        if (!$this->temperature_controlled || !$currentTemp) {
+        if (! $this->temperature_controlled || ! $currentTemp) {
             return true;
         }
 
@@ -165,7 +165,7 @@ class PharmacyStorage extends Model
 
     public function isHumidityCompliant($currentHumidity = null): bool
     {
-        if (!$this->humidity_controlled || !$currentHumidity) {
+        if (! $this->humidity_controlled || ! $currentHumidity) {
             return true;
         }
 
@@ -179,24 +179,25 @@ class PharmacyStorage extends Model
         if ($this->requiresSpecialHandling()) {
             return 'monitoring_required';
         }
+
         return 'standard';
     }
 
     public function isInspectionDue(): bool
     {
-        if (!$this->next_inspection_due) {
+        if (! $this->next_inspection_due) {
             return false;
         }
-        
+
         return $this->next_inspection_due->isPast();
     }
 
     public function isInspectionOverdue($days = 30): bool
     {
-        if (!$this->next_inspection_due) {
+        if (! $this->next_inspection_due) {
             return false;
         }
-        
+
         return $this->next_inspection_due->addDays($days)->isPast();
     }
 
@@ -206,15 +207,16 @@ class PharmacyStorage extends Model
             return 'non_compliant';
         } elseif ($this->isInspectionDue()) {
             return 'inspection_due';
-        } elseif (!$this->compliance_certification) {
+        } elseif (! $this->compliance_certification) {
             return 'certification_required';
         }
+
         return 'compliant';
     }
 
     public function getComplianceStatusLabelAttribute(): string
     {
-        return match($this->compliance_status) {
+        return match ($this->compliance_status) {
             'compliant' => 'Compliant',
             'inspection_due' => 'Inspection Due',
             'certification_required' => 'Certification Required',
@@ -230,7 +232,7 @@ class PharmacyStorage extends Model
 
     public function getMonitoringSystemLabelAttribute(): string
     {
-        return match($this->monitoring_system) {
+        return match ($this->monitoring_system) {
             'basic' => 'Basic Monitoring',
             'advanced' => 'Advanced Environmental Monitoring',
             'real_time' => 'Real-Time Monitoring with Alerts',
@@ -244,8 +246,8 @@ class PharmacyStorage extends Model
     public function scopeControlledSubstances($query)
     {
         return $query->where('controlled_substance_vault', true)
-                    ->orWhere('type', 'controlled_substances')
-                    ->orWhere('dea_registration_required', true);
+            ->orWhere('type', 'controlled_substances')
+            ->orWhere('dea_registration_required', true);
     }
 
     public function scopeTemperatureControlled($query)
@@ -256,7 +258,7 @@ class PharmacyStorage extends Model
     public function scopeRefrigerated($query)
     {
         return $query->where('refrigeration_unit', true)
-                    ->orWhere('type', 'refrigerated');
+            ->orWhere('type', 'refrigerated');
     }
 
     public function scopeHighSecurity($query)
@@ -277,7 +279,7 @@ class PharmacyStorage extends Model
     public function scopeCompliant($query)
     {
         return $query->where('next_inspection_due', '>', now())
-                    ->whereNotNull('compliance_certification');
+            ->whereNotNull('compliance_certification');
     }
 
     public function scopeByStorageType($query, $type)

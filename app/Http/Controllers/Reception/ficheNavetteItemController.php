@@ -3,39 +3,39 @@
 namespace App\Http\Controllers\Reception;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Reception\ficheNavetteResource;
+use App\Http\Requests\Reception\GetGroupedByInsuredRequest;
+use App\Http\Requests\Reception\GetPatientConventionsRequest;
+use App\Http\Requests\Reception\GetPrestationsByConventionRequest;
+use App\Http\Requests\Reception\GetPrestationsByPackageRequest;
+use App\Http\Requests\Reception\GetPrestationsWithConventionPricingRequest;
+use App\Http\Requests\Reception\StoreConventionPrescriptionRequest;
+use App\Http\Requests\Reception\StoreFicheNavetteItemsRequest;
+use App\Http\Requests\Reception\UpdateFicheNavetteItemRequest;
+use App\Http\Requests\Reception\UploadConventionFilesRequest;
+use App\Http\Resources\Reception\ConventionOrganismeResource;
 use App\Http\Resources\Reception\ficheNavetteItemResource;
-use App\Models\Reception\ficheNavetteItem;
-use App\Models\Reception\ItemDependency;
-use App\Models\Reception\ficheNavette;
+use App\Http\Resources\Reception\FicheNavetteResource;
 use App\Models\manager\RefundAuthorization;
-use App\Services\Reception\ReceptionService;
-use App\Models\CONFIGURATION\PrestationPackageitem;
+use App\Models\Reception\ficheNavette;
+use App\Models\Reception\ficheNavetteItem;
 use App\Services\Reception\ConventionPricingService;
 use App\Services\Reception\FileUploadService;
-use Illuminate\Http\Request;
+use App\Services\Reception\ReceptionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
-use App\Http\Resources\Reception\ConventionOrganismeResource;
-use App\Http\Requests\Reception\StoreFicheNavetteItemsRequest;
-use App\Http\Requests\Reception\StoreConventionPrescriptionRequest;
-use App\Http\Requests\Reception\UploadConventionFilesRequest;
-use App\Http\Requests\Reception\GetPrestationsByPackageRequest;
-use App\Http\Requests\Reception\GetPatientConventionsRequest;
-use App\Http\Requests\Reception\UpdateFicheNavetteItemRequest;
-use App\Http\Requests\Reception\GetPrestationsWithConventionPricingRequest;
-use App\Http\Requests\Reception\GetPrestationsByConventionRequest;
-use App\Http\Requests\Reception\GetGroupedByInsuredRequest;
 
 class ficheNavetteItemController extends Controller
 {
     protected $receptionService;
+
     protected $conventionPricingService;
+
     protected $fileUploadService;
 
     public function __construct(
-        ReceptionService $receptionService, 
+        ReceptionService $receptionService,
         ConventionPricingService $conventionPricingService,
         FileUploadService $fileUploadService
     ) {
@@ -51,12 +51,12 @@ class ficheNavetteItemController extends Controller
     {
         // Remove or comment out the dd() statement
         // dd($request->validated());
-        
-        if (!$ficheNavetteId) {
+
+        if (! $ficheNavetteId) {
             return response()->json([
                 'success' => false,
                 'message' => 'Fiche Navette ID is required',
-                'error' => 'Missing ficheNavetteId parameter'
+                'error' => 'Missing ficheNavetteId parameter',
             ], 400);
         }
 
@@ -66,24 +66,24 @@ class ficheNavetteItemController extends Controller
 
             // Optimize relationship loading
             $updatedFiche->loadMissing([
-                'items' => function($query) {
+                'items' => function ($query) {
                     $query->select(['id', 'fiche_navette_id', 'prestation_id', 'package_id', 'payment_status', 'status', 'final_price']);
                 },
-                'items.prestation:id,name,internal_code,public_price,default_payment_type,min_versement_amount,need_an_appointment',
+                'items.prestation:id,name,internal_code,public_price,default_payment_type,min_versement_amount,get_min_versement_amount_attribute,need_an_appointment',
                 'items.package:id,name,description,price',
-                'items.dependencies' => function($query) {
+                'items.dependencies' => function ($query) {
                     $query->select(['id', 'parent_item_id', 'dependent_prestation_id', 'custom_name']);
                 },
                 'items.dependencies.dependencyPrestation:id,name,internal_code,public_price',
                 'items.convention:id,name,contract_name',
                 'patient:id,first_name,last_name',
-                'creator:id,name'
+                'creator:id,name',
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Items added to Fiche Navette successfully',
-                'data' => new ficheNavetteResource($updatedFiche)
+                'data' => new FicheNavetteResource($updatedFiche),
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -92,8 +92,8 @@ class ficheNavetteItemController extends Controller
                 'error' => $e->getMessage(),
                 'debug' => [
                     'line' => $e->getLine(),
-                    'file' => $e->getFile()
-                ]
+                    'file' => $e->getFile(),
+                ],
             ], 500);
         }
     }
@@ -103,7 +103,6 @@ class ficheNavetteItemController extends Controller
      */
     public function storeConventionPrescription(StoreConventionPrescriptionRequest $request, $ficheNavetteId): JsonResponse
     {
-      
         // Debug: Log what we're receiving
         \Log::info('Convention prescription request received:', [
             'all_data' => $request->all(),
@@ -113,15 +112,15 @@ class ficheNavetteItemController extends Controller
             'has_files' => $request->hasFile('uploadedFiles'),
             'files_count' => $request->hasFile('uploadedFiles') ? count($request->file('uploadedFiles')) : 0,
         ]);
-        
+
         try {
             $validatedData = $request->validated();
             $validatedData['fiche_navette_id'] = $ficheNavetteId;
-            
+
             // Process uploaded files if they exist
             if ($request->hasFile('uploadedFiles')) {
                 $uploadedFiles = [];
-                
+
                 foreach ($request->file('uploadedFiles') as $index => $file) {
                     if ($file && $file->isValid()) {
                         try {
@@ -129,38 +128,38 @@ class ficheNavetteItemController extends Controller
                             if ($this->fileUploadService->validateConventionFile($file)) {
                                 $uploadedFileData = $this->fileUploadService->uploadSingleFile($file);
                                 $uploadedFiles[] = $uploadedFileData;
-                                
+
                                 \Log::info("File {$index} uploaded successfully:", [
                                     'original_name' => $uploadedFileData['original_name'],
                                     'path' => $uploadedFileData['path'],
-                                    'size' => $uploadedFileData['size']
+                                    'size' => $uploadedFileData['size'],
                                 ]);
                             } else {
                                 \Log::warning("File {$index} validation failed:", [
                                     'name' => $file->getClientOriginalName(),
                                     'size' => $file->getSize(),
-                                    'mime' => $file->getMimeType()
+                                    'mime' => $file->getMimeType(),
                                 ]);
                             }
                         } catch (\Exception $fileException) {
                             \Log::error("Error processing file {$index}:", [
                                 'error' => $fileException->getMessage(),
-                                'file_name' => $file->getClientOriginalName()
+                                'file_name' => $file->getClientOriginalName(),
                             ]);
                             // Continue with other files even if one fails
                         }
                     }
                 }
-                
+
                 // Add processed files to validated data
                 $validatedData['uploadedFiles'] = $uploadedFiles;
-                
+
                 \Log::info('Files processed for convention prescription:', [
                     'total_files_processed' => count($uploadedFiles),
-                    'files_data' => $uploadedFiles
+                    'files_data' => $uploadedFiles,
                 ]);
             }
-            
+
             $result = $this->receptionService->createConventionPrescriptionItems($validatedData, $ficheNavetteId);
 
             return response()->json([
@@ -170,17 +169,17 @@ class ficheNavetteItemController extends Controller
                     'items_created' => $result['items_created'],
                     'total_amount' => $result['total_amount'],
                     'items' => ficheNavetteItemResource::collection($result['items']),
-                    'files_uploaded' => isset($validatedData['uploadedFiles']) ? count($validatedData['uploadedFiles']) : 0
-                ]
+                    'files_uploaded' => isset($validatedData['uploadedFiles']) ? count($validatedData['uploadedFiles']) : 0,
+                ],
             ], 201);
         } catch (\Exception $e) {
             \Log::error('Convention prescription creation failed:', [
                 'error' => $e->getMessage(),
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create convention prescription items',
@@ -196,7 +195,7 @@ class ficheNavetteItemController extends Controller
     {
         try {
             $uploadedFiles = [];
-            
+
             foreach ($request->file('files') as $file) {
                 if ($this->fileUploadService->validateConventionFile($file)) {
                     $uploadedFiles[] = $this->fileUploadService->uploadSingleFile($file);
@@ -211,26 +210,28 @@ class ficheNavetteItemController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Files uploaded successfully',
-                'data' => $uploadedFiles
+                'data' => $uploadedFiles,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to upload files',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
 
-    public function getPrestationsByPackage(GetPrestationsByPackageRequest $request, $packageId) {
+    public function getPrestationsByPackage(GetPrestationsByPackageRequest $request, $packageId)
+    {
         try {
             $prestations = $this->receptionService->getPrestationsByPackage($packageId);
+
             return response()->json($prestations);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch prestations',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -243,40 +244,40 @@ class ficheNavetteItemController extends Controller
         try {
             // Find the fiche navette item that contains this file
             $item = ficheNavetteItem::whereJsonContains('uploaded_file', ['id' => $fileId])->first();
-            
-            if (!$item) {
+
+            if (! $item) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'File not found'
+                    'message' => 'File not found',
                 ], 404);
             }
 
             $files = $item->uploaded_file ?? [];
             $file = collect($files)->firstWhere('id', $fileId);
 
-            if (!$file || !isset($file['path'])) {
+            if (! $file || ! isset($file['path'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'File not found'
+                    'message' => 'File not found',
                 ], 404);
             }
 
-            if (!\Storage::disk('public')->exists($file['path'])) {
+            if (! \Storage::disk('public')->exists($file['path'])) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'File does not exist on storage'
+                    'message' => 'File does not exist on storage',
                 ], 404);
             }
 
             return response()->download(
-                storage_path('app/public/' . $file['path']),
+                storage_path('app/public/'.$file['path']),
                 $file['original_name']
             );
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to download file',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -288,23 +289,25 @@ class ficheNavetteItemController extends Controller
     {
         try {
             $ficheNavette = ficheNavette::with([
-                'items.prestation.service', 
+                'items.prestation.service',
                 'items.prestation.specialization',
                 'items.package.items.prestation.service',
                 'items.package.items.prestation.specialization',
                 'items.dependencies.dependencyPrestation.service',
                 'items.dependencies.dependencyPrestation.specialization',
+                'items.nursingConsumptions.product',
+                'items.nursingConsumptions.pharmacy',
                 'items.convention.organisme',
                 'items.doctor',
                 'items.insuredPatient',
                 'patient',
-                'creator'
+                'creator',
             ])->findOrFail($ficheNavetteId);
 
             // Ensure each item has its own dependencies properly linked
-            $ficheNavette->items->each(function($item) {
+            $ficheNavette->items->each(function ($item) {
                 if ($item->dependencies) {
-                    $item->dependencies->each(function($dependency) use ($item) {
+                    $item->dependencies->each(function ($dependency) use ($item) {
                         // Ensure the dependency knows its parent
                         $dependency->parent_item_id = $item->id;
                     });
@@ -315,12 +318,12 @@ class ficheNavetteItemController extends Controller
 
             // Load refund authorizations that belong to these fiche navette items and group by item id
             $refundAuthorizations = [];
-            if (!empty($itemIds)) {
+            if (! empty($itemIds)) {
                 $refundAuthorizations = RefundAuthorization::whereIn('fiche_navette_item_id', $itemIds)
                     ->get()
                     ->groupBy('fiche_navette_item_id')
-                    ->map(function($group) {
-                        return $group->map(function($auth) {
+                    ->map(function ($group) {
+                        return $group->map(function ($auth) {
                             return $auth->toArray();
                         })->values();
                     })->toArray();
@@ -335,8 +338,8 @@ class ficheNavetteItemController extends Controller
                     'total_items' => $ficheNavette->items->count(),
                     'total_amount' => $ficheNavette->items->sum('final_price'),
                     'patient_name' => $ficheNavette->patient_name ?? 'Unknown',
-                    'fiche_date' => $ficheNavette->fiche_date
-                ]
+                    'fiche_date' => $ficheNavette->fiche_date,
+                ],
             ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching fiche navette items:', [
@@ -345,11 +348,11 @@ class ficheNavetteItemController extends Controller
                 'line' => $e->getLine(),
                 'file' => $e->getFile(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch fiche navette items',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -365,13 +368,61 @@ class ficheNavetteItemController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Item updated successfully',
-                'data' => new ficheNavetteResource($updatedFiche)
+                'data' => new FicheNavetteResource($updatedFiche),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update item',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Update a specific item dependency (only default_payment_type for now)
+     */
+    public function updateDependency(Request $request, $dependencyId): JsonResponse
+    {
+        try {
+            $dependency = \App\Models\Reception\ItemDependency::findOrFail($dependencyId);
+
+            $allowed = ['Pré-paiement', 'Post-paiement', 'Versement'];
+            $value = $request->input('default_payment_type');
+
+            if (! in_array($value, $allowed) && $value !== null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid payment type',
+                ], 422);
+            }
+
+            $dependency->default_payment_type = $value;
+            $dependency->save();
+
+            // Return the parent fiche navette refreshed items so frontend can re-render
+            $parentItem = $dependency->parentItem;
+            $fiche = $parentItem ? $parentItem->ficheNavette : null;
+
+            if ($fiche) {
+                $fiche->loadMissing(['items.prestation', 'items.dependencies.dependencyPrestation', 'items.convention', 'patient', 'creator']);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Dependency updated',
+                    'data' => new FicheNavetteResource($fiche),
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Dependency updated',
+                'data' => null,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update dependency',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -384,11 +435,11 @@ class ficheNavetteItemController extends Controller
         try {
             $conventionIds = $request->validated()['convention_ids'];
             $priseEnChargeDate = $request->validated()['prise_en_charge_date'];
-            
-            if (!$conventionIds) {
+
+            if (! $conventionIds) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Convention IDs are required'
+                    'message' => 'Convention IDs are required',
                 ], 400);
             }
 
@@ -399,22 +450,21 @@ class ficheNavetteItemController extends Controller
 
             $prestationsWithPricing = $this->conventionPricingService
                 ->getPrestationsWithDateBasedPricing($conventionIds, $priseEnChargeDate);
-
             return response()->json([
                 'success' => true,
                 'data' => $prestationsWithPricing,
                 'meta' => [
                     'prise_en_charge_date' => $priseEnChargeDate,
                     'convention_count' => count($conventionIds),
-                    'prestation_count' => count($prestationsWithPricing)
-                ]
+                    'prestation_count' => count($prestationsWithPricing),
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch prestations with convention pricing',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -426,7 +476,7 @@ class ficheNavetteItemController extends Controller
     {
         try {
             $priseEnChargeDate = $request->validated()['prise_en_charge_date'];
-            
+
             $prestations = $this->conventionPricingService
                 ->getConventionPrestationsForDate($conventionId, $priseEnChargeDate ? \Carbon\Carbon::parse($priseEnChargeDate) : \Carbon\Carbon::now());
 
@@ -436,15 +486,15 @@ class ficheNavetteItemController extends Controller
                 'meta' => [
                     'convention_id' => $conventionId,
                     'prise_en_charge_date' => $priseEnChargeDate,
-                    'prestation_count' => count($prestations)
-                ]
+                    'prestation_count' => count($prestations),
+                ],
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch prestations by convention',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -460,13 +510,13 @@ class ficheNavetteItemController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Item removed successfully',
-                'data' => new ficheNavetteResource($updatedFiche)
+                'data' => new FicheNavetteResource($updatedFiche),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to remove item',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -484,14 +534,14 @@ class ficheNavetteItemController extends Controller
                 'data' => $groupedItems,
                 'meta' => [
                     'groups_count' => count($groupedItems),
-                    'total_items' => collect($groupedItems)->sum('prestations_count')
-                ]
+                    'total_items' => collect($groupedItems)->sum('prestations_count'),
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch grouped items',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -561,8 +611,13 @@ class ficheNavetteItemController extends Controller
                             ->pluck('uploaded_file')
                             ->filter()
                             ->flatMap(function ($file) {
-                                if (is_array($file)) return $file;
-                                if (is_string($file)) return json_decode($file, true) ?: [];
+                                if (is_array($file)) {
+                                    return $file;
+                                }
+                                if (is_string($file)) {
+                                    return json_decode($file, true) ?: [];
+                                }
+
                                 return [];
                             })
                             ->filter()
@@ -572,6 +627,7 @@ class ficheNavetteItemController extends Controller
                         return [
                             'id' => $convention->id,
                             'convention_name' => $convention->name,
+                            'convention_percentage' => $convention->conventionDetail->discount_percentage ?? null,
                             'status' => $convention->status,
                             'uploaded_files' => $uploadedFiles,
                             'prestations' => $conventionPrestations->map(function ($prestation) {
@@ -618,29 +674,29 @@ class ficheNavetteItemController extends Controller
         try {
             // Find the fiche navette item that contains this file
             $item = ficheNavetteItem::whereJsonContains('uploaded_file', ['id' => $fileId])->first();
-            
-            if (!$item) {
+
+            if (! $item) {
                 abort(404, 'File not found');
             }
 
             $fileData = json_decode($item->uploaded_file, true);
-            
-            if (!$fileData || !isset($fileData['path'])) {
+
+            if (! $fileData || ! isset($fileData['path'])) {
                 abort(404, 'File path not found');
             }
 
-            if (!Storage::disk('public')->exists($fileData['path'])) {
+            if (! Storage::disk('public')->exists($fileData['path'])) {
                 abort(404, 'File does not exist on storage');
             }
 
             // Return file for viewing in browser
             return response()->file(
-                storage_path('app/public/' . $fileData['path'])
+                storage_path('app/public/'.$fileData['path'])
             );
         } catch (\Exception $e) {
             \Log::error('Error viewing file:', [
                 'file_id' => $fileId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             abort(500, 'Failed to load file');
         }
@@ -654,30 +710,30 @@ class ficheNavetteItemController extends Controller
         try {
             // Find the fiche navette item that contains this file
             $item = ficheNavetteItem::whereJsonContains('uploaded_file', ['id' => $fileId])->first();
-            
-            if (!$item) {
+
+            if (! $item) {
                 abort(404, 'File not found');
             }
 
             $fileData = json_decode($item->uploaded_file, true);
-            
-            if (!$fileData || !isset($fileData['path'])) {
+
+            if (! $fileData || ! isset($fileData['path'])) {
                 abort(404, 'File path not found');
             }
 
-            if (!Storage::disk('public')->exists($fileData['path'])) {
+            if (! Storage::disk('public')->exists($fileData['path'])) {
                 abort(404, 'File does not exist on storage');
             }
 
             // Return file for download
             return response()->download(
-                storage_path('app/public/' . $fileData['path']),
+                storage_path('app/public/'.$fileData['path']),
                 $fileData['original_name'] ?? 'download'
             );
         } catch (\Exception $e) {
             \Log::error('Error downloading file:', [
                 'file_id' => $fileId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             abort(500, 'Failed to download file');
         }
@@ -690,28 +746,28 @@ class ficheNavetteItemController extends Controller
     {
         try {
             $result = $this->receptionService->removeDependency($dependencyId);
-            
+
             if ($result) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Dependency removed successfully'
+                    'message' => 'Dependency removed successfully',
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to remove dependency'
+                    'message' => 'Failed to remove dependency',
                 ], 500);
             }
         } catch (\Exception $e) {
             \Log::error('Error removing dependency:', [
                 'dependency_id' => $dependencyId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to remove dependency',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

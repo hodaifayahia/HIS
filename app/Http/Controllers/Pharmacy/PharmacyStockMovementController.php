@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Pharmacy;
 use App\Http\Controllers\Controller;
 use App\Models\PharmacyMovement;
 use App\Models\PharmacyMovementItem;
-use App\Models\UserSpecialization;
 use App\Models\User;
+use App\Models\UserSpecialization;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -25,44 +25,45 @@ class PharmacyStockMovementController extends Controller
     /**
      * Get user's service
      */
-   private function getUserService()
+    private function getUserService()
     {
         try {
             $user = Auth::user();
-            
-            
-            
+
             // Get user's active specialization
             $userSpecialization = UserSpecialization::where('user_id', $user->id)
-                                                   ->where('status', true)
-                                                   ->with('specialization.service')
-                                                   ->first();
-            
-            if (!$userSpecialization) {
+                ->where('status', 'active')
+                ->with('specialization.service')
+                ->first();
+            if (! $userSpecialization) {
                 \Log::warning('StockMovementController: No active specialization found for user', ['user_id' => $user->id]);
+
                 return null;
             }
-            
-            if (!$userSpecialization->specialization) {
+
+            if (! $userSpecialization->specialization) {
                 \Log::warning('StockMovementController: Specialization not found', ['specialization_id' => $userSpecialization->specialization_id]);
+
                 return null;
             }
-            
-            if (!$userSpecialization->specialization->service) {
+
+            if (! $userSpecialization->specialization->service) {
                 \Log::warning('StockMovementController: Service not found for specialization', [
                     'specialization_id' => $userSpecialization->specialization_id,
-                    'service_id' => $userSpecialization->specialization->service_id
+                    'service_id' => $userSpecialization->specialization->service_id,
                 ]);
+
                 return null;
             }
-            
+
             return $userSpecialization->specialization->service;
-            
+
         } catch (\Exception $e) {
             \Log::error('StockMovementController: Error getting user service', [
                 'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -80,7 +81,7 @@ class PharmacyStockMovementController extends Controller
             },
             'requestingService',
             'providingService',
-            'requestingUser'
+            'requestingUser',
         ]);
 
         // Filter by status
@@ -116,13 +117,13 @@ class PharmacyStockMovementController extends Controller
                     // default to both
                     $query->where(function ($q) use ($userService) {
                         $q->where('requesting_service_id', $userService->id)
-                          ->orWhere('providing_service_id', $userService->id);
+                            ->orWhere('providing_service_id', $userService->id);
                     });
                 }
             } else {
                 $query->where(function ($q) use ($userService) {
                     $q->where('requesting_service_id', $userService->id)
-                      ->orWhere('providing_service_id', $userService->id);
+                        ->orWhere('providing_service_id', $userService->id);
                 });
             }
         }
@@ -136,7 +137,7 @@ class PharmacyStockMovementController extends Controller
         }
 
         $movements = $query->orderBy('created_at', 'desc')
-                           ->paginate($request->get('per_page', 15));
+            ->paginate($request->get('per_page', 15));
 
         // Add unit information and pharmacy-specific data to products
         $movements->each(function ($movement) {
@@ -150,7 +151,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $movements
+            'data' => $movements,
         ]);
     }
 
@@ -162,7 +163,7 @@ class PharmacyStockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -174,13 +175,13 @@ class PharmacyStockMovementController extends Controller
             },
             'providingService',
             'requestingService',
-            'requestingUser'
+            'requestingUser',
         ])
-                  ->where('requesting_service_id', $userService->id)
-                  ->where('status', 'draft')
-                  ->where('requesting_user_id', $user->id)
-                  ->orderBy('updated_at', 'desc')
-                  ->get();
+            ->where('requesting_service_id', $userService->id)
+            ->where('status', 'draft')
+            ->where('requesting_user_id', $user->id)
+            ->orderBy('updated_at', 'desc')
+            ->get();
 
         // Add unit information and pharmacy-specific data to products
         $drafts->each(function ($draft) {
@@ -189,10 +190,10 @@ class PharmacyStockMovementController extends Controller
                     $units = $item->product->inventories->pluck('unit')->filter()->unique();
                     $item->product->unit = $units->first() ?? 'units';
                 }
-                
+
                 // Add pharmacy-specific flags
                 if ($item->product) {
-                    $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                    $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                     $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
                 }
             });
@@ -200,7 +201,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $drafts
+            'data' => $drafts,
         ]);
     }
 
@@ -212,7 +213,7 @@ class PharmacyStockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -223,11 +224,11 @@ class PharmacyStockMovementController extends Controller
                 }]);
             },
             'requestingService',
-            'requestingUser'
+            'requestingUser',
         ])
-                                       ->where('providing_service_id', $userService->id)
-                                       ->where('status', 'pending')
-                                       ->orderBy('created_at', 'desc');
+            ->where('providing_service_id', $userService->id)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc');
 
         $pendingRequests = $query->paginate($request->get('per_page', 15));
 
@@ -238,10 +239,10 @@ class PharmacyStockMovementController extends Controller
                     $units = $item->product->inventories->pluck('unit')->filter()->unique();
                     $item->product->unit = $units->first() ?? 'units';
                 }
-                
+
                 // Add pharmacy-specific flags and alerts
                 if ($item->product) {
-                    $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                    $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                     $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
                     $item->product->requires_prescription = $item->product->requires_prescription ?? false;
                 }
@@ -250,7 +251,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $pendingRequests
+            'data' => $pendingRequests,
         ]);
     }
 
@@ -264,22 +265,22 @@ class PharmacyStockMovementController extends Controller
             'request_reason' => 'nullable|string|max:500',
             'expected_delivery_date' => 'nullable|date|after:today',
             'prescription_reference' => 'nullable|string|max:255',
-            'patient_id' => 'nullable|exists:patients,id'
+            'patient_id' => 'nullable|exists:patients,id',
         ]);
 
         $user = Auth::user();
         $userService = $this->getUserService();
-    
-        if (!$userService) {
+
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
         // Check if user has any draft for this service
         $existingMovement = PharmacyMovement::where('requesting_service_id', $userService->id)
-                                     ->where('providing_service_id', $request->providing_service_id)
-                                     ->where('requesting_user_id', $user->id)
-                                     ->latest()
-                                     ->first();
+            ->where('providing_service_id', $request->providing_service_id)
+            ->where('requesting_user_id', $user->id)
+            ->latest()
+            ->first();
 
         // If there's an existing movement and it's in draft status, return it
         if ($existingMovement && $existingMovement->status === 'draft') {
@@ -289,25 +290,25 @@ class PharmacyStockMovementController extends Controller
                         $inventoryQuery->select('product_id', 'unit');
                     }]);
                 },
-                'providingService'
+                'providingService',
             ]);
-            
+
             // Add unit information and pharmacy-specific data to products
             $data->items->each(function ($item) {
                 if ($item->product && $item->product->inventories) {
                     $units = $item->product->inventories->pluck('unit')->filter()->unique();
                     $item->product->unit = $units->first() ?? 'units';
                 }
-                
+
                 if ($item->product) {
-                    $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                    $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                     $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
                 }
             });
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $data
+                'data' => $data,
             ]);
         }
 
@@ -329,13 +330,13 @@ class PharmacyStockMovementController extends Controller
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
             },
-            'providingService'
+            'providingService',
         ]);
 
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Draft created successfully'
+            'message' => 'Draft created successfully',
         ]);
     }
 
@@ -350,7 +351,7 @@ class PharmacyStockMovementController extends Controller
             'quantity_by_box' => 'boolean',
             'notes' => 'nullable|string|max:255',
             'dosage_instructions' => 'nullable|string|max:500',
-            'administration_route' => 'nullable|string|max:100'
+            'administration_route' => 'nullable|string|max:100',
         ]);
 
         $movement = PharmacyMovement::findOrFail($movementId);
@@ -369,7 +370,7 @@ class PharmacyStockMovementController extends Controller
                 'quantity_by_box' => $request->boolean('quantity_by_box', false),
                 'notes' => $request->notes,
                 'dosage_instructions' => $request->dosage_instructions,
-                'administration_route' => $request->administration_route
+                'administration_route' => $request->administration_route,
             ]);
 
             $data = $existingItem->load([
@@ -377,24 +378,24 @@ class PharmacyStockMovementController extends Controller
                     $query->with(['inventories' => function ($inventoryQuery) {
                         $inventoryQuery->select('product_id', 'unit');
                     }]);
-                }
+                },
             ]);
-            
+
             // Add unit information and pharmacy-specific data to product
             if ($data->product && $data->product->inventories) {
                 $units = $data->product->inventories->pluck('unit')->filter()->unique();
                 $data->product->unit = $units->first() ?? 'units';
             }
-            
+
             if ($data->product) {
-                $data->product->is_controlled = !empty($data->product->controlled_substance_level);
+                $data->product->is_controlled = ! empty($data->product->controlled_substance_level);
                 $data->product->requires_cold_storage = $data->product->storage_temperature_min < 8;
             }
 
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Item updated successfully'
+                'message' => 'Item updated successfully',
             ]);
         }
 
@@ -404,7 +405,7 @@ class PharmacyStockMovementController extends Controller
             'quantity_by_box' => $request->boolean('quantity_by_box', false),
             'notes' => $request->notes,
             'dosage_instructions' => $request->dosage_instructions,
-            'administration_route' => $request->administration_route
+            'administration_route' => $request->administration_route,
         ]);
 
         $data = $item->load([
@@ -412,24 +413,24 @@ class PharmacyStockMovementController extends Controller
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information and pharmacy-specific data to product
         if ($data->product && $data->product->inventories) {
             $units = $data->product->inventories->pluck('unit')->filter()->unique();
             $data->product->unit = $units->first() ?? 'units';
         }
-        
+
         if ($data->product) {
-            $data->product->is_controlled = !empty($data->product->controlled_substance_level);
+            $data->product->is_controlled = ! empty($data->product->controlled_substance_level);
             $data->product->requires_cold_storage = $data->product->storage_temperature_min < 8;
         }
 
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Item added successfully'
+            'message' => 'Item added successfully',
         ]);
     }
 
@@ -444,7 +445,7 @@ class PharmacyStockMovementController extends Controller
             'quantity_by_box' => 'boolean',
             'notes' => 'nullable|string|max:255',
             'dosage_instructions' => 'nullable|string|max:500',
-            'administration_route' => 'nullable|string|max:100'
+            'administration_route' => 'nullable|string|max:100',
         ]);
 
         $movement = PharmacyMovement::findOrFail($movementId);
@@ -462,7 +463,7 @@ class PharmacyStockMovementController extends Controller
             'quantity_by_box' => $request->boolean('quantity_by_box', false),
             'notes' => $request->notes,
             'dosage_instructions' => $request->dosage_instructions,
-            'administration_route' => $request->administration_route
+            'administration_route' => $request->administration_route,
         ]);
 
         $data = $item->load([
@@ -470,24 +471,24 @@ class PharmacyStockMovementController extends Controller
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information and pharmacy-specific data to product
         if ($data->product && $data->product->inventories) {
             $units = $data->product->inventories->pluck('unit')->filter()->unique();
             $data->product->unit = $units->first() ?? 'units';
         }
-        
+
         if ($data->product) {
-            $data->product->is_controlled = !empty($data->product->controlled_substance_level);
+            $data->product->is_controlled = ! empty($data->product->controlled_substance_level);
             $data->product->requires_cold_storage = $data->product->storage_temperature_min < 8;
         }
 
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Item updated successfully'
+            'message' => 'Item updated successfully',
         ]);
     }
 
@@ -507,7 +508,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Item removed successfully'
+            'message' => 'Item removed successfully',
         ]);
     }
 
@@ -540,7 +541,7 @@ class PharmacyStockMovementController extends Controller
 
             $movement->update([
                 'status' => 'pending',
-                'requested_at' => now()
+                'requested_at' => now(),
             ]);
 
             // Notify providing service (placeholder implementation)
@@ -553,7 +554,7 @@ class PharmacyStockMovementController extends Controller
                     $query->with(['inventories' => function ($inventoryQuery) {
                         $inventoryQuery->select('product_id', 'unit');
                     }]);
-                }
+                },
             ]);
 
             // Add unit information to products
@@ -562,10 +563,10 @@ class PharmacyStockMovementController extends Controller
                     $units = $item->product->inventories->pluck('unit')->filter()->unique();
                     $item->product->unit = $units->first() ?? 'units';
                 }
-                
+
                 // Add pharmacy-specific flags
                 if ($item->product) {
-                    $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                    $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                     $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
                     $item->product->requires_prescription = $item->product->requires_prescription ?? false;
                 }
@@ -574,12 +575,13 @@ class PharmacyStockMovementController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Request sent successfully'
+                'message' => 'Request sent successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to send movement: ' . $e->getMessage()], 500);
+
+            return response()->json(['error' => 'Failed to send movement: '.$e->getMessage()], 500);
         }
     }
 
@@ -609,7 +611,7 @@ class PharmacyStockMovementController extends Controller
 
         $movement->update([
             'status' => 'pending',
-            'requested_at' => now()
+            'requested_at' => now(),
         ]);
 
         // Notify providing service
@@ -620,18 +622,18 @@ class PharmacyStockMovementController extends Controller
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information and pharmacy-specific data to products
         $data->items->each(function ($item) {
             if ($item->product && $item->product->inventories) {
                 $units = $item->product->inventories->pluck('unit')->filter()->unique();
                 $item->product->unit = $units->first() ?? 'units';
             }
-            
+
             if ($item->product) {
-                $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                 $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
             }
         });
@@ -639,7 +641,7 @@ class PharmacyStockMovementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Request sent successfully'
+            'message' => 'Request sent successfully',
         ]);
     }
 
@@ -651,167 +653,168 @@ class PharmacyStockMovementController extends Controller
         try {
             // Authentication and authorization checks
             $user = Auth::user();
-            if (!$user) {
+            if (! $user) {
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
 
             $userService = UserSpecialization::where('user_id', $user->id)->first();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json(['error' => 'User service not found'], 403);
             }
 
             $providing_service_id = $request->input('providing_service_id', $userService->providing_service_id);
-            if (!$providing_service_id) {
+            if (! $providing_service_id) {
                 return response()->json(['error' => 'Providing service ID is required'], 400);
             }
 
-        // Get products with different stock levels (pharmacy-specific)
-        $criticalLowStock = DB::table('inventories')
-            ->join('products', 'inventories.product_id', '=', 'products.id')
-            ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
-            ->where('pharmacy_stockages.service_id', $providing_service_id)
-            ->whereRaw('CASE 
+            // Get products with different stock levels (pharmacy-specific)
+            $criticalLowStock = DB::table('inventories')
+                ->join('products', 'inventories.product_id', '=', 'products.id')
+                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+                ->where('pharmacy_stockages.service_id', $providing_service_id)
+                ->whereRaw('CASE 
                 WHEN products.quantity_by_box = true AND products.boite_de > 0 
                 THEN inventories.total_units / products.boite_de <= 5 
                 ELSE inventories.total_units <= 5 
                 END')
-            ->whereRaw('inventories.total_units > 0')
-            ->select(
-                'products.*',
-                'inventories.quantity as current_stock',
-                'inventories.total_units',
-                'inventories.expiry_date',
-                'inventories.batch_number',
-                'pharmacy_stockages.name as storage_name',
-                'pharmacy_stockages.temperature_controlled',
-                'pharmacy_stockages.security_level',
-                'products.category as category_name',
-                'products.controlled_substance_level',
-                'products.requires_prescription',
-                DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
-            )
-            ->orderBy('inventories.total_units', 'asc')
-            ->get();
+                ->whereRaw('inventories.total_units > 0')
+                ->select(
+                    'products.*',
+                    'inventories.quantity as current_stock',
+                    'inventories.total_units',
+                    'inventories.expiry_date',
+                    'inventories.batch_number',
+                    'pharmacy_stockages.name as storage_name',
+                    'pharmacy_stockages.temperature_controlled',
+                    'pharmacy_stockages.security_level',
+                    'products.category as category_name',
+                    'products.controlled_substance_level',
+                    'products.requires_prescription',
+                    DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
+                )
+                ->orderBy('inventories.total_units', 'asc')
+                ->get();
 
-        $lowStock = DB::table('inventories')
-            ->join('products', 'inventories.product_id', '=', 'products.id')
-            ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
-            ->where('pharmacy_stockages.service_id', $providing_service_id)
-            ->whereRaw('CASE 
+            $lowStock = DB::table('inventories')
+                ->join('products', 'inventories.product_id', '=', 'products.id')
+                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+                ->where('pharmacy_stockages.service_id', $providing_service_id)
+                ->whereRaw('CASE 
                 WHEN products.quantity_by_box = true AND products.boite_de > 0 
                 THEN inventories.total_units / products.boite_de <= 10 AND inventories.total_units / products.boite_de > 5
                 ELSE inventories.total_units <= 10 AND inventories.total_units > 5
                 END')
-            ->select(
-                'products.*',
-                'inventories.quantity as current_stock',
-                'inventories.total_units',
-                'inventories.expiry_date',
-                'inventories.batch_number',
-                'pharmacy_stockages.name as storage_name',
-                'pharmacy_stockages.temperature_controlled',
-                'pharmacy_stockages.security_level',
-                'products.category as category_name',
-                'products.controlled_substance_level',
-                'products.requires_prescription',
-                DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
-            )
-            ->orderBy('inventories.total_units', 'asc')
-            ->get();
+                ->select(
+                    'products.*',
+                    'inventories.quantity as current_stock',
+                    'inventories.total_units',
+                    'inventories.expiry_date',
+                    'inventories.batch_number',
+                    'pharmacy_stockages.name as storage_name',
+                    'pharmacy_stockages.temperature_controlled',
+                    'pharmacy_stockages.security_level',
+                    'products.category as category_name',
+                    'products.controlled_substance_level',
+                    'products.requires_prescription',
+                    DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
+                )
+                ->orderBy('inventories.total_units', 'asc')
+                ->get();
 
-        // Get products expiring soon (within 30 days) - critical for pharmacy
-        $expiringSoon = DB::table('inventories')
-            ->join('products', 'inventories.product_id', '=', 'products.id')
-            ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
-            ->where('pharmacy_stockages.service_id', $providing_service_id)
-            ->whereNotNull('inventories.expiry_date')
-            ->whereRaw('DATEDIFF(inventories.expiry_date, CURDATE()) <= 30')
-            ->whereRaw('DATEDIFF(inventories.expiry_date, CURDATE()) > 0')
-            ->select(
-                'products.*',
-                'inventories.quantity as current_stock',
-                'inventories.total_units',
-                'inventories.expiry_date',
-                'inventories.batch_number',
-                'pharmacy_stockages.name as storage_name',
-                'pharmacy_stockages.temperature_controlled',
-                'pharmacy_stockages.security_level',
-                'products.category as category_name',
-                'products.controlled_substance_level',
-                'products.requires_prescription',
-                DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
-            )
-            ->orderBy('inventories.expiry_date', 'asc')
-            ->get();
+            // Get products expiring soon (within 30 days) - critical for pharmacy
+            $expiringSoon = DB::table('inventories')
+                ->join('products', 'inventories.product_id', '=', 'products.id')
+                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+                ->where('pharmacy_stockages.service_id', $providing_service_id)
+                ->whereNotNull('inventories.expiry_date')
+                ->whereRaw('DATEDIFF(inventories.expiry_date, CURDATE()) <= 30')
+                ->whereRaw('DATEDIFF(inventories.expiry_date, CURDATE()) > 0')
+                ->select(
+                    'products.*',
+                    'inventories.quantity as current_stock',
+                    'inventories.total_units',
+                    'inventories.expiry_date',
+                    'inventories.batch_number',
+                    'pharmacy_stockages.name as storage_name',
+                    'pharmacy_stockages.temperature_controlled',
+                    'pharmacy_stockages.security_level',
+                    'products.category as category_name',
+                    'products.controlled_substance_level',
+                    'products.requires_prescription',
+                    DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
+                )
+                ->orderBy('inventories.expiry_date', 'asc')
+                ->get();
 
-        // Get expired products
-        $expired = DB::table('inventories')
-            ->join('products', 'inventories.product_id', '=', 'products.id')
-            ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
-            ->where('pharmacy_stockages.service_id', $providing_service_id)
-            ->whereNotNull('inventories.expiry_date')
-            ->whereRaw('inventories.expiry_date < CURDATE()')
-            ->whereRaw('inventories.total_units > 0')
-            ->select(
-                'products.*',
-                'inventories.quantity as current_stock',
-                'inventories.total_units',
-                'inventories.expiry_date',
-                'inventories.batch_number',
-                'pharmacy_stockages.name as storage_name',
-                'pharmacy_stockages.temperature_controlled',
-                'pharmacy_stockages.security_level',
-                'products.category as category_name',
-                'products.controlled_substance_level',
-                'products.requires_prescription',
-                DB::raw('DATEDIFF(CURDATE(), inventories.expiry_date) as days_expired')
-            )
-            ->orderBy('inventories.expiry_date', 'desc')
-            ->get();
+            // Get expired products
+            $expired = DB::table('inventories')
+                ->join('products', 'inventories.product_id', '=', 'products.id')
+                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+                ->where('pharmacy_stockages.service_id', $providing_service_id)
+                ->whereNotNull('inventories.expiry_date')
+                ->whereRaw('inventories.expiry_date < CURDATE()')
+                ->whereRaw('inventories.total_units > 0')
+                ->select(
+                    'products.*',
+                    'inventories.quantity as current_stock',
+                    'inventories.total_units',
+                    'inventories.expiry_date',
+                    'inventories.batch_number',
+                    'pharmacy_stockages.name as storage_name',
+                    'pharmacy_stockages.temperature_controlled',
+                    'pharmacy_stockages.security_level',
+                    'products.category as category_name',
+                    'products.controlled_substance_level',
+                    'products.requires_prescription',
+                    DB::raw('DATEDIFF(CURDATE(), inventories.expiry_date) as days_expired')
+                )
+                ->orderBy('inventories.expiry_date', 'desc')
+                ->get();
 
-        // Get controlled substances requiring special attention
-        $controlledSubstances = DB::table('inventories')
-            ->join('products', 'inventories.product_id', '=', 'products.id')
-            ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
-            ->where('pharmacy_stockages.service_id', $providing_service_id)
-            ->whereNotNull('products.controlled_substance_level')
-            ->whereRaw('inventories.total_units > 0')
-            ->select(
-                'products.*',
-                'inventories.quantity as current_stock',
-                'inventories.total_units',
-                'inventories.expiry_date',
-                'inventories.batch_number',
-                'pharmacy_stockages.name as storage_name',
-                'pharmacy_stockages.security_level',
-                'products.controlled_substance_level',
-                'products.requires_prescription'
-            )
-            ->orderBy('products.controlled_substance_level', 'desc')
-            ->get();
+            // Get controlled substances requiring special attention
+            $controlledSubstances = DB::table('inventories')
+                ->join('products', 'inventories.product_id', '=', 'products.id')
+                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+                ->where('pharmacy_stockages.service_id', $providing_service_id)
+                ->whereNotNull('products.controlled_substance_level')
+                ->whereRaw('inventories.total_units > 0')
+                ->select(
+                    'products.*',
+                    'inventories.quantity as current_stock',
+                    'inventories.total_units',
+                    'inventories.expiry_date',
+                    'inventories.batch_number',
+                    'pharmacy_stockages.name as storage_name',
+                    'pharmacy_stockages.security_level',
+                    'products.controlled_substance_level',
+                    'products.requires_prescription'
+                )
+                ->orderBy('products.controlled_substance_level', 'desc')
+                ->get();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'critical_low' => $criticalLowStock,
-                'low_stock' => $lowStock,
-                'expiring_soon' => $expiringSoon,
-                'expired' => $expired,
-                'controlled_substances' => $controlledSubstances,
-                'counts' => [
-                    'critical_low' => $criticalLowStock->count(),
-                    'low_stock' => $lowStock->count(),
-                    'expiring_soon' => $expiringSoon->count(),
-                    'expired' => $expired->count(),
-                    'controlled_substances' => $controlledSubstances->count()
-                ]
-            ]
-        ]);
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'critical_low' => $criticalLowStock,
+                    'low_stock' => $lowStock,
+                    'expiring_soon' => $expiringSoon,
+                    'expired' => $expired,
+                    'controlled_substances' => $controlledSubstances,
+                    'counts' => [
+                        'critical_low' => $criticalLowStock->count(),
+                        'low_stock' => $lowStock->count(),
+                        'expiring_soon' => $expiringSoon->count(),
+                        'expired' => $expired->count(),
+                        'controlled_substances' => $controlledSubstances->count(),
+                    ],
+                ],
+            ]);
         } catch (\Exception $e) {
             \Log::error('Error getting suggestions', [
                 'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json(['error' => 'Failed to get suggestions'], 500);
         }
     }
@@ -823,43 +826,43 @@ class PharmacyStockMovementController extends Controller
     {
         $user = Auth::user();
         $userService = $this->getUserService();
-      
-        if (!$userService) {
+
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
         $stats = [
             'draft' => PharmacyMovement::where('requesting_service_id', $userService->id)
-                                   ->where('status', 'draft')->count(),
+                ->where('status', 'draft')->count(),
             'requesting_pending' => PharmacyMovement::where('requesting_service_id', $userService->id)
-                                                ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'providing_pending' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                               ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'approved' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                      ->where('status', 'approved')->count(),
+                ->where('status', 'approved')->count(),
             'rejected' => PharmacyMovement::where('requesting_service_id', $userService->id)
-                                      ->where('status', 'rejected')->count(),
+                ->where('status', 'rejected')->count(),
             'executed' => PharmacyMovement::where(function ($q) use ($userService) {
                 $q->where('requesting_service_id', $userService->id)
-                  ->orWhere('providing_service_id', $userService->id);
+                    ->orWhere('providing_service_id', $userService->id);
             })->where('status', 'executed')->count(),
-            
+
             // Pharmacy-specific stats
             'controlled_substances_pending' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                                            ->where('status', 'pending')
-                                                            ->whereHas('items.product', function ($q) {
-                                                                $q->whereNotNull('controlled_substance_level');
-                                                            })->count(),
+                ->where('status', 'pending')
+                ->whereHas('items.product', function ($q) {
+                    $q->whereNotNull('controlled_substance_level');
+                })->count(),
             'prescription_required_pending' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                                            ->where('status', 'pending')
-                                                            ->whereHas('items.product', function ($q) {
-                                                                $q->where('requires_prescription', true);
-                                                            })->count()
+                ->where('status', 'pending')
+                ->whereHas('items.product', function ($q) {
+                    $q->where('requires_prescription', true);
+                })->count(),
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $stats
+            'data' => $stats,
         ]);
     }
 
@@ -883,8 +886,8 @@ class PharmacyStockMovementController extends Controller
 
         // Check if user has access to this movement
         // Temporarily disabled for testing - TODO: Re-enable with proper authentication
-        // if (!$userService || 
-        //     ($movement->requesting_service_id !== $userService->id && 
+        // if (!$userService ||
+        //     ($movement->requesting_service_id !== $userService->id &&
         //      $movement->providing_service_id !== $userService->id)) {
         //     return response()->json(['error' => 'Unauthorized'], 403);
         // }
@@ -897,25 +900,25 @@ class PharmacyStockMovementController extends Controller
                 $item->product->name;
                 $item->product->description;
             }
-            
+
             // Ensure product name and description are available
             if ($item->product) {
                 $item->product_name = $item->product->name;
                 $item->product_description = $item->product->description;
-                
+
                 // Add pharmacy-specific flags
-                $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                 $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
                 $item->product->requires_prescription = $item->product->requires_prescription ?? false;
             }
-            
+
             // Add provided_quantity (this might be the approved_quantity or requested_quantity based on context)
             $item->provided_quantity = $item->approved_quantity ?? $item->requested_quantity ?? 0;
         });
 
         return response()->json([
             'success' => true,
-            'data' => $movement
+            'data' => $movement,
         ]);
     }
 
@@ -934,7 +937,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Draft deleted successfully'
+            'message' => 'Draft deleted successfully',
         ]);
     }
 
@@ -944,7 +947,7 @@ class PharmacyStockMovementController extends Controller
     public function availableStock($movementId, Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id'
+            'product_id' => 'required|exists:products,id',
         ]);
 
         $movement = PharmacyMovement::findOrFail($movementId);
@@ -954,8 +957,8 @@ class PharmacyStockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement
-        if (!$userService || 
-            ($movement->requesting_service_id !== $userService->id && 
+        if (! $userService ||
+            ($movement->requesting_service_id !== $userService->id &&
              $movement->providing_service_id !== $userService->id)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -977,7 +980,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'available_stock' => $availableStock
+            'available_stock' => $availableStock,
         ]);
     }
 
@@ -991,7 +994,7 @@ class PharmacyStockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement and is the providing service
-        if (!$userService || $movement->providing_service_id !== $userService->id) {
+        if (! $userService || $movement->providing_service_id !== $userService->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -1023,13 +1026,13 @@ class PharmacyStockMovementController extends Controller
                             'id' => $storage->id,
                             'name' => $storage->name,
                             'temperature_controlled' => $storage->temperature_controlled,
-                            'security_level' => $storage->security_level
+                            'security_level' => $storage->security_level,
                         ],
                         'product' => $inventory->product,
                         // Pharmacy-specific flags
-                        'is_controlled' => !empty($inventory->product->controlled_substance_level),
+                        'is_controlled' => ! empty($inventory->product->controlled_substance_level),
                         'requires_cold_storage' => $inventory->product->storage_temperature_min < 8,
-                        'requires_prescription' => $inventory->product->requires_prescription ?? false
+                        'requires_prescription' => $inventory->product->requires_prescription ?? false,
                     ];
                 }
             }
@@ -1037,7 +1040,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $inventoryItems
+            'data' => $inventoryItems,
         ]);
     }
 
@@ -1050,7 +1053,7 @@ class PharmacyStockMovementController extends Controller
             'item_id' => 'required|exists:pharmacy_stock_movement_items,id',
             'selected_inventory' => 'required|array',
             'selected_inventory.*.inventory_id' => 'required|exists:inventories,id',
-            'selected_inventory.*.quantity' => 'required|numeric|min:0.01'
+            'selected_inventory.*.quantity' => 'required|numeric|min:0.01',
         ]);
 
         $movement = PharmacyMovement::findOrFail($movementId);
@@ -1058,7 +1061,7 @@ class PharmacyStockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement and is the providing service
-        if (!$userService || $movement->providing_service_id !== $userService->id) {
+        if (! $userService || $movement->providing_service_id !== $userService->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -1080,14 +1083,14 @@ class PharmacyStockMovementController extends Controller
             foreach ($request->selected_inventory as $selection) {
                 // Verify the inventory item exists and has sufficient quantity
                 $inventory = DB::table('inventories')->find($selection['inventory_id']);
-                if (!$inventory) {
-                    throw new \Exception('Inventory item not found: ' . $selection['inventory_id']);
+                if (! $inventory) {
+                    throw new \Exception('Inventory item not found: '.$selection['inventory_id']);
                 }
-                
+
                 // Use total_units if available, otherwise fall back to quantity
                 $availableQuantity = $inventory->total_units ?? $inventory->quantity;
                 if ($availableQuantity < $selection['quantity']) {
-                    throw new \Exception('Insufficient inventory for item: ' . $inventory->barcode . '. Available: ' . $availableQuantity . ', Requested: ' . $selection['quantity']);
+                    throw new \Exception('Insufficient inventory for item: '.$inventory->barcode.'. Available: '.$availableQuantity.', Requested: '.$selection['quantity']);
                 }
 
                 DB::table('pharmacy_movement_inventory_selections')->insert([
@@ -1095,7 +1098,7 @@ class PharmacyStockMovementController extends Controller
                     'inventory_id' => $selection['inventory_id'],
                     'selected_quantity' => $selection['quantity'],
                     'created_at' => now(),
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
 
                 $totalSelectedQuantity += $selection['quantity'];
@@ -1103,13 +1106,13 @@ class PharmacyStockMovementController extends Controller
 
             // Update the item's provided quantity
             $item->update([
-                'provided_quantity' => $totalSelectedQuantity
+                'provided_quantity' => $totalSelectedQuantity,
             ]);
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Inventory selection saved successfully'
+            'message' => 'Inventory selection saved successfully',
         ]);
     }
 
@@ -1118,9 +1121,9 @@ class PharmacyStockMovementController extends Controller
     {
         $year = date('Y');
         $lastMovement = PharmacyMovement::where('movement_number', 'like', "PM-{$year}-%")
-                                    ->orderBy('id', 'desc')
-                                    ->first();
-        
+            ->orderBy('id', 'desc')
+            ->first();
+
         if ($lastMovement) {
             // Extract the sequential number from the last movement number
             $parts = explode('-', $lastMovement->movement_number);
@@ -1129,8 +1132,8 @@ class PharmacyStockMovementController extends Controller
         } else {
             $nextNumber = 1;
         }
-        
-        return 'PM-' . $year . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+
+        return 'PM-'.$year.'-'.str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
     }
 
     private function notifyService($serviceId, $event, $movement)
@@ -1147,22 +1150,22 @@ class PharmacyStockMovementController extends Controller
     {
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
-            
-            $movement = PharmacyMovement::where('id', $movementId)
-                                   ->where('providing_service_id', $userService->id)
-                                   ->with(['items.product'])
-                                   ->first();
 
-            if (!$movement) {
+            $movement = PharmacyMovement::where('id', $movementId)
+                ->where('providing_service_id', $userService->id)
+                ->with(['items.product'])
+                ->first();
+
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy movement not found or access denied'
+                    'message' => 'Pharmacy movement not found or access denied',
                 ], 404);
             }
 
@@ -1170,7 +1173,7 @@ class PharmacyStockMovementController extends Controller
             if ($movement->status !== 'approved') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy movement must be in approved status to initialize transfer'
+                    'message' => 'Pharmacy movement must be in approved status to initialize transfer',
                 ], 422);
             }
 
@@ -1180,19 +1183,19 @@ class PharmacyStockMovementController extends Controller
                 // Update stock quantities for each approved item and track sender quantities
                 foreach ($movement->items as $item) {
                     $totalSentQuantity = 0;
-                    
+
                     if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
                         foreach ($item->selectedInventory as $selection) {
                             $inventory = $selection->inventory;
-                            
+
                             // Deduct quantity from provider's stock
                             if ($inventory->quantity >= $selection->quantity) {
                                 $inventory->quantity -= $selection->quantity;
                                 $inventory->save();
-                                
+
                                 // Track the quantity being sent
                                 $totalSentQuantity += $selection->quantity;
-                                
+
                                 // Log pharmacy-specific audit trail
                                 DB::table('pharmacy_movement_audit_logs')->insert([
                                     'pharmacy_stock_movement_id' => $movement->id,
@@ -1200,16 +1203,16 @@ class PharmacyStockMovementController extends Controller
                                     'inventory_id' => $inventory->id,
                                     'quantity_changed' => $selection->quantity,
                                     'user_id' => Auth::id(),
-                                    'notes' => 'Stock deducted for transfer - Item: ' . $item->product->name,
+                                    'notes' => 'Stock deducted for transfer - Item: '.$item->product->name,
                                     'created_at' => now(),
-                                    'updated_at' => now()
+                                    'updated_at' => now(),
                                 ]);
                             } else {
-                                throw new \Exception('Insufficient stock for item: ' . $item->product->name);
+                                throw new \Exception('Insufficient stock for item: '.$item->product->name);
                             }
                         }
                     }
-                    
+
                     // Update the item with the actual sent quantity
                     $item->update(['provided_quantity' => $totalSentQuantity]);
                 }
@@ -1218,7 +1221,7 @@ class PharmacyStockMovementController extends Controller
                 $movement->update([
                     'status' => 'in_transit',
                     'transfer_initiated_at' => now(),
-                    'transfer_initiated_by' => Auth::id()
+                    'transfer_initiated_by' => Auth::id(),
                 ]);
 
                 DB::commit();
@@ -1226,7 +1229,7 @@ class PharmacyStockMovementController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Transfer initialized successfully',
-                    'data' => $movement->fresh(['items.product', 'requestingService', 'providingService'])
+                    'data' => $movement->fresh(['items.product', 'requestingService', 'providingService']),
                 ]);
 
             } catch (\Exception $e) {
@@ -1235,14 +1238,14 @@ class PharmacyStockMovementController extends Controller
             }
 
         } catch (\Exception $e) {
-            Log::error('Error initializing pharmacy transfer: ' . $e->getMessage(), [
+            Log::error('Error initializing pharmacy transfer: '.$e->getMessage(), [
                 'movement_id' => $movementId,
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while initializing transfer: ' . $e->getMessage()
+                'message' => 'An error occurred while initializing transfer: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1255,69 +1258,64 @@ class PharmacyStockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
         $stats = [
             'draft' => PharmacyMovement::where('requesting_service_id', $userService->id)
-                                   ->where('status', 'draft')->count(),
+                ->where('status', 'draft')->count(),
             'requesting_pending' => PharmacyMovement::where('requesting_service_id', $userService->id)
-                                                ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'providing_pending' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                               ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'approved' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                      ->where('status', 'approved')->count(),
+                ->where('status', 'approved')->count(),
             'rejected' => PharmacyMovement::where('requesting_service_id', $userService->id)
-                                      ->where('status', 'rejected')->count(),
+                ->where('status', 'rejected')->count(),
             'executed' => PharmacyMovement::where(function ($q) use ($userService) {
                 $q->where('requesting_service_id', $userService->id)
-                  ->orWhere('providing_service_id', $userService->id);
+                    ->orWhere('providing_service_id', $userService->id);
             })->where('status', 'executed')->count(),
-            
+
             // Pharmacy-specific stats
             'controlled_substances_pending' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                                            ->where('status', 'pending')
-                                                            ->whereHas('items.product', function ($q) {
-                                                                $q->whereNotNull('controlled_substance_level');
-                                                            })->count(),
+                ->where('status', 'pending')
+                ->whereHas('items.product', function ($q) {
+                    $q->whereNotNull('controlled_substance_level');
+                })->count(),
             'prescription_required_pending' => PharmacyMovement::where('providing_service_id', $userService->id)
-                                                            ->where('status', 'pending')
-                                                            ->whereHas('items.product', function ($q) {
-                                                                $q->where('requires_prescription', true);
-                                                            })->count()
+                ->where('status', 'pending')
+                ->whereHas('items.product', function ($q) {
+                    $q->where('requires_prescription', true);
+                })->count(),
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $stats
+            'data' => $stats,
         ]);
     }
 
     /**
      * Show specific movement
      */
-   
 
     /**
      * Delete draft movement
      */
-   
 
     /**
      * Get available stock for a product in a movement context
      */
-    
 
     /**
      * Get inventory items for a product in movement context
      */
-   
 
     /**
      * Save selected inventory items for a movement item
      */
-   
 
     /**
      * Get movement statistics with pharmacy-specific metrics
@@ -1360,7 +1358,6 @@ class PharmacyStockMovementController extends Controller
     //     }
     // }
 
-
     /**
      * Get stock movement history with filters.
      */
@@ -1374,7 +1371,7 @@ class PharmacyStockMovementController extends Controller
             },
             'requestingService',
             'providingService',
-            'requestingUser'
+            'requestingUser',
         ]);
 
         // Filter by product
@@ -1404,7 +1401,7 @@ class PharmacyStockMovementController extends Controller
         }
 
         $movements = $query->orderBy('created_at', 'desc')
-                           ->paginate($request->get('per_page', 15));
+            ->paginate($request->get('per_page', 15));
 
         // Add unit information and pharmacy-specific data to products
         $movements->each(function ($movement) {
@@ -1415,7 +1412,7 @@ class PharmacyStockMovementController extends Controller
                 }
                 // Add pharmacy-specific flags
                 if ($item->product) {
-                    $item->product->is_controlled = !empty($item->product->controlled_substance_level);
+                    $item->product->is_controlled = ! empty($item->product->controlled_substance_level);
                     $item->product->requires_cold_storage = $item->product->storage_temperature_min < 8;
                 }
             });
@@ -1423,13 +1420,7 @@ class PharmacyStockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $movements
+            'data' => $movements,
         ]);
     }
-
-    
 }
-
-
-
-

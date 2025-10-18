@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, defineProps, defineEmits, watch, onUnmounted, onMounted } from 'vue';
+import { ref, computed, defineProps, defineEmits, watch, onUnmounted, Suspense, nextTick } from 'vue';
 import { Field, Form } from 'vee-validate';
 import * as yup from 'yup';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import AppointmentBookingWindowModel from '../../../Doctor/AppointmentBookingWin
 // Import services for data fetching (assuming these paths are correct)
 import { modalityService } from '../../services/modality/modalityService';
 import { specializationService } from '../../services/specialization/specializationService';
+import { roomService } from '../../services/infrastructure/roomService';
 
 const props = defineProps({
     showModal: {
@@ -28,6 +29,7 @@ const toaster = useToastr();
 const errors = ref({}); // Used for manual errors like image size
 const specializations = ref([]); // Will hold fetched specializations
 const modalityTypes = ref([]); // Will hold fetched modality types
+const rooms = ref([]); // Will hold fetched rooms
 const isLoading = ref(false); // Used for form submission loading state
 
 const selectedMonths = ref([]); // To handle data from AppointmentBookingWindowModel
@@ -77,24 +79,47 @@ const imagePreview = ref(modality.value.avatar ? modality.value.avatar : null);
 
 const isEditMode = computed(() => !!props.modalityData?.id);
 
-// Fetch dropdown options (Specializations and Modality Types)
+// Optimized fetch dropdown options with caching
+const dropdownCache = ref(null);
 const fetchDropdownOptions = async () => {
+    // Return cached data if available
+    if (dropdownCache.value) {
+        modalityTypes.value = dropdownCache.value.modalityTypes;
+        specializations.value = dropdownCache.value.specializations;
+        rooms.value = dropdownCache.value.rooms;
+        return;
+    }
+
     try {
-        const [modalityTypesResponse, specializationsResponse] = await Promise.all([
+        const [modalityTypesResponse, specializationsResponse, roomsResponse] = await Promise.all([
             modalityService.getModalityTypes(),
             specializationService.getAll(),
+            roomService.getAll(),
         ]);
 
-        if (modalityTypesResponse.success) {
-            modalityTypes.value = modalityTypesResponse.data;
-        } else {
+        const fetchedData = {
+            modalityTypes: modalityTypesResponse.success ? modalityTypesResponse.data : [],
+            specializations: specializationsResponse.success ? specializationsResponse.data : [],
+            rooms: roomsResponse.success ? roomsResponse.data : []
+        };
+
+        // Cache the data
+        dropdownCache.value = fetchedData;
+        
+        // Update reactive refs
+        modalityTypes.value = fetchedData.modalityTypes;
+        specializations.value = fetchedData.specializations;
+        rooms.value = fetchedData.rooms;
+
+        // Show errors only if no data was loaded
+        if (!modalityTypesResponse.success && fetchedData.modalityTypes.length === 0) {
             toaster.error(modalityTypesResponse.message || 'Failed to load modality types');
         }
-
-        if (specializationsResponse.success) {
-            specializations.value = specializationsResponse.data;
-        } else {
+        if (!specializationsResponse.success && fetchedData.specializations.length === 0) {
             toaster.error(specializationsResponse.message || 'Failed to load specializations');
+        }
+        if (!roomsResponse.success && fetchedData.rooms.length === 0) {
+            toaster.error(roomsResponse.message || 'Failed to load rooms');
         }
     } catch (error) {
         console.error('Error fetching dropdown options:', error);
@@ -144,12 +169,54 @@ const getModalitySchema = (isEditMode) => {
     return yup.object(baseSchema);
 };
 
-// Watcher for props.modalityData, mirroring doctor model
+// Optimized watcher for props.modalityData
 watch(
     () => props.modalityData,
     (newValue) => {
-        if (newValue) {
-            // Use available_months for selectedMonths
+        if (newValue && Object.keys(newValue).length > 0) {
+            // Batch update to minimize reactivity overhead
+            const updatedModality = {
+                id: newValue.id || null,
+                name: newValue.name || '',
+                internal_code: newValue.internal_code || '',
+                modality_type_id: newValue.modality_type_id || null,
+                dicom_ae_title: newValue.dicom_ae_title || '',
+                port: newValue.port || null,
+                physical_location_id: newValue.physical_location_id || null,
+                operational_status: newValue.operational_status || 'Working',
+                specialization_id: newValue.specialization_id || null,
+                integration_protocol: newValue.integration_protocol || '',
+                connection_configuration: newValue.connection_configuration || '',
+                data_retrieval_method: newValue.data_retrieval_method || '',
+                ip_address: newValue.ip_address || '',
+                frequency: newValue.frequency || 'Weekly',
+                time_slot_duration: newValue.time_slot_duration || null,
+                slot_type: newValue.slot_type || 'minutes',
+                booking_window: newValue.booking_window || 30,
+                notes: newValue.notes || '',
+                is_active: newValue.is_active !== undefined ? newValue.is_active : true,
+                include_time: !!newValue.include_time,
+                schedules: Array.isArray(newValue.schedules) ? [...newValue.schedules] : [],
+                customDates: Array.isArray(newValue.customDates) ? [...newValue.customDates] : [],
+                start_time_force: newValue.start_time_force || '',
+                end_time_force: newValue.end_time_force || '',
+                number_of_patients: newValue.number_of_patients || '',
+                avatar: newValue.avatar || null,
+                consumption_type: newValue.consumption_type || '',
+                consumption_unit: newValue.consumption_unit || null,
+                appointmentBookingWindow: newValue.available_months
+                    ? newValue.available_months.map((month) => ({
+                        month: month.month,
+                        year: month.year,
+                        is_available: month.is_available,
+                    }))
+                    : []
+            };
+
+            // Single assignment to trigger reactivity once
+            modality.value = updatedModality;
+
+            // Handle selected months separately
             if (newValue.available_months) {
                 selectedMonths.value = newValue.available_months.map((month) => ({
                     value: month.month,
@@ -160,56 +227,13 @@ watch(
                 selectedMonths.value = [];
             }
 
-            modality.value = {
-                ...modality.value,
-                appointmentBookingWindow: newValue.available_months
-                    ? newValue.available_months.map((month) => ({
-                        month: month.month,
-                        year: month.year,
-                        is_available: month.is_available,
-                    }))
-                    : [],
-                id: newValue?.id || null,
-                name: newValue?.name || '',
-                internal_code: newValue?.internal_code || '',
-                modality_type_id: newValue?.modality_type_id || null,
-                dicom_ae_title: newValue?.dicom_ae_title || '',
-                port: newValue?.port || null,
-                physical_location_id: newValue?.physical_location_id || null,
-                operational_status: newValue?.operational_status || 'Working',
-                specialization_id: newValue?.specialization_id || null,
-                integration_protocol: newValue?.integration_protocol || '',
-                connection_configuration: newValue?.connection_configuration || '',
-                data_retrieval_method: newValue?.data_retrieval_method || '',
-                ip_address: newValue?.ip_address || '',
-                frequency: newValue?.frequency || 'Weekly',
-                time_slot_duration: newValue?.time_slot_duration || null,
-                slot_type: newValue?.slot_type || 'minutes',
-                booking_window: newValue?.booking_window || 30,
-                notes: newValue?.notes || '',
-                is_active: newValue?.is_active !== undefined ? newValue.is_active : true,
-                include_time: !!newValue?.include_time, // Ensure boolean
-
-                schedules: Array.isArray(newValue?.schedules) ? [...newValue.schedules] : [],
-                customDates: Array.isArray(newValue?.customDates) ? [...newValue.customDates] : [],
-
-                start_time_force: newValue?.start_time_force,
-                end_time_force: newValue?.end_time_force,
-                number_of_patients: newValue?.number_of_patients || '',
-
-                avatar: newValue?.avatar || null,
-
-                // New fields
-                consumption_type: newValue?.consumption_type || '',
-                consumption_unit: newValue?.consumption_unit || null,
-            };
-
+            // Handle image preview
             if (newValue.avatar) {
                 imagePreview.value = newValue.avatar;
             }
         }
     },
-    { immediate: true, deep: true }
+    { immediate: false } // Changed to false to prevent unnecessary initial trigger
 );
 
 // Handlers for child component updates (v-model will directly update `modality.schedules` and `modality.customDates`)
@@ -257,20 +281,34 @@ const handleFrequencySelectionChange = () => {
     }
 };
 
-// Watch selectedMonths to update modality.appointmentBookingWindow, mirroring Doctor model
+// Debounced watcher for selectedMonths to improve performance
+let monthsTimeout = null;
 watch(
     selectedMonths,
     (newSelectedMonths) => {
-        modality.value.appointmentBookingWindow = newSelectedMonths.map((month) => ({
-            month: month.value, // Use 'month' property for consistency with backend
-            year: month.year, // Include year as per doctor model
-            is_available: month.is_available,
-        }));
+        // Clear previous timeout to debounce
+        if (monthsTimeout) {
+            clearTimeout(monthsTimeout);
+        }
+        
+        monthsTimeout = setTimeout(() => {
+            modality.value.appointmentBookingWindow = newSelectedMonths.map((month) => ({
+                month: month.value,
+                year: month.year,
+                is_available: month.is_available,
+            }));
+        }, 300); // 300ms debounce
     },
     { deep: true }
 );
 
 onUnmounted(() => {
+    // Clean up timeouts
+    if (monthsTimeout) {
+        clearTimeout(monthsTimeout);
+    }
+    
+    // Clean up blob URLs
     if (imagePreview.value && imagePreview.value.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreview.value);
     }
@@ -417,15 +455,18 @@ const submitForm = async (values, { setErrors, resetForm }) => {
     }
 };
 
-onMounted(() => {
-    fetchDropdownOptions();
+// Lazy load dropdown options only when modal is shown
+watch(() => props.showModal, (isVisible) => {
+    if (isVisible) {
+        fetchDropdownOptions();
+    }
 });
 </script>
 
 <template>
     <div class="modal fade overflow-auto" :class="{ show: showModal }" tabindex="-1" aria-labelledby="modalityModalLabel"
         aria-hidden="true" v-if="showModal">
-        <div class="modal-dialog modal-lg">
+    <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">{{ isEditMode ? 'Edit Modality' : 'Add New Modality' }}</h5>
@@ -516,10 +557,15 @@ onMounted(() => {
 
                         <div class="row">
                             <div class="col-md-6 mb-4">
-                                <label for="physical_location_id" class="form-label fs-5">Physical Location ID</label>
-                                <Field type="number" id="physical_location_id" name="physical_location_id"
+                                <label for="physical_location_id" class="form-label fs-5">Physical Location (Room)</label>
+                                <Field as="select" id="physical_location_id" name="physical_location_id"
                                     :class="{ 'is-invalid': validationErrors.physical_location_id }"
-                                    v-model="modality.physical_location_id" class="form-control form-control-md" />
+                                    v-model="modality.physical_location_id" class="form-control form-control-md">
+                                    <option value="">Select Room</option>
+                                    <option v-for="room in rooms" :key="room.id" :value="room.id">
+                                        {{ room.name }} ({{ room.room_number || 'No Number' }})
+                                    </option>
+                                </Field>
                                 <span class="text-sm invalid-feedback">{{ validationErrors.physical_location_id }}</span>
                             </div>
                             <div class="col-md-6 mb-4">
@@ -671,24 +717,57 @@ onMounted(() => {
                         <div class="row">
                             <div class="col-md-12 mb-4">
                                 <label class="form-label fs-5">Appointment Booking Window</label>
-                                <AppointmentBookingWindowModel :isEditMode="isEditMode"
-                                    :appointment-booking-window="modality.appointmentBookingWindow"
-                                    v-model="selectedMonths" />
+                                <Suspense>
+                                    <template #default>
+                                        <AppointmentBookingWindowModel :isEditMode="isEditMode"
+                                            :appointment-booking-window="modality.appointmentBookingWindow"
+                                            v-model="selectedMonths" />
+                                    </template>
+                                    <template #fallback>
+                                        <div class="text-center py-3">
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">Loading booking window...</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </Suspense>
                             </div>
                         </div>
 
                         <div class="row">
                             <div class="col-12" v-if="modality.frequency === 'Daily' || modality.frequency === 'Weekly'">
-                                <DoctorSchedules :modalityId="modality.id" :existingSchedules="modality.schedules"
-                                    :patients_based_on_time="false" :time_slot="modality.time_slot_duration"
-                                    v-model="modality.schedules" @schedulesUpdated="handleSchedulesUpdated" />
+                                <Suspense>
+                                    <template #default>
+                                        <DoctorSchedules :modalityId="modality.id" :existingSchedules="modality.schedules"
+                                            :patients_based_on_time="true" :time_slot="modality.time_slot_duration"
+                                            v-model="modality.schedules" @schedulesUpdated="handleSchedulesUpdated" />
+                                    </template>
+                                    <template #fallback>
+                                        <div class="text-center py-3">
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">Loading schedules...</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </Suspense>
                             </div>
                             <div class="col-md-12 mb-4" v-if="modality.frequency === 'Monthly'">
                                 <label class="form-label fs-5">Custom Dates</label>
-                                <CustomDates :modalityId="modality.id" :existingSchedules="modality.schedules"
-                                    v-model="modality.customDates" :patients_based_on_time="false"
-                                    :time_slot="modality.time_slot_duration"
-                                    @schedulesUpdated="handleCustomDatesUpdated" />
+                                <Suspense>
+                                    <template #default>
+                                        <CustomDates :modalityId="modality.id" :existingSchedules="modality.schedules"
+                                            v-model="modality.customDates" :patients_based_on_time="true"
+                                            :time_slot="modality.time_slot_duration"
+                                            @schedulesUpdated="handleCustomDatesUpdated" />
+                                    </template>
+                                    <template #fallback>
+                                        <div class="text-center py-3">
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">Loading custom dates...</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </Suspense>
                             </div>
                         </div>
 
@@ -732,7 +811,15 @@ onMounted(() => {
 }
 
 .modal-dialog {
-    max-width: 800px;
+    max-width: 1100px; /* increased width for larger modal */
+}
+
+/* Make sure modal fits on small screens */
+@media (max-width: 1200px) {
+    .modal-dialog {
+        max-width: calc(100% - 48px);
+        margin: 1.5rem;
+    }
 }
 
 .modal-overlay {

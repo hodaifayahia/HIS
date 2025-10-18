@@ -1,4 +1,5 @@
 <?php
+
 // app/Http/Requests/Caisse/StoreFinancialTransactionRequest.php
 
 namespace App\Http\Requests\Caisse;
@@ -20,7 +21,7 @@ class StoreFinancialTransactionRequest extends FormRequest
             'fiche_navette_item_id' => 'required|integer',
             'item_dependency_id' => 'nullable|integer|exists:item_dependencies,id',
             'patient_id' => 'required|integer',
-            'cashier_id' => 'required|integer',
+            'cashier_id' => 'nullable|integer|exists:users,id',
             'amount' => 'required|numeric|min:0.01',
             'transaction_type' => 'required|string|in:payment,refund,donation,credit,adjustment',
             'payment_method' => 'required|string|in:cash,card,cheque,transfer,other',

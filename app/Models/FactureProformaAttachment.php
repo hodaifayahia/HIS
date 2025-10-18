@@ -12,7 +12,7 @@ class FactureProformaAttachment extends Model
         'original_filename',
         'path',
         'mime_type',
-        'size'
+        'size',
     ];
 
     public function factureProforma()

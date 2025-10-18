@@ -10,6 +10,9 @@ return new class extends Migration {
             $table->foreignId('doctor_id')->constrained('doctors')->onDelete('cascade');
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->boolean('is_able_to_force')->default(false);
+            $table->boolean('include_time')->default(false);
+            $table->date('specific_date')->nullable();
+
             $table->timestamps();
         });
     }

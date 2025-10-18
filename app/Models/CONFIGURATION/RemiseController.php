@@ -3,19 +3,16 @@
 namespace App\Http\Controllers\CONFIGURATION;
 
 use App\Http\Controllers\Controller;
-use App\Models\CONFIGURATION\Remise;
-use App\Services\CONFIGURATION\RemiseService;
-use App\Models\Reception\ItemDependency;
-use App\Models\Reception\ficheNavetteItem;
-use App\Models\Reception\ficheNavette;
-
 use App\Http\Requests\CONFIGURATION\RemiseRequest;
-use Illuminate\Http\Request;
 use App\Http\Resources\CONFIGURATION\RemiseResource;
-use Illuminate\Http\JsonResponse;
-//DB
+use App\Models\CONFIGURATION\Remise;
+use App\Models\Reception\ficheNavetteItem;
+use App\Models\Reception\ItemDependency;
+use App\Services\CONFIGURATION\RemiseService;
 use DB;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\JsonResponse;
+// DB
+use Illuminate\Http\Request;
 
 class RemiseController extends Controller
 {
@@ -29,7 +26,7 @@ class RemiseController extends Controller
     /**
      * Display a listing of the resource.
      */
-   public function index(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
             // Get all request parameters, including 'search', 'page', 'size'
@@ -51,7 +48,7 @@ class RemiseController extends Controller
                         'to' => $remises->lastItem(),
                         'total' => $remises->total(),
                     ],
-                    'message' => 'Remises retrieved successfully'
+                    'message' => 'Remises retrieved successfully',
                 ], 200);
             }
 
@@ -59,14 +56,15 @@ class RemiseController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => RemiseResource::collection($remises),
-                'message' => 'Remises retrieved successfully'
+                'message' => 'Remises retrieved successfully',
             ], 200);
 
         } catch (\Exception $e) {
-            \Log::error('Error retrieving remises: ' . $e->getMessage(), ['exception' => $e]); // Log the error
+            \Log::error('Error retrieving remises: '.$e->getMessage(), ['exception' => $e]); // Log the error
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error retrieving remises: ' . $e->getMessage()
+                'message' => 'Error retrieving remises: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -75,28 +73,29 @@ class RemiseController extends Controller
     {
         try {
             $userId = $request->input('user_id');
-            
-            if (!$userId) {
+
+            if (! $userId) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User ID is required'
+                    'message' => 'User ID is required',
                 ], 400);
             }
-            
+
             $remises = $this->remiseService->getUserRemises($userId);
             // Remove the dd() statement that was causing the hang
-            
+
             return response()->json([
                 'success' => true,
                 'data' => RemiseResource::collection($remises),
-                'message' => 'User remises retrieved successfully'
+                'message' => 'User remises retrieved successfully',
             ], 200);
 
         } catch (\Exception $e) {
-            \Log::error('Error retrieving user remises: ' . $e->getMessage(), ['exception' => $e]);
+            \Log::error('Error retrieving user remises: '.$e->getMessage(), ['exception' => $e]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error retrieving user remises: ' . $e->getMessage()
+                'message' => 'Error retrieving user remises: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -113,13 +112,13 @@ class RemiseController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => new RemiseResource($remise),
-                'message' => 'Remise created successfully'
+                'message' => 'Remise created successfully',
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error creating remise: ' . $e->getMessage()
+                'message' => 'Error creating remise: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -132,22 +131,22 @@ class RemiseController extends Controller
         try {
             $remise = $this->remiseService->getRemiseById($id);
 
-            if (!$remise) {
+            if (! $remise) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Remise not found'
+                    'message' => 'Remise not found',
                 ], 404);
             }
 
             return response()->json([
                 'success' => true,
                 'data' => new RemiseResource($remise),
-                'message' => 'Remise retrieved successfully'
+                'message' => 'Remise retrieved successfully',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error retrieving remise: ' . $e->getMessage()
+                'message' => 'Error retrieving remise: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -164,13 +163,13 @@ class RemiseController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => new RemiseResource($updatedRemise),
-                'message' => 'Remise updated successfully'
+                'message' => 'Remise updated successfully',
             ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error updating remise: ' . $e->getMessage()
+                'message' => 'Error updating remise: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -186,19 +185,19 @@ class RemiseController extends Controller
             if ($deleted) {
                 return response()->json([
                     'success' => true,
-                    'message' => 'Remise deleted successfully'
+                    'message' => 'Remise deleted successfully',
                 ], 200);
             }
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete remise'
+                'message' => 'Failed to delete remise',
             ], 500);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error deleting remise: ' . $e->getMessage()
+                'message' => 'Error deleting remise: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -212,7 +211,7 @@ class RemiseController extends Controller
                 'custom_user_balance' => 'nullable|array',
                 'custom_doctor_balance' => 'nullable|array',
                 'prestations' => 'nullable|array',
-                'affected_items' => 'required|array'
+                'affected_items' => 'required|array',
             ]);
 
             $affectedItems = $validatedData['affected_items'] ?? [];
@@ -225,14 +224,14 @@ class RemiseController extends Controller
                 $ficheItemId = $itemData['fiche_item_id'] ?? null;
                 $discountedPrice = isset($itemData['discounted_price']) ? (float) $itemData['discounted_price'] : null;
 
-                if (!$ficheItemId) {
+                if (! $ficheItemId) {
                     continue;
                 }
 
                 // If this id is an ItemDependency
                 $dependency = ItemDependency::find($ficheItemId);
                 if ($dependency) {
-                    if (!is_null($discountedPrice)) {
+                    if (! is_null($discountedPrice)) {
                         $dependency->final_price = $discountedPrice;
                         $dependency->save();
                     }
@@ -249,7 +248,7 @@ class RemiseController extends Controller
                 // Otherwise try to update fiche navette item
                 $ficheItem = ficheNavetteItem::find($ficheItemId);
                 if ($ficheItem) {
-                    if (!is_null($discountedPrice)) {
+                    if (! is_null($discountedPrice)) {
                         $ficheItem->final_price = $discountedPrice;
                         $ficheItem->save();
                     }
@@ -267,7 +266,7 @@ class RemiseController extends Controller
                     return (float) ($i->final_price ?? 0);
                 });
 
-                if (!empty($itemIds)) {
+                if (! empty($itemIds)) {
                     $sumDeps = ItemDependency::whereIn('parent_item_id', $itemIds)
                         ->sum(DB::raw('COALESCE(final_price,0)'));
                 }
@@ -282,15 +281,16 @@ class RemiseController extends Controller
                 'data' => [
                     'remise_id' => $validatedData['remise_id'] ?? null,
                     'affected_items' => $affectedItems,
-                    'updated_fiche_ids' => $updatedFicheIds
-                ]
+                    'updated_fiche_ids' => $updatedFicheIds,
+                ],
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error applying remise: ' . $e->getMessage(), ['exception' => $e]);
+            \Log::error('Error applying remise: '.$e->getMessage(), ['exception' => $e]);
+
             return response()->json([
                 'success' => false,
-                'message' => 'Error applying remise: ' . $e->getMessage()
+                'message' => 'Error applying remise: '.$e->getMessage(),
             ], 500);
         }
     }

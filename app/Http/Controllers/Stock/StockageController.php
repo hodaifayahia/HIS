@@ -15,30 +15,30 @@ class StockageController extends \App\Http\Controllers\Controller
      */
     public function index(Request $request)
     {
-    $query = Stockage::with('service:id,name');
+        $query = Stockage::with('service:id,name');
 
         // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
             });
         }
 
         // Filter by type
-        if ($request->has('type') && !empty($request->type)) {
+        if ($request->has('type') && ! empty($request->type)) {
             $query->where('type', $request->type);
         }
 
         // Filter by status
-        if ($request->has('status') && !empty($request->status)) {
+        if ($request->has('status') && ! empty($request->status)) {
             $query->where('status', $request->status);
         }
 
         // Filter by service
-        if ($request->has('service_id') && !empty($request->service_id)) {
+        if ($request->has('service_id') && ! empty($request->service_id)) {
             $query->where('service_id', $request->service_id);
         }
 
@@ -55,8 +55,8 @@ class StockageController extends \App\Http\Controllers\Controller
                 'per_page' => $stockages->perPage(),
                 'total' => $stockages->total(),
                 'from' => $stockages->firstItem(),
-                'to' => $stockages->lastItem()
-            ]
+                'to' => $stockages->lastItem(),
+            ],
         ]);
     }
 
@@ -76,26 +76,26 @@ class StockageController extends \App\Http\Controllers\Controller
             'temperature_controlled' => 'boolean',
             'security_level' => ['nullable', Rule::in(['low', 'medium', 'high', 'restricted'])],
             'location_code' => 'nullable|string|max:255',
-            'warehouse_type' => ['nullable', Rule::in(['Central Pharmacy (PC)', 'Service Pharmacy (PS)'])]
+            'warehouse_type' => ['nullable', Rule::in(['Central Pharmacy (PC)', 'Service Pharmacy (PS)'])],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $data = $request->all();
 
         // Set default status if not provided
-        if (!isset($data['status'])) {
+        if (! isset($data['status'])) {
             $data['status'] = 'active';
         }
 
         // Set default security level if not provided
-        if (!isset($data['security_level'])) {
+        if (! isset($data['security_level'])) {
             $data['security_level'] = 'medium';
         }
 
@@ -104,7 +104,7 @@ class StockageController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Stockage created successfully',
-            'data' => $stockage->load('service:id,name')
+            'data' => $stockage->load('service:id,name'),
         ], 201);
     }
 
@@ -115,7 +115,7 @@ class StockageController extends \App\Http\Controllers\Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $stockage->load('service:id,name')
+            'data' => $stockage->load('service:id,name'),
         ]);
     }
 
@@ -135,14 +135,14 @@ class StockageController extends \App\Http\Controllers\Controller
             'temperature_controlled' => 'boolean',
             'security_level' => ['nullable', Rule::in(['low', 'medium', 'high', 'restricted'])],
             'location_code' => 'nullable|string|max:255',
-            'warehouse_type' => ['nullable', Rule::in(['Central Pharmacy (PC)', 'Service Pharmacy (PS)'])]
+            'warehouse_type' => ['nullable', Rule::in(['Central Pharmacy (PC)', 'Service Pharmacy (PS)'])],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -151,7 +151,7 @@ class StockageController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Stockage updated successfully',
-            'data' => $stockage->load('service:id,name')
+            'data' => $stockage->load('service:id,name'),
         ]);
     }
 
@@ -164,7 +164,7 @@ class StockageController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Stockage deleted successfully'
+            'message' => 'Stockage deleted successfully',
         ]);
     }
 
@@ -181,11 +181,7 @@ class StockageController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'data' => $managers
+            'data' => $managers,
         ]);
     }
-
-   
-
-   
 }

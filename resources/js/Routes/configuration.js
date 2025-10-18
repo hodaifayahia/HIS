@@ -26,6 +26,11 @@ const configurationRoutes = [
                         name: 'admin.configuration.services',
                         component: () => import('../Pages/Apps/Configuration/Services/servicesList.vue'),
                     },
+                    {
+                        path: 'salles',
+                        name: 'admin.configuration.salles',
+                        component: () => import('../Pages/Apps/Configuration/Salles/SallesList.vue'),
+                    },
                     // Uncomment and use these as needed
                     {
                         path: 'modalities',
@@ -71,11 +76,6 @@ const configurationRoutes = [
                         path: 'Role-refund-permission',
                         name: 'admin.configuration.Role-refund-permission',
                         component: () => import('../Components/Apps/Configuration/rolesAndPremissions/ListUsersCanRefund.vue'),
-                    },
-                    {
-                        path: 'Role-caisse-permission',
-                        name: 'admin.configuration.Role-caisse-permission',
-                        component: () => import('../Components/Apps/Configuration/rolesAndPremissions/ListUsersCanApproveCaisse.vue'),
                     },
                     {
                         path: 'transfer-approvals',

@@ -73,7 +73,7 @@
           placeholder="Enter unit price"
           :min="0"
           :fraction-digits="2"
-          currency="USD"
+          currency="DZD"
           locale="en-US"
           class="tw-w-full"
           :class="{
@@ -253,7 +253,7 @@ const formatCurrency = (amount) => {
   if (!amount) return '$0.00'
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
-    currency: 'USD'
+    currency: 'DZD'
   }).format(amount)
 }
 

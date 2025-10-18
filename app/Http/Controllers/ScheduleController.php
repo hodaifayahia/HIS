@@ -20,19 +20,19 @@ class ScheduleController extends Controller
     {
         // Fetch schedules for the specified doctor
         $schedules = Schedule::where('doctor_id', $request->doctor_id)->get();
-    
+
         // Fetch doctor details including name (assuming 'name' is the correct column name)
         $doctor = Doctor::where('id', $request->doctor_id)
-        ->with('user:id,name') // Only select id and name from users table
-        ->first();
+            ->with('user:id,name') // Only select id and name from users table
+            ->first();
+
         // If you want to return both schedules and doctor information
         return [
-            'doctor_name' => $doctor ?$doctor->user->name : null, // Assuming you have a DoctorResource
-            'patients_based_on_time' => $doctor ?$doctor->patients_based_on_time : null, // Assuming you have a DoctorResource
-            'schedules' => ScheduleResource::collection($schedules)
+            'doctor_name' => $doctor ? $doctor->user->name : null, // Assuming you have a DoctorResource
+            'patients_based_on_time' => $doctor ? $doctor->patients_based_on_time : null, // Assuming you have a DoctorResource
+            'schedules' => ScheduleResource::collection($schedules),
         ];
     }
-
 
     public function updateSchedule(Request $request, $doctorId)
     {
@@ -58,7 +58,7 @@ class ScheduleController extends Controller
         try {
             return DB::transaction(function () use ($request, $doctorId) {
                 $doctor = Doctor::findOrFail($doctorId);
-                
+
                 // Update doctor scheduling preferences
                 $doctor->update([
                     'frequency' => $request->frequency,
@@ -72,20 +72,21 @@ class ScheduleController extends Controller
                 // Create new schedules based on frequency
                 if ($request->frequency === 'Monthly' && $request->has('customDates')) {
                     $this->createCustomSchedules($request, $doctor);
-                } else if ($request->has('schedules')) {
+                } elseif ($request->has('schedules')) {
                     $this->createRegularSchedules($request, $doctor);
                 }
 
                 return response()->json([
                     'message' => 'Doctor schedules updated successfully!',
-                    'schedules' => $doctor->fresh()->schedules
+                    'schedules' => $doctor->fresh()->schedules,
                 ]);
             });
         } catch (\Exception $e) {
-            \Log::error('Error updating doctor schedule: ' . $e->getMessage());
+            \Log::error('Error updating doctor schedule: '.$e->getMessage());
+
             return response()->json([
                 'message' => 'Error updating doctor schedule',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -96,7 +97,7 @@ class ScheduleController extends Controller
 
         foreach ($request->customDates as $dateInfo) {
             // Handle morning shift
-            if (!empty($dateInfo['morningStartTime'])) {
+            if (! empty($dateInfo['morningStartTime'])) {
                 $customSchedules[] = $this->prepareScheduleData(
                     $doctor,
                     Carbon::parse($dateInfo['date']),
@@ -110,7 +111,7 @@ class ScheduleController extends Controller
             }
 
             // Handle afternoon shift
-            if (!empty($dateInfo['afternoonStartTime'])) {
+            if (! empty($dateInfo['afternoonStartTime'])) {
                 $customSchedules[] = $this->prepareScheduleData(
                     $doctor,
                     Carbon::parse($dateInfo['date']),
@@ -124,7 +125,7 @@ class ScheduleController extends Controller
             }
 
             // Handle evening shift
-            if (!empty($dateInfo['eveningStartTime'])) {
+            if (! empty($dateInfo['eveningStartTime'])) {
                 $customSchedules[] = $this->prepareScheduleData(
                     $doctor,
                     Carbon::parse($dateInfo['date']),
@@ -138,7 +139,7 @@ class ScheduleController extends Controller
             }
         }
 
-        if (!empty($customSchedules)) {
+        if (! empty($customSchedules)) {
             Schedule::insert($customSchedules);
         }
     }
@@ -167,7 +168,7 @@ class ScheduleController extends Controller
         // Calculate number of patients based on scheduling type
         if ($patients !== null) {
             $numberOfPatients = $patients;
-        } elseif ($request->patients_based_on_time && !empty($request->time_slot)) {
+        } elseif ($request->patients_based_on_time && ! empty($request->time_slot)) {
             $numberOfPatients = $this->calculatePatientsPerShift($startTime, $endTime, $request->time_slot);
         } else {
             $numberOfPatients = $request->number_of_patients_per_day;
@@ -192,18 +193,17 @@ class ScheduleController extends Controller
         $start = Carbon::parse($startTime);
         $end = Carbon::parse($endTime);
         $totalMinutes = $end->diffInMinutes($start);
+
         return (int) floor($totalMinutes / $timeSlot);
     }
 
-    public function destroy($id , Request $request)
+    public function destroy($id, Request $request)
     {
         $schedule = Schedule::where('doctor_id', $id)->where('date', $request->date)->first();
         $schedule->delete();
 
         return response()->json([
-            'message' => 'Schedule deleted successfully!'
+            'message' => 'Schedule deleted successfully!',
         ]);
     }
-    
 }
-

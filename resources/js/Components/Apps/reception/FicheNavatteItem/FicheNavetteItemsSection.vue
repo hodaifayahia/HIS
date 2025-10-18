@@ -1,5 +1,5 @@
 <!-- components/Reception/FicheNavette/FicheNavetteItemsSection.vue -->
-<script setup lang="ts">
+<script setup >
 import Card from 'primevue/card'
 import Button from 'primevue/button'
 import Chip from 'primevue/chip'
@@ -10,7 +10,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import FicheNavetteItemCreate from './FicheNavetteItemCreate.vue'
 import PrestationItemCard from '../FicheNavatte/PrestationItemCard.vue'
 import EmptyState from '../../../Common/EmptyState.vue'
-import { ficheNavetteService } from '../../../Apps/services/Reception/ficheNavetteService'
+import ficheNavetteService from '../../../Apps/services/Reception/ficheNavetteService'
 
 
 const props = defineProps({

@@ -23,18 +23,9 @@ import specializationService from '../../../../Components/Apps/services/speciali
 
 // Props
 const props = defineProps({
-  visible: {
-    type: Boolean,
-    default: false
-  },
-  packageData: {
-    type: Object,
-    default: null
-  },
-  isEditMode: {
-    type: Boolean,
-    default: false
-  }
+  visible: { type: Boolean, default: false },
+  packageData: { type: Object, default: null },
+  isEditMode: { type: Boolean, default: false }
 })
 
 // Emits
@@ -53,7 +44,7 @@ const form = reactive({
   name: '',
   description: '',
   price: 0,
-  is_active: true, // <-- default to true
+  is_active: true, // default true
   prestations: []
 })
 
@@ -65,63 +56,59 @@ const saving = ref(false)
 const prestationsLoading = ref(false)
 const specializationsLoading = ref(false)
 
+// Fix: local computed with getter/setter for checkbox model to sync with form.is_active
+const isActiveModel = computed({
+  get() {
+    return form.is_active
+  },
+  set(value) {
+    form.is_active = value
+  }
+})
+
 // Computed
-const modalTitle = computed(() => {
-  return props.isEditMode ? 'Edit Package' : 'Create New Package'
-})
-
-const submitButtonLabel = computed(() => {
-  return props.isEditMode ? 'Update Package' : 'Create Package'
-})
-
-const submitButtonIcon = computed(() => {
-  return props.isEditMode ? 'pi pi-check' : 'pi pi-plus'
-})
+const modalTitle = computed(() => props.isEditMode ? 'Edit Package' : 'Create New Package')
+const submitButtonLabel = computed(() => props.isEditMode ? 'Update Package' : 'Create Package')
+const submitButtonIcon = computed(() => props.isEditMode ? 'pi pi-check' : 'pi pi-plus')
 
 const filteredPrestations = computed(() => {
-  if (selectedSpecializations.value.length === 0) {
-    return availablePrestations.value
-  }
-  
-  return availablePrestations.value.filter(prestation => {
-    return selectedSpecializations.value.includes(prestation.specialization_id)
-  })
+  if (selectedSpecializations.value.length === 0) return availablePrestations.value
+  return availablePrestations.value.filter(prestation => selectedSpecializations.value.includes(prestation.specialization_id))
 })
 
-const selectedPrestationsDetails = computed(() => {
-  return form.prestations.map(prestationId => {
-    return availablePrestations.value.find(p => p.id === prestationId)
-  }).filter(Boolean)
-})
+const selectedPrestationsDetails = computed(() => 
+  form.prestations
+    .map(id => availablePrestations.value.find(p => p.id === id))
+    .filter(Boolean)
+    .map(p => ({
+      ...p,
+      // coerce price_with_vat to a number to avoid NaN
+      price_with_vat: Number(p.price_with_vat) || 0
+    }))
+)
 
 const totalEstimatedPrice = computed(() => {
-  return selectedPrestationsDetails.value.reduce((total, prestation) => {
-    return total + (prestation.public_price || 0)
-  }, 0)
+  const total = selectedPrestationsDetails.value.reduce((total, prestation) => {
+    const price = Number(prestation.price_with_vat);
+    return total + (isFinite(price) ? price : 0);
+  }, 0);
+  // ensure we always return a finite number
+  return isFinite(total) ? total : 0;
 })
 
-const isFormValid = computed(() => {
-  return form.name && form.name.trim().length > 0 && form.prestations.length > 0
-})
+const isFormValid = computed(() => 
+  String(form.name || '').trim().length > 0 && Array.isArray(form.prestations) && form.prestations.length > 0
+)
 
 // Methods
 const loadSpecializations = async () => {
   specializationsLoading.value = true
   try {
-    const response = await specializationService.getAll()
-    if (response.success) {
-      availableSpecializations.value = response.data || []
-    } else {
-      throw new Error(response.message || 'Failed to load specializations')
-    }
+    const res = await specializationService.getAll()
+    if (res.success) availableSpecializations.value = res.data || []
+    else throw new Error(res.message || 'Failed to load specializations')
   } catch (error) {
-    console.error('Error loading specializations:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load specializations',
-      life: 3000
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load specializations', life: 3000 })
   } finally {
     specializationsLoading.value = false
   }
@@ -130,20 +117,11 @@ const loadSpecializations = async () => {
 const loadPrestations = async () => {
   prestationsLoading.value = true
   try {
-    const response = await prestationService.getAll()
-    if (response.success) {
-      availablePrestations.value = response.data || []
-    } else {
-      throw new Error(response.message || 'Failed to load prestations')
-    }
+    const res = await prestationService.getAll()
+    if (res.success) availablePrestations.value = res.data || []
+    else throw new Error(res.message || 'Failed to load prestations')
   } catch (error) {
-    console.error('Error loading prestations:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load prestations',
-      life: 3000
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to load prestations', life: 3000 })
   } finally {
     prestationsLoading.value = false
   }
@@ -154,7 +132,7 @@ const resetForm = () => {
     name: '',
     description: '',
     price: 0,
-    is_active: true, // <-- default to true
+    is_active: true,
     prestations: []
   })
   selectedSpecializations.value = []
@@ -162,41 +140,82 @@ const resetForm = () => {
 
 const populateForm = () => {
   if (props.packageData) {
+    // Debug logging to see what we're receiving
+    console.log('Populating form with packageData:', props.packageData)
+    console.log('Original is_active value:', props.packageData.is_active, 'Type:', typeof props.packageData.is_active)
+    
+    const normalizedIsActive = (() => {
+      const val = props.packageData.is_active
+      console.log('Normalizing is_active:', val, 'Type:', typeof val)
+      
+      if (val === undefined || val === null) {
+        console.log('is_active is undefined/null, defaulting to true')
+        return true
+      }
+      if (typeof val === 'boolean') {
+        console.log('is_active is boolean:', val)
+        return val
+      }
+      if (typeof val === 'number') {
+        const result = Boolean(val)
+        console.log('is_active is number:', val, '-> boolean:', result)
+        return result
+      }
+      if (typeof val === 'string') {
+        const lower = val.toLowerCase().trim()
+        console.log('is_active is string:', val, 'lowercase:', lower)
+        if (lower === '1' || lower === 'true') {
+          console.log('String resolved to true')
+          return true
+        }
+        if (lower === '0' || lower === 'false') {
+          console.log('String resolved to false')
+          return false
+        }
+        // fallback: coerce numeric-like strings
+        const n = Number(val)
+        const result = !Number.isNaN(n) ? Boolean(n) : true
+        console.log('String fallback:', n, '-> boolean:', result)
+        return result
+      }
+      const result = Boolean(val)
+      console.log('Final fallback Boolean(val):', result)
+      return result
+    })()
+    
+    console.log('Final normalized is_active:', normalizedIsActive)
+    
     Object.assign(form, {
       name: props.packageData.name || '',
       description: props.packageData.description || '',
-      price: props.packageData.price || 0,
-      is_active: props.packageData.is_active ?? true,
+      // coerce saved price to number to avoid string-caused NaN
+      price: Number(props.packageData.price) || 0,
+      is_active: normalizedIsActive,
       prestations: props.packageData.items?.map(item => item.prestation_id) || []
     })
+    
+    console.log('Form after population:', form)
   }
 }
 
 const handleSubmit = async () => {
   if (!isFormValid.value) {
-    toast.add({
-      severity: 'warn',
-      summary: 'Validation Error',
-      detail: 'Please fill in all required fields',
-      life: 3000
-    })
+    toast.add({ severity: 'warn', summary: 'Validation Error', detail: 'Please fill in all required fields', life: 3000 })
     return
   }
 
   saving.value = true
-  
   try {
     const payload = {
-      name: form.name.trim(),
+      name: String(form.name).trim(),
       description: form.description?.trim() || null,
-      price: form.price || 0,
-      is_active: form.is_active,
-      prestations: form.prestations
+      // ensure numeric value
+      price: Number(form.price) || 0,
+      is_active: Boolean(form.is_active),
+      prestations: Array.isArray(form.prestations) ? form.prestations : []
     }
 
-    let response
-    let mode = 'create'
-
+    let response, mode = 'create'
     if (props.isEditMode && props.packageData) {
       response = await prestationPackageService.update(props.packageData.id, payload)
       mode = 'edit'
@@ -206,30 +225,38 @@ const handleSubmit = async () => {
     }
 
     if (response.success) {
-      // Emit the saved package data with populated items
+      // Build a deterministic saved package payload for the parent
       const savedPackage = {
-        ...response.data,
-        items: form.prestations.map(prestationId => {
-          const prestation = availablePrestations.value.find(p => p.id === prestationId)
-          return {
-            prestation_id: prestationId,
-            prestation: prestation
-          }
-        })
+        id: response.data.id ?? props.packageData?.id,
+        name: payload.name,
+        description: payload.description,
+        price: payload.price,
+        is_active: payload.is_active,
+        // items expected by parent list: array of {prestation_id, prestation}
+        items: payload.prestations.map(prestationId => {
+          const p = availablePrestations.value.find(p => p.id === prestationId) || null
+          return { prestation_id: prestationId, prestation: p }
+        }),
+        // include any other server-returned fields if present
+        ...response.data
       }
-      
+      // Ensure is_active is a boolean after merging server response (server may return '0'/'1' strings)
+      if (savedPackage.is_active === undefined || savedPackage.is_active === null) {
+        savedPackage.is_active = Boolean(payload.is_active)
+      } else if (typeof savedPackage.is_active === 'string') {
+        const lower = savedPackage.is_active.toLowerCase().trim()
+        savedPackage.is_active = (lower === '1' || lower === 'true')
+      } else if (typeof savedPackage.is_active === 'number') {
+        savedPackage.is_active = Boolean(savedPackage.is_active)
+      } else {
+        savedPackage.is_active = Boolean(savedPackage.is_active)
+      }
       emit('package-saved', savedPackage, mode)
     } else {
       throw new Error(response.message || `Failed to ${mode} package`)
     }
   } catch (error) {
-    console.error('Error saving package:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: error.message || 'Failed to save package',
-      life: 3000
-    })
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to save package', life: 3000 })
   } finally {
     saving.value = false
   }
@@ -240,36 +267,21 @@ const handleCancel = () => {
   dialogVisible.value = false
 }
 
-const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'DZD'
-  }).format(amount || 0)
-}
+const formatCurrency = (amount) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'DZD' }).format(amount || 0)
 
 const removePrestationFromSelection = (prestationId) => {
   form.prestations = form.prestations.filter(id => id !== prestationId)
 }
 
-const useEstimatedPrice = () => {
-  form.price = totalEstimatedPrice.value
-}
-
 // Watchers
 watch(() => props.visible, (newVal) => {
   if (newVal) {
-    if (props.isEditMode) {
-      populateForm()
-    } else {
-      resetForm()
-    }
+    props.isEditMode ? populateForm() : resetForm()
   }
 })
 
-// Watch for specialization filter changes and clear invalid prestation selections
 watch(selectedSpecializations, () => {
   if (selectedSpecializations.value.length > 0) {
-    // Remove prestations that don't match the selected specializations
     form.prestations = form.prestations.filter(prestationId => {
       const prestation = availablePrestations.value.find(p => p.id === prestationId)
       return prestation && selectedSpecializations.value.includes(prestation.specialization_id)
@@ -286,7 +298,8 @@ onMounted(() => {
 
 <template>
   <Dialog 
-    v-model:visible="dialogVisible"
+    :visible="dialogVisible"
+    @update:visible="val => dialogVisible = val"
     :header="modalTitle"
     :style="{ width: '900px', maxHeight: '90vh' }"
     :modal="true"
@@ -299,7 +312,7 @@ onMounted(() => {
         <template #title>
           <div class="d-flex align-items-center gap-2">
             <i class="fas fa-info-circle text-primary"></i>
-            Basic Information
+            Basic Information 
           </div>
         </template>
         <template #content>
@@ -317,7 +330,7 @@ onMounted(() => {
             </div>
 
             <div class="field">
-              <label for="package-price">Package Price</label>
+              <label for="package-price">Package Price (TTC):</label>
               <InputNumber 
                 id="package-price"
                 v-model="form.price"
@@ -339,9 +352,10 @@ onMounted(() => {
 
             <div class="field">
               <div class="d-flex align-items-center gap-2">
+                <!-- Use computed model for checkbox -->
                 <Checkbox 
                   id="package-active"
-                  v-model="form.is_active"
+                  v-model="isActiveModel"
                   :binary="true"
                 />
                 <label for="package-active">Active Package</label>
@@ -370,7 +384,7 @@ onMounted(() => {
               label="Use Estimated Price"
               icon="pi pi-calculator"
               class="p-button-sm p-button-outlined"
-              @click="useEstimatedPrice"
+              @click="form.price = totalEstimatedPrice"
             />
           </div>
         </template>
@@ -428,7 +442,7 @@ onMounted(() => {
                       </small>
                     </div>
                     <div class="text-primary fw-bold">
-                      {{ formatCurrency(option.public_price) }}
+                      {{ formatCurrency(option.price_with_vat) }}
                     </div>
                   </div>
                 </template>
@@ -459,7 +473,7 @@ onMounted(() => {
                           <i class="fas fa-stethoscope me-1"></i>{{ prestation.specialization?.name }}
                         </small>
                         <div class="text-primary fw-bold">
-                          {{ formatCurrency(prestation.public_price) }}
+                          {{ formatCurrency(prestation.price_with_vat) }}
                         </div>
                       </div>
                       <Button 
@@ -618,23 +632,23 @@ onMounted(() => {
   .form-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .prestations-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .modal-footer {
     flex-direction: column-reverse;
   }
-  
+
   .modal-footer button {
     width: 100%;
   }
-  
+
   .package-form {
     padding: 0 0.5rem;
   }
-  
+
   .filters-row {
     padding: 0.75rem;
   }

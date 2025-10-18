@@ -38,8 +38,8 @@ const form = reactive({
 const doctors = ref([]);
 const specializations = ref([]);
 const importanceLevels = ref([
-    { label: 'Urgent', value: 1 },
-    { label: 'Normal', value: 0 },
+    { label: 'Urgent', value: 0 },
+    { label: 'Normal', value: 1 },
 ]);
 const searchQuery = ref('');
 
@@ -99,10 +99,10 @@ const handlePatientSelect = (patient) => {
 // Handle form submission
 const handleSubmit = async () => {
   // Simple validation to prevent form submission without required fields
-  if (!form.patient_id || !form.specialization_id || !form.doctor_id || (form.is_Daily && !form.importance)) {
-    toastr.error('Please fill in all required fields.');
-    return;
-  }
+  // if (!form.patient_id || !form.specialization_id || !form.doctor_id || (form.is_Daily && !form.importance)) {
+  //   toastr.error('Please fill in all required fields.');
+  //   return;
+  // }
 
   try {
     const method = props.editMode ? 'put' : 'post';

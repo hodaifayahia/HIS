@@ -292,10 +292,10 @@ const saveExcludedDate = async () => {
 <template>
     <div v-if="show">
         <!-- Modal -->
-        <div class="modal fade show overflow-auto" tabindex="-1" role="dialog" aria-labelledby="modalTitle"
+        <div class="modal fade show overflow-auto " tabindex="-1" role="dialog" aria-labelledby="modalTitle"
             aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content p-2">
+            <div class="modal-dialog p-5">
+                <div class="modal-content ">
                     <!-- Modal Header -->
                     <ModalHeader :mode="mode" :isEditMode="isEditMode" @close="closeModal" />
 

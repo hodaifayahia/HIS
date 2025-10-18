@@ -13,12 +13,12 @@ class StockageTool extends Model
         'tool_number',
         'block',
         'shelf_level',
-        'location_code'
+        'location_code',
     ];
 
     protected $casts = [
         'tool_number' => 'integer',
-        'shelf_level' => 'integer'
+        'shelf_level' => 'integer',
     ];
 
     /**
@@ -55,7 +55,7 @@ class StockageTool extends Model
      */
     public function getToolTypeLabelAttribute(): string
     {
-        return match($this->tool_type) {
+        return match ($this->tool_type) {
             'RY' => 'Rayonnage',
             'AR' => 'Armoire',
             'CF' => 'Coffre',
@@ -72,7 +72,7 @@ class StockageTool extends Model
      */
     public function getBlockLabelAttribute(): ?string
     {
-        if ($this->tool_type !== 'RY' || !$this->block) {
+        if ($this->tool_type !== 'RY' || ! $this->block) {
             return null;
         }
 
@@ -95,10 +95,10 @@ class StockageTool extends Model
         $serviceAbv = $this->stockage->service->service_abv;
         $stockageLocationCode = $this->stockage->location_code;
 
-        $base = $serviceAbv . $stockageLocationCode . '-' . $this->tool_type . $this->tool_number;
+        $base = $serviceAbv.$stockageLocationCode.'-'.$this->tool_type.$this->tool_number;
 
         if ($this->tool_type === 'RY' && $this->block && $this->shelf_level) {
-            $base .= '-' . $this->block . $this->shelf_level;
+            $base .= '-'.$this->block.$this->shelf_level;
         }
 
         return $base;

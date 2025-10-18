@@ -1,67 +1,68 @@
 <?php
+
 // app/Services/Caisse/FinancialTransactionService.php
 
 namespace App\Services\Caisse;
 
 use App\Models\Caisse\FinancialTransaction;
+use App\Models\Reception\ficheNavetteItem;
+use App\Models\Reception\ItemDependency;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use App\Models\Reception\ficheNavetteItem;
-use App\Models\Reception\ItemDependency;
 use InvalidArgumentException;
 
 class FinancialTransactionService
 {
     public function getAllPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
-       $query = FinancialTransaction::with([
-        'ficheNavetteItem.prestation.specialization',
-        'ficheNavetteItem.ficheNavette.patient',
-        'ficheNavetteItem',
-        'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
-        'patient',
-        'cashier',
-        'itemDependency'
-    ])
-    ->latest('created_at');
+        $query = FinancialTransaction::with([
+            'ficheNavetteItem.prestation.specialization',
+            'ficheNavetteItem.ficheNavette.patient',
+            'ficheNavetteItem',
+            'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
+            'patient',
+            'cashier',
+            'itemDependency',
+        ])
+            ->latest('created_at');
 
         // Apply filters
-        if (!empty($filters['fiche_navette_item_id'])) {
+        if (! empty($filters['fiche_navette_item_id'])) {
             $query->byFicheNavetteItem($filters['fiche_navette_item_id']);
         }
 
-        if (!empty($filters['prestation_id'])) {
+        if (! empty($filters['prestation_id'])) {
             $query->byPrestation($filters['prestation_id']);
         }
 
-        if (!empty($filters['transaction_type'])) {
+        if (! empty($filters['transaction_type'])) {
             $query->byTransactionType($filters['transaction_type']);
         }
 
-        if (!empty($filters['payment_method'])) {
+        if (! empty($filters['payment_method'])) {
             $query->where('payment_method', $filters['payment_method']);
         }
 
-        if (!empty($filters['cashier_id'])) {
+        if (! empty($filters['cashier_id'])) {
             $query->where('cashier_id', $filters['cashier_id']);
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
-        if (!empty($filters['caisse_id'])) {
+        if (! empty($filters['caisse_id'])) {
             $caisseId = $filters['caisse_id'];
             $query->whereHas('ficheNavetteItem.ficheNavette', function ($q) use ($caisseId) {
                 $q->where('caisse_id', $caisseId);
             });
         }
-        
+
         return $query->paginate($perPage);
     }
 
@@ -74,7 +75,7 @@ class FinancialTransactionService
             'ficheNavetteItem.dependencies.dependencyPrestation.specialization',
             'patient',
             'cashier',
-            'itemDependency'
+            'itemDependency',
         ])->findOrFail($id);
     }
 
@@ -83,7 +84,7 @@ class FinancialTransactionService
         // Get all ficheNavetteItems for this ficheNavette
         $items = ficheNavetteItem::with([
             'prestation',
-            'dependencies.dependencyPrestation'
+            'dependencies.dependencyPrestation',
         ])->where('fiche_navette_id', $ficheNavetteId)->get();
 
         $prestations = [];
@@ -132,7 +133,7 @@ class FinancialTransactionService
         $ficheNavettes = \App\Models\Reception\ficheNavette::where('patient_id', $patientId)
             ->where(function ($q) {
                 $q->whereDate('created_at', now()->toDateString())
-                  ->orWhere('status', '!=', 'payed');
+                    ->orWhere('status', '!=', 'payed');
             })
             ->pluck('id');
 
@@ -153,16 +154,16 @@ class FinancialTransactionService
         return DB::transaction(function () use ($data) {
             // Validate and resolve fiche_navette_item_id if needed
             $data = $this->validateAndResolveFicheNavetteItem($data);
-            
+
             // Create the financial transaction
             // If this is a dependency payment, avoid persisting the parent fiche_navette_item_id
-            if (!empty($data['_is_dependency_payment']) || !empty($data['item_dependency_id'])) {
+            if (! empty($data['_is_dependency_payment']) || ! empty($data['item_dependency_id'])) {
                 // keep flags for later processing but remove parent fiche id to avoid storing it on transaction
                 unset($data['fiche_navette_item_id']);
             }
 
             $transaction = FinancialTransaction::create($data);
-            
+
             return $transaction->load(['ficheNavetteItem', 'patient', 'cashier']);
         });
     }
@@ -170,10 +171,10 @@ class FinancialTransactionService
     /**
      * Validate and resolve fiche navette item ID
      */
-   private function validateAndResolveFicheNavetteItem(array $data): array
+    private function validateAndResolveFicheNavetteItem(array $data): array
     {
         // Extract fiche_navette_item_id from items payload if present
-        if (!empty($data['items'])) {
+        if (! empty($data['items'])) {
             $itemsPayload = $data['items'];
 
             // decode JSON string if necessary
@@ -186,9 +187,9 @@ class FinancialTransactionService
 
             // items can be associative ['fiche_navette_item_id' => 165]
             if (is_array($itemsPayload)) {
-                if (!empty($itemsPayload['fiche_navette_item_id'])) {
+                if (! empty($itemsPayload['fiche_navette_item_id'])) {
                     $data['fiche_navette_item_id'] = (int) $itemsPayload['fiche_navette_item_id'];
-                } elseif (isset($itemsPayload[0]) && is_array($itemsPayload[0]) && !empty($itemsPayload[0]['fiche_navette_item_id'])) {
+                } elseif (isset($itemsPayload[0]) && is_array($itemsPayload[0]) && ! empty($itemsPayload[0]['fiche_navette_item_id'])) {
                     // or an array of items -> take first element
                     $data['fiche_navette_item_id'] = (int) $itemsPayload[0]['fiche_navette_item_id'];
                 }
@@ -196,12 +197,12 @@ class FinancialTransactionService
         }
 
         // Check if item_dependency_id is provided - this indicates a dependency payment
-        if (!empty($data['item_dependency_id'])) {
+        if (! empty($data['item_dependency_id'])) {
             $dependency = ItemDependency::find($data['item_dependency_id']);
-            if (!$dependency) {
+            if (! $dependency) {
                 throw new InvalidArgumentException("Item dependency with ID {$data['item_dependency_id']} not found.");
             }
-            
+
             // Use parent_item_id as the fiche_navette_item_id and mark as dependency payment
             $data['fiche_navette_item_id'] = $dependency->parent_item_id;
             // also persist explicit dependency id so transaction stores it
@@ -210,7 +211,7 @@ class FinancialTransactionService
             $data['_is_dependency_payment'] = true;
             $data['_dependency_id'] = $dependency->id;
             $data['_dependency_prestation_id'] = $dependency->dependent_prestation_id; // Store for later use
-            
+
             return $this->castDataTypes($data);
         }
 
@@ -225,11 +226,11 @@ class FinancialTransactionService
             if ($patient) {
                 // patient_id is valid, try to find items by looking up prestations for this patient
                 // This is a fallback case - normally fiche_navette_item_id should be provided
-                throw new InvalidArgumentException("fiche_navette_item_id is required when patient_id is provided.");
+                throw new InvalidArgumentException('fiche_navette_item_id is required when patient_id is provided.');
             } else {
                 // Assume patient_id is actually prestation_id (legacy behavior)
                 $prestationId = $data['patient_id'];
-                
+
                 // First try to find ficheNavetteItem by prestation_id or package_id
                 $item = ficheNavetteItem::where('prestation_id', $prestationId)
                     ->orWhere('package_id', $prestationId)
@@ -260,15 +261,15 @@ class FinancialTransactionService
             }
         } else {
             // fiche_navette_item_id is provided, check if this is actually a dependency payment
-            if (!empty($data['patient_id'])) {
+            if (! empty($data['patient_id'])) {
                 // If patient_id is provided and valid, keep it as is
                 $patient = \App\Models\Patient::find($data['patient_id']);
-                if (!$patient) {
+                if (! $patient) {
                     // If not a valid patient ID, treat as prestation_id for dependency lookup
                     $dependency = ItemDependency::where('parent_item_id', $data['fiche_navette_item_id'])
                         ->where('dependent_prestation_id', $data['patient_id'])
                         ->first();
-                    
+
                     if ($dependency) {
                         $data['item_dependency_id'] = $dependency->id;
                         $data['_is_dependency_payment'] = true;
@@ -284,12 +285,12 @@ class FinancialTransactionService
 
         // Verify fiche_navette_item exists
         $ficheItem = ficheNavetteItem::find($data['fiche_navette_item_id']);
-        if (!$ficheItem) {
+        if (! $ficheItem) {
             throw new InvalidArgumentException("Fiche navette item with ID {$data['fiche_navette_item_id']} not found.");
         }
 
         // If patient_id still missing or invalid, get it from the fiche
-        if (empty($data['patient_id']) || !\App\Models\Patient::find($data['patient_id'])) {
+        if (empty($data['patient_id']) || ! \App\Models\Patient::find($data['patient_id'])) {
             $data['patient_id'] = $ficheItem->ficheNavette->patient_id;
         }
 
@@ -303,13 +304,20 @@ class FinancialTransactionService
     {
         // Cast IDs and amount to proper types
         $data['fiche_navette_item_id'] = (int) $data['fiche_navette_item_id'];
-        if (!empty($data['patient_id'])) $data['patient_id'] = (int) $data['patient_id'];
-        if (!empty($data['cashier_id'])) $data['cashier_id'] = (int) $data['cashier_id'];
-        if (isset($data['amount'])) $data['amount'] = (float) $data['amount'];
+        if (! empty($data['patient_id'])) {
+            $data['patient_id'] = (int) $data['patient_id'];
+        }
+        if (! empty($data['cashier_id'])) {
+            $data['cashier_id'] = (int) $data['cashier_id'];
+        }
+        if (isset($data['amount'])) {
+            $data['amount'] = (float) $data['amount'];
+        }
 
         return $data;
     }
- public function update(FinancialTransaction $transaction, array $data): FinancialTransaction
+
+    public function update(FinancialTransaction $transaction, array $data): FinancialTransaction
     {
         return DB::transaction(function () use ($transaction, $data) {
             // capture old state
@@ -346,7 +354,7 @@ class FinancialTransactionService
                         $itemDependency->update([
                             'paid_amount' => (float) $newPaid,
                             'remaining_amount' => (float) max(0, (float) $itemDependency->final_price - (float) $newPaid),
-                            'payment_status' => ((float) max(0, (float) $itemDependency->final_price - (float) $newPaid) <= 0) ? 'paid' : 'pending'
+                            'payment_status' => ((float) max(0, (float) $itemDependency->final_price - (float) $newPaid) <= 0) ? 'paid' : 'pending',
                         ]);
                     }
                 } else {
@@ -362,7 +370,7 @@ class FinancialTransactionService
                             $ficheItem->update([
                                 'paid_amount' => (float) $newPaid,
                                 'remaining_amount' => (float) max(0, (float) $ficheItem->final_price - (float) $newPaid),
-                                'payment_status' => ((float) max(0, (float) $ficheItem->final_price - (float) $newPaid) <= 0) ? 'paid' : 'pending'
+                                'payment_status' => ((float) max(0, (float) $ficheItem->final_price - (float) $newPaid) <= 0) ? 'paid' : 'pending',
                             ]);
                         }
                     }
@@ -372,6 +380,7 @@ class FinancialTransactionService
             return $transaction->refresh()->load(['ficheNavetteItem', 'patient', 'cashier']);
         });
     }
+
     /**
      * Process payment and update prestation amounts
      * This function finds the prestation either in ficheNavetteItem or ItemDependency
@@ -383,11 +392,10 @@ class FinancialTransactionService
             throw new InvalidArgumentException('This function only works with payment transactions.');
         }
 
-
         $updated = [];
         $ficheNavetteItemId = $transaction->fiche_navette_item_id;
         $paymentAmount = $transaction->amount;
-        
+
         // Check if this is a dependency payment
         $isDependencyPayment = isset($transaction->_is_dependency_payment) && $transaction->_is_dependency_payment;
         $dependencyId = $transaction->_dependency_id ?? null;
@@ -408,8 +416,8 @@ class FinancialTransactionService
 
                 $updated['item_dependency'] = $itemDependency->fresh();
             }
-        } else if ($ficheNavetteItemId) {
-            
+        } elseif ($ficheNavetteItemId) {
+
             // Regular fiche navette item payment
             $ficheNavetteItem = ficheNavetteItem::find($ficheNavetteItemId);
             if ($ficheNavetteItem) {
@@ -444,7 +452,7 @@ class FinancialTransactionService
         }
 
         if (empty($updated)) {
-            throw new \Exception("Failed to update payment records for transaction. No valid target found.");
+            throw new \Exception('Failed to update payment records for transaction. No valid target found.');
         }
 
         return $updated;
@@ -465,7 +473,7 @@ class FinancialTransactionService
 
         // Check if this is a dependency refund by looking at item_dependency_id or dependency flags
         $dependencyId = $transaction->item_dependency_id ?? $transaction->_dependency_id ?? null;
-        $isDependencyRefund = !empty($dependencyId) || (isset($transaction->_is_dependency_payment) && $transaction->_is_dependency_payment);
+        $isDependencyRefund = ! empty($dependencyId) || (isset($transaction->_is_dependency_payment) && $transaction->_is_dependency_payment);
 
         if ($isDependencyRefund && $dependencyId) {
             // This is a dependency refund - update ItemDependency directly
@@ -473,7 +481,7 @@ class FinancialTransactionService
             if ($itemDependency) {
                 $currentPaidAmount = (float) ($itemDependency->paid_amount ?? 0);
                 $finalPrice = (float) ($itemDependency->final_price ?? 0);
-                
+
                 // Subtract refund amount from paid amount (ensure it doesn't go below 0)
                 $newPaidAmount = max(0, $currentPaidAmount - $refundAmount);
                 $newRemainingAmount = max(0, $finalPrice - $newPaidAmount);
@@ -486,13 +494,13 @@ class FinancialTransactionService
 
                 $updated['item_dependency'] = $itemDependency->fresh();
             }
-        } else if ($ficheNavetteItemId) {
+        } elseif ($ficheNavetteItemId) {
             // Regular fiche navette item refund
             $ficheNavetteItem = ficheNavetteItem::find($ficheNavetteItemId);
             if ($ficheNavetteItem) {
                 $currentPaidAmount = (float) ($ficheNavetteItem->paid_amount ?? 0);
                 $finalPrice = (float) ($ficheNavetteItem->final_price ?? 0);
-                
+
                 // Subtract refund amount from paid amount (ensure it doesn't go below 0)
                 $newPaidAmount = max(0, $currentPaidAmount - $refundAmount);
                 $newRemainingAmount = max(0, $finalPrice - $newPaidAmount);
@@ -508,7 +516,7 @@ class FinancialTransactionService
         }
 
         if (empty($updated)) {
-            throw new \Exception("Failed to update refund records for transaction. No valid target found.");
+            throw new \Exception('Failed to update refund records for transaction. No valid target found.');
         }
 
         return $updated;
@@ -517,21 +525,20 @@ class FinancialTransactionService
     /**
      * Process payment transaction and update prestation
      */
-
     public function processPaymentTransaction(array $data): array
     {
 
         return DB::transaction(function () use ($data) {
             // Validate and resolve fiche_navette_item_id if needed
             $data = $this->validateAndResolveFicheNavetteItem($data);
-        
+
             // Store dependency flags for later use
             $isDependencyPayment = $data['_is_dependency_payment'] ?? false;
             $dependencyId = $data['_dependency_id'] ?? null;
             $dependencyPrestationId = $data['_dependency_prestation_id'] ?? null;
-            
+
             // Remove internal flags and raw items payload to avoid mass-assignment errors
-            $hasDependencyFlags = $isDependencyPayment || !empty($data['item_dependency_id']);
+            $hasDependencyFlags = $isDependencyPayment || ! empty($data['item_dependency_id']);
 
             // keep item_dependency_id in payload but remove transient internal flags
             unset($data['_is_dependency_payment'], $data['_dependency_id'], $data['_dependency_prestation_id']);
@@ -546,18 +553,18 @@ class FinancialTransactionService
 
             // Create the financial transaction (item_dependency_id, if present, will be persisted)
             $transaction = FinancialTransaction::create($data);
-            
+
             // Restore dependency flags for processing
             $transaction->_is_dependency_payment = $isDependencyPayment;
             $transaction->_dependency_id = $dependencyId;
             $transaction->_dependency_prestation_id = $dependencyPrestationId;
-            
+
             // If item_dependency_id was not set in flags but is present in data, use it
-            if (!$dependencyId && !empty($data['item_dependency_id'])) {
+            if (! $dependencyId && ! empty($data['item_dependency_id'])) {
                 $transaction->_is_dependency_payment = true;
                 $transaction->_dependency_id = $data['item_dependency_id'];
             }
-        
+
             // If it's a payment, update the prestation amounts
             $updatedItems = [];
             if ($transaction->transaction_type === 'payment') {
@@ -570,13 +577,25 @@ class FinancialTransactionService
                 }
             }
 
+            // If it's a refund, update prestation amounts accordingly
+            if ($transaction->transaction_type === 'refund') {
+                try {
+                    $updatedItems = $this->processRefundAndUpdatePrestation($transaction);
+                } catch (\Exception $e) {
+                    // If refund processing fails, delete the created transaction and re-throw
+                    $transaction->delete();
+                    throw $e;
+                }
+            }
+
             // Corrected return statement
             return [
                 'transaction' => $transaction->load(['ficheNavetteItem', 'patient', 'cashier']),
-                'updated_items' => $updatedItems
+                'updated_items' => $updatedItems,
             ]; // <-- Semicolon and closing bracket fixed
         }); // <-- Semicolon added
     }
+
     /**
      * Create multiple payment transactions (for bulk payments)
      * Now supports both legacy format and new global payment format
@@ -587,7 +606,7 @@ class FinancialTransactionService
             // Check if this is new global payment format
             if (isset($data['items']) && isset($data['total_amount'])) {
                 $globalResult = $this->processGlobalPayment($data);
-                
+
                 // Return in the expected format with 'payments' key
                 return [
                     'payments' => $globalResult['transactions'] ?? [],
@@ -600,12 +619,12 @@ class FinancialTransactionService
                     'excess_amount' => $globalResult['excess_amount'] ?? 0,
                     'action' => $globalResult['action'] ?? null,
                     'success' => true,
-                    'message' => isset($globalResult['donation_transaction']) 
+                    'message' => isset($globalResult['donation_transaction'])
                         ? "Global payment processed successfully. {$globalResult['excess_amount']} was donated."
-                        : "Global payment processed successfully for {$globalResult['total_processed']} items."
+                        : "Global payment processed successfully for {$globalResult['total_processed']} items.",
                 ];
             }
-            
+
             // Legacy format - array of individual payments
             $results = [];
             $errors = [];
@@ -621,8 +640,8 @@ class FinancialTransactionService
                 }
             }
 
-            if (!empty($errors)) {
-                throw new \Exception('Some payments failed: ' . json_encode($errors));
+            if (! empty($errors)) {
+                throw new \Exception('Some payments failed: '.json_encode($errors));
             }
 
             // Return consistent structure for legacy format
@@ -631,7 +650,7 @@ class FinancialTransactionService
                 'updated_items' => $updatedItems,
                 'total_processed' => count($results),
                 'success' => true,
-                'message' => "Bulk payment processed successfully for " . count($results) . " transactions."
+                'message' => 'Bulk payment processed successfully for '.count($results).' transactions.',
             ];
         });
     }
@@ -647,19 +666,19 @@ class FinancialTransactionService
         $patientId = $data['patient_id'];
         $paymentMethod = $data['payment_method'];
         $notes = $data['notes'] ?? 'Global payment';
-        
+
         $results = [];
         $processedTransactions = [];
         $updatedItems = [];
-        
+
         // Calculate total outstanding amount needed
         $totalOutstanding = 0;
         foreach ($items as $item) {
             $totalOutstanding += $item['amount'];
         }
-        
+
         // Sort items by priority: unpaid first (visa not granted), then partial, then paid
-        usort($items, function($a, $b) {
+        usort($items, function ($a, $b) {
             // Get current paid amounts from database
             if ($a['is_dependency'] ?? false) {
                 $aItem = \App\Models\Reception\ItemDependency::find($a['item_dependency_id']);
@@ -694,22 +713,32 @@ class FinancialTransactionService
             $bIsPaid = $bRemaining <= 0;
 
             // Sort: unpaid first, then partial, then paid
-            if ($aIsUnpaid && !$bIsUnpaid) return -1;
-            if ($bIsUnpaid && !$aIsUnpaid) return 1;
-            if ($aIsPartial && !$bIsPartial && !$bIsUnpaid) return -1;
-            if ($bIsPartial && !$aIsPartial && !$aIsUnpaid) return 1;
+            if ($aIsUnpaid && ! $bIsUnpaid) {
+                return -1;
+            }
+            if ($bIsUnpaid && ! $aIsUnpaid) {
+                return 1;
+            }
+            if ($aIsPartial && ! $bIsPartial && ! $bIsUnpaid) {
+                return -1;
+            }
+            if ($bIsPartial && ! $aIsPartial && ! $aIsUnpaid) {
+                return 1;
+            }
 
             return 0;
         });
         $amountForPayments = min($totalAmount, $totalOutstanding);
         $remainingAmount = $amountForPayments;
-        
+
         // Process each item payment
         foreach ($items as $item) {
-            if ($remainingAmount <= 0) break;
-            
+            if ($remainingAmount <= 0) {
+                break;
+            }
+
             $amountForThisItem = min($item['amount'], $remainingAmount);
-            
+
             // Create individual payment transaction
             $paymentData = [
                 'fiche_navette_item_id' => $item['fiche_navette_item_id'],
@@ -718,14 +747,14 @@ class FinancialTransactionService
                 'amount' => $amountForThisItem,
                 'transaction_type' => 'payment',
                 'payment_method' => $paymentMethod,
-                'notes' => $notes . " - Payment for " . ($item['item_name'] ?? 'item'),
+                'notes' => $notes.' - Payment for '.($item['item_name'] ?? 'item'),
             ];
-            
+
             // Add dependency info if applicable
             if ($item['is_dependency'] ?? false) {
                 $paymentData['item_dependency_id'] = $item['item_dependency_id'];
             }
-            
+
             try {
                 $result = $this->processPaymentTransaction($paymentData);
                 $processedTransactions[] = $result['transaction'];
@@ -733,10 +762,10 @@ class FinancialTransactionService
                 $remainingAmount -= $amountForThisItem;
             } catch (\Exception $e) {
                 // If any payment fails, throw exception to rollback the entire transaction
-                throw new \Exception("Payment failed for item {$item['item_name']}: " . $e->getMessage());
+                throw new \Exception("Payment failed for item {$item['item_name']}: ".$e->getMessage());
             }
         }
-        
+
         // Step 2: Handle excess amount as donation if totalAmount > totalOutstanding
         $excessAmount = $totalAmount - $totalOutstanding;
         if ($excessAmount > 0) {
@@ -748,26 +777,26 @@ class FinancialTransactionService
                 'amount' => $excessAmount,
                 'transaction_type' => 'donation',
                 'payment_method' => $paymentMethod,
-                'notes' => $notes ? "Global payment donation: {$notes}" : "Global payment excess donated",
+                'notes' => $notes ? "Global payment donation: {$notes}" : 'Global payment excess donated',
             ]);
-            
+
             $processedTransactions[] = $donationTransaction;
             $results['donation_transaction'] = $donationTransaction;
             $results['excess_amount'] = $excessAmount;
             $results['action'] = 'donated';
         }
-        
+
         $results['transactions'] = $processedTransactions;
         $results['updated_items'] = $updatedItems;
         $results['total_processed'] = count($processedTransactions);
         $results['amount_processed'] = $totalAmount;
         $results['payments_amount'] = $amountForPayments;
         $results['remaining_amount'] = 0; // All amount is processed (either payment or donation)
-        
+
         return $results;
     }
 
-    public function getTransactionStats(int $ficheNavetteItemId = null): array
+    public function getTransactionStats(?int $ficheNavetteItemId = null): array
     {
         $query = FinancialTransaction::query();
 
@@ -786,31 +815,31 @@ class FinancialTransactionService
 
         // Group by payment method
         $paymentMethods = FinancialTransaction::selectRaw('payment_method, COUNT(*) as count, SUM(amount) as total')
-                                            ->when($ficheNavetteItemId, function ($q) use ($ficheNavetteItemId) {
-                                                $q->byFicheNavetteItem($ficheNavetteItemId);
-                                            })
-                                            ->groupBy('payment_method')
-                                            ->get();
+            ->when($ficheNavetteItemId, function ($q) use ($ficheNavetteItemId) {
+                $q->byFicheNavetteItem($ficheNavetteItemId);
+            })
+            ->groupBy('payment_method')
+            ->get();
 
         foreach ($paymentMethods as $method) {
             $stats['by_payment_method'][$method->payment_method] = [
                 'count' => $method->count,
-                'total' => $method->total
+                'total' => $method->total,
             ];
         }
 
         // Group by transaction type
         $transactionTypes = FinancialTransaction::selectRaw('transaction_type, COUNT(*) as count, SUM(amount) as total')
-                                              ->when($ficheNavetteItemId, function ($q) use ($ficheNavetteItemId) {
-                                                  $q->byFicheNavetteItem($ficheNavetteItemId);
-                                              })
-                                              ->groupBy('transaction_type')
-                                              ->get();
+            ->when($ficheNavetteItemId, function ($q) use ($ficheNavetteItemId) {
+                $q->byFicheNavetteItem($ficheNavetteItemId);
+            })
+            ->groupBy('transaction_type')
+            ->get();
 
         foreach ($transactionTypes as $type) {
             $stats['by_transaction_type'][$type->transaction_type] = [
                 'count' => $type->count,
-                'total' => $type->total
+                'total' => $type->total,
             ];
         }
 
@@ -845,7 +874,7 @@ class FinancialTransactionService
             $dependentPrestationId
         ) {
             $excessAmount = $paidAmount - $requiredAmount;
-            
+
             if ($excessAmount <= 0) {
                 throw new InvalidArgumentException('No overpayment detected. Paid amount must exceed required amount.');
             }
@@ -885,7 +914,7 @@ class FinancialTransactionService
                     'amount' => $excessAmount,
                     'transaction_type' => 'donation',
                     'payment_method' => $paymentMethod,
-                    'notes' => $notes ? "Donation: {$notes}" : "Donation of excess payment amount",
+                    'notes' => $notes ? "Donation: {$notes}" : 'Donation of excess payment amount',
                 ]);
 
                 $results['donation_transaction'] = $donationTransaction;
@@ -897,7 +926,7 @@ class FinancialTransactionService
                 $patient = \App\Models\Patient::findOrFail($patientId);
                 $oldBalance = $patient->balance ?? 0;
                 $newBalance = $oldBalance + $excessAmount;
-                
+
                 $patient->update(['balance' => $newBalance]);
 
                 // Create a credit transaction to track this balance addition
@@ -908,14 +937,14 @@ class FinancialTransactionService
                     'amount' => $excessAmount,
                     'transaction_type' => 'credit',
                     'payment_method' => $paymentMethod,
-                    'notes' => $notes ? "Credit: {$notes}" : "Patient balance credit from excess payment",
+                    'notes' => $notes ? "Credit: {$notes}" : 'Patient balance credit from excess payment',
                 ]);
 
                 $results['credit_transaction'] = $creditTransaction;
                 $results['patient_balance'] = [
                     'old_balance' => $oldBalance,
                     'new_balance' => $newBalance,
-                    'credit_amount' => $excessAmount
+                    'credit_amount' => $excessAmount,
                 ];
                 $results['action'] = 'credited';
                 $results['excess_amount'] = $excessAmount;
@@ -936,15 +965,15 @@ class FinancialTransactionService
         return FinancialTransaction::with([
             'ficheNavetteItem',
             'patient',
-            'cashier'
+            'cashier',
         ])
-        ->whereHas('ficheNavetteItem', function ($q) use ($ficheNavetteId) {
-            $q->where('fiche_navette_id', $ficheNavetteId);
-        })
-        ->where('transaction_type', 'payment')
-        ->where('amount', '>', 0)
-        ->latest('created_at')
-        ->get();
+            ->whereHas('ficheNavetteItem', function ($q) use ($ficheNavetteId) {
+                $q->where('fiche_navette_id', $ficheNavetteId);
+            })
+            ->where('transaction_type', 'payment')
+            ->where('amount', '>', 0)
+            ->latest('created_at')
+            ->get();
     }
 
     /**
@@ -979,7 +1008,7 @@ class FinancialTransactionService
                 $dependency->update([
                     'paid_amount' => max(0, ($dependency->paid_amount ?? 0) - $amount),
                     'remaining_amount' => ($dependency->final_price ?? 0) - max(0, ($dependency->paid_amount ?? 0) - $amount),
-                    'payment_status' => (($dependency->final_price ?? 0) - max(0, ($dependency->paid_amount ?? 0) - $amount) <= 0) ? 'paid' : 'pending'
+                    'payment_status' => (($dependency->final_price ?? 0) - max(0, ($dependency->paid_amount ?? 0) - $amount) <= 0) ? 'paid' : 'pending',
                 ]);
             }
         } elseif ($ficheNavetteItemId) {
@@ -988,7 +1017,7 @@ class FinancialTransactionService
                 $ficheItem->update([
                     'paid_amount' => max(0, ($ficheItem->paid_amount ?? 0) - $amount),
                     'remaining_amount' => ($ficheItem->final_price ?? 0) - max(0, ($ficheItem->paid_amount ?? 0) - $amount),
-                    'payment_status' => (($ficheItem->final_price ?? 0) - max(0, ($ficheItem->paid_amount ?? 0) - $amount) <= 0) ? 'paid' : 'pending'
+                    'payment_status' => (($ficheItem->final_price ?? 0) - max(0, ($ficheItem->paid_amount ?? 0) - $amount) <= 0) ? 'paid' : 'pending',
                 ]);
             }
         }
@@ -1009,7 +1038,7 @@ class FinancialTransactionService
                 $dependency->update([
                     'paid_amount' => ($dependency->paid_amount ?? 0) + $amount,
                     'remaining_amount' => max(0, ($dependency->final_price ?? 0) - (($dependency->paid_amount ?? 0) + $amount)),
-                    'payment_status' => (($dependency->final_price ?? 0) - (($dependency->paid_amount ?? 0) + $amount) <= 0) ? 'paid' : 'pending'
+                    'payment_status' => (($dependency->final_price ?? 0) - (($dependency->paid_amount ?? 0) + $amount) <= 0) ? 'paid' : 'pending',
                 ]);
             }
         } elseif ($ficheNavetteItemId) {
@@ -1018,7 +1047,7 @@ class FinancialTransactionService
                 $ficheItem->update([
                     'paid_amount' => ($ficheItem->paid_amount ?? 0) + $amount,
                     'remaining_amount' => max(0, ($ficheItem->final_price ?? 0) - (($ficheItem->paid_amount ?? 0) + $amount)),
-                    'payment_status' => (($ficheItem->final_price ?? 0) - (($ficheItem->paid_amount ?? 0) + $amount) <= 0) ? 'paid' : 'pending'
+                    'payment_status' => (($ficheItem->final_price ?? 0) - (($ficheItem->paid_amount ?? 0) + $amount) <= 0) ? 'paid' : 'pending',
                 ]);
             }
         }
@@ -1029,10 +1058,10 @@ class FinancialTransactionService
      */
     public function updatePrestationPrice(int $prestationId, int $ficheNavetteItemId, float $newFinalPrice, float $paidAmount): array
     {
-        return DB::transaction(function () use ($prestationId, $ficheNavetteItemId, $newFinalPrice, $paidAmount) {
+        return DB::transaction(function () use ($ficheNavetteItemId, $newFinalPrice, $paidAmount) {
             $ficheItem = ficheNavetteItem::find($ficheNavetteItemId);
-            if (!$ficheItem) {
-                throw new \Exception("Fiche navette item not found");
+            if (! $ficheItem) {
+                throw new \Exception('Fiche navette item not found');
             }
 
             $oldFinalPrice = $ficheItem->final_price ?? 0;
@@ -1043,7 +1072,7 @@ class FinancialTransactionService
                 'final_price' => $newFinalPrice,
                 'paid_amount' => $paidAmount,
                 'remaining_amount' => max(0, $newFinalPrice - $paidAmount),
-                'payment_status' => ($newFinalPrice - $paidAmount <= 0) ? 'paid' : 'pending'
+                'payment_status' => ($newFinalPrice - $paidAmount <= 0) ? 'paid' : 'pending',
             ]);
 
             // Update dependencies if any
@@ -1057,7 +1086,7 @@ class FinancialTransactionService
                 $dependency->update([
                     'final_price' => $newDependencyPrice,
                     'remaining_amount' => max(0, $newDependencyPrice - ($dependency->paid_amount ?? 0)),
-                    'payment_status' => ($newDependencyPrice - ($dependency->paid_amount ?? 0) <= 0) ? 'paid' : 'pending'
+                    'payment_status' => ($newDependencyPrice - ($dependency->paid_amount ?? 0) <= 0) ? 'paid' : 'pending',
                 ]);
 
                 $updatedDependencies[] = $dependency->fresh();
@@ -1067,7 +1096,7 @@ class FinancialTransactionService
                 'fiche_navette_item' => $ficheItem->fresh(),
                 'dependencies' => $updatedDependencies,
                 'old_final_price' => $oldFinalPrice,
-                'new_final_price' => $newFinalPrice
+                'new_final_price' => $newFinalPrice,
             ];
         });
     }

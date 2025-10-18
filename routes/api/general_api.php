@@ -14,10 +14,10 @@ use App\Http\Controllers\RequestTransactionApprovalController;
 // If you had any simple, standalone API routes, they would go here.
 
 // Return fiche prestations filtered by authenticated user's specializations
-Route::middleware('auth:sanctum')->get('reception/fiche-navette/{id}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
+Route::get('reception/fiche-navette/{id}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
 
 // Financial Transaction Routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::group(function () {
     Route::prefix('financial-transactions')->group(function () {
         Route::get('/', [FinancialTransactionController::class, 'index']);
         Route::post('/', [FinancialTransactionController::class, 'store']);
@@ -41,7 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Transaction Bank Request Routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::group(function () {
     Route::prefix('transaction-bank-requests')->group(function () {
         Route::get('/', [TransactionBankRequestController::class, 'index']);
         Route::post('/', [TransactionBankRequestController::class, 'store']);
@@ -57,7 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Coffre Transaction Routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::group(function () {
     Route::prefix('coffre-transactions')->group(function () {
         Route::get('/', [CoffreTransactionController::class, 'index']);
         Route::post('/', [CoffreTransactionController::class, 'store']);

@@ -30,7 +30,7 @@ return new class extends Migration
                 ->constrained('users')
                 ->name('sd_item_fournisseur_assigned_by_foreign');
             $table->timestamps();
-            
+
             // Ensure a fournisseur can only be assigned once per item
             $table->unique(['service_demand_purchasing_item_id', 'fournisseur_id'], 'sd_item_fournisseur_unique');
         });

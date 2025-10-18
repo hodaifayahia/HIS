@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Pharmacy\PharmacyProductGlobalSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class PharmacyProductGlobalSettingsController extends Controller
 {
@@ -23,10 +23,10 @@ class PharmacyProductGlobalSettingsController extends Controller
      */
     public function index($productId = null)
     {
-        if (!$productId) {
+        if (! $productId) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product ID is required'
+                'message' => 'Product ID is required',
             ], 400);
         }
 
@@ -48,8 +48,8 @@ class PharmacyProductGlobalSettingsController extends Controller
             'meta' => [
                 'controlled_substance_settings' => $this->getControlledSubstanceSettings($settings),
                 'prescription_settings' => $this->getPrescriptionSettings($settings),
-                'storage_settings' => $this->getStorageSettings($settings)
-            ]
+                'storage_settings' => $this->getStorageSettings($settings),
+            ],
         ]);
     }
 
@@ -60,16 +60,16 @@ class PharmacyProductGlobalSettingsController extends Controller
     {
         $setting = PharmacyProductGlobalSetting::byProductAndKey($productId, $key)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting not found for this pharmacy product'
+                'message' => 'Setting not found for this pharmacy product',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $setting
+            'data' => $setting,
         ]);
     }
 
@@ -86,25 +86,25 @@ class PharmacyProductGlobalSettingsController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $setting = PharmacyProductGlobalSetting::byProductAndKey($productId, $key)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting not found for this pharmacy product'
+                'message' => 'Setting not found for this pharmacy product',
             ], 404);
         }
 
         // Validate pharmacy-specific settings
         $validationResult = $this->validatePharmacySetting($key, $request->setting_value);
-        if (!$validationResult['valid']) {
+        if (! $validationResult['valid']) {
             return response()->json([
                 'success' => false,
-                'message' => $validationResult['message']
+                'message' => $validationResult['message'],
             ], 422);
         }
 
@@ -123,13 +123,13 @@ class PharmacyProductGlobalSettingsController extends Controller
                 'product_id' => $productId,
                 'user_id' => auth()->id(),
                 'timestamp' => now(),
-                'compliance_required' => $this->isComplianceSetting($key)
+                'compliance_required' => $this->isComplianceSetting($key),
             ]);
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Pharmacy setting updated successfully'
+            'message' => 'Pharmacy setting updated successfully',
         ]);
     }
 
@@ -139,14 +139,14 @@ class PharmacyProductGlobalSettingsController extends Controller
     public function store(Request $request, $productId = null)
     {
         // If productId is not in the route, check if it's in the request
-        if (!$productId) {
+        if (! $productId) {
             $productId = $request->input('product_id');
         }
 
-        if (!$productId) {
+        if (! $productId) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product ID is required'
+                'message' => 'Product ID is required',
             ], 400);
         }
 
@@ -165,7 +165,7 @@ class PharmacyProductGlobalSettingsController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -174,16 +174,16 @@ class PharmacyProductGlobalSettingsController extends Controller
         if ($existingSetting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting already exists for this pharmacy product'
+                'message' => 'Setting already exists for this pharmacy product',
             ], 422);
         }
 
         // Validate pharmacy-specific settings
         $validationResult = $this->validatePharmacySetting($request->setting_key, $request->setting_value);
-        if (!$validationResult['valid']) {
+        if (! $validationResult['valid']) {
             return response()->json([
                 'success' => false,
-                'message' => $validationResult['message']
+                'message' => $validationResult['message'],
             ], 422);
         }
 
@@ -191,7 +191,7 @@ class PharmacyProductGlobalSettingsController extends Controller
             'product_id' => $productId,
             'setting_key' => $request->setting_key,
             'setting_value' => $request->setting_value,
-            'description' => $request->description
+            'description' => $request->description,
         ]);
 
         // Clear cache for this product
@@ -200,7 +200,7 @@ class PharmacyProductGlobalSettingsController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Pharmacy setting created successfully',
-            'data' => $setting
+            'data' => $setting,
         ], 201);
     }
 
@@ -211,10 +211,10 @@ class PharmacyProductGlobalSettingsController extends Controller
     {
         $settings = $request->input('settings');
 
-        if (!is_array($settings)) {
+        if (! is_array($settings)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Settings must be an array'
+                'message' => 'Settings must be an array',
             ], 422);
         }
 
@@ -225,15 +225,17 @@ class PharmacyProductGlobalSettingsController extends Controller
             foreach ($settings as $key => $value) {
                 try {
                     // Validate the setting value
-                    if (!is_array($value)) {
+                    if (! is_array($value)) {
                         $errors[$key] = ['Setting value must be an array'];
+
                         continue;
                     }
 
                     // Validate pharmacy-specific settings
                     $validationResult = $this->validatePharmacySetting($key, $value);
-                    if (!$validationResult['valid']) {
+                    if (! $validationResult['valid']) {
                         $errors[$key] = [$validationResult['message']];
+
                         continue;
                     }
 
@@ -244,7 +246,7 @@ class PharmacyProductGlobalSettingsController extends Controller
                         // Update existing setting
                         $setting->update([
                             'setting_value' => $value,
-                            'description' => $this->getPharmacySettingDescription($key)
+                            'description' => $this->getPharmacySettingDescription($key),
                         ]);
                     } else {
                         // Create new setting
@@ -252,14 +254,14 @@ class PharmacyProductGlobalSettingsController extends Controller
                             'product_id' => $productId,
                             'setting_key' => $key,
                             'setting_value' => $value,
-                            'description' => $this->getPharmacySettingDescription($key)
+                            'description' => $this->getPharmacySettingDescription($key),
                         ]);
                     }
 
                     $updatedSettings[] = $setting;
 
                 } catch (\Exception $e) {
-                    $errors[$key] = ['Failed to save setting: ' . $e->getMessage()];
+                    $errors[$key] = ['Failed to save setting: '.$e->getMessage()];
                 }
             }
 
@@ -267,12 +269,12 @@ class PharmacyProductGlobalSettingsController extends Controller
             Cache::forget("pharmacy_product_settings_{$productId}");
         });
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Some pharmacy settings failed to save',
                 'errors' => $errors,
-                'updated_count' => count($updatedSettings)
+                'updated_count' => count($updatedSettings),
             ], 422);
         }
 
@@ -280,7 +282,7 @@ class PharmacyProductGlobalSettingsController extends Controller
             'success' => true,
             'message' => 'All pharmacy settings saved successfully',
             'data' => $updatedSettings,
-            'updated_count' => count($updatedSettings)
+            'updated_count' => count($updatedSettings),
         ]);
     }
 
@@ -303,7 +305,7 @@ class PharmacyProductGlobalSettingsController extends Controller
             'dispensing_limits' => 'Daily and monthly dispensing limits for controlled substances',
             'pharmacist_verification' => 'Pharmacist verification requirements for dispensing',
             'patient_counseling_settings' => 'Patient counseling and consultation requirements',
-            'insurance_verification' => 'Insurance verification and prior authorization settings'
+            'insurance_verification' => 'Insurance verification and prior authorization settings',
         ];
 
         return $descriptions[$key] ?? 'Global pharmacy product setting';
@@ -316,17 +318,17 @@ class PharmacyProductGlobalSettingsController extends Controller
     {
         switch ($key) {
             case 'controlled_substance_settings':
-                if (!isset($value['schedule']) || !in_array($value['schedule'], ['I', 'II', 'III', 'IV', 'V'])) {
+                if (! isset($value['schedule']) || ! in_array($value['schedule'], ['I', 'II', 'III', 'IV', 'V'])) {
                     return ['valid' => false, 'message' => 'Invalid controlled substance schedule'];
                 }
                 break;
-            
+
             case 'dispensing_limits':
-                if (isset($value['daily_limit']) && (!is_numeric($value['daily_limit']) || $value['daily_limit'] < 0)) {
+                if (isset($value['daily_limit']) && (! is_numeric($value['daily_limit']) || $value['daily_limit'] < 0)) {
                     return ['valid' => false, 'message' => 'Daily limit must be a positive number'];
                 }
                 break;
-            
+
             case 'storage_conditions':
                 if (isset($value['temperature_min']) && isset($value['temperature_max'])) {
                     if ($value['temperature_min'] >= $value['temperature_max']) {
@@ -348,7 +350,7 @@ class PharmacyProductGlobalSettingsController extends Controller
             'controlled_substance_settings',
             'dea_compliance_settings',
             'dispensing_limits',
-            'pharmacist_verification'
+            'pharmacist_verification',
         ];
 
         return in_array($key, $complianceSettings);
@@ -391,10 +393,10 @@ class PharmacyProductGlobalSettingsController extends Controller
     {
         $setting = PharmacyProductGlobalSetting::byProductAndKey($productId, $key)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting not found for this pharmacy product'
+                'message' => 'Setting not found for this pharmacy product',
             ], 404);
         }
 
@@ -405,7 +407,7 @@ class PharmacyProductGlobalSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pharmacy setting deleted successfully'
+            'message' => 'Pharmacy setting deleted successfully',
         ]);
     }
 }

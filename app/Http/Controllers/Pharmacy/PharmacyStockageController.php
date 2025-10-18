@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Pharmacy;
 
 use App\Models\PharmacyStockage;
-use App\Models\PharmacyStorage;
 use App\Models\PharmacyStorageTool;
-use App\Models\User;
 use App\Models\Service;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -21,28 +20,28 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         $query = PharmacyStockage::with('service:id,name');
 
         // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%")
-                  ->orWhere('location_code', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%")
+                    ->orWhere('location_code', 'like', "%{$search}%");
             });
         }
 
         // Filter by type (pharmacy-specific types)
-        if ($request->has('type') && !empty($request->type)) {
+        if ($request->has('type') && ! empty($request->type)) {
             $query->where('type', $request->type);
         }
 
         // Filter by status
-        if ($request->has('status') && !empty($request->status)) {
+        if ($request->has('status') && ! empty($request->status)) {
             $query->where('status', $request->status);
         }
 
         // Filter by service
-        if ($request->has('service_id') && !empty($request->service_id)) {
+        if ($request->has('service_id') && ! empty($request->service_id)) {
             $query->where('service_id', $request->service_id);
         }
 
@@ -52,17 +51,17 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         }
 
         // Filter by security level (critical for controlled substances)
-        if ($request->has('security_level') && !empty($request->security_level)) {
+        if ($request->has('security_level') && ! empty($request->security_level)) {
             $query->where('security_level', $request->security_level);
         }
 
         // Filter by warehouse type (pharmacy-specific)
-        if ($request->has('warehouse_type') && !empty($request->warehouse_type)) {
+        if ($request->has('warehouse_type') && ! empty($request->warehouse_type)) {
             $query->where('warehouse_type', $request->warehouse_type);
         }
 
         // Filter by compliance status
-        if ($request->has('compliance_status') && !empty($request->compliance_status)) {
+        if ($request->has('compliance_status') && ! empty($request->compliance_status)) {
             $query->where('compliance_status', $request->compliance_status);
         }
 
@@ -79,23 +78,23 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         $stockages->getCollection()->transform(function ($stockage) {
             // Count inventory items in this storage
             $stockage->inventory_count = $stockage->inventories()->count();
-            
+
             // Count controlled substances
             $stockage->controlled_substances_count = $stockage->inventories()
-                ->whereHas('product', function($q) {
+                ->whereHas('product', function ($q) {
                     $q->where('is_controlled_substance', true);
                 })->count();
-            
+
             // Count expiring items (within 60 days)
             $stockage->expiring_items_count = $stockage->inventories()
                 ->whereBetween('expiry_date', [now(), now()->addDays(60)])
                 ->count();
-            
+
             // Count expired items
             $stockage->expired_items_count = $stockage->inventories()
                 ->where('expiry_date', '<', now())
                 ->count();
-            
+
             // Calculate capacity utilization if capacity is set
             if ($stockage->capacity) {
                 $totalItems = $stockage->inventories()->sum('quantity');
@@ -103,11 +102,11 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
             } else {
                 $stockage->capacity_utilization = null;
             }
-            
+
             // Add compliance indicators
             $stockage->requires_temperature_monitoring = $stockage->temperature_controlled;
             $stockage->high_security_required = in_array($stockage->security_level, ['high', 'restricted']);
-            
+
             return $stockage;
         });
 
@@ -120,8 +119,8 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 'per_page' => $stockages->perPage(),
                 'total' => $stockages->total(),
                 'from' => $stockages->firstItem(),
-                'to' => $stockages->lastItem()
-            ]
+                'to' => $stockages->lastItem(),
+            ],
         ]);
     }
 
@@ -151,14 +150,14 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
             'next_inspection_due' => 'nullable|date|after:today',
             'environmental_monitoring' => 'boolean',
             'backup_power' => 'boolean',
-            'fire_suppression_system' => 'boolean'
+            'fire_suppression_system' => 'boolean',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -172,7 +171,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         $data['fire_suppression_system'] = $request->boolean('fire_suppression_system', false);
 
         // Set default status if not provided
-        if (!isset($data['status'])) {
+        if (! isset($data['status'])) {
             $data['status'] = 'active';
         }
 
@@ -182,17 +181,17 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 if ($data['temperature_range_min'] >= $data['temperature_range_max']) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Minimum temperature must be less than maximum temperature'
+                        'message' => 'Minimum temperature must be less than maximum temperature',
                     ], 422);
                 }
             }
         }
 
         // Validate security level for controlled substances storage
-        if (in_array($data['type'], ['controlled_substances_vault']) && !in_array($data['security_level'], ['high', 'restricted'])) {
+        if (in_array($data['type'], ['controlled_substances_vault']) && ! in_array($data['security_level'], ['high', 'restricted'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Controlled substances storage requires high or restricted security level'
+                'message' => 'Controlled substances storage requires high or restricted security level',
             ], 422);
         }
 
@@ -201,7 +200,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Pharmacy storage created successfully',
-            'data' => $stockage->load('service:id,name')
+            'data' => $stockage->load('service:id,name'),
         ], 201);
     }
 
@@ -211,13 +210,13 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
     public function show(PharmacyStockage $stockage)
     {
         $stockage->load('service:id,name');
-        
+
         // Add detailed pharmacy-specific information
         $stockage->inventory_summary = [
             'total_items' => $stockage->inventories()->count(),
             'total_quantity' => $stockage->inventories()->sum('quantity'),
             'controlled_substances' => $stockage->inventories()
-                ->whereHas('product', function($q) {
+                ->whereHas('product', function ($q) {
                     $q->where('is_controlled_substance', true);
                 })->count(),
             'expiring_soon' => $stockage->inventories()
@@ -228,21 +227,21 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 ->count(),
             'low_stock_items' => $stockage->inventories()
                 ->where('quantity', '<=', 20)
-                ->count()
+                ->count(),
         ];
 
         // Add compliance information
         $stockage->compliance_info = [
             'requires_inspection' => $stockage->next_inspection_due ? $stockage->next_inspection_due->isPast() : false,
             'days_until_inspection' => $stockage->next_inspection_due ? now()->diffInDays($stockage->next_inspection_due, false) : null,
-            'certifications_current' => !empty($stockage->compliance_certifications),
+            'certifications_current' => ! empty($stockage->compliance_certifications),
             'environmental_monitoring_active' => $stockage->environmental_monitoring,
-            'security_compliant' => $stockage->security_level !== 'low'
+            'security_compliant' => $stockage->security_level !== 'low',
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $stockage
+            'data' => $stockage,
         ]);
     }
 
@@ -272,14 +271,14 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
             'next_inspection_due' => 'nullable|date|after:today',
             'environmental_monitoring' => 'boolean',
             'backup_power' => 'boolean',
-            'fire_suppression_system' => 'boolean'
+            'fire_suppression_system' => 'boolean',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -291,34 +290,34 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 if ($data['temperature_range_min'] >= $data['temperature_range_max']) {
                     return response()->json([
                         'success' => false,
-                        'message' => 'Minimum temperature must be less than maximum temperature'
+                        'message' => 'Minimum temperature must be less than maximum temperature',
                     ], 422);
                 }
             }
         }
 
         // Validate security level for controlled substances storage
-        if (in_array($data['type'], ['controlled_substances_vault']) && !in_array($data['security_level'], ['high', 'restricted'])) {
+        if (in_array($data['type'], ['controlled_substances_vault']) && ! in_array($data['security_level'], ['high', 'restricted'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Controlled substances storage requires high or restricted security level'
+                'message' => 'Controlled substances storage requires high or restricted security level',
             ], 422);
         }
 
         // Check if there are controlled substances in storage when downgrading security
-        if ($stockage->security_level !== $data['security_level'] && 
-            in_array($stockage->security_level, ['high', 'restricted']) && 
-            !in_array($data['security_level'], ['high', 'restricted'])) {
-            
+        if ($stockage->security_level !== $data['security_level'] &&
+            in_array($stockage->security_level, ['high', 'restricted']) &&
+            ! in_array($data['security_level'], ['high', 'restricted'])) {
+
             $controlledSubstancesCount = $stockage->inventories()
-                ->whereHas('product', function($q) {
+                ->whereHas('product', function ($q) {
                     $q->where('is_controlled_substance', true);
                 })->count();
-            
+
             if ($controlledSubstancesCount > 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot downgrade security level while controlled substances are stored here'
+                    'message' => 'Cannot downgrade security level while controlled substances are stored here',
                 ], 422);
             }
         }
@@ -328,7 +327,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Pharmacy storage updated successfully',
-            'data' => $stockage->load('service:id,name')
+            'data' => $stockage->load('service:id,name'),
         ]);
     }
 
@@ -342,20 +341,20 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         if ($inventoryCount > 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete storage that contains inventory items'
+                'message' => 'Cannot delete storage that contains inventory items',
             ], 422);
         }
 
         // Additional check for controlled substances
         $controlledSubstancesCount = $stockage->inventories()
-            ->whereHas('product', function($q) {
+            ->whereHas('product', function ($q) {
                 $q->where('is_controlled_substance', true);
             })->count();
-        
+
         if ($controlledSubstancesCount > 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete storage that contains controlled substances'
+                'message' => 'Cannot delete storage that contains controlled substances',
             ], 422);
         }
 
@@ -363,7 +362,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pharmacy storage deleted successfully'
+            'message' => 'Pharmacy storage deleted successfully',
         ]);
     }
 
@@ -380,7 +379,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'data' => $managers
+            'data' => $managers,
         ]);
     }
 
@@ -392,7 +391,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         $query = PharmacyStockage::query();
 
         // Filter by service if provided
-        if ($request->has('service_id') && !empty($request->service_id)) {
+        if ($request->has('service_id') && ! empty($request->service_id)) {
             $query->where('service_id', $request->service_id);
         }
 
@@ -401,7 +400,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         $complianceReport = $storages->map(function ($storage) {
             $inventoryCount = $storage->inventories()->count();
             $controlledSubstancesCount = $storage->inventories()
-                ->whereHas('product', function($q) {
+                ->whereHas('product', function ($q) {
                     $q->where('is_controlled_substance', true);
                 })->count();
 
@@ -419,7 +418,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 'inventory_count' => $inventoryCount,
                 'controlled_substances_count' => $controlledSubstancesCount,
                 'compliance_score' => $this->calculateComplianceScore($storage),
-                'compliance_issues' => $this->getComplianceIssues($storage)
+                'compliance_issues' => $this->getComplianceIssues($storage),
             ];
         });
 
@@ -430,8 +429,8 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 'total_storages' => $storages->count(),
                 'compliant_storages' => $complianceReport->where('compliance_score', '>=', 80)->count(),
                 'non_compliant_storages' => $complianceReport->where('compliance_score', '<', 80)->count(),
-                'overdue_inspections' => $complianceReport->where('inspection_overdue', true)->count()
-            ]
+                'overdue_inspections' => $complianceReport->where('inspection_overdue', true)->count(),
+            ],
         ]);
     }
 
@@ -441,32 +440,32 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
     private function calculateComplianceScore($storage)
     {
         $score = 100;
-        
+
         // Deduct points for missing inspections
         if ($storage->next_inspection_due && $storage->next_inspection_due->isPast()) {
             $score -= 30;
         }
-        
+
         // Deduct points for inadequate security for controlled substances
         $controlledSubstancesCount = $storage->inventories()
-            ->whereHas('product', function($q) {
+            ->whereHas('product', function ($q) {
                 $q->where('is_controlled_substance', true);
             })->count();
-        
-        if ($controlledSubstancesCount > 0 && !in_array($storage->security_level, ['high', 'restricted'])) {
+
+        if ($controlledSubstancesCount > 0 && ! in_array($storage->security_level, ['high', 'restricted'])) {
             $score -= 40;
         }
-        
+
         // Deduct points for missing environmental monitoring
-        if ($storage->temperature_controlled && !$storage->environmental_monitoring) {
+        if ($storage->temperature_controlled && ! $storage->environmental_monitoring) {
             $score -= 20;
         }
-        
+
         // Deduct points for missing certifications
         if (empty($storage->compliance_certifications)) {
             $score -= 10;
         }
-        
+
         return max(0, $score);
     }
 
@@ -476,28 +475,28 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
     private function getComplianceIssues($storage)
     {
         $issues = [];
-        
+
         if ($storage->next_inspection_due && $storage->next_inspection_due->isPast()) {
             $issues[] = 'Inspection overdue';
         }
-        
+
         $controlledSubstancesCount = $storage->inventories()
-            ->whereHas('product', function($q) {
+            ->whereHas('product', function ($q) {
                 $q->where('is_controlled_substance', true);
             })->count();
-        
-        if ($controlledSubstancesCount > 0 && !in_array($storage->security_level, ['high', 'restricted'])) {
+
+        if ($controlledSubstancesCount > 0 && ! in_array($storage->security_level, ['high', 'restricted'])) {
             $issues[] = 'Inadequate security for controlled substances';
         }
-        
-        if ($storage->temperature_controlled && !$storage->environmental_monitoring) {
+
+        if ($storage->temperature_controlled && ! $storage->environmental_monitoring) {
             $issues[] = 'Missing environmental monitoring';
         }
-        
+
         if (empty($storage->compliance_certifications)) {
             $issues[] = 'Missing compliance certifications';
         }
-        
+
         return $issues;
     }
 
@@ -511,13 +510,13 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
             'next_inspection_due' => 'required|date|after:today',
             'compliance_status' => ['required', Rule::in(['compliant', 'non_compliant', 'pending_review'])],
             'inspection_notes' => 'nullable|string|max:1000',
-            'compliance_certifications' => 'nullable|string|max:500'
+            'compliance_certifications' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -526,7 +525,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Inspection status updated successfully',
-            'data' => $stockage
+            'data' => $stockage,
         ]);
     }
 
@@ -542,12 +541,12 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
             ['value' => 'FR', 'label' => 'Frigo'],
             ['value' => 'CS', 'label' => 'Caisson'],
             ['value' => 'CH', 'label' => 'Chariot'],
-            ['value' => 'PL', 'label' => 'Palette']
+            ['value' => 'PL', 'label' => 'Palette'],
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $types
+            'data' => $types,
         ]);
     }
 
@@ -560,9 +559,9 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'data' => array_map(function($block) {
+            'data' => array_map(function ($block) {
                 return ['value' => $block, 'label' => $block];
-            }, $blocks)
+            }, $blocks),
         ]);
     }
 
@@ -572,21 +571,21 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
     public function getTools(Request $request, $stockageId)
     {
         $stockage = PharmacyStockage::findOrFail($stockageId);
-        
+
         $query = $stockage->pharmacyStockageTools();
 
         // Apply filters if provided
-        if ($request->has('tool_type') && !empty($request->tool_type)) {
+        if ($request->has('tool_type') && ! empty($request->tool_type)) {
             $query->where('tool_type', $request->tool_type);
         }
 
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('tool_type', 'like', "%{$search}%")
-                  ->orWhere('tool_number', 'like', "%{$search}%")
-                  ->orWhere('block', 'like', "%{$search}%")
-                  ->orWhere('location_code', 'like', "%{$search}%");
+                    ->orWhere('tool_number', 'like', "%{$search}%")
+                    ->orWhere('block', 'like', "%{$search}%")
+                    ->orWhere('location_code', 'like', "%{$search}%");
             });
         }
 
@@ -594,7 +593,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
         $sortBy = $request->get('sort_by', 'tool_type');
         $sortOrder = $request->get('sort_order', 'asc');
         $query->orderBy($sortBy, $sortOrder);
-        
+
         // Add secondary sort by tool_number
         if ($sortBy !== 'tool_number') {
             $query->orderBy('tool_number', 'asc');
@@ -606,7 +605,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
 
         return response()->json([
             'success' => true,
-            'data' => $tools
+            'data' => $tools,
         ]);
     }
 
@@ -626,17 +625,17 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
 
         // Check for unique constraint within the stockage
         $exists = PharmacyStorageTool::where('pharmacy_storage_id', $stockage->id)
-                             ->where('tool_type', $validated['tool_type'])
-                             ->where('tool_number', $validated['tool_number'])
-                             ->when($validated['block'] ?? null, function($query, $block) {
-                                 return $query->where('block', $block);
-                             })
-                             ->exists();
+            ->where('tool_type', $validated['tool_type'])
+            ->where('tool_number', $validated['tool_number'])
+            ->when($validated['block'] ?? null, function ($query, $block) {
+                return $query->where('block', $block);
+            })
+            ->exists();
 
         if ($exists) {
             return response()->json([
                 'success' => false,
-                'message' => 'A tool with this type and number already exists in this stockage.'
+                'message' => 'A tool with this type and number already exists in this stockage.',
             ], 422);
         }
 
@@ -652,13 +651,13 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Tool added successfully',
-                'data' => $tool
+                'data' => $tool,
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add tool: ' . $e->getMessage()
+                'message' => 'Failed to add tool: '.$e->getMessage(),
             ], 500);
         }
     }

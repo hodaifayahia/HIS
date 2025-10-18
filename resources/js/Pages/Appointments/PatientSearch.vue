@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import { useToastr } from '@/Components/toster';
-import PatientModel from '@/Components/PatientModel.vue'; // Assuming this component is designed to be a standalone modal
+import PatientModel from '@/Components/PatientModel.vue';
 
 // PrimeVue Components
 import InputText from 'primevue/inputtext';
@@ -24,7 +24,7 @@ const props = defineProps({
     },
     placeholder: String,
     patientId: Number,
-    onSelectPatient: Function // This prop seems unused, consider removing if not needed
+    onSelectPatient: Function
 });
 
 const emit = defineEmits(['update:modelValue', 'patientSelected']);
@@ -32,18 +32,14 @@ const emit = defineEmits(['update:modelValue', 'patientSelected']);
 const toastr = useToastr();
 const patients = ref([]);
 const isLoading = ref(false);
-const isModalOpen = ref(false); // Controls the PatientModel visibility
+const isModalOpen = ref(false);
 const selectedPatient = ref(null);
 const searchQuery = ref('');
 const isEditMode = ref(false);
 
-// Ref for the OverlayPanel (for search results dropdown)
 const op = ref();
-// Ref for the InputText element to anchor the OverlayPanel
 const searchInputRef = ref(null);
 
-
-// Watch for modelValue changes to update the input
 watch(() => props.modelValue, (newValue) => {
     if (newValue && !searchQuery.value) {
         searchQuery.value = newValue;
@@ -54,7 +50,7 @@ const resetSearch = () => {
     searchQuery.value = '';
     selectedPatient.value = null;
     patients.value = [];
-    if (op.value) { // Check if op.value exists before trying to hide
+    if (op.value) {
         op.value.hide();
     }
     emit('update:modelValue', '');
@@ -91,11 +87,11 @@ const handleSearch = debounce(async (event) => {
             }
         } else if (patients.value.length > 0) {
             if (op.value && searchInputRef.value) {
-                 op.value.show(event, searchInputRef.value.$el || event.target);
+                op.value.show(event, searchInputRef.value.$el || event.target);
             }
         } else {
             if (op.value && searchInputRef.value) {
-                op.value.show(event, searchInputRef.value.$el || event.target); // Show "No results"
+                op.value.show(event, searchInputRef.value.$el || event.target);
             }
         }
 
@@ -111,7 +107,6 @@ const handleSearch = debounce(async (event) => {
     }
 }, 500);
 
-// Watch for changes in patientId to fetch and select patient
 watch(() => props.patientId, async (newId) => {
     if (newId) {
         await fetchPatientById(newId);
@@ -139,7 +134,7 @@ const openModal = (edit = false) => {
     isModalOpen.value = true;
     isEditMode.value = edit;
     if (!edit) {
-        selectedPatient.value = null; // Clear selected patient for "Add New"
+        selectedPatient.value = null;
     }
 };
 
@@ -150,7 +145,7 @@ const closeModal = () => {
 
 const handlePatientAdded = (newPatient) => {
     closeModal();
-    selectPatient(newPatient); // Select the newly added/updated patient
+    selectPatient(newPatient);
     toastr.success(isEditMode.value ? 'Patient updated successfully' : 'Patient added successfully');
 };
 
@@ -167,34 +162,31 @@ const selectPatient = (patient) => {
     emit('update:modelValue', patientString);
     searchQuery.value = patientString;
     if (op.value) {
-        op.value.hide(); // Hide the OverlayPanel after selection
+        op.value.hide();
     }
 };
 
-// Handle focus to show/hide OverlayPanel
 const onInputFocus = (event) => {
-    // Only show if there's a query and results, or to show "No results" immediately
     if (searchQuery.value && patients.value.length > 0 || (searchQuery.value && searchQuery.value.length >= 2 && patients.value.length === 0 && !isLoading.value)) {
         if (op.value && searchInputRef.value) {
             op.value.show(event, searchInputRef.value.$el || event.target);
         }
     }
 };
-
-// No longer using onInputBlur to hide directly, rely on OverlayPanel's auto-hide or manual hide
 </script>
 
 <template>
-    <div class="p-fluid" >
-        <div class="p-grid p-align-center p-mb-2">
-            <div class="p-col-12 p-md-9 p-pr-md-2 p-overlay-panel-container">
-                <div class="p-inputgroup">
+    <div class="tw-w-full">
+        <div class="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-mb-2">
+            <!-- Search Input Section -->
+            <div class="tw-flex-1 tw-relative">
+                <div class="tw-flex tw-items-center tw-gap-2">
                     <InputText
                         ref="searchInputRef"
                         v-model="searchQuery"
                         @input="handleSearch"
                         placeholder="Search patients by name or phone..."
-                        class="p-inputtext-lg"
+                        class="tw-w-full"
                         @focus="onInputFocus"
                         :disabled="disabled"
                         :readonly="readonly"
@@ -203,51 +195,98 @@ const onInputFocus = (event) => {
                     <Button
                         v-if="searchQuery"
                         icon="pi pi-times"
-                        class="p-button-secondary p-button-text"
+                        class="p-button-secondary p-button-text tw-ml-auto"
                         @click="resetSearch"
                     />
                 </div>
             </div>
 
-            <div class="p-col-12 p-md-3 p-d-flex p-jc-end p-gap-2">
+            <!-- Action Buttons Section -->
+            <div class="tw-flex tw-gap-2 tw-justify-end">
                 <Button
                     v-if="selectedPatient"
                     label="Edit Patient"
                     icon="pi pi-user-edit"
-                    class="p-button-secondary p-button-sm p-button-rounded"
+                    class="p-button-secondary p-button-sm tw-rounded-full"
                     @click="openModal(true)"
                 />
                 <Button
                     label="Add New Patient"
                     icon="pi pi-user-plus"
-                    class="p-button-primary p-button-sm p-button-rounded"
+                    class="p-button-primary p-button-sm tw-rounded-full"
                     @click="openModal(false)"
                 />
             </div>
         </div>
 
-        <OverlayPanel ref="op" :showCloseIcon="false" class="p-overlaypanel-fixed-width">
-            <div v-if="isLoading" class="p-d-flex p-ai-center p-jc-center p-py-3">
-                <ProgressSpinner style="width: 30px; height: 30px" strokeWidth="6" animationDuration=".8s" />
-                <span class="p-ml-2">Searching...</span>
+        <!-- Search Results Overlay Panel -->
+        <OverlayPanel ref="op" :showCloseIcon="false" class="tw-patient-overlay">
+            <!-- Loading State -->
+            <div v-if="isLoading" class="tw-flex tw-items-center tw-justify-center tw-py-6">
+                <ProgressSpinner 
+                    style="width: 30px; height: 30px" 
+                    strokeWidth="6" 
+                    animationDuration=".8s" 
+                />
+                <span class="tw-ml-3 tw-text-gray-600">Searching...</span>
             </div>
+            
+            <!-- Results Template -->
             <template v-else>
-                <div v-if="patients.length > 0" class="patient-list-container tw-w-full" >
-                    <div class="p-text-bold p-mb-2">Search Results</div>
-                    <div v-for="patient in patients" :key="patient.id" class="patient-item p-d-flex p-ai-center p-py-2 p-px-1" @click="selectPatient(patient)">
-                        <span class="p-text-sm p-mr-2 p-text-bold">{{ patient.first_name }} {{ patient.last_name }}</span>
-                        <Tag icon="pi pi-phone" :value="patient.phone" severity="info" class="p-mr-2" />
-                        <Tag icon="pi pi-id-card" :value="patient.Idnum" severity="secondary" class="p-mr-2" />
-                        <Tag icon="pi pi-calendar" :value="formatDateOfBirth(patient.dateOfBirth)" severity="warning" />
+                <!-- Patient Results List -->
+                <div v-if="patients.length > 0" class="tw-w-full">
+                    <div class="tw-font-semibold tw-text-gray-700 tw-mb-3 tw-px-2">
+                        Search Results ({{ patients.length }})
+                    </div>
+                    <div class="tw-max-h-96 tw-overflow-y-auto">
+                        <div 
+                            v-for="patient in patients" 
+                            :key="patient.id" 
+                            class="tw-patient-item tw-flex tw-items-center tw-justify-between tw-py-3 tw-px-4 tw-mb-2 tw-rounded-lg tw-bg-white hover:tw-bg-blue-50 tw-cursor-pointer tw-transition-colors tw-duration-200 tw-border tw-border-gray-200 hover:tw-border-blue-300"
+                            @click="selectPatient(patient)"
+                        >
+                            <div class="tw-flex tw-flex-col">
+                                <span class="tw-text-base tw-font-semibold tw-text-gray-800">
+                                    {{ patient.first_name }} {{ patient.last_name }}
+                                </span>
+                                <div class="tw-flex tw-gap-3 tw-mt-1">
+                                    <Tag 
+                                        icon="pi pi-phone" 
+                                        :value="patient.phone" 
+                                        severity="info" 
+                                        class="tw-text-xs"
+                                    />
+                                    <Tag 
+                                        icon="pi pi-id-card" 
+                                        :value="patient.Idnum" 
+                                        severity="secondary" 
+                                        class="tw-text-xs"
+                                    />
+                                    <Tag 
+                                        icon="pi pi-calendar" 
+                                        :value="formatDateOfBirth(patient.dateOfBirth)" 
+                                        severity="warning" 
+                                        class="tw-text-xs"
+                                    />
+                                </div>
+                            </div>
+                            <i class="pi pi-chevron-right tw-text-gray-400"></i>
+                        </div>
                     </div>
                 </div>
-                <div v-else class="p-d-flex p-flex-column p-ai-center p-py-3">
-                    <i class="pi pi-search" style="font-size: 2rem; color: var(--surface-400);"></i>
-                    <div class="p-text-secondary p-mt-2">No patients found</div>
+                
+                <!-- No Results State -->
+                <div v-else class="tw-flex tw-flex-col tw-items-center tw-py-8">
+                    <i class="pi pi-search tw-text-5xl tw-text-gray-300 tw-mb-4"></i>
+                    <div class="tw-text-gray-500 tw-text-lg">No patients found</div>
+                    <div class="tw-text-gray-400 tw-text-sm tw-mt-1">
+                        Try searching with different keywords
+                    </div>
                 </div>
             </template>
         </OverlayPanel>
 
+        <!-- Patient Modal -->
         <PatientModel
             :show-modal="isModalOpen"
             :spec-data="selectedPatient"
@@ -258,72 +297,51 @@ const onInputFocus = (event) => {
 </template>
 
 <style scoped>
-/* PrimeFlex classes handle most of the layout */
-/* p-inputgroup for input and clear button alignment */
-/* p-d-flex, p-jc-end, p-gap-2 for button layout */
-
-.p-inputgroup {
-    display: flex; /* Ensure proper grouping */
-    width: 100%; /* Take full width of its parent column */
+/* Custom overlay panel width and positioning */
+:deep(.tw-patient-overlay) {
+    min-width: 450px !important;
+    max-width: 600px !important;
+    margin-top: 4px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+    border-radius: 8px !important;
+    border: 1px solid #e5e7eb !important;
 }
 
-/* Custom width for the OverlayPanel to ensure it aligns well with the input */
-.p-overlaypanel-fixed-width {
-    min-width: 400px; /* Minimum width to match input */
-    max-width: 600px; /* Maximum width */
-    z-index: 1000; /* Ensure it appears above other elements */
+:deep(.p-overlaypanel-content) {
+    padding: 0.75rem !important;
 }
 
-/* Ensure the overlay panel appears directly under the input */
-:deep(.p-overlaypanel) {
-    margin-top: 2px !important;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+/* PrimeVue button customization */
+:deep(.p-button-sm) {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
 }
 
-.patient-list-container {
-    max-height: 500px; /* Adjust height as needed */
-    overflow-y: auto;
-    border-radius: var(--border-radius);
-    background-color: var(--surface-card);
-    padding: 0.5rem;
+:deep(.p-inputtext) {
+    width: 100% !important;
 }
 
-.patient-item {
-    cursor: pointer;
-    font-size: 17px;
-    padding: 1rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: background-color 0.2s;
-    border-radius: var(--border-radius); /* Match PrimeVue style */
+/* Patient item hover effect */
+.tw-patient-item:hover {
+    transform: translateX(2px);
 }
 
-
-.patient-item:hover {
-    background-color: var(--surface-hover);
+/* Scrollbar styling for results list */
+.tw-max-h-96::-webkit-scrollbar {
+    width: 6px;
 }
 
-.p-button-sm.p-button-rounded {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-    border-radius: 2rem;
+.tw-max-h-96::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
 }
 
-/* Ensure PrimeVue components have adequate spacing */
-.p-mb-2 { margin-bottom: 0.5rem; }
-.p-pr-md-2 { padding-right: 0.5rem; }
-.p-ml-2 { margin-left: 0.5rem; }
-.p-mr-2 { margin-right: 0.5rem; }
-.p-py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-.p-px-1 { padding-left: 0.25rem; padding-right: 0.25rem; }
-.p-py-3 { padding-top: 1rem; padding-bottom: 1rem; }
-.p-mt-2 { margin-top: 0.5rem; }
+.tw-max-h-96::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
 
-/* Additional styles for disabled and readonly states */
-.patient-search-disabled {
-    background-color: var(--surface-disabled);
-    color: var(--text-disabled);
-    cursor: not-allowed;
+.tw-max-h-96::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 </style>

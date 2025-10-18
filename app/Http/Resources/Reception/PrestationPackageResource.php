@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Resources\Reception;
 
 use Illuminate\Http\Request;
@@ -23,7 +24,12 @@ class PrestationPackageResource extends JsonResource
                         'id' => $item->prestation->id,
                         'name' => $item->prestation->name,
                         'internal_code' => $item->prestation->internal_code,
-                        'public_price' => $item->prestation->calculated_public_price, // Using getPublicPrice() method
+                        // Raw public price (without VAT) - fallback to 0.0
+                        'public_price' => $item->prestation->public_price !== null ? (float) $item->prestation->public_price : 0.0,
+                        // Price including VAT and consumables (TTC) - use accessor which returns rounded float
+                        'price_with_vat' => method_exists($item->prestation, 'getPriceWithVatAttribute')
+                            ? (float) $item->prestation->getPriceWithVatAttribute()
+                            : 0.0,
                         'description' => $item->prestation->description,
                         // Add other prestation fields as needed
                     ] : null,

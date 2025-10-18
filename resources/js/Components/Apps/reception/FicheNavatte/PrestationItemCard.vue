@@ -71,6 +71,16 @@ const confirm = useConfirm()
 // State
 const showDetailsModal = ref(false)
 const showRemiseModal = ref(false)
+const showPaymentTypeDialog = ref(false)
+const editingItem = ref(null)
+const selectedPaymentType = ref(null)
+
+// Payment type options match backend validation
+const paymentTypeOptions = [
+  { label: 'Pré-paiement', value: 'Pré-paiement' },
+  { label: 'Post-paiement', value: 'Post-paiement' },
+  { label: 'Versement', value: 'Versement' }
+]
 
 // Safe access to group items
 const groupItems = computed(() => {
@@ -326,9 +336,10 @@ const mainDisplayItems = computed(() => {
           id: `dep_${dep.id || Math.random()}`,
           prestation: prestation,
           status: dep.status || 'required',
-          base_price: prestation.public_price || 0,
-          final_price: prestation.public_price || 0,
-          patient_share: prestation.public_price || 0,
+          // Prefer the combined TTC (with consumables VAT) when available
+          base_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+          final_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+          patient_share: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
           dependencies: [],
           isDependency: true,
           originalDependency: dep,
@@ -374,6 +385,16 @@ const getItemTypeBadge = (item) => {
   if (item.prestation_id) return { label: 'Prestation', severity: 'success' }
   if (item.package_id) return { label: 'Package', severity: 'info' }
   return { label: 'Unknown', severity: 'secondary' }
+}
+
+// Human-friendly payment label formatter
+const paymentLabel = (raw) => {
+  const status = String(raw || 'unpaid').toLowerCase()
+  if (status === 'unpaid') return 'Not Paid'
+  if (status === 'partial') return 'Partial'
+  if (status === 'paid') return 'Paid'
+  // fallback: capitalize
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 const getConventionBadge = (item) => {
@@ -431,6 +452,50 @@ const removeDependency = async (dependency) => {
       detail: error.message || 'Failed to remove dependency',
       life: 3000
     })
+  }
+}
+
+const openPaymentTypeDialog = (item) => {
+  editingItem.value = item
+  selectedPaymentType.value = item.default_payment_type || null
+  showPaymentTypeDialog.value = true
+}
+
+const cancelPaymentTypeChange = () => {
+  editingItem.value = null
+  selectedPaymentType.value = null
+  showPaymentTypeDialog.value = false
+}
+
+const savePaymentTypeChange = async () => {
+  if (!editingItem.value) return
+  try {
+    let res
+
+    // If editingItem is a dependency (has parent_item_id) call dependency endpoint
+    if (editingItem.value.parent_item_id && editingItem.value.id) {
+      // dependency ids are numeric in DB
+      res = await ficheNavetteService.updateDependency(editingItem.value.id, {
+        default_payment_type: selectedPaymentType.value
+      })
+    } else {
+      // Otherwise update the fiche navette item
+      res = await ficheNavetteService.updateFicheNavetteItem(props.ficheNavetteId, editingItem.value.id, {
+        default_payment_type: selectedPaymentType.value
+      })
+    }
+
+    if (res.success) {
+      toast.add({ severity: 'success', summary: 'Saved', detail: 'Payment type updated', life: 3000 })
+      // Notify parent to refresh items
+      emit('item-updated', { refresh: true })
+      cancelPaymentTypeChange()
+    } else {
+      throw new Error(res.message || 'Update failed')
+    }
+  } catch (error) {
+    console.error('Error updating payment type:', error)
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to update payment type', life: 5000 })
   }
 }
 
@@ -558,25 +623,22 @@ const totalPrice = computed(() => {
 // Get payment status information
 const paymentStatusInfo = computed(() => {
   // Check if any item in the group has payment_status
-  const itemsWithPaymentStatus = groupItems.value.filter(item => item.payment_status)
-  
-  if (itemsWithPaymentStatus.length === 0) {
-    return null
-  }
-  
-  // Get unique payment statuses
-  const paymentStatuses = itemsWithPaymentStatus.map(item => item.payment_status).filter(Boolean)
-  const uniqueStatuses = [...new Set(paymentStatuses)]
-  
-  // If multiple statuses, show the most critical one
+  // Consider items with explicit payment_status or infer 'unpaid' when missing
+  if (!groupItems.value || groupItems.value.length === 0) return null
+
+  // Collect statuses, defaulting missing statuses to 'unpaid'
+  const paymentStatuses = groupItems.value.map(item => item.payment_status ? String(item.payment_status).toLowerCase() : 'unpaid')
+  const uniqueStatuses = [...new Set(paymentStatuses.filter(Boolean))]
+
+  // Prioritize most severe status
   if (uniqueStatuses.includes('unpaid')) {
-    return { status: 'unpaid', label: 'Unpaid', severity: 'danger', color: '#dc3545' }
+    return { status: 'unpaid', label: 'Not Paid', severity: 'danger', color: '#dc3545' }
   } else if (uniqueStatuses.includes('partial')) {
     return { status: 'partial', label: 'Partial', severity: 'warning', color: '#fd7e14' }
   } else if (uniqueStatuses.includes('paid')) {
     return { status: 'paid', label: 'Paid', severity: 'success', color: '#28a745' }
   }
-  
+
   return null
 })
 </script>
@@ -668,7 +730,8 @@ const paymentStatusInfo = computed(() => {
         
         <div class="info-item">
           <span class="info-label">Total:</span>
-          <strong class="total-price">{{ formatCurrency(totalPrice) }}</strong>
+          <strong class="total-price" v-if="paymentStatusInfo && paymentStatusInfo.status === 'unpaid'">{{ paymentStatusInfo.label }}</strong>
+          <strong class="total-price" v-else>{{ formatCurrency(totalPrice) }}</strong>
         </div>
       </div>
 
@@ -1018,19 +1081,17 @@ const paymentStatusInfo = computed(() => {
               <Column field="payment_status" header="Payment Status">
                 <template #body="{ data }">
                   <Chip
-                    v-if="data.payment_status"
-                    :label="data.payment_status.charAt(0).toUpperCase() + data.payment_status.slice(1)"
-                    :severity="data.payment_status === 'paid' ? 'success' : data.payment_status === 'partial' ? 'warning' : 'danger'"
+                    :label="paymentLabel(data.payment_status)"
+                    :severity="(data.payment_status || 'unpaid') === 'paid' ? 'success' : (data.payment_status || 'unpaid') === 'partial' ? 'warning' : 'danger'"
                     size="small"
                     :style="{
-                      backgroundColor: data.payment_status === 'paid' ? '#28a745' : 
-                                     data.payment_status === 'partial' ? '#fd7e14' : '#dc3545',
+                      backgroundColor: (data.payment_status || 'unpaid') === 'paid' ? '#28a745' : 
+                                     (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545',
                       color: 'white',
-                      borderColor: data.payment_status === 'paid' ? '#28a745' : 
-                                  data.payment_status === 'partial' ? '#fd7e14' : '#dc3545'
+                      borderColor: (data.payment_status || 'unpaid') === 'paid' ? '#28a745' : 
+                                  (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545'
                     }"
                   />
-                  <span v-else class="text-muted">Not set</span>
                 </template>
               </Column>
 
@@ -1042,7 +1103,7 @@ const paymentStatusInfo = computed(() => {
 
               <Column field="final_price" header="Final Price">
                 <template #body="{ data }">
-                  <strong>{{ formatCurrency(data.final_price) }}</strong>
+                  <strong>{{ formatCurrency(data.final_price ?? data.base_price ?? 0) }}</strong>
                 </template>
               </Column>
 
@@ -1069,12 +1130,20 @@ const paymentStatusInfo = computed(() => {
 
               <Column header="Actions">
                 <template #body="{ data }">
-                  <Button
-                    icon="pi pi-trash"
-                    class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                    @click="removeItem(data.id)"
-                    v-tooltip.top="'Remove item'"
-                  />
+                  <div class="item-actions">
+                    <Button
+                      icon="pi pi-pencil"
+                      class="p-button-rounded p-button-text p-button-sm p-button-info"
+                      @click="openPaymentTypeDialog(data)"
+                      v-tooltip.top="'Edit payment type'"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                      @click="removeItem(data.id)"
+                      v-tooltip.top="'Remove item'"
+                    />
+                  </div>
                 </template>
               </Column>
             </DataTable>
@@ -1165,14 +1234,20 @@ const paymentStatusInfo = computed(() => {
               <!-- Add Actions Column for Delete Button -->
               <Column header="Actions" style="width: 120px">
                 <template #body="{ data }">
-                  <div class="dependency-actions">
-                    <Button
-                      icon="pi pi-trash"
-                      class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                      @click="confirmRemoveDependency(data)"
-                      v-tooltip.top="'Remove dependency'"
-                    />
-                  </div>
+                      <div class="dependency-actions">
+                        <Button
+                          icon="pi pi-pencil"
+                          class="p-button-rounded p-button-text p-button-sm p-button-info"
+                          @click="openPaymentTypeDialog(data)"
+                          v-tooltip.top="'Edit payment type'"
+                        />
+                        <Button
+                          icon="pi pi-trash"
+                          class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                          @click="confirmRemoveDependency(data)"
+                          v-tooltip.top="'Remove dependency'"
+                        />
+                      </div>
                 </template>
               </Column>
             </DataTable>
@@ -1200,6 +1275,33 @@ const paymentStatusInfo = computed(() => {
       :doctors="doctors"
       @apply-remise="handleApplyRemise"
     />
+
+    <!-- Payment Type Edit Dialog -->
+    <Dialog
+      v-model:visible="showPaymentTypeDialog"
+      header="Edit Payment Type"
+      :modal="true"
+      :style="{ width: '420px' }"
+      :closable="false"
+    >
+      <div class="p-fluid">
+        <div class="p-field">
+          <label for="paymentType">Payment Type</label>
+          <Dropdown
+            inputId="paymentType"
+            :options="paymentTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            v-model="selectedPaymentType"
+            placeholder="Select a payment type"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" class="p-button-text" @click="cancelPaymentTypeChange" />
+        <Button label="Save" icon="pi pi-check" @click="savePaymentTypeChange" />
+      </template>
+    </Dialog>
   </div>
 </template>
 

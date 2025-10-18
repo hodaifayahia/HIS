@@ -56,7 +56,7 @@ const hasPermission = (requiredRoles) => {
                 </a>
                 <ul class="nav nav-treeview" v-show="isPatientManagementOpen">
                     <li class="nav-item">
-                        <router-link to="/reception/fiche-navette" active-class="active" class="nav-link">
+                        <router-link to="/reception/fiche-navettes" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Fiche Navette</p> </router-link>
                     </li>

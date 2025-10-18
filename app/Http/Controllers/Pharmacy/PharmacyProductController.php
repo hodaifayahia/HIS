@@ -2,11 +2,8 @@
 
 namespace App\Http\Controllers\Pharmacy;
 
-use App\Models\PharmacyProduct;
 use App\Models\PharmacyInventory;
-use App\Models\PharmacyMovement;
-use App\Models\PharmacyStorage;
-use App\Models\PharmacyStockage;
+use App\Models\PharmacyProduct;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -19,29 +16,46 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
     public function index(Request $request)
     {
         $quantityByBox = $request->boolean('quantity_by_box', false);
-        
+        $user = auth()->user();
+
         $query = PharmacyProduct::query();
 
-        // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
+        // Filter by user's assigned services (only admin/SuperAdmin see all)
+        if ($user && ! $user->hasRole(['admin', 'SuperAdmin'])) {
+            // Get user's assigned services
+            $userServices = $user->services ?? [];
+            if (! empty($userServices)) {
+                $query->whereHas('pharmacyInventories.pharmacyStockage', function ($q) use ($userServices) {
+                    $q->whereIn('service_id', $userServices);
+                });
+            }
+        }
+
+        // Enhanced search functionality
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('category', 'like', "%{$search}%")
-                  ->orWhere('commercial_name', 'like', "%{$search}%")
-                  ->orWhere('medication_type', 'like', "%{$search}%")
-                  ->orWhere('active_ingredient', 'like', "%{$search}%");
+                    ->orWhere('generic_name', 'like', "%{$search}%")
+                    ->orWhere('brand_name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('barcode', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('dosage_form', 'like', "%{$search}%")
+                    ->orWhere('commercial_name', 'like', "%{$search}%")
+                    ->orWhere('medication_type', 'like', "%{$search}%")
+                    ->orWhere('active_ingredient', 'like', "%{$search}%");
             });
         }
 
         // Filter by category (pharmacy-specific categories)
-        if ($request->has('category') && !empty($request->category)) {
+        if ($request->has('category') && ! empty($request->category)) {
             $query->where('category', $request->category);
         }
 
         // Filter by medication type
-        if ($request->has('medication_type') && !empty($request->medication_type)) {
+        if ($request->has('medication_type') && ! empty($request->medication_type)) {
             $query->where('medication_type', $request->medication_type);
         }
 
@@ -59,17 +73,70 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         $products = $query->with(['inventories.stockage.storage'])->orderBy('created_at', 'desc')->get();
 
         // Add alert information and quantity calculations to each product
-        $productsWithAlerts = $products->map(function ($product) use ($quantityByBox) {
-            // Calculate total quantity based on mode
-            if ($quantityByBox && $product->units_per_package) {
-                $totalQuantity = $product->inventories->sum('quantity');
-                $displayUnit = 'packages';
-            } else {
-                $totalQuantity = $product->inventories->sum(function ($inventory) use ($product) {
-                    return $inventory->quantity * ($product->units_per_package ?? 1);
-                });
-                $displayUnit = $product->dosage_form ?? 'units';
+        $productsWithAlerts = $products->map(function ($product) use ($quantityByBox, $user) {
+            // Filter inventories by user's services if not admin
+            $inventories = $product->inventories;
+            if (! $user->hasRole(['admin', 'SuperAdmin'])) {
+                $userServices = $user->services ?? [];
+                if (! empty($userServices)) {
+                    $inventories = $inventories->filter(function ($inventory) use ($userServices) {
+                        return in_array($inventory->pharmacyStockage->service_id ?? null, $userServices);
+                    });
+                }
             }
+
+            // Calculate total quantity based on mode
+            $unitsPerPackage = $product->units_per_package ?? $product->packaging_info['units_per_package'] ?? 1;
+
+            if ($quantityByBox && $unitsPerPackage > 1) {
+                $totalQuantity = $inventories->sum('quantity');
+                $totalUnits = $inventories->sum(function ($inventory) use ($unitsPerPackage) {
+                    return $inventory->quantity * $unitsPerPackage;
+                });
+                $displayUnit = 'packages';
+                $inventoryDisplay = "{$totalQuantity} packages ({$totalUnits} units)";
+            } else {
+                $totalQuantity = $inventories->sum(function ($inventory) use ($unitsPerPackage) {
+                    return $inventory->quantity * $unitsPerPackage;
+                });
+                $totalPackages = $unitsPerPackage > 1 ? floor($totalQuantity / $unitsPerPackage) : 0;
+                $displayUnit = $product->dosage_form ?? 'units';
+                $inventoryDisplay = $unitsPerPackage > 1 ?
+                    "{$totalPackages} packages × {$unitsPerPackage} = {$totalQuantity} units" :
+                    "{$totalQuantity} units";
+            }
+
+            // Get inventory details by service/location
+            $inventoryByLocation = $inventories->groupBy(function ($inventory) {
+                return $inventory->pharmacyStockage->service->name ??
+                       $inventory->pharmacyStockage->name ??
+                       'Unknown Location';
+            })->map(function ($locationInventories, $locationName) use ($unitsPerPackage, $quantityByBox) {
+                $locationQuantity = $locationInventories->sum('quantity');
+                $locationUnits = $locationInventories->sum(function ($inventory) use ($unitsPerPackage) {
+                    return $inventory->quantity * $unitsPerPackage;
+                });
+
+                if ($quantityByBox && $unitsPerPackage > 1) {
+                    return [
+                        'location' => $locationName,
+                        'packages' => $locationQuantity,
+                        'units' => $locationUnits,
+                        'display' => "{$locationQuantity} packages ({$locationUnits} units)",
+                    ];
+                } else {
+                    $packages = $unitsPerPackage > 1 ? floor($locationUnits / $unitsPerPackage) : 0;
+
+                    return [
+                        'location' => $locationName,
+                        'packages' => $packages,
+                        'units' => $locationUnits,
+                        'display' => $unitsPerPackage > 1 ?
+                            "{$packages} packages × {$unitsPerPackage} = {$locationUnits} units" :
+                            "{$locationUnits} units",
+                    ];
+                }
+            })->values();
 
             // Use product-specific thresholds
             $lowStockThreshold = $product->minimum_stock_level ?? 20;
@@ -91,7 +158,7 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
                     'type' => 'low_stock',
                     'severity' => 'warning',
                     'message' => "Low Stock: {$totalQuantity} {$displayUnit} remaining",
-                    'icon' => 'pi pi-exclamation-triangle'
+                    'icon' => 'pi pi-exclamation-triangle',
                 ];
             }
 
@@ -101,14 +168,17 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
                     'type' => 'critical_stock',
                     'severity' => 'danger',
                     'message' => "Critical Stock: {$totalQuantity} {$displayUnit} remaining",
-                    'icon' => 'pi pi-times-circle'
+                    'icon' => 'pi pi-times-circle',
                 ];
             }
 
             // Expiring alerts (pharmacy-specific)
             $expiringItems = $product->inventories->filter(function ($inventory) use ($expiryAlertDays) {
-                if (!$inventory->expiry_date) return false;
+                if (! $inventory->expiry_date) {
+                    return false;
+                }
                 $daysUntilExpiry = now()->diffInDays($inventory->expiry_date, false);
+
                 return $daysUntilExpiry <= $expiryAlertDays && $daysUntilExpiry > 0;
             });
 
@@ -117,13 +187,16 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
                     'type' => 'expiring',
                     'severity' => 'warning',
                     'message' => "Expiring Soon: {$expiringItems->count()} batches",
-                    'icon' => 'pi pi-clock'
+                    'icon' => 'pi pi-clock',
                 ];
             }
 
             // Expired alerts
             $expiredItems = $product->inventories->filter(function ($inventory) {
-                if (!$inventory->expiry_date) return false;
+                if (! $inventory->expiry_date) {
+                    return false;
+                }
+
                 return $inventory->expiry_date->isPast();
             });
 
@@ -132,7 +205,7 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
                     'type' => 'expired',
                     'severity' => 'danger',
                     'message' => "Expired: {$expiredItems->count()} batches",
-                    'icon' => 'pi pi-ban'
+                    'icon' => 'pi pi-ban',
                 ];
             }
 
@@ -141,8 +214,8 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
                 $alerts[] = [
                     'type' => 'controlled_substance',
                     'severity' => 'info',
-                    'message' => "Controlled Substance - Special Handling Required",
-                    'icon' => 'pi pi-shield'
+                    'message' => 'Controlled Substance - Special Handling Required',
+                    'icon' => 'pi pi-shield',
                 ];
             }
 
@@ -156,6 +229,12 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
             $product->display_unit = $displayUnit;
             $product->quantity_by_box = $quantityByBox;
             $product->unit = $primaryUnit;
+
+            // Add inventory information
+            $product->inventory_display = $inventoryDisplay;
+            $product->inventory_by_location = $inventoryByLocation;
+            $product->units_per_package = $unitsPerPackage;
+            $product->has_package_units = $unitsPerPackage > 1;
 
             return $product;
         });
@@ -181,15 +260,15 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         ];
 
         // Filter by alert types if provided
-        if ($request->has('alert_filters') && !empty($request->alert_filters)) {
+        if ($request->has('alert_filters') && ! empty($request->alert_filters)) {
             $alertFilters = $request->alert_filters;
             if (is_string($alertFilters)) {
                 $alertFilters = json_decode($alertFilters, true);
             }
 
-            if (is_array($alertFilters) && !empty($alertFilters)) {
+            if (is_array($alertFilters) && ! empty($alertFilters)) {
                 $productsWithAlerts = $productsWithAlerts->filter(function ($product) use ($alertFilters) {
-                    if (!$product->alerts || empty($product->alerts)) {
+                    if (! $product->alerts || empty($product->alerts)) {
                         return false;
                     }
 
@@ -214,10 +293,10 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
                 'per_page' => $perPage,
                 'total' => $productsWithAlerts->count(),
                 'from' => $paginatedProducts->isNotEmpty() ? (($currentPage - 1) * $perPage) + 1 : null,
-                'to' => $paginatedProducts->isNotEmpty() ? (($currentPage - 1) * $perPage) + $paginatedProducts->count() : null
+                'to' => $paginatedProducts->isNotEmpty() ? (($currentPage - 1) * $perPage) + $paginatedProducts->count() : null,
             ],
             'alert_counts' => $alertCounts,
-            'quantity_by_box' => $quantityByBox
+            'quantity_by_box' => $quantityByBox,
         ]);
     }
 
@@ -245,26 +324,26 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
             'manufacturer' => 'nullable|string|max:255',
             'requires_prescription' => 'boolean',
             'storage_requirements' => 'nullable|string',
-            'status' => ['nullable', Rule::in(['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'])]
+            'status' => ['nullable', Rule::in(['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'])],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $data = $request->all();
-        
+
         // Set pharmacy-specific defaults
         $data['is_clinical'] = $request->boolean('is_clinical', false);
         $data['is_controlled_substance'] = $request->boolean('is_controlled_substance', false);
         $data['requires_prescription'] = $request->boolean('requires_prescription', false);
-        
+
         // Set default status if not provided
-        if (!isset($data['status'])) {
+        if (! isset($data['status'])) {
             $data['status'] = 'In Stock';
         }
 
@@ -273,7 +352,7 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Pharmacy product created successfully',
-            'data' => $product
+            'data' => $product,
         ], 201);
     }
 
@@ -283,10 +362,10 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
     public function show(PharmacyProduct $product)
     {
         $product->load(['inventories.stockage.storage']);
-        
+
         return response()->json([
             'success' => true,
-            'data' => $product
+            'data' => $product,
         ]);
     }
 
@@ -314,19 +393,19 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
             'manufacturer' => 'nullable|string|max:255',
             'requires_prescription' => 'boolean',
             'storage_requirements' => 'nullable|string',
-            'status' => ['nullable', Rule::in(['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'])]
+            'status' => ['nullable', Rule::in(['In Stock', 'Low Stock', 'Out of Stock', 'Discontinued'])],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $data = $request->all();
-        
+
         // Set pharmacy-specific defaults
         $data['is_clinical'] = $request->boolean('is_clinical', false);
         $data['is_controlled_substance'] = $request->boolean('is_controlled_substance', false);
@@ -337,7 +416,7 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Pharmacy product updated successfully',
-            'data' => $product
+            'data' => $product,
         ]);
     }
 
@@ -348,48 +427,48 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'integer|exists:pharmacy_products,id'
+            'ids.*' => 'integer|exists:pharmacy_products,id',
         ]);
 
         $ids = $request->ids;
-        
+
         try {
             // Start a database transaction
             \DB::beginTransaction();
-            
+
             // Get all inventory IDs for the products to be deleted
             $inventoryIds = PharmacyInventory::whereIn('product_id', $ids)->pluck('id')->toArray();
-            
+
             // First, delete pharmacy movement inventory selections that reference these inventories
-            if (!empty($inventoryIds)) {
+            if (! empty($inventoryIds)) {
                 \DB::table('pharmacy_movement_inventory_selections')
                     ->whereIn('inventory_id', $inventoryIds)
                     ->delete();
             }
-            
+
             // Then, delete all related inventory records
             PharmacyInventory::whereIn('product_id', $ids)->delete();
-            
+
             // Finally, delete the products
             $deletedCount = PharmacyProduct::whereIn('id', $ids)->delete();
-            
+
             // Commit the transaction
             \DB::commit();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => "{$deletedCount} pharmacy products deleted successfully",
-                'deleted_count' => $deletedCount
+                'deleted_count' => $deletedCount,
             ]);
-            
+
         } catch (\Exception $e) {
             // Rollback the transaction on error
             \DB::rollback();
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete pharmacy products: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to delete pharmacy products: '.$e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -400,10 +479,10 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
     public function getDetails($id, Request $request)
     {
         $quantityByBox = $request->boolean('quantity_by_box', false);
-        
+
         $product = PharmacyProduct::with(['inventories.stockage.storage'])->find($id);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
 
@@ -489,36 +568,36 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         $settings = [
             'min_quantity_all_services' => [
                 'threshold' => $product->minimum_stock_level ?? 20,
-                'apply_to_services' => true
+                'apply_to_services' => true,
             ],
             'critical_stock_threshold' => [
                 'threshold' => $product->critical_stock_level ?? 10,
-                'apply_to_services' => true
+                'apply_to_services' => true,
             ],
             'expiry_alert_days' => [
-                'days' => 60
+                'days' => 60,
             ],
             'auto_reorder_settings' => [
                 'enabled' => false,
                 'reorder_point' => $product->minimum_stock_level ?? 30,
-                'reorder_quantity' => 100
+                'reorder_quantity' => 100,
             ],
             'notification_settings' => [
                 'email_alerts' => true,
                 'sms_alerts' => false,
-                'alert_frequency' => 'daily'
+                'alert_frequency' => 'daily',
             ],
             'pharmacy_specific' => [
                 'controlled_substance_monitoring' => $product->is_controlled_substance,
                 'prescription_required' => $product->requires_prescription,
                 'temperature_monitoring' => true,
-                'batch_tracking' => true
-            ]
+                'batch_tracking' => true,
+            ],
         ];
 
         return response()->json([
             'success' => true,
-            'settings' => $settings
+            'settings' => $settings,
         ]);
     }
 
@@ -536,7 +615,7 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
             'settings.expiry_alert_days' => 'sometimes|array',
             'settings.auto_reorder_settings' => 'sometimes|array',
             'settings.notification_settings' => 'sometimes|array',
-            'settings.pharmacy_specific' => 'sometimes|array'
+            'settings.pharmacy_specific' => 'sometimes|array',
         ]);
 
         $settings = $request->input('settings');
@@ -547,7 +626,7 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'message' => 'Pharmacy product settings saved successfully',
-            'settings' => $settings
+            'settings' => $settings,
         ]);
     }
 
@@ -559,50 +638,51 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
         try {
             // Start a database transaction
             \DB::beginTransaction();
-            
+
             // Get all inventory IDs for this product
             $inventoryIds = $product->inventories()->pluck('id')->toArray();
-            
+
             // First, delete pharmacy movement inventory selections that reference these inventories
-            if (!empty($inventoryIds)) {
+            if (! empty($inventoryIds)) {
                 \DB::table('pharmacy_movement_inventory_selections')
                     ->whereIn('inventory_id', $inventoryIds)
                     ->delete();
             }
-            
+
             // Then, delete all related inventory records
             $product->inventories()->delete();
-            
+
             // Finally, delete the product
             $product->delete();
-            
+
             // Commit the transaction
             \DB::commit();
-            
+
             return response()->json([
                 'success' => true,
-                'message' => 'Pharmacy product deleted successfully'
+                'message' => 'Pharmacy product deleted successfully',
             ]);
-            
+
         } catch (\Exception $e) {
             // Rollback the transaction on error
             \DB::rollback();
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete pharmacy product: ' . $e->getMessage(),
-                'error' => $e->getMessage()
+                'message' => 'Failed to delete pharmacy product: '.$e->getMessage(),
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     public function getStockDetails($productId)
     {
         $product = PharmacyProduct::find($productId);
 
-        if (!$product) {
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pharmacy product not found.'
+                'message' => 'Pharmacy product not found.',
             ], 404);
         }
 
@@ -629,17 +709,17 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
             'summary' => $summary,
         ]);
     }
-      public function getCategories()
+
+    public function getCategories()
     {
         $categories = PharmacyProduct::select('category')->distinct()->pluck('category');
+
         return response()->json(['success' => true, 'data' => $categories]);
     }
 }
 
-    /**
-     * Get low stock products.
-     */
+/**
+ * Get low stock products.
+ */
 
-
-    // Pharmacy Inventory
-  
+// Pharmacy Inventory

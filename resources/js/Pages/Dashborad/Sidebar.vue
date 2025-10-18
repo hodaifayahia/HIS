@@ -199,7 +199,7 @@ const playNotificationSound = () => {
                             <p>Calendar</p>
                         </router-link>
                     </li>
-                     <template v-if="user?.role === 'SuperAdmin'">
+                     <template v-if="user?.role === 'SuperAdmin' || user?.role === 'admin'">
                         <li class="nav-item">
                             <router-link to="/admin/appointments/users" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
@@ -259,18 +259,6 @@ const playNotificationSound = () => {
                                 <p>Waitlist</p>
                             </router-link>
                         </li>
-                    <li class="nav-item">
-                        <router-link to="/admin/appointments/modality-appointment" active-class="active" class="nav-link">
-                            <i class="nav-icon fas fa-calendar-check"></i>
-                            <p>Modality Appointment</p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/admin/appointments/modality-appointment/forceAppointment" active-class="active" class="nav-link">
-                            <i class="nav-icon fas fa-user-shield"></i>
-                            <p>Modality Force Appointment</p>
-                        </router-link>
-                    </li>
                     </template>
                      <li class="nav-item">
                             <router-link to="/admin/appointments/patient" active-class="active" class="nav-link">
@@ -279,7 +267,7 @@ const playNotificationSound = () => {
                             </router-link>
                         </li>
 
-                    <template v-if="user?.role === 'doctor'">
+                    <template v-if="user?.role === 'doctor' ">
                         <li class="nav-item">
                             <router-link to="/doctor/appointments" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-calendar-check"></i>

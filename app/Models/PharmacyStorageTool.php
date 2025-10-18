@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PharmacyStorageTool extends Model
 {
     protected $table = 'pharmacy_stockage_tools';
+
     protected $fillable = [
         'pharmacy_storage_id',
         'tool_type',
@@ -78,7 +79,7 @@ class PharmacyStorageTool extends Model
      */
     public function getToolTypeLabelAttribute(): string
     {
-        return match($this->tool_type) {
+        return match ($this->tool_type) {
             'RY' => 'Rayonnage (Shelving)',
             'AR' => 'Armoire (Cabinet)',
             'CF' => 'Coffre (Safe)',
@@ -102,7 +103,7 @@ class PharmacyStorageTool extends Model
      */
     public function getBlockLabelAttribute(): ?string
     {
-        if ($this->tool_type !== 'RY' || !$this->block) {
+        if ($this->tool_type !== 'RY' || ! $this->block) {
             return null;
         }
 
@@ -125,15 +126,15 @@ class PharmacyStorageTool extends Model
         $serviceAbv = $this->pharmacyStorage->service->service_abv;
         $storageLocationCode = $this->pharmacyStorage->location_code;
 
-        $base = $serviceAbv . $storageLocationCode . '-' . $this->tool_type . $this->tool_number;
+        $base = $serviceAbv.$storageLocationCode.'-'.$this->tool_type.$this->tool_number;
 
         if ($this->requiresBlockAndShelf() && $this->block && $this->shelf_level) {
-            $base .= '-' . $this->block . $this->shelf_level;
+            $base .= '-'.$this->block.$this->shelf_level;
         }
 
         // Add temperature zone if applicable
         if ($this->temperature_zone) {
-            $base .= '-T' . $this->temperature_zone;
+            $base .= '-T'.$this->temperature_zone;
         }
 
         return $base;
@@ -142,7 +143,7 @@ class PharmacyStorageTool extends Model
     // Pharmacy-specific methods
     public function getTemperatureZoneLabelAttribute(): string
     {
-        return match($this->temperature_zone) {
+        return match ($this->temperature_zone) {
             'RT' => 'Room Temperature (15-25°C)',
             'CRT' => 'Controlled Room Temperature (20-25°C)',
             'REF' => 'Refrigerated (2-8°C)',
@@ -154,7 +155,7 @@ class PharmacyStorageTool extends Model
 
     public function getHumidityZoneLabelAttribute(): string
     {
-        return match($this->humidity_zone) {
+        return match ($this->humidity_zone) {
             'LOW' => 'Low Humidity (<30%)',
             'STD' => 'Standard Humidity (30-60%)',
             'HIGH' => 'High Humidity (>60%)',
@@ -165,7 +166,7 @@ class PharmacyStorageTool extends Model
 
     public function getLightProtectionLevelLabelAttribute(): string
     {
-        return match($this->light_protection_level) {
+        return match ($this->light_protection_level) {
             'none' => 'No Light Protection',
             'minimal' => 'Minimal Light Protection',
             'standard' => 'Standard Light Protection',
@@ -178,7 +179,7 @@ class PharmacyStorageTool extends Model
 
     public function getAccessRestrictionLabelAttribute(): string
     {
-        return match($this->access_restriction) {
+        return match ($this->access_restriction) {
             'open' => 'Open Access',
             'staff' => 'Staff Access Only',
             'pharmacist' => 'Pharmacist Access Only',
@@ -207,10 +208,10 @@ class PharmacyStorageTool extends Model
 
     public function getOccupancyPercentageAttribute(): float
     {
-        if (!$this->capacity_units || $this->capacity_units == 0) {
+        if (! $this->capacity_units || $this->capacity_units == 0) {
             return 0;
         }
-        
+
         return ($this->current_occupancy / $this->capacity_units) * 100;
     }
 
@@ -221,25 +222,25 @@ class PharmacyStorageTool extends Model
 
     public function isCalibrationDue(): bool
     {
-        if (!$this->next_calibration_due) {
+        if (! $this->next_calibration_due) {
             return false;
         }
-        
+
         return $this->next_calibration_due->isPast();
     }
 
     public function isCalibrationOverdue($days = 30): bool
     {
-        if (!$this->next_calibration_due) {
+        if (! $this->next_calibration_due) {
             return false;
         }
-        
+
         return $this->next_calibration_due->addDays($days)->isPast();
     }
 
     public function getComplianceStatusLabelAttribute(): string
     {
-        return match($this->compliance_status) {
+        return match ($this->compliance_status) {
             'compliant' => 'Compliant',
             'calibration_due' => 'Calibration Due',
             'maintenance_required' => 'Maintenance Required',
@@ -256,7 +257,7 @@ class PharmacyStorageTool extends Model
 
     public function getSecurityFeaturesListAttribute(): string
     {
-        if (!$this->security_features) {
+        if (! $this->security_features) {
             return 'No special security features';
         }
 

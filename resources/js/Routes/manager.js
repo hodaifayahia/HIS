@@ -29,6 +29,11 @@ const mangerRoutes = [
         name: 'manger.prestation',
         component: () => import('../Pages/Apps/manager/PrestationPatient.vue'),
       },
+      {
+        path: 'patient-positions',
+        name: 'manger.patient-positions',
+        component: () => import('../Pages/Apps/manager/PatientPositions.vue'),
+      },
 
 
     ],

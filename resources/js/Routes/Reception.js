@@ -9,12 +9,12 @@ const receptionRoutes = [
       {
         path: 'dashboard',
         name: 'reception.dashboard',
-        // component: () => import('../Pages/Apps/reception/Dashboard/ReceptionDashboard.vue'),
+        component: () => import('../Pages/Apps/reception/FicheNavatte/ficheNavetteList.vue'),
       },
      // fiche  navatte
         {
-        path: 'fiche-navette',
-        name: 'reception.fiche-navette',
+        path: 'fiche-navettes',
+        name: 'reception.fiche-navettes',
         component: () => import('../Pages/Apps/reception/FicheNavatte/ficheNavetteList.vue'),
       },
         {
@@ -23,7 +23,7 @@ const receptionRoutes = [
         component: () => import('../Pages/Apps/reception/FicheNavatte/ficheNavetteCustomPackage.vue'),
       },
       {
-        path: '/reception/fiche-navette/:id/items',
+        path: 'fiche-navette/:id/items',
         name: 'reception.FicheNavetteItems',
         component: () => import('../Pages/Apps/reception/FicheNavatte/FicheNavetteItemsList.vue'),
         meta: {
@@ -32,7 +32,7 @@ const receptionRoutes = [
         }
       },
       {
-        path: '/reception/fiche-navette/:id/items/create',
+        path: 'fiche-navette/:id/items/create',
         name: 'reception.FicheNavetteItems.create',
         component: () => import('../Components/Apps/reception/FicheNavatteItem/FicheNavetteItemCreate.vue'),
         meta: {

@@ -279,8 +279,8 @@
                   <i class="pi pi-box tw-text-blue-600"></i>
                 </div>
                 <div>
-                  <div class="tw-font-semibold tw-text-gray-800">{{ slotProps.data.product?.name || 'N/A' }}</div>
-                  <div class="tw-text-sm tw-text-gray-500">{{ slotProps.data.product?.code || '' }}</div>
+                  <div class="tw-font-semibold tw-text-gray-800">{{ slotProps.data.pharmacy_product?.name || 'N/A' }}</div>
+                  <div class="tw-text-sm tw-text-gray-500">{{ slotProps.data.pharmacy_product?.code || '' }}</div>
                 </div>
               </div>
             </template>
@@ -553,6 +553,89 @@
         </div>
       </template>
     </Dialog>
+
+    <!-- Transfer Stock Modal -->
+    <Dialog
+      v-model:visible="showTransferModal"
+      modal
+      header="Transfer Stock"
+      :style="{ width: '500px' }"
+      :closable="true"
+      :dismissible-mask="true"
+      class="tw-rounded-2xl"
+    >
+      <div class="tw-p-2">
+        <form @submit.prevent="transferStock" class="tw-space-y-6">
+          <div>
+            <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3 tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-arrow-right tw-text-blue-500"></i>
+              Transfer Quantity *
+            </label>
+            <InputNumber
+              v-model="transferData.quantity"
+              class="tw-w-full tw-rounded-lg tw-shadow-sm"
+              min="1"
+              :max="selectedInventory?.quantity || 999999"
+              placeholder="Enter quantity to transfer"
+              required
+            />
+            <small class="tw-text-gray-500 tw-mt-1 tw-block">
+              Available: {{ selectedInventory?.quantity || 0 }} units
+            </small>
+          </div>
+
+          <div>
+            <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3 tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-map-marker tw-text-green-500"></i>
+              Destination Stockage *
+            </label>
+            <Dropdown
+              v-model="transferData.destination_stockage_id"
+              :options="availableStockages.filter(s => s.id !== stockage?.id)"
+              option-label="name"
+              option-value="id"
+              placeholder="Select destination stockage"
+              class="tw-w-full tw-rounded-lg tw-shadow-sm"
+              required
+            />
+          </div>
+
+          <div>
+            <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3 tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-comment tw-text-blue-500"></i>
+              Notes
+            </label>
+            <Textarea
+              v-model="transferData.notes"
+              rows="3"
+              class="tw-w-full tw-rounded-lg tw-shadow-sm"
+              placeholder="Optional notes about this transfer"
+            />
+          </div>
+        </form>
+      </div>
+
+      <template #footer>
+        <div class="tw-flex tw-justify-end tw-gap-4 tw-p-4 tw-bg-gray-50 tw-rounded-b-2xl">
+          <Button
+            type="button"
+            label="Cancel"
+            icon="pi pi-times"
+            class="p-button-text p-button-secondary tw-rounded-lg tw-shadow-sm"
+            @click="closeTransferModal"
+          />
+          <Button
+            type="submit"
+            label="Transfer Stock"
+            icon="pi pi-check"
+            class="p-button-primary tw-rounded-lg tw-shadow-md tw-px-6"
+            :disabled="isSubmitting"
+            :loading="isSubmitting"
+            @click="transferStock"
+          />
+        </div>
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -574,7 +657,7 @@ import ProgressSpinner from 'primevue/progressspinner';
 import Toast from 'primevue/toast';
 
 // Custom Components
-import AddProductToStockModal from '@/Components/Apps/stock/AddProductToStockModal.vue';
+import AddProductToStockModal from '../../../../Components/Apps/pharmacy/AddProductToStockModal.vue';
 
 export default {
   name: 'StockageStock',
@@ -906,8 +989,8 @@ export default {
       try {
         const response = await axios.post(`/api/inventory/${this.selectedInventory.id}/adjust`, {
           quantity: this.stockAdjustment.quantity,
-          type: 'add',
-          notes: this.stockAdjustment.notes
+          adjustment_type: 'increase',
+          reason: this.stockAdjustment.notes
         });
 
         if (response.data.success) {
@@ -931,8 +1014,8 @@ export default {
 
       try {
         const response = await axios.post(`/api/inventory/${this.selectedInventory.id}/adjust`, {
-          quantity: -this.stockAdjustment.quantity,
-          type: 'remove',
+          quantity: this.stockAdjustment.quantity,
+          adjustment_type: 'decrease',
           reason: this.stockAdjustment.reason,
           notes: this.stockAdjustment.notes
         });
@@ -947,6 +1030,32 @@ export default {
         }
       } catch (error) {
         this.submitError = 'Failed to remove stock';
+      } finally {
+        this.isSubmitting = false;
+      }
+    },
+
+    async transferStock() {
+      this.isSubmitting = true;
+      this.submitError = null;
+
+      try {
+        const response = await axios.post(`/api/inventory/${this.selectedInventory.id}/transfer`, {
+          quantity: this.transferData.quantity,
+          destination_stockage_id: this.transferData.destination_stockage_id,
+          notes: this.transferData.notes
+        });
+
+        if (response.data.success) {
+          this.submitSuccess = 'Stock transferred successfully!';
+          this.fetchProducts();
+          this.closeTransferModal();
+          setTimeout(() => {
+            this.submitSuccess = false;
+          }, 3000);
+        }
+      } catch (error) {
+        this.submitError = 'Failed to transfer stock';
       } finally {
         this.isSubmitting = false;
       }

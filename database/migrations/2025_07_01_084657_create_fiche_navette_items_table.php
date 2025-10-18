@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('fiche_navette_items', function (Blueprint $table) {
+        Schema::create('fiche_navette_items', function (Blueprint $table) {
             $table->id(); // Primary key, auto-incrementing
             $table->foreignId('fiche_navette_id')->constrained('fiche_navettes')->onDelete('cascade'); // Not null foreign key
             $table->foreignId('prestation_id')->nullable()->constrained('prestations')->onDelete('cascade'); // Not null foreign key
+            $table->foreignId('doctor_id')->nullable()->constrained('doctors')->onDelete('cascade'); // Not null foreign key
             $table->string('status')->comment('The core status engine for a single service, e.g., scheduled, awaiting-payment, visa-granted'); // Not null
             $table->decimal('base_price', 15, 2); // Not null
             $table->decimal('final_price', 15, 2)->comment('Price after all calculations'); // Not null

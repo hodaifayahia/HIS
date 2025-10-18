@@ -14,7 +14,7 @@ import Card from 'primevue/card'
 import Tag from 'primevue/tag'
 import Button from 'primevue/button'
 // Services
-import { ficheNavetteService } from '../../../../Components/Apps/services/Reception/ficheNavetteService'
+import ficheNavetteService from '../../../../Components/Apps/services/Emergency/ficheNavetteService'
 import prestationService from '../../../../Components/Apps/services/Prestation/prestationService'
 import prestationPackageService from '../../../../Components/Apps/services/Prestation/prestationPackageService'
 
@@ -97,6 +97,17 @@ const totalAmount = computed(() => {
 
 const itemsCount = computed(() => items.value.length)
 
+// Computed for used prestations
+const usedPrestationIds = computed(() => {
+  const ids = new Set()
+  items.value.forEach(item => {
+    if (item.prestation_id) {
+      ids.add(item.prestation_id)
+    }
+  })
+  return ids
+})
+
 // Methods
 const loadFiche = async () => {
   loading.value = true
@@ -146,21 +157,16 @@ const loadSupportData = async () => {
     }
 
     // Mock doctors data
-    doctors.value = [
-      { id: 1, name: 'Dr. Martin', specialization: 'Cardiology' },
-      { id: 2, name: 'Dr. Sarah', specialization: 'Neurology' },
-      { id: 3, name: 'Dr. Ahmed', specialization: 'Radiology' }
-    ]
+   
   } catch (error) {
     console.error('Error loading support data:', error)
   }
 }
 
 const loadConventionCompanies = async () => {
-  if (!fiche.value?.patient_id) return
-  
   try {
     loadingConventions.value = true
+    
     const result = await ficheNavetteService.getPatientConventions(
       fiche.value.patient_id, 
       fiche.value.id
@@ -168,7 +174,14 @@ const loadConventionCompanies = async () => {
     
     if (result.success) {
       conventionCompanies.value = result.data || []
-      console.log('Loaded convention companies:', conventionCompanies.value) // Debug
+      
+      // Debug: Check if prestations are included
+      console.log('Convention data:', result.data)
+      result.data.forEach(company => {
+        company.conventions?.forEach(convention => {
+          console.log(`Convention ${convention.convention_name} has ${convention.prestations?.length || 0} prestations`)
+        })
+      })
     }
   } catch (error) {
     console.error('Error loading convention companies:', error)
@@ -208,20 +221,71 @@ const handleRemiseApplied = async () => {
     life: 3000
   })
 }
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('fr-DZ', {
+    style: 'currency',
+    currency: 'DZD',
+    minimumFractionDigits: 2
+  }).format(amount || 0)
+}
+// In FicheNavetteHeader.vue
+const showOrganismeDetails = (organisme) => {
+  // Pass the complete organisme object with color
+  const organismeWithColor = {
+    ...organisme,
+    color: organisme.color || getCompanyColor(organisme, 0)
+  }
+  emit('show-convention-details', organismeWithColor)
+}
+
+
+
+const handlePrintTicket = async () => {
+  try {
+    const result = await ficheNavetteService.printTicket(ficheId.value)
+    
+    if (result.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Succès',
+        detail: 'Ticket imprimé avec succès. Le statut est maintenant "Arrivé".',
+        life: 3000
+      })
+      
+      // Reload fiche to update status
+      await loadFiche()
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Erreur',
+        detail: result.message || 'Impossible d\'imprimer le ticket',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Erreur',
+      detail: 'Une erreur s\'est produite lors de l\'impression',
+      life: 3000
+    })
+  }
+}
 
 const toggleCreateForm = () => {
   showCreateForm.value = !showCreateForm.value
 }
 
 const goBack = () => {
-  router.push('/reception/fiche-navette')
+  router.push({
+    name: 'reception.fiche-navettes'
+  })
 }
 
 // Lifecycle
 onMounted(async () => {
   await Promise.all([
     loadFiche(),
-    loadSupportData()
   ])
   
   loadConventionCompanies()
@@ -246,10 +310,19 @@ const showAllConventions = () => {
 }
 
 // When a company is clicked
+// In FicheNavetteDetails.vue
 const handleShowConventionDetails = (company) => {
-  selectedConventionOrganisme.value = company // company already has color from FicheNavetteInfo
+  console.log('Showing details for company:', company)
+  
+  // Ensure the company object has all necessary data
+  selectedConventionOrganisme.value = {
+    ...company,
+    organism_color: company.organism_color || company.color?.bg || '#3B82F6'
+  }
+  
   showConventionDetailsModal.value = true
 }
+
 
 // Add file handling methods for the modal
 const getFileIcon = (mimeTypeOrName) => {
@@ -311,6 +384,7 @@ const downloadFile = (file) => {
       :show-create-form="showCreateForm"
       @go-back="goBack"
       @toggle-create-form="toggleCreateForm"
+      @print-ticket="handlePrintTicket"
       
     />
       <!-- Fiche Information -->
@@ -343,144 +417,143 @@ const downloadFile = (file) => {
       />
     </div>
 
-    <Dialog
-      v-model:visible="showConventionDetailsModal"
-      :header="selectedConventionOrganisme?.organisme_name || selectedConventionOrganisme?.company_name || 'Organisme Details'"
-      modal
-      class="convention-details-modal"
-      :style="{ width: '70vw', maxWidth: '800px' }"
+  <Dialog
+  v-model:visible="showConventionDetailsModal"
+  :header="selectedConventionOrganisme?.organisme_name || 'Convention Details'"
+  modal
+  class="convention-details-modal"
+  :style="{ width: '70vw', maxWidth: '800px' }"
+>
+  <div v-if="selectedConventionOrganisme" class="organisme-details-content">
+    <!-- Modal header with company color -->
+    <div 
+      class="modal-header" 
+      :style="{ 
+        backgroundColor: selectedConventionOrganisme.color?.bg || selectedConventionOrganisme.organism_color || '#3B82F6', 
+        color: 'white', 
+        padding: '1rem',
+        marginBottom: '1rem',
+        borderRadius: '8px'
+      }"
     >
-      <div v-if="selectedConventionOrganisme" class="organisme-details-content">
-        <!-- Modal header with company color -->
-        <div 
-          class="modal-header" 
-          :style="{ 
-            backgroundColor: selectedConventionOrganisme.organism_color || '#3B82F6', 
-            color: 'white', 
-            padding: '1rem',
-            marginBottom: '1rem',
-            borderRadius: '8px'
-          }"
-        >
-          <h3 style="margin: 0;">{{ selectedConventionOrganisme.organisme_name || selectedConventionOrganisme.company_name }}</h3>
-        </div>
+      <h3 style="margin: 0; color:black;" >{{ selectedConventionOrganisme.organisme_name }}</h3>
+    </div>
+    
+    <!-- Contact Information Section -->
+    <Card class="contact-info-card" style="margin-bottom: 1rem;">
+      <template #content>
+        <h5 style="color: var(--text-color); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="pi pi-phone" :style="{ color: selectedConventionOrganisme.color?.bg || '#000' }"></i>
+          Contact Information
+        </h5>
+        <div class="contact-details" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+          <div v-if="selectedConventionOrganisme.phone" class="contact-item">
+            <strong>Phone:</strong> {{ selectedConventionOrganisme.phone }}
+          </div>
         
-        <!-- Modal body showing prestations -->
-        <div class="modal-body" style="padding: 1rem;">
-          <div v-for="convention in selectedConventionOrganisme.conventions" :key="convention.id" class="convention-section" style="margin-bottom: 2rem;">
-            <h5 style="color: var(--text-color); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--surface-200);">
-              {{ convention.convention_name }}
-            </h5>
-            
-            <!-- Show prestations (MAIN FOCUS) -->
-            <div v-if="convention.prestations && convention.prestations.length" class="prestations-modal-section">
-              <h6 style="color: var(--text-color-secondary); margin-bottom: 1rem;">
-                <i class="pi pi-list" :style="{ color: selectedConventionOrganisme.organism_color || '#3B82F6' }"></i>
-                Prestations Used (DGSN - {{ convention.prestations.length }} prestation{{ convention.prestations.length > 1 ? 's' : '' }})
-              </h6>
-              <div class="prestations-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-                <Card
-                  v-for="prestation in convention.prestations"
-                  :key="prestation.id"
-                  class="prestation-card"
-                  :style="{
-                    borderLeft: `4px solid ${selectedConventionOrganisme.organism_color || '#3B82F6'}`
-                  }"
-                >
-                  <template #content>
-                    <div class="prestation-info">
-                      <div class="prestation-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <strong 
-                          class="prestation-title"
-                          :style="{ color: selectedConventionOrganisme.organism_color || '#3B82F6', fontSize: '1rem' }"
-                        >
-                          {{ prestation.name }}
-                        </strong>
-                        <Tag
-                          value="DGSN"
-                          severity="info"
-                          size="small"
-                          :style="{
-                            backgroundColor: selectedConventionOrganisme.organism_color ? selectedConventionOrganisme.organism_color + '22' : '#DBEAFE',
-                            color: selectedConventionOrganisme.organism_color || '#3B82F6'
-                          }"
-                        />
-                      </div>
-                      <div v-if="prestation.specialization" class="prestation-specialization" style="margin-top: 0.5rem;">
-                        <small :style="{ color: 'var(--text-color-secondary)' }">
-                          Spécialisation: {{ prestation.specialization }}
-                        </small>
-                      </div>
-                      <div v-if="prestation.internal_code" class="prestation-code" style="margin-top: 0.25rem;">
-                        <small :style="{ color: 'var(--text-color-secondary)' }">
-                          Code: {{ prestation.internal_code }}
-                        </small>
-                      </div>
-                    </div>
-                  </template>
-                </Card>
-              </div>
-            </div>
-
-            <!-- Show files if any (secondary) -->
-            <div v-if="convention.uploaded_files && convention.uploaded_files.length" class="uploaded-files-section" style="margin-top: 2rem;">
-              <h6 style="color: var(--text-color-secondary); margin-bottom: 1rem;">
-                <i class="pi pi-folder" :style="{ color: selectedConventionOrganisme.organism_color || '#3B82F6' }"></i>
-                Documents ({{ convention.uploaded_files.length }})
-              </h6>
-              <div class="files-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
-                <Card
-                  v-for="file in convention.uploaded_files"
-                  :key="file.id"
-                  class="file-card"
-                  :style="{
-                    borderLeft: `4px solid ${selectedConventionOrganisme.organism_color || '#3B82F6'}`
-                  }"
-                >
-                  <template #content>
-                    <div class="file-info" style="display: flex; align-items: center; gap: 1rem;">
-                      <div class="file-icon">
-                        <i 
-                          :class="getFileIcon(file.mime_type || file.original_name)"
-                          :style="{ color: selectedConventionOrganisme.organism_color || '#3B82F6', fontSize: '1.5rem' }"
-                        ></i>
-                      </div>
-                      <div class="file-details" style="flex: 1;">
-                        <span class="file-name" style="font-weight: 500; color: var(--text-color);">{{ file.original_name }}</span>
-                        <small class="file-size" style="display: block; color: var(--text-color-secondary); margin-top: 0.25rem;">{{ formatFileSize(file.size) }}</small>
-                      </div>
-                      <div class="file-actions" style="display: flex; gap: 0.5rem;">
-                        <Button
-                          icon="pi pi-eye"
-                          severity="info"
-                          size="small"
-                          @click="viewFile(file)"
-                          v-tooltip="'View'"
-                          :style="{ 
-                            backgroundColor: selectedConventionOrganisme.organism_color || '#3B82F6',
-                            borderColor: selectedConventionOrganisme.organism_color || '#3B82F6'
-                          }"
-                        />
-                        <Button
-                          icon="pi pi-download"
-                          severity="success"
-                          size="small"
-                          @click="downloadFile(file)"
-                          v-tooltip="'Download'"
-                        />
-                      </div>
-                    </div>
-                  </template>
-                </Card>
-              </div>
-            </div>
+          <div v-if="selectedConventionOrganisme.address" class="contact-item">
+            <strong>Address:</strong> {{ selectedConventionOrganisme.address }}
+          </div>
+          <div v-if="selectedConventionOrganisme.contact_person" class="contact-item">
+            <strong>Contact Person:</strong> {{ selectedConventionOrganisme.contact_person }}
+          </div>
+          <div v-if="!selectedConventionOrganisme.phone && !selectedConventionOrganisme.email && !selectedConventionOrganisme.address && !selectedConventionOrganisme.contact_person" class="contact-item">
+            <em style="color: var(--text-color-secondary);">No contact information available</em>
           </div>
         </div>
+      </template>
+    </Card>
+    
+    <!-- Modal body showing conventions and prestations -->
+    <div class="modal-body" style="padding: 1rem;">
+      <div 
+        v-for="convention in selectedConventionOrganisme.conventions" 
+        :key="convention.id" 
+        class="convention-section" 
+        style="margin-bottom: 2rem;"
+      >
+        <!-- Convention Name Header -->
+        <Card class="convention-header-card" style="margin-bottom: 1rem;">
+          <template #content>
+            <h4 style="color: var(--text-color); margin: 0; display: flex; align-items: center; gap: 1rem;">
+              <i class="pi pi-briefcase" :style="{ color: selectedConventionOrganisme.color?.bg || '#3B82F6' }"></i>
+              Convention: {{ convention.convention_name }} {{ convention.convention_percentage  }}
+              <Tag 
+                :value="convention.status === 'active' ? 'Active' : convention.status" 
+                :severity="convention.status === 'active' ? 'success' : 'warning'"
+                size="small"
+              />
+            </h4>
+          </template>
+        </Card>
+        
+        <!-- Show prestations if available -->
+        <div v-if="convention.prestations && convention.prestations.filter(p => usedPrestationIds.has(p.id)).length > 0" class="prestations-modal-section">
+          <h6 style="color: var(--text-color-secondary); margin-bottom: 1rem;">
+            <i class="pi pi-list" :style="{ color: selectedConventionOrganisme.color?.bg || '#3B82F6' }"></i>
+            Prestations Utilisées ({{ convention.prestations.filter(p => usedPrestationIds.has(p.id)).length }} prestation{{ convention.prestations.filter(p => usedPrestationIds.has(p.id)).length > 1 ? 's' : '' }})
+          </h6>
+          
+          <div class="prestations-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
+            <Card
+              v-for="prestation in convention.prestations.filter(p => usedPrestationIds.has(p.id))"
+              :key="prestation.id"
+              class="prestation-card"
+              :style="{
+                borderLeft: `4px solid ${selectedConventionOrganisme.color?.bg || '#3B82F6'}`
+              }"
+            >
+              <template #content>
+                <div class="prestation-info">
+                  <div class="prestation-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <strong 
+                      class="prestation-title"
+                      :style="{ color: selectedConventionOrganisme.color?.bg || '#3B82F6', fontSize: '1rem' }"
+                    >
+                      {{ prestation.name || prestation.prestation_name || 'Prestation' }}
+                    </strong>
+                  </div>
+                  
+                  <div v-if="prestation.description" class="prestation-description" style="margin-top: 0.5rem;">
+                    <small :style="{ color: 'var(--text-color-secondary)' }">
+                      {{ prestation.description }}
+                    </small>
+                  </div>
+                  
+                  <div v-if="prestation.internal_code" class="prestation-code" style="margin-top: 0.25rem;">
+                    <small :style="{ color: 'var(--text-color-secondary)' }">
+                      Code: {{ prestation.internal_code }}
+                    </small>
+                  </div>
+                  
+                  <div v-if="prestation.price" class="prestation-price" style="margin-top: 0.5rem;">
+                    <Tag 
+                      :value="formatCurrency(prestation.price)" 
+                      severity="info"
+                      size="small"
+                    />
+                  </div>
+                </div>
+              </template>
+            </Card>
+          </div>
+        </div>
+        
+        <!-- Show message if no prestations -->
+        <div v-else class="no-prestations" style="padding: 2rem; text-align: center; background: var(--surface-100); border-radius: 8px;">
+          <i class="pi pi-info-circle" style="font-size: 2rem; color: var(--text-color-secondary); margin-bottom: 1rem; display: block;"></i>
+          <p style="color: var(--text-color-secondary); margin: 0;">
+            Aucune prestation n'est associée à cette convention pour cette fiche navette.
+          </p>
+        </div>
       </div>
-    </Dialog>
+    </div>
+  </div>
+</Dialog>
+
 
     <Dialog
-      v-model:visible="showAllConventionsModal"
+      v-model="showAllConventionsModal"
       header="All Available Conventions"
       modal
       class="all-conventions-modal"

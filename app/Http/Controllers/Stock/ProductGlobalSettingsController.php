@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ProductGlobalSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class ProductGlobalSettingsController extends Controller
 {
@@ -23,10 +23,10 @@ class ProductGlobalSettingsController extends Controller
      */
     public function index($productId = null)
     {
-        if (!$productId) {
+        if (! $productId) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product ID is required'
+                'message' => 'Product ID is required',
             ], 400);
         }
 
@@ -44,7 +44,7 @@ class ProductGlobalSettingsController extends Controller
         return response()->json([
             'success' => true,
             'settings' => $formattedSettings,
-            'data' => $settings // Keep original format for backward compatibility
+            'data' => $settings, // Keep original format for backward compatibility
         ]);
     }
 
@@ -55,16 +55,16 @@ class ProductGlobalSettingsController extends Controller
     {
         $setting = ProductGlobalSetting::byProductAndKey($productId, $key)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting not found for this product'
+                'message' => 'Setting not found for this product',
             ], 404);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $setting
+            'data' => $setting,
         ]);
     }
 
@@ -81,16 +81,16 @@ class ProductGlobalSettingsController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $setting = ProductGlobalSetting::byProductAndKey($productId, $key)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting not found for this product'
+                'message' => 'Setting not found for this product',
             ], 404);
         }
 
@@ -113,7 +113,7 @@ class ProductGlobalSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Setting updated successfully'
+            'message' => 'Setting updated successfully',
         ]);
     }
 
@@ -123,14 +123,14 @@ class ProductGlobalSettingsController extends Controller
     public function store(Request $request, $productId = null)
     {
         // If productId is not in the route, check if it's in the request
-        if (!$productId) {
+        if (! $productId) {
             $productId = $request->input('product_id');
         }
 
-        if (!$productId) {
+        if (! $productId) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product ID is required'
+                'message' => 'Product ID is required',
             ], 400);
         }
 
@@ -149,7 +149,7 @@ class ProductGlobalSettingsController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -158,7 +158,7 @@ class ProductGlobalSettingsController extends Controller
         if ($existingSetting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting already exists for this product'
+                'message' => 'Setting already exists for this product',
             ], 422);
         }
 
@@ -166,7 +166,7 @@ class ProductGlobalSettingsController extends Controller
             'product_id' => $productId,
             'setting_key' => $request->setting_key,
             'setting_value' => $request->setting_value,
-            'description' => $request->description
+            'description' => $request->description,
         ]);
 
         // Clear cache for this product
@@ -175,7 +175,7 @@ class ProductGlobalSettingsController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Setting created successfully',
-            'data' => $setting
+            'data' => $setting,
         ], 201);
     }
 
@@ -186,10 +186,10 @@ class ProductGlobalSettingsController extends Controller
     {
         $settings = $request->input('settings');
 
-        if (!is_array($settings)) {
+        if (! is_array($settings)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Settings must be an array'
+                'message' => 'Settings must be an array',
             ], 422);
         }
 
@@ -200,8 +200,9 @@ class ProductGlobalSettingsController extends Controller
             foreach ($settings as $key => $value) {
                 try {
                     // Validate the setting value
-                    if (!is_array($value)) {
+                    if (! is_array($value)) {
                         $errors[$key] = ['Setting value must be an array'];
+
                         continue;
                     }
 
@@ -212,7 +213,7 @@ class ProductGlobalSettingsController extends Controller
                         // Update existing setting
                         $setting->update([
                             'setting_value' => $value,
-                            'description' => $this->getSettingDescription($key)
+                            'description' => $this->getSettingDescription($key),
                         ]);
                     } else {
                         // Create new setting
@@ -220,14 +221,14 @@ class ProductGlobalSettingsController extends Controller
                             'product_id' => $productId,
                             'setting_key' => $key,
                             'setting_value' => $value,
-                            'description' => $this->getSettingDescription($key)
+                            'description' => $this->getSettingDescription($key),
                         ]);
                     }
 
                     $updatedSettings[] = $setting;
 
                 } catch (\Exception $e) {
-                    $errors[$key] = ['Failed to save setting: ' . $e->getMessage()];
+                    $errors[$key] = ['Failed to save setting: '.$e->getMessage()];
                 }
             }
 
@@ -235,12 +236,12 @@ class ProductGlobalSettingsController extends Controller
             Cache::forget("product_settings_{$productId}");
         });
 
-        if (!empty($errors)) {
+        if (! empty($errors)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Some settings failed to save',
                 'errors' => $errors,
-                'updated_count' => count($updatedSettings)
+                'updated_count' => count($updatedSettings),
             ], 422);
         }
 
@@ -248,7 +249,7 @@ class ProductGlobalSettingsController extends Controller
             'success' => true,
             'message' => 'All settings saved successfully',
             'data' => $updatedSettings,
-            'updated_count' => count($updatedSettings)
+            'updated_count' => count($updatedSettings),
         ]);
     }
 
@@ -262,7 +263,7 @@ class ProductGlobalSettingsController extends Controller
             'critical_stock_threshold' => 'Critical stock level threshold for alerts',
             'expiry_alert_days' => 'Number of days before expiry to trigger alerts',
             'auto_reorder_settings' => 'Automatic reorder configuration settings',
-            'notification_settings' => 'Notification preferences and settings'
+            'notification_settings' => 'Notification preferences and settings',
         ];
 
         return $descriptions[$key] ?? 'Global product setting';
@@ -275,10 +276,10 @@ class ProductGlobalSettingsController extends Controller
     {
         $setting = ProductGlobalSetting::byProductAndKey($productId, $key)->first();
 
-        if (!$setting) {
+        if (! $setting) {
             return response()->json([
                 'success' => false,
-                'message' => 'Setting not found for this product'
+                'message' => 'Setting not found for this product',
             ], 404);
         }
 
@@ -289,7 +290,7 @@ class ProductGlobalSettingsController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Setting deleted successfully'
+            'message' => 'Setting deleted successfully',
         ]);
     }
 }

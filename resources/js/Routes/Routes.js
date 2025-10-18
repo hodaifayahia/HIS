@@ -19,6 +19,9 @@ import emergencyRoutes from './emergency.js'
 import stockRoutes from './stock'
 import purchasingRoutes from './purchasing'
 import pharmacyRoutes from './pharmacy'
+import NursingRoutes from './Nursing'
+import ModalityRoutes from './modality.js' // 👈 NEW IMPORT
+import FacturationRoutes from './facturation.js' // 👈 NEW IMPORT
 
 
 
@@ -41,7 +44,10 @@ export const allRoutes = [
     ...emergencyRoutes,
     ...stockRoutes,
     ...purchasingRoutes,
-      ...pharmacyRoutes,
+    ...pharmacyRoutes,
+    ...NursingRoutes,
+    ...ModalityRoutes,
+    ...FacturationRoutes,
 
 
 

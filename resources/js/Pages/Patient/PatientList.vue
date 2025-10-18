@@ -68,45 +68,47 @@ onMounted(async () => {
 
 
 <template>
-    <div class="appointment-page">
-        <div class="container-fluid">
-            <div class="row ">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Patients</h1> </div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-right">
-                        <li class="breadcrumb-item"><a href="#">Home</a></li>
-                        <li class="breadcrumb-item active">Patient</li>
-                    </ol>
+    <div class="patient-list-root">
+        <div class="appointment-page">
+            <div class="container-fluid">
+                <div class="row ">
+                    <div class="col-sm-6">
+                        <h1 class="m-0">Patients</h1> </div>
+                    <div class="col-sm-6">
+                        <ol class="breadcrumb float-sm-right">
+                            <li class="breadcrumb-item"><a href="#">Home</a></li>
+                            <li class="breadcrumb-item active">Patient</li>
+                        </ol>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="content">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-lg-12">
-                    <PatientListItem
-                        :role="role"
-                        :patients="patients"
-                        :loading="loading"
-                        :error="error"
-                        :paginationData="paginationData"
-                        @edit="openModal"
-                        @refresh="refreshPatients"
-                        @paginate="getPatients"
-                    />
+        <div class="content">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-lg-12">
+                        <PatientListItem
+                            :role="role"
+                            :patients="patients"
+                            :loading="loading"
+                            :error="error"
+                            :paginationData="paginationData"
+                            @edit="openModal"
+                            @refresh="refreshPatients"
+                            @paginate="getPatients"
+                        />
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <PatientModel
-        :show-modal="isModalOpen"
-        :spec-data="selectedPatient"
-        @close="closeModal"
-        @specUpdate="refreshPatients"
-    />
+        <PatientModel
+            :show-modal="isModalOpen"
+            :spec-data="selectedPatient"
+            @close="closeModal"
+            @specUpdate="refreshPatients"
+        />
+    </div>
 </template>
 
 <style scoped>

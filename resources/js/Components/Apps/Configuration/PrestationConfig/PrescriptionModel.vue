@@ -19,6 +19,10 @@ const props = defineProps({
     prestationData: { // Renamed prop for consistency
         type: Object,
         default: null
+    },
+    viewMode: { // Add view mode prop for read-only display
+        type: Boolean,
+        default: false
     }
 });
 
@@ -41,6 +45,8 @@ const form = ref({ // Use ref() for the form object itself
     public_price: 0, // Default to 0 for new
     convenience_prix: 0, // Default to 0 for new
     vat_rate: null, // Null for new
+    // Separate VAT for consumables (optional)
+    tva_const_prestation: null,
     night_tariff: null, // Null for new
     Tarif_de_nuit_is_active: true, // New toggle for night tariff
     consumables_cost: null, // Null for new
@@ -80,6 +86,7 @@ const resetForm = () => {
         is_active: true,
         public_price: 0,
         convenience_prix: 0,
+    tva_const_prestation: null,
         need_an_appointment: false,
         Urgent_Prestation: false,
         vat_rate: null,
@@ -176,6 +183,7 @@ const sharedProps = computed(() => ({
     formOptions: formOptions.value,
     // Add the filtered specializations here
     filteredSpecializations: filteredSpecializations.value,
+    viewMode: props.viewMode, // Pass view mode to components
 }));
 
 // Computed
@@ -184,6 +192,9 @@ const isEditMode = computed(() => {
 });
 
 const modalTitle = computed(() => {
+    if (props.viewMode) {
+        return 'View Prestation Details';
+    }
     return isEditMode.value ? 'Edit Prestation' : 'Add New Prestation';
 });
 
@@ -198,7 +209,7 @@ const estimatedTotal = computed(() => {
     const basePrice = form.value.Tarif_de_nuit_is_active ? nightTariff : price;
 
     const vatAmount = (basePrice * vatRate) / 100;
-    const total = basePrice + vatAmount + consumables;
+    const total = basePrice ;
 
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -303,7 +314,21 @@ const populateForm = () => {
                 }
                 // Handle arrays (e.g., from JSON casts)
                 else if (Array.isArray(form.value[key]) && props.prestationData[key] !== undefined) {
-                    form.value[key] = Array.isArray(props.prestationData[key]) ? props.prestationData[key] : [];
+                    // Ensure we're getting an actual array
+                    if (Array.isArray(props.prestationData[key])) {
+                        form.value[key] = [...props.prestationData[key]];
+                    } else if (typeof props.prestationData[key] === 'string') {
+                        // If it's still a string, try to parse it
+                        try {
+                            const parsed = JSON.parse(props.prestationData[key]);
+                            form.value[key] = Array.isArray(parsed) ? parsed : [];
+                        } catch {
+                            form.value[key] = [];
+                        }
+                    } else {
+                        form.value[key] = [];
+                    }
+                    console.log(`Array field ${key}:`, form.value[key]);
                 }
                 // All other direct assignments
                 else {
@@ -433,6 +458,11 @@ const validateForm = () => {
         errors.value.vat_rate = 'VAT rate must be between 0 and 100';
     }
 
+    const tvaConst = form.value.tva_const_prestation !== null ? parseFloat(form.value.tva_const_prestation) : null;
+    if (tvaConst !== null && !isNaN(tvaConst) && (tvaConst < 0 || tvaConst > 100)) {
+        errors.value.tva_const_prestation = 'Consumables VAT rate must be between 0 and 100';
+    }
+
     const nightTariff = parseFloat(form.value.night_tariff);
     if (form.value.Tarif_de_nuit_is_active && (isNaN(nightTariff) || nightTariff <= 0)) {
         errors.value.night_tariff = 'Valid Night Tariff is required if active (must be greater than 0)';
@@ -494,6 +524,11 @@ const submitForm = async () => {
         dataToSubmit.non_applicable_discount_rules = Array.isArray(dataToSubmit.non_applicable_discount_rules) ? dataToSubmit.non_applicable_discount_rules : [];
         dataToSubmit.required_prestations_info = Array.isArray(dataToSubmit.required_prestations_info) ? dataToSubmit.required_prestations_info : [];
         dataToSubmit.required_consents = Array.isArray(dataToSubmit.required_consents) ? dataToSubmit.required_consents : [];
+
+        // Ensure consumables VAT is either null or a number
+        if (dataToSubmit.tva_const_prestation === '' || dataToSubmit.tva_const_prestation === undefined) {
+            dataToSubmit.tva_const_prestation = null;
+        }
 
 
         // Format share values based on their `_is_percentage` flag
@@ -659,7 +694,15 @@ const filteredSpecializations = computed(() => {
                     </form>
                 </div>
 
-                <ModalFooter :loading="loading" :isEditMode="isEditMode" @cancel="closeModal" @save="submitForm" />
+                <ModalFooter v-if="!viewMode" :loading="loading" :isEditMode="isEditMode" @cancel="closeModal" @save="submitForm" />
+                
+                <!-- View mode footer with only close button -->
+                <div v-if="viewMode" class="view-mode-footer">
+                    <button @click="closeModal" class="close-only-button">
+                        <i class="fas fa-times"></i>
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     </Teleport>
@@ -771,8 +814,32 @@ const filteredSpecializations = computed(() => {
     /* Ensure form takes full height for its children */
 }
 
-.tab-content {
-    /* Styles for individual tab content areas */
+/* View mode footer styles */
+.view-mode-footer {
+    display: flex;
+    justify-content: center;
+    padding: 1.5rem;
+    border-top: 1px solid #eee;
+    background-color: #f9f9f9;
+}
+
+.close-only-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background-color: #6b7280;
+    color: #ffffff;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.close-only-button:hover {
+    background-color: #4b5563;
 }
 
 .form-grid {

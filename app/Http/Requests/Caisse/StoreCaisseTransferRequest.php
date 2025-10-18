@@ -1,11 +1,12 @@
 <?php
+
 // app/Http/Requests/Caisse/StoreCaisseTransferRequest.php
 
 namespace App\Http\Requests\Caisse;
 
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Contracts\Validation\Validator;
 
 class StoreCaisseTransferRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class StoreCaisseTransferRequest extends FormRequest
             'caisse_session_id' => ['required', 'exists:caisse_sessions,id'],
             'have_problems' => ['required', 'boolean'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'status' => ['required', 'in:pending,accepted,canceled,done,transferred']
+            'status' => ['required', 'in:pending,accepted,canceled,done,transferred'],
         ];
     }
 
@@ -48,7 +49,7 @@ class StoreCaisseTransferRequest extends FormRequest
         throw new HttpResponseException(
             response()->json([
                 'message' => 'The provided data is invalid.',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422)
         );
     }

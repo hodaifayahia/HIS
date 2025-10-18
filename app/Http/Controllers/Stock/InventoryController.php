@@ -24,9 +24,9 @@ class InventoryController extends Controller
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->whereHas('product', function($q) use ($search) {
+            $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
@@ -42,7 +42,7 @@ class InventoryController extends Controller
                 'last_page' => $inventory->lastPage(),
                 'per_page' => $inventory->perPage(),
                 'total' => $inventory->total(),
-            ]
+            ],
         ]);
     }
 
@@ -57,13 +57,13 @@ class InventoryController extends Controller
             'serial_number' => 'nullable|string|max:100',
             'purchase_price' => 'nullable|numeric|min:0',
             'expiry_date' => 'nullable|date|after:today',
-            'location' => 'nullable|string|max:255'
+            'location' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -92,13 +92,13 @@ class InventoryController extends Controller
 
             $existingInventory->update([
                 'total_units' => $newTotalUnits,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
                 'data' => $existingInventory->load(['product', 'stockage']),
-                'message' => 'Product quantity adjusted successfully'
+                'message' => 'Product quantity adjusted successfully',
             ]);
         }
 
@@ -133,15 +133,20 @@ class InventoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $inventory->load(['product', 'stockage']),
-            'message' => 'Product added to inventory successfully'
+            'message' => 'Product added to inventory successfully',
         ], 201);
     }
 
-    public function show(Inventory $inventory)
+    public function show($inventory)
     {
+        if ($inventory === 'service-stock') {
+            return $this->getServiceStock(request());
+        }
+        $inventory = Inventory::findOrFail($inventory);
+
         return response()->json([
             'success' => true,
-            'data' => $inventory->load(['product', 'stockage'])
+            'data' => $inventory->load(['product', 'stockage']),
         ]);
     }
 
@@ -154,13 +159,13 @@ class InventoryController extends Controller
             'serial_number' => 'nullable|string|max:100',
             'purchase_price' => 'nullable|numeric|min:0',
             'expiry_date' => 'nullable|date',
-            'location' => 'nullable|string|max:255'
+            'location' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -169,7 +174,7 @@ class InventoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $inventory->load(['product', 'stockage']),
-            'message' => 'Inventory updated successfully'
+            'message' => 'Inventory updated successfully',
         ]);
     }
 
@@ -179,7 +184,7 @@ class InventoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Inventory item removed successfully'
+            'message' => 'Inventory item removed successfully',
         ]);
     }
 
@@ -189,13 +194,13 @@ class InventoryController extends Controller
             'quantity' => 'required|numeric',
             'type' => 'required|in:add,remove',
             'reason' => 'required_if:type,remove|string|max:255',
-            'notes' => 'nullable|string|max:500'
+            'notes' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -206,13 +211,13 @@ class InventoryController extends Controller
             if ($newQuantity < 0) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Insufficient stock'
+                    'message' => 'Insufficient stock',
                 ], 422);
             }
 
             $inventory->update([
                 'quantity' => $newQuantity,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             // Log the adjustment (you might want to create an inventory_log table)
@@ -223,14 +228,15 @@ class InventoryController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $inventory->load(['product', 'stockage']),
-                'message' => 'Stock adjusted successfully'
+                'message' => 'Stock adjusted successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to adjust stock'
+                'message' => 'Failed to adjust stock',
             ], 500);
         }
     }
@@ -238,15 +244,15 @@ class InventoryController extends Controller
     public function transferStock(Request $request, Inventory $inventory)
     {
         $validator = Validator::make($request->all(), [
-            'quantity' => 'required|numeric|min:1|max:' . $inventory->quantity,
-            'destination_stockage_id' => 'required|exists:stockages,id|different:' . $inventory->stockage_id,
-            'notes' => 'nullable|string|max:500'
+            'quantity' => 'required|numeric|min:1|max:'.$inventory->quantity,
+            'destination_stockage_id' => 'required|exists:stockages,id|different:'.$inventory->stockage_id,
+            'notes' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -261,7 +267,7 @@ class InventoryController extends Controller
                 // Add to existing inventory
                 $destinationInventory->update([
                     'quantity' => $destinationInventory->quantity + $request->quantity,
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
             } else {
                 // Create new inventory entry
@@ -274,28 +280,29 @@ class InventoryController extends Controller
                     'serial_number' => $inventory->serial_number,
                     'purchase_price' => $inventory->purchase_price,
                     'expiry_date' => $inventory->expiry_date,
-                    'location' => $inventory->location
+                    'location' => $inventory->location,
                 ]);
             }
 
             // Reduce quantity from source
             $inventory->update([
                 'quantity' => $inventory->quantity - $request->quantity,
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'Stock transferred successfully'
+                'message' => 'Stock transferred successfully',
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
+
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to transfer stock'
+                'message' => 'Failed to transfer stock',
             ], 500);
         }
     }
@@ -303,27 +310,27 @@ class InventoryController extends Controller
     public function getServiceStock(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'service_id' => 'required|exists:services,id'
+            'service_id' => 'required|exists:services,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $query = Inventory::with(['product', 'stockage'])
-            ->whereHas('stockage', function($q) use ($request) {
+            ->whereHas('stockage', function ($q) use ($request) {
                 $q->where('service_id', $request->get('service_id'));
             });
 
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->whereHas('product', function($q) use ($search) {
+            $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
@@ -339,7 +346,7 @@ class InventoryController extends Controller
                 'last_page' => $inventory->lastPage(),
                 'per_page' => $inventory->perPage(),
                 'total' => $inventory->total(),
-            ]
+            ],
         ]);
     }
 }

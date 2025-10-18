@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\B2B\ConventionDetail;
 use App\Models\CONFIGURATION\Prestation;
-
 use App\Models\CRM\Organisme;
+use App\Models\ContractPercentage;
 
 
 
@@ -42,6 +42,11 @@ class Convention extends Model
     public function annexes(): HasMany
     {
         return $this->hasMany(Annex::class, 'convention_id'); // Changed to convention_id
+    }
+
+    public function contractPercentages(): HasMany
+    {
+        return $this->hasMany(ContractPercentage::class, 'contract_id');
     }
 
     // public function agreementDetails(): HasMany

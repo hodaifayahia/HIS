@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use App\Models\Inventory;
+use App\Models\PharmacyInventory;
+
 class Product extends Model
 {
     protected $fillable = [
@@ -11,26 +14,35 @@ class Product extends Model
         'description',
         'category',
         'is_clinical',
+        'is_required_approval',
+        'is_request_approval',
         'code_interne',
         'code_pch',
+        'code',
         'designation',
         'type_medicament',
         'forme',
         'boite_de',
         'nom_commercial',
-        'status'
+        'status',
     ];
 
     protected $casts = [
         'is_clinical' => 'boolean',
+        'is_required_approval' => 'boolean',
+        'is_request_approval' => 'boolean',
         'code_interne' => 'integer',
-        'boite_de' => 'integer'
+        'boite_de' => 'integer',
     ];
 
     // Relationships
     public function inventories()
     {
         return $this->hasMany(Inventory::class);
+    }
+
+    public function inventorieswithPharmacieStock(){
+        return $this->hasMany(PharmacyInventory::class);
     }
 
     public function stockages()

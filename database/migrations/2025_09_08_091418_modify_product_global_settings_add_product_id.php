@@ -16,10 +16,10 @@ return new class extends Migration
             $table->string('setting_key');
             $table->json('setting_value');
             $table->text('description')->nullable();
-            
+
             // Add foreign key constraint
             $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
-            
+
             // Add unique constraint for product_id + setting_key combination
             $table->unique(['product_id', 'setting_key']);
         });

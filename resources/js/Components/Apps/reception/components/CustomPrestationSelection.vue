@@ -116,9 +116,29 @@ const customPrestationsNotNeedingAppointments = computed(() => {
   return customSelectedPrestations.value.filter(p => p.need_an_appointment !== true)
 })
 
+// Robust price resolver used by custom and standard selection components
+const resolvePrice = (value) => {
+  if (value === null || value === undefined) return 0
+  if (typeof value === 'number' && isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '' && !isNaN(Number(value))) return Number(value)
+  if (typeof value === 'object') {
+    if (value.price_with_vat_and_consumables_variant !== undefined) {
+      const pd = value.price_with_vat_and_consumables_variant
+      if (pd === null || pd === undefined) return 0
+      if (typeof pd === 'number' && isFinite(pd)) return pd
+      if (typeof pd === 'string' && pd.trim() !== '' && !isNaN(Number(pd))) return Number(pd)
+      if (typeof pd === 'object') {
+        return Number(pd.ttc_with_consumables_vat ?? pd.ttc ?? pd.public_price ?? pd.price ?? 0) || 0
+      }
+    }
+    return Number(value.ttc_with_consumables_vat ?? value.ttc ?? value.public_price ?? value.price ?? value.final_price ?? 0) || 0
+  }
+  return 0
+}
+
 const customTotalCost = computed(() => {
   return customSelectedPrestations.value.reduce((total, prestation) => {
-    return total + parseFloat(prestation.public_price || prestation.price || 0)
+    return total + resolvePrice(prestation.public_price ?? prestation.price ?? prestation.price_with_vat_and_consumables_variant ?? prestation)
   }, 0)
 })
 
@@ -235,7 +255,8 @@ const formatAppointmentDateTime = (dateTime) => {
 }
 
 const formatCurrency = (amount) => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0)
+  const num = resolvePrice(amount)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num || 0)
 }
 
 const getSpecializationName = (specializationId) => {

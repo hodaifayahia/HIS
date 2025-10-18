@@ -242,9 +242,9 @@ const mainDisplayItems = computed(() => {
         id: `dep_${dep.id || Math.random()}`,
         prestation: prestation,
         status: dep.status || 'required',
-        base_price: prestation.public_price || 0,
-        final_price: prestation.public_price || 0,
-        patient_share: prestation.public_price || 0,
+  base_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+  final_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+  patient_share: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
         dependencies: [],
         isDependency: true,
         originalDependency: dep

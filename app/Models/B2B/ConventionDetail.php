@@ -20,7 +20,8 @@ class ConventionDetail extends Model
         'max_price',
         'min_price',
         'discount_percentage',
-        'avenant_id'
+        'avenant_id',
+        'extension_count'
     ];
 
     public function convention(): BelongsTo

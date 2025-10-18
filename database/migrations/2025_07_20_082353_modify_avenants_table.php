@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('avenants', function (Blueprint $table) {
             // Rename existing column
             $table->renameColumn('activation_datetime', 'activation_at');
-            
+
             // Add new columns
             $table->timestamp('inactive_at')->nullable()->comment('The exact moment the changes become inactive');
             $table->string('head')->nullable()->comment('yes, no');
@@ -33,7 +33,7 @@ return new class extends Migration
             $table->dropColumn('updated_by_id');
             $table->dropColumn('head');
             $table->dropColumn('inactive_at');
-            
+
             // Rename column back
             $table->renameColumn('activation_at', 'activation_datetime');
         });

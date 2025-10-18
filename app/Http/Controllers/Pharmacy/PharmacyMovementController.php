@@ -3,18 +3,13 @@
 namespace App\Http\Controllers\Pharmacy;
 
 use App\Http\Controllers\Controller;
-use App\Models\PharmacyMovement;
-use App\Models\PharmacyMovementItem;
-use App\Models\PharmacyMovementInventorySelection;
-use App\Models\PharmacyMovementAuditLog;
-use App\Models\PharmacyProduct;
-use App\Models\PharmacyInventory;
-use App\Models\PharmacyStockage;
 use App\Models\CONFIGURATION\Service;
-use App\Models\User;
+use App\Models\PharmacyMovement;
+use App\Models\PharmacyMovementAuditLog;
+use App\Models\PharmacyMovementItem;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class PharmacyMovementController extends Controller
@@ -26,12 +21,12 @@ class PharmacyMovementController extends Controller
     {
         $query = PharmacyMovement::with([
             'requestingService',
-            'providingService', 
+            'providingService',
             'requestingUser',
             'approvingUser',
             'executingUser',
             'patient',
-            'items.product'
+            'items.product',
         ]);
 
         // Filter by status
@@ -66,15 +61,15 @@ class PharmacyMovementController extends Controller
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('movement_number', 'like', "%{$search}%")
-                  ->orWhere('request_reason', 'like', "%{$search}%")
-                  ->orWhere('prescription_reference', 'like', "%{$search}%");
+                    ->orWhere('request_reason', 'like', "%{$search}%")
+                    ->orWhere('prescription_reference', 'like', "%{$search}%");
             });
         }
 
         $movements = $query->orderBy('created_at', 'desc')
-                          ->paginate($request->get('per_page', 15));
+            ->paginate($request->get('per_page', 15));
 
         return response()->json($movements);
     }
@@ -151,12 +146,13 @@ class PharmacyMovementController extends Controller
 
             return response()->json([
                 'message' => 'Pharmacy movement created successfully',
-                'movement' => $movement->load(['items.product', 'requestingService', 'providingService'])
+                'movement' => $movement->load(['items.product', 'requestingService', 'providingService']),
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to create pharmacy movement: ' . $e->getMessage()], 500);
+
+            return response()->json(['error' => 'Failed to create pharmacy movement: '.$e->getMessage()], 500);
         }
     }
 
@@ -173,7 +169,7 @@ class PharmacyMovementController extends Controller
             'executingUser',
             'patient',
             'items.product',
-            'items.inventorySelections.inventory'
+            'items.inventorySelections.inventory',
         ])->findOrFail($id);
 
         return response()->json($movement);
@@ -186,7 +182,7 @@ class PharmacyMovementController extends Controller
     {
         $movement = PharmacyMovement::findOrFail($id);
 
-        if (!$movement->isEditable()) {
+        if (! $movement->isEditable()) {
             return response()->json(['error' => 'Movement cannot be edited in current status'], 422);
         }
 
@@ -208,10 +204,10 @@ class PharmacyMovementController extends Controller
             $oldValues = $movement->toArray();
             $movement->update($request->only([
                 'request_reason',
-                'urgency_level', 
+                'urgency_level',
                 'expected_delivery_date',
                 'prescription_reference',
-                'pharmacy_notes'
+                'pharmacy_notes',
             ]));
 
             // Log the update
@@ -230,12 +226,13 @@ class PharmacyMovementController extends Controller
 
             return response()->json([
                 'message' => 'Pharmacy movement updated successfully',
-                'movement' => $movement->load(['items.product', 'requestingService', 'providingService'])
+                'movement' => $movement->load(['items.product', 'requestingService', 'providingService']),
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to update pharmacy movement: ' . $e->getMessage()], 500);
+
+            return response()->json(['error' => 'Failed to update pharmacy movement: '.$e->getMessage()], 500);
         }
     }
 
@@ -246,7 +243,7 @@ class PharmacyMovementController extends Controller
     {
         $movement = PharmacyMovement::findOrFail($id);
 
-        if (!$movement->isEditable()) {
+        if (! $movement->isEditable()) {
             return response()->json(['error' => 'Movement cannot be deleted in current status'], 422);
         }
 
@@ -271,7 +268,8 @@ class PharmacyMovementController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to delete pharmacy movement: ' . $e->getMessage()], 500);
+
+            return response()->json(['error' => 'Failed to delete pharmacy movement: '.$e->getMessage()], 500);
         }
     }
 
@@ -282,7 +280,7 @@ class PharmacyMovementController extends Controller
     {
         $movement = PharmacyMovement::findOrFail($id);
 
-        if (!$movement->canBeSent()) {
+        if (! $movement->canBeSent()) {
             return response()->json(['error' => 'Movement cannot be sent for approval'], 422);
         }
 
@@ -291,7 +289,7 @@ class PharmacyMovementController extends Controller
 
             $movement->update([
                 'status' => 'pending',
-                'requested_at' => now()
+                'requested_at' => now(),
             ]);
 
             // Log the action
@@ -308,12 +306,13 @@ class PharmacyMovementController extends Controller
 
             return response()->json([
                 'message' => 'Movement sent for approval successfully',
-                'movement' => $movement
+                'movement' => $movement,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to send movement: ' . $e->getMessage()], 500);
+
+            return response()->json(['error' => 'Failed to send movement: '.$e->getMessage()], 500);
         }
     }
 
@@ -324,7 +323,7 @@ class PharmacyMovementController extends Controller
     {
         $movement = PharmacyMovement::findOrFail($id);
 
-        if (!$movement->canBeApproved()) {
+        if (! $movement->canBeApproved()) {
             return response()->json(['error' => 'Movement cannot be approved'], 422);
         }
 
@@ -346,7 +345,7 @@ class PharmacyMovementController extends Controller
                 'status' => 'approved',
                 'approving_user_id' => Auth::id(),
                 'approved_at' => now(),
-                'approval_notes' => $request->approval_notes
+                'approval_notes' => $request->approval_notes,
             ]);
 
             // Update item quantities
@@ -369,12 +368,13 @@ class PharmacyMovementController extends Controller
 
             return response()->json([
                 'message' => 'Movement approved successfully',
-                'movement' => $movement->load(['items.product'])
+                'movement' => $movement->load(['items.product']),
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Failed to approve movement: ' . $e->getMessage()], 500);
+
+            return response()->json(['error' => 'Failed to approve movement: '.$e->getMessage()], 500);
         }
     }
 
@@ -384,7 +384,7 @@ class PharmacyMovementController extends Controller
     public function getPending(Request $request)
     {
         $query = PharmacyMovement::pending()
-                    ->with(['requestingService', 'providingService', 'requestingUser', 'items.product']);
+            ->with(['requestingService', 'providingService', 'requestingUser', 'items.product']);
 
         if ($request->has('providing_service_id')) {
             $query->where('providing_service_id', $request->providing_service_id);
@@ -401,9 +401,9 @@ class PharmacyMovementController extends Controller
     public function getStatistics(Request $request)
     {
         $serviceId = $request->get('service_id');
-        
+
         $query = PharmacyMovement::query();
-        
+
         if ($serviceId) {
             $query->forService($serviceId);
         }

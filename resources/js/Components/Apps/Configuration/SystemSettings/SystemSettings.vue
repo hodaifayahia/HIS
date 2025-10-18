@@ -286,10 +286,24 @@ const loadSettings = async () => {
     
     // Handle image previews safely
     if (data && data.logo_url) {
-      logoPreview.value = data.logo_url
+      // If API returned a relative path, ensure it's a usable absolute URL for the browser
+      logoPreview.value = (function (val) {
+        if (!val) return ''
+        if (val.startsWith('http://') || val.startsWith('https://')) return val
+        if (val.startsWith('/')) return window.location.origin + val
+        // handle storage urls like storage/...
+        if (val.startsWith('storage/')) return window.location.origin + '/' + val
+        return val
+      })(data.logo_url)
     }
     if (data && data.profile_image_url) {
-      profileImagePreview.value = data.profile_image_url
+      profileImagePreview.value = (function (val) {
+        if (!val) return ''
+        if (val.startsWith('http://') || val.startsWith('https://')) return val
+        if (val.startsWith('/')) return window.location.origin + val
+        if (val.startsWith('storage/')) return window.location.origin + '/' + val
+        return val
+      })(data.profile_image_url)
     }
     
     console.log('Settings loaded:', form)

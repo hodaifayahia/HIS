@@ -21,8 +21,8 @@ import DoctorSelectionModal from './DoctorSelectionModal.vue'
 import ReasonModel from '../../../appointments/ReasonModel.vue'
 
 // Services
-import { ficheNavetteService } from '../../../../Components/Apps/services/Reception/ficheNavetteService.js'
-import { appointmentService } from '../../services/Appointment/appointmentService.js'
+import ficheNavetteService from '../../services/Reception/ficheNavetteService.js'
+import appointmentService from '../../services/Appointment/appointmentService.js'
 
 const emit = defineEmits(['cancel', 'created'])
 const props = defineProps({
@@ -164,12 +164,24 @@ const fetchAllPrestations = async () => {
 }
 
 const loadConventionCompanies = async () => {
-  if (!props.patientId) return
+  // Both patientId AND ficheNavetteId are required for this API call
+  if (!props.patientId) {
+    console.log('Skipping convention companies load: no patient ID')
+    return
+  }
+  
+  if (!props.ficheNavetteId) {
+    console.log('Skipping convention companies load: no fiche navette ID (this is normal when creating a new fiche)')
+    return
+  }
+  
   try {
     loadingConventions.value = true
+    console.log('Loading convention companies for patient:', props.patientId, 'fiche:', props.ficheNavetteId)
     const result = await ficheNavetteService.getPatientConventions(props.patientId, props.ficheNavetteId)
     if (result.success) {
       conventionOrganismes.value = result.data || []
+      console.log('Loaded convention companies:', conventionOrganismes.value.length)
     }
   } catch (error) {
     console.error('Error loading convention organismes:', error)
@@ -282,7 +294,15 @@ const onTabChange = (event) => {
   cleanupExpiredAppointments()
 }
 
-// --- Appointment & Convention Handlers ---
+// --- Simple Item Handler (like nursing) ---
+const handleItemsCreated = (data) => {
+  console.log('=== handleItemsCreated called ===')
+  console.log('Items to create:', data)
+  // Directly create the fiche navette with the selected data
+  createFicheNavette(data)
+}
+
+// --- Appointment & Convention Handlers (kept for compatibility) ---
 const handleAppointmentRequired = (prestations) => {
   console.log('=== handleAppointmentRequired called ===')
   console.log('Prestations requiring appointments:', prestations)
@@ -353,18 +373,16 @@ const handleProceedWithAppointments = (appointmentData) => {
 
 // Pass-through functions for modals
 const onConventionModeToggle = () => {
+  console.log('=== Convention mode toggled ===')
+  console.log('enableConventionMode:', enableConventionMode.value)
+  
   if (enableConventionMode.value) {
-    if (!props.ficheNavetteId) {
-      toast.add({
-        severity: 'warn',
-        summary: 'Warning',
-        detail: 'Please create a Fiche Navette first before using Convention Mode',
-        life: 3000
-      })
-      enableConventionMode.value = false
-      return
-    }
+    console.log('Opening convention modal...')
     showConventionModal.value = true
+    console.log('showConventionModal is now:', showConventionModal.value)
+  } else {
+    console.log('Closing convention modal...')
+    showConventionModal.value = false
   }
 }
 
@@ -898,7 +916,7 @@ onMounted(() => {
                   @update:prestation-appointments="prestationAppointments = $event; saveAppointmentData()"
                   @take-appointment="takeAppointmentForPrestation"
                   @cancel-appointment="cancelAppointment"
-                  @items-to-create="createFicheNavette"
+                  @items-to-create="handleItemsCreated"
                   @appointment-required="handleAppointmentRequired"
                 />
               </div>
@@ -927,7 +945,7 @@ onMounted(() => {
                   @update:prestation-appointments="prestationAppointments = $event; saveAppointmentData()"
                   @take-appointment="takeAppointmentForPrestation"
                   @cancel-appointment="cancelAppointment"
-                  @items-to-create="createFicheNavette"
+                  @items-to-create="handleItemsCreated"
                   @appointment-required="handleAppointmentRequired"
                 />
               </div>
@@ -964,10 +982,13 @@ onMounted(() => {
     <ConventionModal
       v-model:visible="showConventionModal"
       :ficheNavetteId="props.ficheNavetteId"
+      :patientId="props.patientId"
       @convention-items-added="onConventionItemsAdded"
+      @update:visible="showConventionModal = $event"
     />
+
     <SameDayAppointmentModal
-      v-model:visible="showSameDayModal"
+      v-model="showSameDayModal"
       :doctor-id="safeDoctorId"
       :patient-id="props.patientId"
       :fuckuifwork="fuckuifwork"
@@ -978,7 +999,7 @@ onMounted(() => {
     />
     
     <AppointmentRequiredAlert
-      v-model:visible="showAppointmentAlert"
+      v-model="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
       :selected-doctor="selectedDoctor"
@@ -988,7 +1009,7 @@ onMounted(() => {
     />
     
     <DoctorSelectionModal
-      v-model:visible="showDoctorSelectionModal"
+      v-model="showDoctorSelectionModal"
       :prestation="selectedPrestationForAppointment"
       :doctors="allDoctors"
       :specializations="specializations"

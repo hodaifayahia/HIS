@@ -21,6 +21,7 @@ import TabPanel from 'primevue/tabpanel'
 import { remiseService } from '../../../Apps/services/Remise/RemiseService'
 import { userService } from '../../../Apps/services/User/userService'
 import RemiseNotificationService from '../../../Apps/services/Remise/RemiseNotificationService'
+import ficheNavetteService from '../../services/Reception/ficheNavetteService'
 
 // Props
 const props = defineProps({
@@ -39,6 +40,13 @@ const emit = defineEmits(['update:visible', 'apply-remise'])
 const selectedRemise = ref(null)
 const availableRemises = ref([])
 const users = ref([])
+// Local doctors list loaded from API (fallback to props.doctors when empty)
+const doctorsList = ref([])
+
+// Derived doctor options used by Dropdowns (fallback to props.doctors)
+const doctorOptions = computed(() => {
+  return (doctorsList.value && doctorsList.value.length) ? doctorsList.value : (props.doctors || [])
+})
 const isCustomDiscount = ref(false)
 const loading = ref(false)
 const toast = useToast()
@@ -636,6 +644,17 @@ const getAllUsers = async () => {
   }
 }
 
+// Load doctors from the ficheNavetteService API
+const getAllDoctors = async () => {
+  try {
+    const res = await ficheNavetteService.getAllDoctors()
+    doctorsList.value = res.success ? res.data : (props.doctors || [])
+  } catch (error) {
+    console.error('Error fetching doctors:', error)
+    doctorsList.value = props.doctors || []
+  }
+}
+
 const getRemiseUser = async (userId) => {
   if (!userId) return
   loading.value = true
@@ -744,6 +763,8 @@ onMounted(() => {
       loadRemises()
     }
   }
+    // Load doctors initially
+    getAllDoctors()
 })
 
 // Check if user is near salary limit
@@ -851,6 +872,8 @@ const getRequestDetails = async () => {
 watch(dialogVisible, async (visible) => {
   if (visible) {
     await loadRemiseData()
+    // Refresh doctors when modal opens to ensure up-to-date list
+    await getAllDoctors()
     
     const userId = props.group?.user?.id
     if (userId) {
@@ -1049,7 +1072,7 @@ onMounted(() => {
                       <div class="input-group">
                         <Dropdown
                           v-model="selectedDoctor"
-                          :options="doctors"
+                          :options="doctorOptions"
                           option-label="name"
                           placeholder="Select default doctor (applies to all)"
                           filter
@@ -1221,7 +1244,7 @@ onMounted(() => {
                     <div class="doctor-selection-wrapper">
                       <Dropdown
                         v-model="prestationDisplayData[index].selectedDoctor"
-                        :options="doctors"
+                        :options="doctorOptions"
                         option-label="name"
                         option-value="id"
                         placeholder="Select doctor"
@@ -1231,8 +1254,8 @@ onMounted(() => {
                         @change="onDoctorSelected(index, $event.value)"
                       >
                         <template #value="{ value, placeholder }">
-                          <div v-if="value" class="selected-value">
-                            <span>{{ doctors.find(d => d.id === value)?.name || 'Unknown' }}</span>
+                            <div v-if="value" class="selected-value">
+                            <span>{{ doctorOptions.find(d => d.id === value)?.name || 'Unknown' }}</span>
                             <i v-if="value === selectedDoctor?.id" class="pi pi-check auto-applied-icon" title="Auto-applied from default"></i>
                           </div>
                           <span v-else>{{ placeholder }}</span>

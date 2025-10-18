@@ -12,6 +12,7 @@ class AppointmentPrestation extends Model
         'appointment_id',
         'description',
         'prestation_id',
+        'package_id',
     ];
 
     protected $attributes = [
@@ -26,5 +27,10 @@ class AppointmentPrestation extends Model
     public function prestation()
     {
         return $this->belongsTo(\App\Models\CONFIGURATION\Prestation::class, 'prestation_id');
+    }
+
+    public function package()
+    {
+        return $this->belongsTo(\App\Models\CONFIGURATION\PrestationPackage::class, 'package_id');
     }
 }

@@ -8,21 +8,29 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class FactureProformaProduct extends Model
 {
     protected $table = 'factureproforma_products';
-    
+
     protected $fillable = [
         'factureproforma_id',
         'product_id',
         'quantity',
         'price',
         'unit',
+        'quantity_sended',
+        'confirmation_status',
+        'confirmed_at',
+        'confirmed_by',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'quantity_sended' => 'integer',
         'price' => 'decimal:2',
+        'unit' => 'string',
+        'confirmed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
 
     /**
      * Get the facture proforma that owns this product.

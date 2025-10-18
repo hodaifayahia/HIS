@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Stock;
 
-use Illuminate\Foundation\Http\FormRequest;
 use App\Models\StockMovementItem;
+use Illuminate\Foundation\Http\FormRequest;
 
 class RejectItemsRequest extends FormRequest
 {
@@ -25,7 +25,7 @@ class RejectItemsRequest extends FormRequest
         return [
             'item_ids' => 'required|array|min:1',
             'item_ids.*' => 'integer|min:1',
-            'rejection_reason' => 'nullable|string|max:500'
+            'rejection_reason' => 'nullable|string|max:500',
         ];
     }
 
@@ -41,7 +41,7 @@ class RejectItemsRequest extends FormRequest
             'item_ids.*.integer' => 'Each item ID must be a valid integer.',
             'item_ids.*.min' => 'Item IDs must be positive integers.',
             'rejection_reason.string' => 'Rejection reason must be a valid text.',
-            'rejection_reason.max' => 'Rejection reason cannot exceed 500 characters.'
+            'rejection_reason.max' => 'Rejection reason cannot exceed 500 characters.',
         ];
     }
 
@@ -52,21 +52,21 @@ class RejectItemsRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $movementId = $this->route('movementId');
-            
+
             // Check if all items belong to the movement and are editable
             $validItems = StockMovementItem::where('stock_movement_id', $movementId)
-                                          ->whereIn('id', $this->item_ids)
-                                          ->get();
-            
+                ->whereIn('id', $this->item_ids)
+                ->get();
+
             if ($validItems->count() !== count($this->item_ids)) {
                 $validator->errors()->add('item_ids', 'Some items do not belong to this stock movement.');
             }
-            
+
             // Check if any items are already processed
             $nonEditableItems = $validItems->filter(function ($item) {
-                return !$item->isEditable();
+                return ! $item->isEditable();
             });
-            
+
             if ($nonEditableItems->count() > 0) {
                 $validator->errors()->add('item_ids', 'Some items have already been processed and cannot be modified.');
             }

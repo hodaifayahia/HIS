@@ -51,19 +51,19 @@ class PharmacyMovementInventorySelection extends Model
     // Pharmacy-specific methods
     public function isExpiringSoon($days = 30): bool
     {
-        if (!$this->expiry_date) {
+        if (! $this->expiry_date) {
             return false;
         }
-        
+
         return $this->expiry_date->diffInDays(now()) <= $days;
     }
 
     public function isExpired(): bool
     {
-        if (!$this->expiry_date) {
+        if (! $this->expiry_date) {
             return false;
         }
-        
+
         return $this->expiry_date->isPast();
     }
 
@@ -74,12 +74,13 @@ class PharmacyMovementInventorySelection extends Model
         } elseif ($this->isExpiringSoon()) {
             return 'expiring_soon';
         }
+
         return 'valid';
     }
 
     public function getExpiryStatusLabelAttribute(): string
     {
-        return match($this->expiry_status) {
+        return match ($this->expiry_status) {
             'expired' => 'Expired',
             'expiring_soon' => 'Expiring Soon',
             'valid' => 'Valid',
@@ -89,7 +90,7 @@ class PharmacyMovementInventorySelection extends Model
 
     public function getQualityCheckStatusLabelAttribute(): string
     {
-        return match($this->quality_check_status) {
+        return match ($this->quality_check_status) {
             'passed' => 'Quality Check Passed',
             'failed' => 'Quality Check Failed',
             'pending' => 'Quality Check Pending',
@@ -100,7 +101,7 @@ class PharmacyMovementInventorySelection extends Model
 
     public function getStorageConditionsLabelAttribute(): string
     {
-        return match($this->storage_conditions) {
+        return match ($this->storage_conditions) {
             'room_temperature' => 'Room Temperature (15-25°C)',
             'refrigerated' => 'Refrigerated (2-8°C)',
             'frozen' => 'Frozen (-20°C)',
@@ -119,8 +120,8 @@ class PharmacyMovementInventorySelection extends Model
 
     public function canBeDispensed(): bool
     {
-        return !$this->isExpired() && 
-               $this->quality_check_status !== 'failed' && 
+        return ! $this->isExpired() &&
+               $this->quality_check_status !== 'failed' &&
                $this->isPharmacistVerified();
     }
 
@@ -130,7 +131,7 @@ class PharmacyMovementInventorySelection extends Model
             'refrigerated',
             'frozen',
             'protect_from_light',
-            'controlled_room_temperature'
+            'controlled_room_temperature',
         ]);
     }
 
@@ -144,14 +145,14 @@ class PharmacyMovementInventorySelection extends Model
     {
         return $query->where(function ($q) {
             $q->whereNull('expiry_date')
-              ->orWhere('expiry_date', '>', now());
+                ->orWhere('expiry_date', '>', now());
         });
     }
 
     public function scopeExpiringSoon($query, $days = 30)
     {
         return $query->where('expiry_date', '<=', now()->addDays($days))
-                    ->where('expiry_date', '>', now());
+            ->where('expiry_date', '>', now());
     }
 
     public function scopeQualityCheckPassed($query)

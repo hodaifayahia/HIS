@@ -305,7 +305,7 @@ public function hasConsultationData($appointmentid)
     }
 }
 
-// Method to clear consultation data (useful for testing)
+    // Method to clear consultation data (useful for testing)
 public function clearConsultationData($appointmentid)
 {
     try {
@@ -323,4 +323,57 @@ public function clearConsultationData($appointmentid)
         ], 500);
     }
 }
+
+    /**
+     * Duplicate a placeholder/section with all its attributes to another doctor
+     */
+    public function duplicate(Request $request, $placeholderId)
+    {
+        try {
+            $validated = $request->validate([
+                'target_doctor_id' => 'required|exists:doctors,id',
+                'new_name' => 'nullable|string|max:255',
+            ]);
+
+            $sourcePlaceholder = Placeholder::with('attributes')->findOrFail($placeholderId);
+            
+            DB::beginTransaction();
+            
+            // Create new placeholder for target doctor
+            $newPlaceholder = Placeholder::create([
+                'name' => $validated['new_name'] ?? $sourcePlaceholder->name,
+                'description' => $sourcePlaceholder->description,
+                'doctor_id' => $validated['target_doctor_id'],
+                'specializations_id' => $sourcePlaceholder->specializations_id,
+            ]);
+            
+            // Duplicate all attributes
+            foreach ($sourcePlaceholder->attributes as $attribute) {
+                Attribute::create([
+                    'placeholder_id' => $newPlaceholder->id,
+                    'name' => $attribute->name,
+                    'description' => $attribute->description,
+                    'value' => $attribute->value,
+                    'input_type' => $attribute->input_type ?? 'text',
+                ]);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Section duplicated successfully',
+                'data' => PlaceholderResource::make($newPlaceholder->load('attributes', 'doctor', 'specializations'))
+            ], 201);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Placeholder duplication failed: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to duplicate section: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\CONFIGURATION;
 
 use App\Http\Controllers\Controller;
-use App\Models\CONFIGURATION\PrestationPackage;
-use App\Models\CONFIGURATION\PrestationPackageitem;
 use App\Http\Requests\CONFIGURATION\StorePrestationPackageRequest;
 use App\Http\Requests\CONFIGURATION\UpdatePrestationPackageRequest;
+use App\Models\CONFIGURATION\PrestationPackage;
 use App\Services\CONFIGURATION\PrestationPackageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,15 +14,12 @@ class PrestationPackageController extends Controller
 {
     /**
      * The service instance for handling business logic.
-     *
-     * @var PrestationPackageService
      */
     protected PrestationPackageService $service;
 
     /**
      * Create a new controller instance.
      *
-     * @param PrestationPackageService $service
      * @return void
      */
     public function __construct(PrestationPackageService $service)
@@ -33,61 +29,50 @@ class PrestationPackageController extends Controller
 
     /**
      * Display a listing of the resource.
-     *
-     * @return JsonResponse
      */
     public function index(): JsonResponse
     {
         // Load all packages with their items and associated prestation details.
         $packages = PrestationPackage::with('items.prestation')->get();
+
         return response()->json($packages);
     }
 
     /**
      * Store a newly created resource in storage.
-     *
-     * @param StorePrestationPackageRequest $request
-     * @return JsonResponse
      */
     public function store(StorePrestationPackageRequest $request): JsonResponse
     {
         // Use the service to create the package and its items in a single transaction.
         $package = $this->service->createPackageWithItems($request->validated());
+
         return response()->json($package, 201);
     }
 
     /**
      * Display the specified resource.
-     *
-     * @param PrestationPackage $prestationPackage
-     * @return JsonResponse
      */
     public function show(PrestationPackage $prestationPackage): JsonResponse
     {
         // Load the associated items and prestations for the specific package.
         $prestationPackage->load('items.prestation');
+
         return response()->json($prestationPackage);
     }
 
     /**
      * Update the specified resource in storage.
-     *
-     * @param UpdatePrestationPackageRequest $request
-     * @param PrestationPackage $prestationPackage
-     * @return JsonResponse
      */
     public function update(UpdatePrestationPackageRequest $request, PrestationPackage $prestationPackage): JsonResponse
     {
         // Use the service to update the package details and sync its items.
         $package = $this->service->updatePackageWithItems($prestationPackage, $request->validated());
+
         return response()->json($package);
     }
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param PrestationPackage $prestationPackage
-     * @return JsonResponse
      */
     public function destroy(PrestationPackage $prestationPackage): JsonResponse
     {
@@ -117,10 +102,6 @@ class PrestationPackageController extends Controller
 
     /**
      * Clone an existing prestation package.
-     *
-     * @param Request $request
-     * @param PrestationPackage $prestationPackage
-     * @return JsonResponse
      */
     public function clone(Request $request, PrestationPackage $prestationPackage): JsonResponse
     {
@@ -131,7 +112,7 @@ class PrestationPackageController extends Controller
 
         // Use the service to clone the package
         $clonedPackage = $this->service->clonePackage($prestationPackage, $request->only(['name', 'price']));
-        
+
         return response()->json($clonedPackage, 201);
     }
 }

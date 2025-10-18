@@ -1,24 +1,21 @@
 <?php
+
 // filepath: d:\Projects\AppointmentSystem\AppointmentSystem-main\app\Services\Reception\ReceptionService.php
 
 namespace App\Services\Reception;
 
+use App\Models\B2B\Convention;
+use App\Models\CONFIGURATION\Prestation;
+use App\Models\CONFIGURATION\PrestationPackage;
 use App\Models\Reception\ficheNavette;
 use App\Models\Reception\ficheNavetteItem;
-
 use App\Models\Reception\ItemDependency;
-use App\Models\CONFIGURATION\Prestation;
-use App\Models\B2B\Convention;
-use App\Models\CONFIGURATION\PrestationPackage;
-use App\Models\CONFIGURATION\PrestationPackageitem;
-use App\Services\Reception\FileUploadService;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Class ReceptionService
- * @package App\Services\Reception
  */
 class ReceptionService
 {
@@ -41,10 +38,11 @@ class ReceptionService
                 'patient_id' => $data['patient_id'],
                 'creator_id' => Auth::id(),
                 'fiche_date' => $data['fiche_date'],
-                'status' => $data['status'] ?? 'pending'
+                'status' => $data['status'] ?? 'pending',
             ]);
 
             DB::commit();
+
             return $fiche->fresh(['items', 'patient', 'creator']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -63,6 +61,7 @@ class ReceptionService
             $ficheNavette->update($data);
 
             DB::commit();
+
             return $ficheNavette->fresh(['items', 'patient', 'creator']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -80,11 +79,12 @@ class ReceptionService
         try {
             // Delete all associated items first
             $ficheNavette->items()->delete();
-            
+
             // Delete the fiche navette
             $ficheNavette->delete();
 
             DB::commit();
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -98,6 +98,7 @@ class ReceptionService
     public function changeFicheNavetteStatus(ficheNavette $ficheNavette, string $newStatus): ficheNavette
     {
         $ficheNavette->update(['status' => $newStatus]);
+
         return $ficheNavette->fresh(['items', 'patient', 'creator']);
     }
 
@@ -118,7 +119,7 @@ class ReceptionService
                 'fiche_date' => now(),
                 'total_amount' => 0,
                 'notes' => $data['notes'] ?? null,
-                'created_by' => auth()->id()
+                'created_by' => auth()->id(),
             ]);
 
             $totalAmount = 0;
@@ -128,10 +129,10 @@ class ReceptionService
 
             // 2. Handle different types of prestations
             if (isset($data['type']) && $data['type'] === 'prestation') {
-                if (isset($data['prestations']) && !empty($data['prestations'])) {
+                if (isset($data['prestations']) && ! empty($data['prestations'])) {
                     // Add main prestation ONLY to fiche_navette_items
                     $mainPrestation = $data['prestations'][0];
-                    
+
                     $prestationData = [
                         'prestation_id' => $mainPrestation['id'],
                         'doctor_id' => $data['selectedDoctor'] ?? null,
@@ -139,7 +140,7 @@ class ReceptionService
                         'convention_price' => $mainPrestation['convention_price'] ?? null,
                         'notes' => $mainPrestation['notes'] ?? null,
                     ];
-                    
+
                     $mainItem = $this->addPrestationToFiche($fiche, $prestationData, null, $conventionData);
                     $totalAmount += $mainItem->final_price;
 
@@ -159,11 +160,11 @@ class ReceptionService
                         $this->storeDependenciesOnly($mainItem, $formattedDependencies, $conventionData);
                     }
                 }
-                
+
                 // FIXED: Handle packages correctly
-                if (isset($data['packages']) && !empty($data['packages'])) {
+                if (isset($data['packages']) && ! empty($data['packages'])) {
                     $packageData = $data['packages'][0];
-                    
+
                     $formattedPackageData = [
                         'package_id' => $packageData['id'], // Map 'id' to 'package_id'
                         'doctor_id' => $data['selectedDoctor'] ?? null,
@@ -171,13 +172,13 @@ class ReceptionService
                         'convention_prices' => $packageData['convention_prices'] ?? [],
                         'notes' => $packageData['notes'] ?? null,
                     ];
-                    
+
                     $packageItems = $this->addPackageToFiche($fiche, $formattedPackageData, $conventionData);
                     foreach ($packageItems as $item) {
                         $totalAmount += $item->final_price;
                     }
                 }
-            } 
+            }
             // 3. Handle custom prestations (first one is main, rest are dependencies)
             elseif (isset($data['type']) && $data['type'] === 'custom' && isset($data['customPrestations'])) {
                 $formattedCustomPrestations = [];
@@ -191,10 +192,10 @@ class ReceptionService
                         'custom_name' => $customPrestation['display_name'] ?? null,
                     ];
                 }
-                
+
                 $customItems = $this->addCustomPrestationsToFiche($fiche, $formattedCustomPrestations, $conventionData);
                 // Only add the first (main) prestation price to total
-                if (!empty($customItems)) {
+                if (! empty($customItems)) {
                     $totalAmount += $customItems[0]->final_price;
                 }
             }
@@ -203,6 +204,7 @@ class ReceptionService
             $fiche->update(['total_amount' => $totalAmount]);
 
             DB::commit();
+
             return $fiche->fresh(['items.prestation', 'items.package', 'items.dependencies.dependencyPrestation', 'items.convention', 'patient', 'creator']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -210,48 +212,49 @@ class ReceptionService
         }
     }
 
-   public function getPrestationsByPackage($packageId): array
-{
-    try {
-        // Get package with its items and prestations
-        $package = PrestationPackage::with([
-            'items.prestation.service',
-            'items.prestations',
-            'items.prestation.specialization'
-        ])->findOrFail($packageId);
-        $prestations = $package->items->map(function($packageItem) {
-            return [
-                'id' => $packageItem->prestation->id,
-                'name' => $packageItem->prestation->name,
-                'internal_code' => $packageItem->prestation->internal_code,
-                'public_price' => $packageItem->prestation->getPublicPrice(),
-                'service_name' => $packageItem->prestation->service->name ?? null,
-                'specialization_name' => $packageItem->prestation->specialization->name ?? null,
-                'specialization_id' => $packageItem->prestation->specialization_id,
-                'need_an_appointment' => $packageItem->prestation->need_an_appointment ?? false,
-                'package_item_id' => $packageItem->id,
-                'prestation_package_id' => $packageItem->prestation_package_id
-            ];
-        });
+    public function getPrestationsByPackage($packageId): array
+    {
+        try {
+            // Get package with its items and prestations
+            $package = PrestationPackage::with([
+                'items.prestation.service',
+                'items.prestations',
+                'items.prestation.specialization',
+            ])->findOrFail($packageId);
+            $prestations = $package->items->map(function ($packageItem) {
+                return [
+                    'id' => $packageItem->prestation->id,
+                    'name' => $packageItem->prestation->name,
+                    'internal_code' => $packageItem->prestation->internal_code,
+                    'public_price' => $packageItem->prestation->getPublicPrice(),
+                    'service_name' => $packageItem->prestation->service->name ?? null,
+                    'specialization_name' => $packageItem->prestation->specialization->name ?? null,
+                    'specialization_id' => $packageItem->prestation->specialization_id,
+                    'need_an_appointment' => $packageItem->prestation->need_an_appointment ?? false,
+                    'package_item_id' => $packageItem->id,
+                    'prestation_package_id' => $packageItem->prestation_package_id,
+                ];
+            });
 
-        return [
-            'success' => true,
-            'data' => $prestations
-        ];
-    } catch (\Exception $e) {
-        \Log::error('Error fetching prestations by package:', [
-            'package_id' => $packageId,
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-        ]);
-        return [
-            'success' => false,
-            'message' => 'Failed to fetch prestations',
-            'error' => $e->getMessage()
-        ];
+            return [
+                'success' => true,
+                'data' => $prestations,
+            ];
+        } catch (\Exception $e) {
+            \Log::error('Error fetching prestations by package:', [
+                'package_id' => $packageId,
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => 'Failed to fetch prestations',
+                'error' => $e->getMessage(),
+            ];
+        }
     }
-}
 
     /**
      * Add items to an existing fiche navette
@@ -259,7 +262,6 @@ class ReceptionService
     public function addItemsToFicheNavette(ficheNavette $ficheNavette, array $data): ficheNavette
     {
         DB::beginTransaction();
-
         try {
             $totalAmount = $ficheNavette->total_amount ?? 0;
 
@@ -268,19 +270,20 @@ class ReceptionService
 
             // Handle different types of prestations
             if (isset($data['type']) && $data['type'] === 'prestation') {
-                if (isset($data['prestations']) && !empty($data['prestations'])) {
+                if (isset($data['prestations']) && ! empty($data['prestations'])) {
                     // Add main prestation ONLY to fiche_navette_items
                     $mainPrestation = $data['prestations'][0];
-                    
+
                     // Fix: Ensure prestation_id is properly mapped
                     $prestationData = [
                         'prestation_id' => $mainPrestation['id'], // Map 'id' to 'prestation_id'
                         'doctor_id' => $data['selectedDoctor'] ?? null, // Use selectedDoctor from main data
                         'convention_id' => $mainPrestation['convention_id'] ?? null,
+                        
                         'convention_price' => $mainPrestation['convention_price'] ?? null,
                         'notes' => $mainPrestation['notes'] ?? null,
                     ];
-                    
+
                     $mainItem = $this->addPrestationToFiche($ficheNavette, $prestationData, null, $conventionData);
                     $totalAmount += $mainItem->final_price;
 
@@ -300,16 +303,16 @@ class ReceptionService
                         $this->storeDependenciesOnly($mainItem, $formattedDependencies, $conventionData);
                     }
                 }
-                
+
                 // FIXED: Handle packages separately - not in elseif
-                if (isset($data['packages']) && !empty($data['packages'])) {
+                if (isset($data['packages']) && ! empty($data['packages'])) {
                     $packageData = $data['packages'][0];
-                    
+
                     \Log::info('Processing package data:', [
                         'package_data' => $packageData,
-                        'selectedDoctor' => $data['selectedDoctor'] ?? null
+                        'selectedDoctor' => $data['selectedDoctor'] ?? null,
                     ]);
-                    
+
                     // Fix: Ensure package_id is properly mapped
                     $formattedPackageData = [
                         'package_id' => $packageData['id'], // Map 'id' to 'package_id'
@@ -318,20 +321,20 @@ class ReceptionService
                         'convention_prices' => $packageData['convention_prices'] ?? [],
                         'notes' => $packageData['notes'] ?? null,
                     ];
-                    
+
                     \Log::info('Formatted package data for addPackageToFiche:', $formattedPackageData);
-                    
+
                     $packageItems = $this->addPackageToFiche($ficheNavette, $formattedPackageData, $conventionData);
                     foreach ($packageItems as $item) {
                         $totalAmount += $item->final_price;
                         \Log::info('Created package item:', [
                             'id' => $item->id,
                             'package_id' => $item->package_id,
-                            'final_price' => $item->final_price
+                            'final_price' => $item->final_price,
                         ]);
                     }
                 }
-            } 
+            }
             // Handle custom prestations (first one is main, rest are dependencies)
             elseif (isset($data['type']) && $data['type'] === 'custom' && isset($data['customPrestations'])) {
                 $formattedCustomPrestations = [];
@@ -345,10 +348,10 @@ class ReceptionService
                         'custom_name' => $customPrestation['display_name'] ?? null,
                     ];
                 }
-                
+
                 $customItems = $this->addCustomPrestationsToFiche($ficheNavette, $formattedCustomPrestations, $conventionData);
                 // Only add the first (main) prestation price to total
-                if (!empty($customItems)) {
+                if (! empty($customItems)) {
                     $totalAmount += $customItems[0]->final_price;
                 }
             }
@@ -357,13 +360,14 @@ class ReceptionService
             $ficheNavette->update(['total_amount' => $totalAmount]);
 
             DB::commit();
+
             return $ficheNavette->fresh([
-                'items.prestation', 
+                'items.prestation',
                 'items.package',
                 'items.dependencies.dependencyPrestation',
                 'items.convention',
-                'patient', 
-                'creator'
+                'patient',
+                'creator',
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -371,7 +375,7 @@ class ReceptionService
                 'error' => $e->getMessage(),
                 'data' => $data,
                 'line' => $e->getLine(),
-                'file' => $e->getFile()
+                'file' => $e->getFile(),
             ]);
             throw $e;
         }
@@ -380,30 +384,29 @@ class ReceptionService
     /**
      * Create convention prescription items
      */
-    public function createConventionPrescriptionItems(array $data , $ficheNavetteId): array
+    public function createConventionPrescriptionItems(array $data, $ficheNavetteId): array
     {
         DB::beginTransaction();
 
         try {
             $createdItems = [];
             $totalAmount = 0;
-            
+
             // Get the fiche navette
             $ficheNavette = ficheNavette::findOrFail($ficheNavetteId);
 
             // Extract global convention data (same for all items)
             $globalConventionData = $this->extractConventionDataForPrescription($data);
-          
-            
+
             // Create items for each convention group
             foreach ($data['conventions'] as $conventionIndex => $conventionGroup) {
                 \Log::info("Processing convention group {$conventionIndex}", [
                     'convention_id' => $conventionGroup['convention_id'],
                     // 'specialization_id' => $conventionGroup['specialization_id'],
                     'doctor_id' => $conventionGroup['doctor_id'],
-                    'prestations_count' => count($conventionGroup['prestations'])
+                    'prestations_count' => count($conventionGroup['prestations']),
                 ]);
-                
+
                 // Create an item for each prestation in this convention group
                 foreach ($conventionGroup['prestations'] as $prestationIndex => $prestationData) {
                     \Log::info("Creating item for prestation {$prestationIndex}", [
@@ -412,7 +415,7 @@ class ReceptionService
                         'doctor_id' => $prestationData['doctor_id'],
                         // 'specialization_id' => $prestationData['specialization_id']
                     ]);
-                    
+
                     $item = $this->createConventionPrescriptionItem(
                         $ficheNavette,
                         $conventionGroup,
@@ -420,16 +423,15 @@ class ReceptionService
                         $globalConventionData
                     );
 
-                    
                     $createdItems[] = $item;
                     $totalAmount += $item->final_price;
-                    
-                    \Log::info("Successfully created ficheNavetteItem", [
+
+                    \Log::info('Successfully created ficheNavetteItem', [
                         'item_id' => $item->id,
                         'prestation_id' => $item->prestation_id,
                         'convention_id' => $item->convention_id,
                         'doctor_id' => $item->doctor_id,
-                        'final_price' => $item->final_price
+                        'final_price' => $item->final_price,
                     ]);
                 }
             }
@@ -440,22 +442,22 @@ class ReceptionService
             \Log::info('Convention prescription creation completed successfully', [
                 'total_items_created' => count($createdItems),
                 'total_amount' => $totalAmount,
-                'fiche_navette_new_total' => $ficheNavette->fresh()->total_amount
+                'fiche_navette_new_total' => $ficheNavette->fresh()->total_amount,
             ]);
 
             DB::commit();
-            
+
             return [
                 'items' => $createdItems,
                 'items_created' => count($createdItems),
-                'total_amount' => $totalAmount
+                'total_amount' => $totalAmount,
             ];
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error creating convention prescription items', [
                 'fiche_navette_id' => $data['fiche_navette_id'] ?? 'unknown',
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
             throw $e;
         }
@@ -464,83 +466,84 @@ class ReceptionService
     /**
      * Create a single convention prescription item
      */
-   private function createConventionPrescriptionItem(
-    ficheNavette $ficheNavette, 
-    array $conventionGroup, 
-    array $prestationData, 
-    array $globalConventionData
-): ficheNavetteItem {
-    $prestation = Prestation::findOrFail($prestationData['prestation_id']);
-    $finalPrice = $prestationData['convention_price'] ?? $prestation->getPublicPrice()
-;
+    private function createConventionPrescriptionItem(
+        ficheNavette $ficheNavette,
+        array $conventionGroup,
+        array $prestationData,
+        array $globalConventionData
+    ): ficheNavetteItem {
+        $prestation = Prestation::findOrFail($prestationData['prestation_id']);
+        // Use patient_price from PrestationPricing (annex/avenant), fallback to convention_price, then public_price
+        $finalPrice = $prestationData['patient_price'] ?? $prestationData['convention_price'] ?? $prestation->getPublicPrice();
 
-    // Handle multiple file uploads
-    $fileMetas = [];
-    if (!empty($globalConventionData['uploaded_files']) && is_array($globalConventionData['uploaded_files'])) {
-        foreach ($globalConventionData['uploaded_files'] as $file) {
-            // Check if it's already processed file data (from controller)
-            if (is_array($file) && isset($file['path']) && isset($file['original_name'])) {
-                // File is already processed, use it directly
-                $fileMetas[] = $file;
-                \Log::info('Using pre-processed file:', [
-                    'original_name' => $file['original_name'],
-                    'path' => $file['path']
-                ]);
-            } elseif ($file instanceof \Illuminate\Http\UploadedFile) {
-                // File is raw UploadedFile, process it
-                if ($this->fileUploadService->validateConventionFile($file)) {
-                    $processedFile = $this->fileUploadService->uploadSingleFile($file);
-                    $fileMetas[] = $processedFile;
-                    \Log::info('Processed raw file:', [
-                        'original_name' => $processedFile['original_name'],
-                        'path' => $processedFile['path']
+        // Handle multiple file uploads
+        $fileMetas = [];
+        if (! empty($globalConventionData['uploaded_files']) && is_array($globalConventionData['uploaded_files'])) {
+            foreach ($globalConventionData['uploaded_files'] as $file) {
+                // Check if it's already processed file data (from controller)
+                if (is_array($file) && isset($file['path']) && isset($file['original_name'])) {
+                    // File is already processed, use it directly
+                    $fileMetas[] = $file;
+                    \Log::info('Using pre-processed file:', [
+                        'original_name' => $file['original_name'],
+                        'path' => $file['path'],
                     ]);
+                } elseif ($file instanceof \Illuminate\Http\UploadedFile) {
+                    // File is raw UploadedFile, process it
+                    if ($this->fileUploadService->validateConventionFile($file)) {
+                        $processedFile = $this->fileUploadService->uploadSingleFile($file);
+                        $fileMetas[] = $processedFile;
+                        \Log::info('Processed raw file:', [
+                            'original_name' => $processedFile['original_name'],
+                            'path' => $processedFile['path'],
+                        ]);
+                    }
                 }
             }
         }
-    }
 
-    return ficheNavetteItem::create([
-        'fiche_navette_id' => $ficheNavette->id,
-        'prestation_id' => $prestation->id,
-        'convention_id' => $conventionGroup['convention_id'],
-        'insured_id' => $globalConventionData['adherent_patient_id'] ?? $ficheNavette->patient_id,
-        'doctor_id' => $prestationData['doctor_id'],
-        'status' => 'pending',
-        'base_price' => $prestation->getPublicPrice()
-,
-        'final_price' => $finalPrice,
-        'patient_share' => $finalPrice,
-        'prise_en_charge_date' => $globalConventionData['prise_en_charge_date'],
-        'family_authorization' => json_encode($globalConventionData['family_authorization']),
-        'uploaded_file' => !empty($fileMetas) ? json_encode($fileMetas) : null,
-        'notes' => 'Convention prescription',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-}
+        return ficheNavetteItem::create([
+            'fiche_navette_id' => $ficheNavette->id,
+            'prestation_id' => $prestation->id,
+            'convention_id' => $conventionGroup['convention_id'],
+            'insured_id' => $globalConventionData['adherent_patient_id'] ?? $ficheNavette->patient_id,
+            'doctor_id' => $prestationData['doctor_id'],
+            'status' => 'pending',
+            'base_price' => $prestation->getPublicPrice(),
+            'default_payment_type' => $prestation->default_payment_type ?? null,
+            'final_price' => $finalPrice,
+            'patient_share' => $finalPrice,
+            'prise_en_charge_date' => $globalConventionData['prise_en_charge_date'],
+            'family_authorization' => json_encode($globalConventionData['family_authorization']),
+            'uploaded_file' => ! empty($fileMetas) ? json_encode($fileMetas) : null,
+            'notes' => 'Convention prescription',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
 
     /**
      * Extract convention data from request for prescription
      */
- private function extractConventionDataForPrescription(array $data): array
-{
-    // Handle adherent patient ID safely
-    $adherentPatientId = null;
-    
-    if (isset($data['adherentPatient_id'])) {
-        $adherentPatientId = $data['adherentPatient_id'];
+    private function extractConventionDataForPrescription(array $data): array
+    {
+        // Handle adherent patient ID safely
+        $adherentPatientId = null;
+
+        if (isset($data['adherentPatient_id'])) {
+            $adherentPatientId = $data['adherentPatient_id'];
+        }
+
+        \Log::info('Final adherent patient ID:', ['adherent_patient_id' => $adherentPatientId]);
+
+        return [
+            'prise_en_charge_date' => isset($data['prise_en_charge_date']) ? Carbon::parse($data['prise_en_charge_date']) : now(),
+            'family_authorization' => $data['familyAuth'] ?? '',
+            'uploaded_files' => $data['uploadedFiles'] ?? [], // Array of files
+            'adherent_patient_id' => $adherentPatientId,
+        ];
     }
 
-    \Log::info('Final adherent patient ID:', ['adherent_patient_id' => $adherentPatientId]);
-
-    return [
-        'prise_en_charge_date' => isset($data['prise_en_charge_date']) ? Carbon::parse($data['prise_en_charge_date']) : now(),
-        'family_authorization' => $data['familyAuth'] ?? '',
-        'uploaded_files' => $data['uploadedFiles'] ?? [], // Array of files
-        'adherent_patient_id' => $adherentPatientId,
-    ];
-}
     /**
      * Extract convention data from request - Updated for new structure
      */
@@ -559,8 +562,6 @@ class ReceptionService
                 }
             }
         }
-
-       
 
         return [
             'prise_en_charge_date' => isset($data['prise_en_charge_date']) ? Carbon::parse($data['prise_en_charge_date']) : now(),
@@ -583,9 +584,9 @@ class ReceptionService
 
         // Separate convention items from regular items
         $conventionItems = $items->filter(function ($item) {
-            return !is_null($item->convention_id);
+            return ! is_null($item->convention_id);
         });
-        
+
         $regularItems = $items->filter(function ($item) {
             return is_null($item->convention_id);
         });
@@ -594,13 +595,13 @@ class ReceptionService
 
         // Group convention items by insured_id + convention_id
         $conventionGroups = $conventionItems->groupBy(function ($item) {
-            return $item->insured_id . '_' . $item->convention_id;
+            return $item->insured_id.'_'.$item->convention_id;
         });
 
         foreach ($conventionGroups as $groupKey => $groupItems) {
             $firstItem = $groupItems->first();
             $insuredId = $firstItem->insured_id;
-            
+
             $groupedItems[] = [
                 'type' => 'convention',
                 'group_key' => $groupKey,
@@ -620,15 +621,17 @@ class ReceptionService
 
         // Group regular items by insured_id only
         $regularGroups = $regularItems->groupBy('insured_id');
-        
+
         foreach ($regularGroups as $insuredId => $groupItems) {
-            if ($groupItems->isEmpty()) continue;
-            
+            if ($groupItems->isEmpty()) {
+                continue;
+            }
+
             $firstItem = $groupItems->first();
-            
+
             $groupedItems[] = [
                 'type' => 'regular',
-                'group_key' => 'regular_' . $insuredId,
+                'group_key' => 'regular_'.$insuredId,
                 'insured_patient' => $firstItem->insuredPatient,
                 'patient_id' => $firstItem->patient_id,
                 'convention' => null,
@@ -664,6 +667,25 @@ class ReceptionService
                 ->where('id', $itemId)
                 ->firstOrFail();
 
+            // Ensure related prestation/package are loaded so we can derive default_payment_type
+            $item->loadMissing(['prestation', 'package']);
+
+            // If default_payment_type is not provided in the update payload, try to derive it
+            if (! array_key_exists('default_payment_type', $data) || $data['default_payment_type'] === null) {
+                $derived = null;
+                if ($item->prestation) {
+                    $derived = $item->prestation->default_payment_type ?? null;
+                }
+                if (is_null($derived) && $item->package) {
+                    $derived = $item->package->default_payment_type ?? null;
+                }
+
+                // If we derived a value and item has no stored value, set it on the payload so update persists it
+                if (! is_null($derived) && (is_null($item->default_payment_type) || $item->default_payment_type === '')) {
+                    $data['default_payment_type'] = $derived;
+                }
+            }
+
             // Handle file uploads if present
             if (isset($data['uploaded_files']) && is_array($data['uploaded_files'])) {
                 // Delete old files if replacing
@@ -675,6 +697,7 @@ class ReceptionService
             $item->update($data);
 
             DB::commit();
+
             return $ficheNavette->fresh(['items.prestation', 'items.dependencies', 'items.convention', 'patient', 'creator']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -714,6 +737,7 @@ class ReceptionService
             $ficheNavette->update(['total_amount' => $newTotal]);
 
             DB::commit();
+
             return $ficheNavette->fresh(['items.prestation', 'items.dependencies', 'items.convention', 'patient', 'creator']);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -730,23 +754,24 @@ class ReceptionService
 
         try {
             $dependency = ItemDependency::findOrFail($dependencyId);
-            
+
             \Log::info('Removing dependency:', [
                 'dependency_id' => $dependencyId,
                 'parent_item_id' => $dependency->parent_item_id,
-                'dependent_prestation_id' => $dependency->dependent_prestation_id
+                'dependent_prestation_id' => $dependency->dependent_prestation_id,
             ]);
-            
+
             // Delete the dependency
             $dependency->delete();
 
             DB::commit();
+
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error removing dependency:', [
                 'dependency_id' => $dependencyId,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -760,34 +785,41 @@ class ReceptionService
         $prefix = 'FN';
         $date = now()->format('Ymd');
         $sequence = FicheNavette::whereDate('created_at', today())->count() + 1;
-        return $prefix . $date . sprintf('%04d', $sequence);
+
+        return $prefix.$date.sprintf('%04d', $sequence);
     }
 
     /**
      * Add a prestation to fiche navette
      */
     private function addPrestationToFiche(
-        ficheNavette $ficheNavette, 
-        array $prestationData, 
-        ?PrestationPackage $package = null, 
+        ficheNavette $ficheNavette,
+        array $prestationData,
+        ?PrestationPackage $package = null,
         array $conventionData = []
     ): ficheNavetteItem {
-        
+
         $prestation = Prestation::findOrFail($prestationData['prestation_id']);
-        
-        // Calculate pricing
-        $basePrice = $prestation->getPublicPrice()
-;
-        $finalPrice = $basePrice;
-        
-        // Apply convention pricing if available
-        if (!empty($conventionData) && isset($prestationData['convention_price'])) {
+
+    // Calculate pricing
+    $basePrice = $prestation->price_with_vat_and_consumables_variant ?? $prestation->getPublicPrice();
+    $finalPrice = $basePrice;
+
+    // Normalize prices to scalar floats (some accessors return arrays with variants)
+    $basePrice = $this->normalizePrice($basePrice, $prestation);
+    $finalPrice = $this->normalizePrice($finalPrice, $prestation);
+
+        // Apply convention pricing if available - use patient_price from PrestationPricing
+        if (! empty($conventionData) && isset($prestationData['patient_price'])) {
+            $finalPrice = $prestationData['patient_price'];
+        } elseif (! empty($conventionData) && isset($prestationData['convention_price'])) {
+            // Fallback to convention_price for backward compatibility
             $finalPrice = $prestationData['convention_price'];
         }
-        
+
         // Handle file uploads for this specific item
         $itemFiles = [];
-        if (!empty($conventionData['uploaded_files'])) {
+        if (! empty($conventionData['uploaded_files'])) {
             foreach ($conventionData['uploaded_files'] as $file) {
                 if (isset($file['file'])) {
                     if ($this->fileUploadService->validateConventionFile($file['file'])) {
@@ -798,7 +830,7 @@ class ReceptionService
                 }
             }
         }
-        
+
         // Prepare item data
         $itemData = [
             'fiche_navette_id' => $ficheNavette->id,
@@ -806,6 +838,7 @@ class ReceptionService
             'package_id' => $package ? $package->id : null,
             'doctor_id' => $prestationData['doctor_id'] ?? null,
             'status' => 'pending',
+            'default_payment_type' => $prestation->default_payment_type ?? null,
             'base_price' => $basePrice,
             'final_price' => $finalPrice,
             'patient_share' => $finalPrice,
@@ -813,9 +846,9 @@ class ReceptionService
             'created_at' => now(),
             'updated_at' => now(),
         ];
-        
+
         // Add convention-specific data if available
-        if (!empty($conventionData)) {
+        if (! empty($conventionData)) {
             $itemData = array_merge($itemData, [
                 'convention_id' => $prestationData['convention_id'] ?? null,
                 'insured_id' => $conventionData['adherent_patient_id'] ?? $ficheNavette->patient_id,
@@ -827,101 +860,127 @@ class ReceptionService
             // For regular items, use the main patient as insured
             $itemData['insured_id'] = $ficheNavette->patient_id;
         }
-        
+
         return ficheNavetteItem::create($itemData);
+    }
+
+    /**
+     * Normalize a price value that may be an array or scalar to a float.
+     * Prefer ttc_with_consumables_vat, then ttc, then price/public_price keys when present.
+     */
+    private function normalizePrice($value, Prestation $prestation): float
+    {
+        if (is_array($value)) {
+            return (float) ($value['ttc_with_consumables_vat'] ?? $value['ttc'] ?? $value['price'] ?? $value['public_price'] ?? $prestation->getPublicPrice() ?? 0);
+        }
+
+        if (is_numeric($value)) {
+            return (float) $value;
+        }
+
+        return (float) ($prestation->getPublicPrice() ?? 0);
     }
 
     /**
      * Add a package to fiche navette
      */
-private function addPackageToFiche(
-    ficheNavette $ficheNavette, 
-    array $packageData, 
-    array $conventionData = []
-): array {
-    
-    $package = PrestationPackage::findOrFail($packageData['package_id']);
-    
-    \Log::info('Found package:', [
-        'package_id' => $package->id,
-        'package_name' => $package->name,
-        'package_price' => $package->price
-    ]);
-    
-    // Handle file uploads for this specific item
-    $itemFiles = [];
-    if (!empty($conventionData['uploaded_files'])) {
-        foreach ($conventionData['uploaded_files'] as $file) {
-            if (isset($file['file'])) {
-                if ($this->fileUploadService->validateConventionFile($file['file'])) {
-                    $itemFiles[] = $this->fileUploadService->uploadSingleFile($file['file']);
+    private function addPackageToFiche(
+        ficheNavette $ficheNavette,
+        array $packageData,
+        array $conventionData = []
+    ): array {
+
+        $package = PrestationPackage::findOrFail($packageData['package_id']);
+
+        \Log::info('Found package:', [
+            'package_id' => $package->id,
+            'package_name' => $package->name,
+            'package_price' => $package->price,
+        ]);
+
+        // Handle file uploads for this specific item
+        $itemFiles = [];
+        if (! empty($conventionData['uploaded_files'])) {
+            foreach ($conventionData['uploaded_files'] as $file) {
+                if (isset($file['file'])) {
+                    if ($this->fileUploadService->validateConventionFile($file['file'])) {
+                        $itemFiles[] = $this->fileUploadService->uploadSingleFile($file['file']);
+                    }
+                } else {
+                    $itemFiles[] = $file;
                 }
-            } else {
-                $itemFiles[] = $file;
             }
         }
-    }
-    
-    // FIXED: Use the package price directly from prestation_packages table
-    $packagePrice = $package->price; // This is the special package price
-    
-    // Prepare item data - store package_id, not prestation_id
-    $itemData = [
-        'fiche_navette_id' => $ficheNavette->id,
-        'prestation_id' => null, // NULL for packages
-        'package_id' => $package->id, // Store the package ID
-        'doctor_id' => $packageData['doctor_id'] ?? null,
-        'status' => 'pending',
-        'base_price' => $packagePrice, // Use package price as base
-        'final_price' => $packagePrice, // Use package price as final (not individual prestations)
-        'patient_share' => $packagePrice, // Patient pays package price
-        'remaining_amount' => $packagePrice, // Full package price remaining
-        'paid_amount' => 0, // Nothing paid initially
-        'payment_status' => 'pending',
-        'notes' => $packageData['notes'] ?? 'Package: ' . $package->name,
-        'custom_name' => $package->name,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ];
-    
-    // Add convention-specific data if available
-    if (!empty($conventionData)) {
-        $itemData = array_merge($itemData, [
-            'convention_id' => $packageData['convention_id'] ?? null,
-            'insured_id' => $conventionData['adherent_patient_id'] ?? $ficheNavette->patient_id,
-            'prise_en_charge_date' => $conventionData['prise_en_charge_date'] ?? now(),
-            'family_authorization' => json_encode($conventionData['family_authorization']),
-            'uploaded_file' => json_encode($itemFiles),
+
+        // FIXED: Use the package price directly from prestation_packages table
+        $packagePrice = $package->price; // This is the special package price
+        // Normalize package price in case it's an array/complex value
+        if (is_array($packagePrice)) {
+            $packagePrice = (float) ($packagePrice['ttc_with_consumables_vat'] ?? $packagePrice['ttc'] ?? $packagePrice['price'] ?? $package->price ?? 0);
+        } else {
+            $packagePrice = (float) $packagePrice;
+        }
+
+        // Prepare item data - store package_id, not prestation_id
+        $itemData = [
+            'fiche_navette_id' => $ficheNavette->id,
+            'prestation_id' => null, // NULL for packages
+            'package_id' => $package->id, // Store the package ID
+            'doctor_id' => $packageData['doctor_id'] ?? null,
+            'status' => 'pending',
+            // If package has a default payment type at package level, prefer it; otherwise null
+            'default_payment_type' => $package->default_payment_type ?? null,
+            'base_price' => $packagePrice, // Use package price as base
+            'final_price' => $packagePrice, // Use package price as final (not individual prestations)
+            'patient_share' => $packagePrice, // Patient pays package price
+            'remaining_amount' => $packagePrice, // Full package price remaining
+            'paid_amount' => 0, // Nothing paid initially
+            'payment_status' => 'pending',
+            'notes' => $packageData['notes'] ?? 'Package: '.$package->name,
+            'custom_name' => $package->name,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+
+        // Add convention-specific data if available
+        if (! empty($conventionData)) {
+            $itemData = array_merge($itemData, [
+                'convention_id' => $packageData['convention_id'] ?? null,
+                'insured_id' => $conventionData['adherent_patient_id'] ?? $ficheNavette->patient_id,
+                'prise_en_charge_date' => $conventionData['prise_en_charge_date'] ?? now(),
+                'family_authorization' => json_encode($conventionData['family_authorization']),
+                'uploaded_file' => json_encode($itemFiles),
+            ]);
+        } else {
+            // For regular items, use the main patient as insured
+            $itemData['insured_id'] = $ficheNavette->patient_id;
+        }
+
+        // Create single fiche navette item for the entire package
+        $createdItem = ficheNavetteItem::create($itemData);
+
+        \Log::info('Created package fiche navette item:', [
+            'item_id' => $createdItem->id,
+            'package_id' => $createdItem->package_id,
+            'prestation_id' => $createdItem->prestation_id,
+            'final_price' => $createdItem->final_price,
+            'base_price' => $createdItem->base_price,
+            'remaining_amount' => $createdItem->remaining_amount,
+            'paid_amount' => $createdItem->paid_amount,
         ]);
-    } else {
-        // For regular items, use the main patient as insured
-        $itemData['insured_id'] = $ficheNavette->patient_id;
+
+        // IMPORTANT: Do NOT create dependencies for package prestations
+        // The package is treated as a single unit with its own price
+
+        return [$createdItem]; // Return array with single item
     }
-    
-    // Create single fiche navette item for the entire package
-    $createdItem = ficheNavetteItem::create($itemData);
-    
-    \Log::info('Created package fiche navette item:', [
-        'item_id' => $createdItem->id,
-        'package_id' => $createdItem->package_id,
-        'prestation_id' => $createdItem->prestation_id,
-        'final_price' => $createdItem->final_price,
-        'base_price' => $createdItem->base_price,
-        'remaining_amount' => $createdItem->remaining_amount,
-        'paid_amount' => $createdItem->paid_amount
-    ]);
-    
-    // IMPORTANT: Do NOT create dependencies for package prestations
-    // The package is treated as a single unit with its own price
-    
-    return [$createdItem]; // Return array with single item
-}
+
     /**
      * Add custom prestations to fiche navette
      */
     private function addCustomPrestationsToFiche(
-        ficheNavette $ficheNavette, 
-        array $customPrestations, 
+        ficheNavette $ficheNavette,
+        array $customPrestations,
         array $conventionData = []
     ): array {
 
@@ -933,11 +992,11 @@ private function addPackageToFiche(
                 // First item is the main prestation - add to fiche_navette_items
                 $item = $this->addPrestationToFiche($ficheNavette, $customPrestation, null, $conventionData);
                 $createdItems[] = $item;
-                
+
                 // Store dependencies for the main item
                 if (count($customPrestations) > 1) {
                     $dependencies = array_slice($customPrestations, 1); // All except first
-                    
+
                     // Make sure each dependency has the correct custom_name
                     foreach ($dependencies as &$dependency) {
                         // If display_name is set and different from prestation name, use it as custom_name
@@ -948,15 +1007,15 @@ private function addPackageToFiche(
                             }
                         }
                     }
-                    
+
                     $this->storeDependenciesOnly($item, $dependencies, $conventionData);
                 }
-                
+
                 $isFirst = false;
             }
             // Skip remaining items as they are stored as dependencies
         }
-        
+
         return $createdItems;
     }
 
@@ -964,29 +1023,29 @@ private function addPackageToFiche(
      * Store dependencies only (not as main items)
      */
     private function storeDependenciesOnly(
-        ficheNavetteItem $parentItem, 
-        array $dependencies, 
+        ficheNavetteItem $parentItem,
+        array $dependencies,
         array $conventionData = []
     ): void {
 
         foreach ($dependencies as $dependencyData) {
             // Validate that prestation_id exists
-            if (!isset($dependencyData['prestation_id'])) {
+            if (! isset($dependencyData['prestation_id'])) {
                 \Log::warning('Skipping dependency due to missing prestation_id', $dependencyData);
+
                 continue;
             }
-            
+
             $prestation = Prestation::findOrFail($dependencyData['prestation_id']);
-            
+
             // Calculate pricing for dependency
-            $basePrice = $prestation->getPublicPrice()
-;
+            $basePrice = $prestation->getPublicPrice();
             $finalPrice = $basePrice;
-            
-            if (!empty($conventionData) && isset($dependencyData['convention_price']) && $dependencyData['convention_price'] !== null) {
+
+            if (! empty($conventionData) && isset($dependencyData['convention_price']) && $dependencyData['convention_price'] !== null) {
                 $finalPrice = $dependencyData['convention_price'];
             }
-            
+
             // Create dependency record
             ItemDependency::create([
                 'parent_item_id' => $parentItem->id,
@@ -994,6 +1053,8 @@ private function addPackageToFiche(
                 // 'dependency_type' => 'custom', // Add this field to identify custom dependencies
                 'doctor_id' => $dependencyData['doctor_id'] ?? $parentItem->doctor_id,
                 'base_price' => $basePrice,
+                // copy default payment type from prestation to the dependency record
+                'default_payment_type' => $prestation->default_payment_type ?? null,
                 'final_price' => $finalPrice,
                 'status' => 'pending',
                 'notes' => $dependencyData['notes'] ?? 'Custom dependency item',
@@ -1014,35 +1075,34 @@ private function addPackageToFiche(
             $prestations = Prestation::with(['service', 'specialization'])
                 ->where('is_active', true)
                 ->get();
-            
+
             $prestationsWithPricing = [];
-            
+
             foreach ($prestations as $prestation) {
                 foreach ($conventionIds as $conventionId) {
                     // Calculate convention price (you may need to implement your pricing logic here)
                     $conventionPrice = $this->calculateConventionPrice($prestation, $conventionId, $date);
-                    
+
                     $prestationsWithPricing[] = [
                         'prestation_id' => $prestation->id,
                         'prestation_name' => $prestation->name,
                         'prestation_code' => $prestation->internal_code,
                         'service_name' => $prestation->service->name ?? null,
                         'specialization_id' => $prestation->specialization_id,
-                        'base_price' => $prestation->getPublicPrice()
-,
+                        'base_price' => $prestation->getPublicPrice(),
                         'convention_price' => $conventionPrice,
                         'convention_id' => $conventionId,
                     ];
                 }
             }
-            
+
             return $prestationsWithPricing;
-            
+
         } catch (\Exception $e) {
             \Log::error('Error getting prestations with convention pricing:', [
                 'error' => $e->getMessage(),
                 'convention_ids' => $conventionIds,
-                'date' => $date
+                'date' => $date,
             ]);
             throw $e;
         }
@@ -1055,13 +1115,12 @@ private function addPackageToFiche(
     {
         // Implement your convention pricing logic here
         // This is a basic example - you may need to adjust based on your business rules
-        
+
         // For now, return the public price (you can modify this logic)
         // You might want to check convention_pricing table or apply discounts
-        
-        return $prestation->getPublicPrice()
-;
-        
+
+        return $prestation->getPublicPrice();
+
         // Example of more complex pricing logic:
         /*
         $convention = Convention::find($conventionId);
@@ -1071,7 +1130,7 @@ private function addPackageToFiche(
             return $prestation->getPublicPrice()
  - $discount;
         }
-        
+
         return $prestation->getPublicPrice()
 ;
         */
@@ -1085,20 +1144,20 @@ private function addPackageToFiche(
         try {
             // Assuming you have a User model with doctor role and specialization relationship
             // Adjust this query based on your actual doctor/user model structure
-            
+
             $doctors = \App\Models\User::where('role', 'doctor')
                 ->where('specialization_id', $specializationId)
                 ->where('is_active', true)
                 ->select('id', 'name', 'email', 'specialization_id')
                 ->get()
                 ->toArray();
-            
+
             return $doctors;
-            
+
         } catch (\Exception $e) {
             \Log::error('Error getting doctors by specialization:', [
                 'error' => $e->getMessage(),
-                'specialization_id' => $specializationId
+                'specialization_id' => $specializationId,
             ]);
             throw $e;
         }
@@ -1114,12 +1173,12 @@ private function addPackageToFiche(
                 ->select('id', 'name', 'description')
                 ->get()
                 ->toArray();
-            
+
             return $specializations;
-            
+
         } catch (\Exception $e) {
             \Log::error('Error getting specializations:', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -1135,12 +1194,12 @@ private function addPackageToFiche(
                 ->select('id', 'contract_name', 'company_name', 'is_active')
                 ->get()
                 ->toArray();
-            
+
             return $conventions;
-            
+
         } catch (\Exception $e) {
             \Log::error('Error getting conventions:', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
@@ -1152,24 +1211,24 @@ private function addPackageToFiche(
     public function searchPatientsForConvention(string $query): array
     {
         try {
-            $patients = \App\Models\Patient::where(function($q) use ($query) {
-                    $q->where('first_name', 'LIKE', "%{$query}%")
-                      ->orWhere('last_name', 'LIKE', "%{$query}%")
-                      ->orWhere('id', 'LIKE', "%{$query}%")
-                      ->orWhere('phone', 'LIKE', "%{$query}%");
-                })
+            $patients = \App\Models\Patient::where(function ($q) use ($query) {
+                $q->where('first_name', 'LIKE', "%{$query}%")
+                    ->orWhere('last_name', 'LIKE', "%{$query}%")
+                    ->orWhere('id', 'LIKE', "%{$query}%")
+                    ->orWhere('phone', 'LIKE', "%{$query}%");
+            })
                 ->where('is_active', true)
                 ->select('id', 'first_name', 'last_name', 'phone', 'email')
                 ->limit(20)
                 ->get()
                 ->toArray();
-            
+
             return $patients;
-            
+
         } catch (\Exception $e) {
             \Log::error('Error searching patients:', [
                 'error' => $e->getMessage(),
-                'query' => $query
+                'query' => $query,
             ]);
             throw $e;
         }

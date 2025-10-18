@@ -12,7 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // Don't exclude login from CSRF protection - Laravel Fortify handles it properly
+        // with session-based authentication
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

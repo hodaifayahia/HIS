@@ -15,7 +15,11 @@ import AddWaitlistModal from '../../Components/waitList/addWaitlistModel.vue';
 const confirm = useConfirm();
 const toast = useToast();
 
-const importanceOptions = ref([]);
+const importanceOptions = ref([
+  { label: 'Normal', value: 0, icon: 'pi pi-info-circle', color: 'info' },
+  { label: 'Urgent', value: 1, icon: 'pi pi-exclamation-triangle', color: 'danger' },
+ 
+]);
 const waitlists = ref([]);
 const showAddModal = ref(false);
 const currentFilter = ref({ importance: null });
@@ -96,20 +100,20 @@ watch(
   }
 );
 
-const fetchImportanceOptions = async () => {
-  try {
-    const response = await axios.get('/api/importance-enum');
-    importanceOptions.value = response.data;
-  } catch (error) {
-    console.error('Error fetching importance options:', error);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to fetch importance options. Please try again.',
-      life: 3000
-    });
-  }
-};
+// const fetchImportanceOptions = async () => {
+//   try {
+//     const response = await axios.get('/api/importance-enum');
+//     importanceOptions.value = response.data;
+//   } catch (error) {
+//     console.error('Error fetching importance options:', error);
+//     toast.add({
+//       severity: 'error',
+//       summary: 'Error',
+//       detail: 'Failed to fetch importance options. Please try again.',
+//       life: 3000
+//     });
+//   }
+// };
 
 const deleteWaitlist = async (id) => {
   confirm.require({
@@ -268,7 +272,7 @@ const formatDate = (dateString) => {
 };
 
 onMounted(() => {
-  fetchImportanceOptions();
+  // fetchImportanceOptions();
   fetchWaitlists();
 });
 </script>
@@ -347,7 +351,9 @@ onMounted(() => {
                 <i class="pi pi-user tw-text-blue-600"></i>
               </div>
               <div>
-                <div class="tw-font-semibold tw-text-gray-800">{{ data.patient_first_name  || 'N/A' }} {{ data.patient_last_name }}</div>
+                <div class="tw-font-semibold tw-text-gray-800">
+                  {{ data.patient_first_name || 'N/A' }} {{ data.patient_last_name || '' }}
+                </div>
               </div>
             </div>
           </template>
@@ -389,8 +395,8 @@ onMounted(() => {
                 size="small"
                 severity="info"
                 outlined
-                @click="openAddModal(data)"
-                v-tooltip.top="'Edit'"
+                @click.stop="openAddModal(data)"
+                title="Edit"
                 class="tw-w-8 tw-h-8"
               />
               <Button
@@ -398,8 +404,8 @@ onMounted(() => {
                 size="small"
                 severity="success"
                 outlined
-                @click="moveToAppointments(data)"
-                v-tooltip.top="'Move to Appointments'"
+                @click.stop="moveToAppointments(data)"
+                title="Move to Appointments"
                 class="tw-w-8 tw-h-8"
               />
               <Dropdown
@@ -431,8 +437,8 @@ onMounted(() => {
                 size="small"
                 severity="danger"
                 outlined
-                @click="deleteWaitlist(data.id)"
-                v-tooltip.top="'Delete'"
+                @click.stop="deleteWaitlist(data.id)"
+                title="Delete"
                 class="tw-w-8 tw-h-8"
               />
             </div>
@@ -456,18 +462,18 @@ onMounted(() => {
 
   <!-- Confirm Dialog -->
   <ConfirmDialog />
-
-  <!-- Add/Edit Modal -->
-  <AddWaitlistModal
-    v-if="showAddModal"
-    :show="showAddModal"
-    :editMode="isEditMode"
-    :waitlist="selectedWaitlist"
-    :specializationId="specializationId"
-    @close="closeAddModal"
-    @save="handleSave"
+  <!-- Add/Edit Waitlist Modal -->
+  <AddWaitlistModal 
+    v-if="showAddModal" 
+    :is-edit-mode="isEditMode" 
+    :waitlist="selectedWaitlist" 
+    :doctor-id="doctorId" 
+    :specialization-id="specializationId"
+    @close="closeAddModal" 
+    @save="handleSave" 
     @update="handleUpdate"
   />
+
 </template>
 
 <style scoped>

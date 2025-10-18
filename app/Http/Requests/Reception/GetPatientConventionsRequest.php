@@ -20,7 +20,7 @@ class GetPatientConventionsRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'fiche_navette_id' => 'required|exists:fiche_navette,id',
+            'fiche_navette_id' => 'required|exists:fiche_navettes,id',
         ];
     }
 

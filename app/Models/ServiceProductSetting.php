@@ -11,7 +11,7 @@ class ServiceProductSetting extends Model
         'product_id',
         'product_name',
         'product_forme',
-        
+
         // Alert Settings
         'low_stock_threshold',
         'critical_stock_threshold',
@@ -19,22 +19,22 @@ class ServiceProductSetting extends Model
         'reorder_point',
         'expiry_alert_days',
         'min_shelf_life_days',
-        
+
         // Notification Settings
         'email_alerts',
         'sms_alerts',
         'alert_frequency',
         'preferred_supplier',
-        
+
         // Inventory Settings
         'batch_tracking',
         'location_tracking',
         'auto_reorder',
-        
+
         // Display Settings
         'custom_name',
         'color_code',
-        'priority'
+        'priority',
     ];
 
     protected $casts = [
@@ -48,7 +48,7 @@ class ServiceProductSetting extends Model
         'sms_alerts' => 'boolean',
         'batch_tracking' => 'boolean',
         'location_tracking' => 'boolean',
-        'auto_reorder' => 'boolean'
+        'auto_reorder' => 'boolean',
     ];
 
     // Relationships

@@ -22,6 +22,26 @@ export const paymentMethodService = {
   },
 
   /**
+   * Get all system users (without payment-filtering)
+   */
+  async getAllUsers(params = {}) {
+    try {
+      const response = await axios.get('/api/users', { params })
+      return {
+        success: true,
+        data: response.data
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Failed to load users',
+        error
+      }
+    }
+  },
+
+  /**
    * Get user payment methods by user ID
    */
   async getUserPaymentMethods(userId) {

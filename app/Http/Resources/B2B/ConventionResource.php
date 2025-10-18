@@ -63,6 +63,15 @@ class ConventionResource extends JsonResource
             return $this->conventionDetail->discount_percentage ?? null;
         }, null);
 
+        $data['contractPercentages'] = $this->whenLoaded('contractPercentages', function () {
+            return $this->contractPercentages->map(function ($percentage) {
+                return [
+                    'id' => $percentage->id,
+                    'percentage' => $percentage->percentage,
+                ];
+            });
+        }, []);
+
         return $data;
     }
 }

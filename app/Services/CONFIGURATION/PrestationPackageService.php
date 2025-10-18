@@ -3,7 +3,6 @@
 namespace App\Services\CONFIGURATION;
 
 use App\Models\CONFIGURATION\PrestationPackage;
-use App\Models\CONFIGURATION\PrestationPackageitem;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -16,7 +15,7 @@ class PrestationPackageService
     /**
      * Create a new prestation package and its associated items.
      *
-     * @param array $data The validated request data.
+     * @param  array  $data  The validated request data.
      * @return PrestationPackage The newly created PrestationPackage model instance.
      */
     public function createPackageWithItems(array $data): PrestationPackage
@@ -29,6 +28,7 @@ class PrestationPackageService
                 'name' => $data['name'] ?? null,
                 'description' => $data['description'] ?? null,
                 'price' => $data['price'] ?? null,
+                'is_active' => $data['is_active'] ?? true,
                 'created_by' => Auth::id(),
             ]);
 
@@ -42,8 +42,8 @@ class PrestationPackageService
     /**
      * Update an existing prestation package and sync its associated items.
      *
-     * @param PrestationPackage $package The package to update.
-     * @param array $data The validated request data.
+     * @param  PrestationPackage  $package  The package to update.
+     * @param  array  $data  The validated request data.
      * @return PrestationPackage The updated PrestationPackage model instance.
      */
     public function updatePackageWithItems(PrestationPackage $package, array $data): PrestationPackage
@@ -55,6 +55,7 @@ class PrestationPackageService
                 'name' => $data['name'] ?? $package->name,
                 'description' => $data['description'] ?? $package->description,
                 'price' => $data['price'] ?? $package->price,
+                'is_active' => $data['is_active'] ?? $package->is_active,
                 'updated_by' => Auth::id(),
             ])->save();
 
@@ -70,10 +71,6 @@ class PrestationPackageService
 
     /**
      * Clone an existing prestation package with new name and price.
-     *
-     * @param PrestationPackage $originalPackage
-     * @param array $data
-     * @return PrestationPackage
      */
     public function clonePackage(PrestationPackage $originalPackage, array $data): PrestationPackage
     {
@@ -104,10 +101,6 @@ class PrestationPackageService
     /**
      * Sync the prestation items for a given package.
      * This method removes all existing items and creates new ones.
-     *
-     * @param PrestationPackage $package
-     * @param array $prestationIds
-     * @return void
      */
     protected function syncPrestationItems(PrestationPackage $package, array $prestationIds): void
     {

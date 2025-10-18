@@ -39,6 +39,21 @@ const router = useRouter();
 const statuses = ref([]);
 const error = ref(null);
 const dropdownStates = ref({});
+const descriptionExpanded = ref({});
+
+const DESCR_PREVIEW_LENGTH = 10;
+
+const truncateText = (text, length = DESCR_PREVIEW_LENGTH) => {
+    if (!text) return '';
+    return text.length > length ? text.slice(0, length) + '...' : text;
+};
+
+const toggleDescription = (appointmentId) => {
+    descriptionExpanded.value = {
+        ...descriptionExpanded.value,
+        [appointmentId]: !descriptionExpanded.value[appointmentId]
+    };
+};
 const searchQuery = ref("");
 const isLoading = ref(false);
 const isEditMode = ref(false);
@@ -531,7 +546,17 @@ onMounted(() => {
                             <td>{{ formatDate(appointment.patient_Date_Of_Birth) }}</td>
                             <td>{{ formatDate(appointment.appointment_date) }}</td>
                             <td>{{ formatTime(appointment.appointment_time) }}</td>
-                            <td>{{ appointment.description ?? "Null" }}</td>
+                            <td>
+                                <div>
+                                    <span v-if="!descriptionExpanded[appointment.id]">{{ truncateText(appointment.description) || 'Null' }}</span>
+                                    <span v-else>{{ appointment.description || 'Null' }}</span>
+                                    <div v-if="appointment.description && appointment.description.length > DESCR_PREVIEW_LENGTH">
+                                        <button class="btn btn-link btn-sm p-0 ms-2" type="button" @click="toggleDescription(appointment.id)">
+                                            {{ descriptionExpanded[appointment.id] ? 'Show less' : 'Show more' }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </td>
                             <td>
                                 <div class="dropdown" :class="{ 'show': dropdownStates[appointment.id] }">
                                     <button class="btn dropdown-toggle status-button" type="button"

@@ -3,21 +3,18 @@
 namespace App\Http\Controllers\CONFIGURATION;
 
 use App\AppointmentSatatusEnum; // Assuming you'll create this enum
-use App\Http\Controllers\Controller;
-use App\DayOfWeekEnum; // This enum can likely be reused
+use App\DayOfWeekEnum;
+use App\Http\Controllers\Controller; // This enum can likely be reused
 use App\Http\Resources\CONFIGURATION\ModalityAppointmentResource; // Assuming you'll create this resource
-use App\Models\CONFIGURATION\Modality;
+use App\Imports\CONFIGURATION\ModalityAppointmentsImport;
+// import ModalityAppointmentsImport
 
-
-//import ModalityAppointmentsImport
-
-use App\Models\CONFIGURATION\MoalityAppointments; // Corrected model name
-use App\Models\CONFIGURATION\ModalityAvailableMonth; // Assuming this model exists
-use App\Models\CONFIGURATION\ModalitySchedule; // Assuming this model exists
-use App\Models\CONFIGURATION\AppointmentModalityForce; // Assuming you'll create this model
+use App\Models\CONFIGURATION\AppointmentModalityForce; // Corrected model name
+// Assuming this model exists
+use App\Models\CONFIGURATION\MoalityAppointments; // Assuming this model exists
+use App\Models\CONFIGURATION\Modality; // Assuming you'll create this model
 // use App\Models\CONFIGURATION\ModalityExcludedDate; // Removed this import
-use App\Imports\CONFIGURATION\ModalityAppointmentsImport; // Assuming this model exists
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\CONFIGURATION\ModalitySchedule; // Assuming this model exists
 use App\Models\Patient;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -26,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ModalityAppointmentController extends Controller
 {
@@ -43,9 +41,8 @@ class ModalityAppointmentController extends Controller
         2 => 'Canceled',
         3 => 'Pending',
         4 => 'Done',
-        5 => 'OnWorking'
+        5 => 'OnWorking',
     ];
-
 
     public function index(Request $request, $modalityId)
     {
@@ -90,13 +87,13 @@ class ModalityAppointmentController extends Controller
                     'per_page' => $modalityAppointments->perPage(),
                     'total' => $modalityAppointments->total(),
                     'last_page' => $modalityAppointments->lastPage(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch modality appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -199,13 +196,13 @@ class ModalityAppointmentController extends Controller
                     'per_page' => $modalityAppointments->perPage(),
                     'total' => $modalityAppointments->total(),
                     'last_page' => $modalityAppointments->lastPage(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch modality consultation appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -218,7 +215,7 @@ class ModalityAppointmentController extends Controller
                 ->with([
                     'patient:id,Lastname,Firstname,phone,dateOfBirth',
                     'modality:id,name,specialization_id',
-                    'modality.specialization:id,name' // Assuming modality has a specialization relationship
+                    'modality.specialization:id,name', // Assuming modality has a specialization relationship
                 ])
                 ->whereHas('modality', function ($query) {
                     $query->whereNull('deleted_at');
@@ -241,6 +238,7 @@ class ModalityAppointmentController extends Controller
             // Transform modality appointments to include status labels
             $transformedModalityAppointments = $modalityAppointments->map(function ($appointment) {
                 $appointment->status_label = $this->statusLabels[$appointment->status] ?? 'Unknown';
+
                 return $appointment;
             });
 
@@ -266,7 +264,7 @@ class ModalityAppointmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate PDF',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -280,8 +278,8 @@ class ModalityAppointmentController extends Controller
                     $terms = explode(' ', $request->patientName);
                     foreach ($terms as $term) {
                         $subQ->where(function ($nameQ) use ($term) {
-                            $nameQ->where('Firstname', 'like', '%' . $term . '%')
-                                ->orWhere('Lastname', 'like', '%' . $term . '%');
+                            $nameQ->where('Firstname', 'like', '%'.$term.'%')
+                                ->orWhere('Lastname', 'like', '%'.$term.'%');
                         });
                     }
                 });
@@ -291,7 +289,7 @@ class ModalityAppointmentController extends Controller
         // Phone Filter
         if ($request->filled('phone')) {
             $query->whereHas('patient', function ($q) use ($request) {
-                $q->where('phone', 'like', '%' . $request->phone . '%');
+                $q->where('phone', 'like', '%'.$request->phone.'%');
             });
         }
 
@@ -309,7 +307,7 @@ class ModalityAppointmentController extends Controller
 
         // Appointment Time Filter
         if ($request->filled('time')) {
-            $query->where('appointment_time', 'like', '%' . $request->time . '%');
+            $query->where('appointment_time', 'like', '%'.$request->time.'%');
         }
 
         // Status Filter
@@ -320,21 +318,20 @@ class ModalityAppointmentController extends Controller
         // Modality Name Filter (assuming name column in Modality model)
         if ($request->filled('modalityName')) {
             $query->whereHas('modality', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->modalityName . '%');
+                $q->where('name', 'like', '%'.$request->modalityName.'%');
             });
         }
     }
 
-
     public function downloadImportTemplate(Request $request)
     {
         try {
-            return Excel::download(new ModalityAppointmentsTemplateExport(), 'modality_appointments_template.xlsx');
+            return Excel::download(new ModalityAppointmentsTemplateExport, 'modality_appointments_template.xlsx');
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate template',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -364,19 +361,19 @@ class ModalityAppointmentController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Modality appointments imported successfully',
-                'data' => $results
+                'data' => $results,
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Error importing modality appointments: ' . $e->getMessage(), [
+            Log::error('Error importing modality appointments: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to import appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -391,40 +388,41 @@ class ModalityAppointmentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $modalities
+                'data' => $modalities,
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch modalities',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
+
     private function getModalityFilterSummary(Request $request)
     {
         $summary = [];
 
         if ($request->filled('patientName')) {
-            $summary[] = "Patient Name: " . $request->patientName;
+            $summary[] = 'Patient Name: '.$request->patientName;
         }
         if ($request->filled('phone')) {
-            $summary[] = "Phone: " . $request->phone;
+            $summary[] = 'Phone: '.$request->phone;
         }
         if ($request->filled('dateOfBirth')) {
-            $summary[] = "Date of Birth: " . $request->dateOfBirth;
+            $summary[] = 'Date of Birth: '.$request->dateOfBirth;
         }
         if ($request->filled('date')) {
-            $summary[] = "Appointment Date: " . $request->date;
+            $summary[] = 'Appointment Date: '.$request->date;
         }
         if ($request->filled('time')) {
-            $summary[] = "Appointment Time: " . $request->time;
+            $summary[] = 'Appointment Time: '.$request->time;
         }
         if ($request->filled('status') && $request->status !== 'ALL') {
-            $summary[] = "Status: " . ($this->statusLabels[$request->status] ?? $request->status);
+            $summary[] = 'Status: '.($this->statusLabels[$request->status] ?? $request->status);
         }
         if ($request->filled('modalityName')) {
-            $summary[] = "Modality: " . $request->modalityName;
+            $summary[] = 'Modality: '.$request->modalityName;
         }
 
         return $summary;
@@ -467,7 +465,7 @@ class ModalityAppointmentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch modality appointments for patient',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -506,13 +504,13 @@ class ModalityAppointmentController extends Controller
                     'per_page' => $modalityAppointments->perPage(),
                     'total' => $modalityAppointments->total(),
                     'last_page' => $modalityAppointments->lastPage(),
-                ]
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch pending modality appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -531,7 +529,7 @@ class ModalityAppointmentController extends Controller
                     'modalities.name as modality_name', // Modality name instead of doctor name
                     'modalities.id as modality_id',
                     'modalities.specialization_id as specialization_id',
-                    'moality_appointments.status as appointment_status'
+                    'moality_appointments.status as appointment_status',
                 ])
                 ->join('patients', 'moality_appointments.patient_id', '=', 'patients.id')
                 ->join('modalities', 'moality_appointments.modality_id', '=', 'modalities.id')
@@ -583,18 +581,18 @@ class ModalityAppointmentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $modalityAppointments
+                'data' => $modalityAppointments,
             ]);
         } catch (\Exception $e) {
             Log::error('Error in GetAllModalityAppointments', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch modality appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -614,7 +612,7 @@ class ModalityAppointmentController extends Controller
             'value' => $status,
             'name' => $statusMap[$status]['name'] ?? 'Unknown',
             'color' => $statusMap[$status]['color'] ?? 'secondary',
-            'icon' => $statusMap[$status]['icon'] ?? 'fas fa-question'
+            'icon' => $statusMap[$status]['icon'] ?? 'fas fa-question',
         ];
     }
 
@@ -656,7 +654,6 @@ class ModalityAppointmentController extends Controller
 
         return ModalityAppointmentResource::collection($modalityAppointments);
     }
-    
 
     public function getModalityWorkingHours($modalityId, $date)
     {
@@ -674,10 +671,10 @@ class ModalityAppointmentController extends Controller
                 if ($dateObj->dayOfWeek === Carbon::FRIDAY) {
                     return []; // Modality is not available on Fridays for day-based booking
                 }
-                
+
                 // For day-based booking, it's either available for the full day or not at all.
                 // We'll rely on `isModalityDateAvailableForThisDate` to check for active bookings.
-            return [$date]; // Return the date as a string
+                return [$date]; // Return the date as a string
             }
 
             // Original logic for 'minutes' slot_type
@@ -701,10 +698,12 @@ class ModalityAppointmentController extends Controller
             if ($timeSlotMinutes > 0 && $modality->slot_type === 'minutes') {
                 foreach (['morning', 'afternoon'] as $shift) {
                     $schedule = $schedules->firstWhere('shift_period', $shift);
-                    if (!$schedule) continue;
+                    if (! $schedule) {
+                        continue;
+                    }
 
-                    $startTime = Carbon::parse($dateString . ' ' . $schedule->start_time);
-                    $endTime = Carbon::parse($dateString . ' ' . $schedule->end_time);
+                    $startTime = Carbon::parse($dateString.' '.$schedule->start_time);
+                    $endTime = Carbon::parse($dateString.' '.$schedule->end_time);
 
                     $totalMinutes = abs($endTime->diffInMinutes($startTime));
                     $totalSlots = abs(floor($totalMinutes / $timeSlotMinutes));
@@ -717,7 +716,7 @@ class ModalityAppointmentController extends Controller
                             break;
                         }
 
-                        if (!$isToday || $slotTime->greaterThan($bufferTime)) {
+                        if (! $isToday || $slotTime->greaterThan($bufferTime)) {
                             $workingHours[] = $slotTime->format('H:i');
                         }
                     }
@@ -725,30 +724,34 @@ class ModalityAppointmentController extends Controller
             } else {
                 foreach (['morning', 'afternoon'] as $shift) {
                     $schedule = $schedules->firstWhere('shift_period', $shift);
-                    if (!$schedule) continue;
+                    if (! $schedule) {
+                        continue;
+                    }
 
-                    $startTime = Carbon::parse($dateString . ' ' . $schedule->start_time);
-                    $endTime = Carbon::parse($dateString . ' ' . $schedule->end_time);
-                    $patientsForShift = (int)($schedule->number_of_patients_per_day ?? 0);
+                    $startTime = Carbon::parse($dateString.' '.$schedule->start_time);
+                    $endTime = Carbon::parse($dateString.' '.$schedule->end_time);
+                    $patientsForShift = (int) ($schedule->number_of_patients_per_day ?? 0);
 
-                    if ($patientsForShift <= 0) continue;
+                    if ($patientsForShift <= 0) {
+                        continue;
+                    }
 
                     if ($patientsForShift == 1) {
-                        if (!$isToday || $startTime->greaterThan($bufferTime)) {
+                        if (! $isToday || $startTime->greaterThan($bufferTime)) {
                             $workingHours[] = $startTime->format('H:i');
                         }
+
                         continue;
                     }
 
                     $totalDuration = abs($endTime->diffInMinutes($startTime));
                     $slotDuration = ($patientsForShift > 1) ? abs($totalDuration / ($patientsForShift - 1)) : $totalDuration;
 
-
                     for ($i = 0; $i < $patientsForShift; $i++) {
                         $minutesToAdd = round($i * $slotDuration);
                         $slotTime = $startTime->copy()->addMinutes($minutesToAdd);
 
-                        if (!$isToday || $slotTime->greaterThan($bufferTime)) {
+                        if (! $isToday || $slotTime->greaterThan($bufferTime)) {
                             $workingHours[] = $slotTime->format('H:i');
                         }
                     }
@@ -758,113 +761,113 @@ class ModalityAppointmentController extends Controller
             return array_unique($workingHours);
         });
     }
-    
 
     public function getModalityUserPermissions(Request $request)
-{
-    try {
-        $modalityId = $request->query('modality_id');
-        
-        $query = AppointmentModalityForce::query()
-            ->select(['user_id', 'modality_id', 'is_able_to_force'])
-            ->with(['user:id,name,email', 'modality:id,name']);
-            
-        if ($modalityId) {
-            $query->where('modality_id', $modalityId);
+    {
+        try {
+            $modalityId = $request->query('modality_id');
+
+            $query = AppointmentModalityForce::query()
+                ->select(['user_id', 'modality_id', 'is_able_to_force'])
+                ->with(['user:id,name,email', 'modality:id,name']);
+
+            if ($modalityId) {
+                $query->where('modality_id', $modalityId);
+            }
+
+            $permissions = $query->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $permissions,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch modality user permissions',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-        
-        $permissions = $query->get();
-        
-        return response()->json([
-            'success' => true,
-            'data' => $permissions
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to fetch modality user permissions',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
-public function getModalityUserForceAbility(Request $request)
-{
-    $validated = $request->validate([
-        'modality_id' => 'required|exists:modalities,id',
-        'user_id' => 'required|exists:users,id',
-    ]);
-
-    try {
-        $userId = $validated['user_id'];
-        $modalityId = $validated['modality_id'];
-        
-        // Check if user has admin privileges
-        $user = \App\Models\User::find($userId);
-        $isAdmin = in_array($user->role, ['admin', 'SuperAdmin']);
-        
-        // Check modality-specific force permissions
-        $hasModalityPermission = AppointmentModalityForce::where('modality_id', $modalityId)
-            ->where('user_id', $userId)
-            ->where('is_able_to_force', true)
-            ->exists();
-
-        $isAbleToForce = $isAdmin || $hasModalityPermission;
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'is_able_to_force' => $isAbleToForce
-            ]
+    public function getModalityUserForceAbility(Request $request)
+    {
+        $validated = $request->validate([
+            'modality_id' => 'required|exists:modalities,id',
+            'user_id' => 'required|exists:users,id',
         ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to check force permissions',
-            'error' => $e->getMessage()
-        ], 500);
+
+        try {
+            $userId = $validated['user_id'];
+            $modalityId = $validated['modality_id'];
+
+            // Check if user has admin privileges
+            $user = \App\Models\User::find($userId);
+            $isAdmin = in_array($user->role, ['admin', 'SuperAdmin']);
+
+            // Check modality-specific force permissions
+            $hasModalityPermission = AppointmentModalityForce::where('modality_id', $modalityId)
+                ->where('user_id', $userId)
+                ->where('is_able_to_force', true)
+                ->exists();
+
+            $isAbleToForce = $isAdmin || $hasModalityPermission;
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'is_able_to_force' => $isAbleToForce,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to check force permissions',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
-/**
- * Update or create modality user permission
- */
-public function updateModalityUserPermission(Request $request)
-{
-    $validated = $request->validate([
-        'user_id' => 'required|exists:users,id',
-        'modality_id' => 'required|exists:modalities,id',
-        'is_able_to_force' => 'required|boolean'
-    ]);
 
-    try {
-        $permission = AppointmentModalityForce::updateOrCreate(
-            [
-                'user_id' => $validated['user_id'],
-                'modality_id' => $validated['modality_id']
-            ],
-            [
-                'is_able_to_force' => $validated['is_able_to_force']
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Permission updated successfully',
-            'data' => $permission
+    /**
+     * Update or create modality user permission
+     */
+    public function updateModalityUserPermission(Request $request)
+    {
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'modality_id' => 'required|exists:modalities,id',
+            'is_able_to_force' => 'required|boolean',
         ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to update permission',
-            'error' => $e->getMessage()
-        ], 500);
+
+        try {
+            $permission = AppointmentModalityForce::updateOrCreate(
+                [
+                    'user_id' => $validated['user_id'],
+                    'modality_id' => $validated['modality_id'],
+                ],
+                [
+                    'is_able_to_force' => $validated['is_able_to_force'],
+                ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Permission updated successfully',
+                'data' => $permission,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update permission',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     private function getBookedSlots($modalityId, $date)
     {
         $modality = Modality::find($modalityId);
-        if (!$modality) {
+        if (! $modality) {
             return [];
         }
 
@@ -901,7 +904,7 @@ public function updateModalityUserPermission(Request $request)
         ]);
 
         $modalityId = $validated['modality_id'];
-        $days = (int)($validated['days'] ?? 0);
+        $days = (int) ($validated['days'] ?? 0);
         $dateInput = $validated['date'] ?? null;
 
         try {
@@ -943,7 +946,7 @@ public function updateModalityUserPermission(Request $request)
                 $morningSchedule = $schedules->firstWhere('shift_period', 'morning');
                 $afternoonSchedule = $schedules->firstWhere('shift_period', 'afternoon');
 
-                list($gapSlots, $additionalSlots) = $this->handleModalitySchedules(
+                [$gapSlots, $additionalSlots] = $this->handleModalitySchedules(
                     $morningSchedule,
                     $afternoonSchedule,
                     $date,
@@ -959,9 +962,10 @@ public function updateModalityUserPermission(Request $request)
                 'time_slot_minutes' => $timeSlotMinutes, // Still return this for consistency, even if not used by 'days'
             ]);
         } catch (\Exception $e) {
-            Log::error('Error calculating modality slots: ' . $e->getMessage());
+            Log::error('Error calculating modality slots: '.$e->getMessage());
+
             return response()->json([
-                'error' => 'Error calculating modality appointment slots: ' . $e->getMessage(),
+                'error' => 'Error calculating modality appointment slots: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1002,7 +1006,7 @@ public function updateModalityUserPermission(Request $request)
         $totalAvailableTime = $this->calculateTotalModalityAvailableTime($modality->id, $date);
 
         if ($totalPatients > 0) {
-            $timeSlotMinutes = (int)(abs($totalAvailableTime) / $totalPatients);
+            $timeSlotMinutes = (int) (abs($totalAvailableTime) / $totalPatients);
         } else {
             $timeSlotMinutes = 30; // Default to 30 minutes
         }
@@ -1028,8 +1032,8 @@ public function updateModalityUserPermission(Request $request)
         $totalAvailableTime = 0;
 
         foreach ($schedules as $schedule) {
-            $startTime = Carbon::parse($date . ' ' . $schedule->start_time);
-            $endTime = Carbon::parse($date . ' ' . $schedule->end_time);
+            $startTime = Carbon::parse($date.' '.$schedule->start_time);
+            $endTime = Carbon::parse($date.' '.$schedule->end_time);
             $totalAvailableTime += $endTime->diffInMinutes($startTime);
         }
 
@@ -1045,6 +1049,7 @@ public function updateModalityUserPermission(Request $request)
             if (Carbon::parse($date)->dayOfWeek === Carbon::FRIDAY) {
                 return [];
             }
+
             // For 'days' slot type, the slot is the entire day.
             // We just return one indicator if the day is available.
             return $this->isModalityDateAvailableForThisDate($modalityId, Carbon::parse($date)) ? ['full_day_available'] : [];
@@ -1064,8 +1069,8 @@ public function updateModalityUserPermission(Request $request)
             }
         }
 
-        $startTime = Carbon::parse($date . ' ' . $defaultStartTime);
-        $endTime = Carbon::parse($date . ' ' . $defaultEndTime);
+        $startTime = Carbon::parse($date.' '.$defaultStartTime);
+        $endTime = Carbon::parse($date.' '.$defaultEndTime);
         $slots = [];
 
         $bookedSlots = $this->getBookedSlots($modalityId, $date);
@@ -1074,7 +1079,7 @@ public function updateModalityUserPermission(Request $request)
         while ($currentTime < $endTime) {
             $slotTime = $currentTime->format('H:i');
 
-            if (!in_array($slotTime, $bookedSlots)) {
+            if (! in_array($slotTime, $bookedSlots)) {
                 $slots[] = $slotTime;
             }
 
@@ -1094,7 +1099,7 @@ public function updateModalityUserPermission(Request $request)
                 'modality_id' => 'nullable|integer',
                 'appointment_date' => 'required',
                 'appointment_time' => 'required',
-                'description' => 'nullable|string|max:1000'
+                'description' => 'nullable|string|max:1000',
             ]);
             if ($data['modality_id']) {
                 $modality = Modality::find($data['modality_id']);
@@ -1104,7 +1109,7 @@ public function updateModalityUserPermission(Request $request)
             }
             $data['user_name'] = Auth::user()->name;
 
-            $customPaper = array(0, 0, 226.77, 283.46); // 8cm width x 10cm height in points
+            $customPaper = [0, 0, 226.77, 283.46]; // 8cm width x 10cm height in points
 
             $pdf = Pdf::setOptions([
                 'isHtml5ParserEnabled' => true,
@@ -1118,7 +1123,7 @@ public function updateModalityUserPermission(Request $request)
                 'margin-right' => 2,
                 'margin-bottom' => 2,
                 'margin-left' => 2,
-                'dpi' => 203 // Standard DPI for thermal printers
+                'dpi' => 203, // Standard DPI for thermal printers
             ])->loadView('tickets.modality_appointment', $data); // You'll need to create this Blade view
 
             $pdf->setOption('grayscale', true);
@@ -1128,7 +1133,7 @@ public function updateModalityUserPermission(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate modality ticket',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1143,7 +1148,7 @@ public function updateModalityUserPermission(Request $request)
                 'modality_name' => 'required|string|max:255',
                 'appointment_date' => 'required',
                 'appointment_time' => 'required|date_format:H:i',
-                'description' => 'nullable|string|max:1000'
+                'description' => 'nullable|string|max:1000',
             ]);
 
             $data['specialization_name'] = \App\Models\Specialization::find($data['specialization_id'])->name ?? 'N/A';
@@ -1169,7 +1174,7 @@ public function updateModalityUserPermission(Request $request)
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate modality confirmation ticket',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1187,21 +1192,21 @@ public function updateModalityUserPermission(Request $request)
 
         $bookedSlots = $this->getBookedSlots($modalityId, $date);
 
-        if ($morningSchedule && !$afternoonSchedule) {
-            $morningEndTime = Carbon::parse($date . ' ' . $morningSchedule->end_time);
+        if ($morningSchedule && ! $afternoonSchedule) {
+            $morningEndTime = Carbon::parse($date.' '.$morningSchedule->end_time);
             $additionalSlots = $this->generateSlotsAfterModalityTime($morningEndTime, $timeSlotMinutes, $modalityId, $date);
-        } elseif (!$morningSchedule && $afternoonSchedule) {
-            $afternoonEndTime = Carbon::parse($date . ' ' . $afternoonSchedule->end_time);
+        } elseif (! $morningSchedule && $afternoonSchedule) {
+            $afternoonEndTime = Carbon::parse($date.' '.$afternoonSchedule->end_time);
             $additionalSlots = $this->generateSlotsAfterModalityTime($afternoonEndTime, $timeSlotMinutes, $modalityId, $date);
         } elseif ($morningSchedule && $afternoonSchedule) {
-            $morningEndTime = Carbon::parse($date . ' ' . $morningSchedule->end_time);
-            $afternoonStartTime = Carbon::parse($date . ' ' . $afternoonSchedule->start_time);
-            $afternoonEndTime = Carbon::parse($date . ' ' . $afternoonSchedule->end_time);
+            $morningEndTime = Carbon::parse($date.' '.$morningSchedule->end_time);
+            $afternoonStartTime = Carbon::parse($date.' '.$afternoonSchedule->start_time);
+            $afternoonEndTime = Carbon::parse($date.' '.$afternoonSchedule->end_time);
 
             $currentTime = clone $morningEndTime;
             while ($currentTime < $afternoonStartTime) {
                 $slotTime = $currentTime->format('H:i');
-                if (!in_array($slotTime, $bookedSlots)) {
+                if (! in_array($slotTime, $bookedSlots)) {
                     $gapSlots[] = $slotTime;
                 }
                 $currentTime->addMinutes($timeSlotMinutes);
@@ -1227,76 +1232,77 @@ public function updateModalityUserPermission(Request $request)
         for ($i = 0; $i < 20; $i++) {
             $currentTime->addMinutes($timeSlotMinutes);
             $slotTime = $currentTime->format('H:i');
-            if (!in_array($slotTime, $bookedSlots)) {
+            if (! in_array($slotTime, $bookedSlots)) {
                 $slots[] = $slotTime;
             }
         }
+
         return $slots;
     }
 
+    public function getModalityAppointment($modalityId, $modalityAppointmentId)
+    {
+        try {
+            $modalityAppointment = MoalityAppointments::with([
+                'patient:id,Firstname,Lastname,phone,dateOfBirth',
+                'modality:id,name,slot_type,time_slot_duration',
+            ])
+                ->where('modality_id', $modalityId)
+                ->where('id', $modalityAppointmentId)
+                ->first();
 
-   public function getModalityAppointment($modalityId, $modalityAppointmentId)
-{
-    try {
-        $modalityAppointment = MoalityAppointments::with([
-            'patient:id,Firstname,Lastname,phone,dateOfBirth',
-            'modality:id,name,slot_type,time_slot_duration'
-        ])
-            ->where('modality_id', $modalityId)
-            ->where('id', $modalityAppointmentId)
-            ->first();
+            if (! $modalityAppointment) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Modality appointment not found.',
+                ], 404);
+            }
 
-        if (!$modalityAppointment) {
+            // Fix: Only parse appointment_time if it's a valid time
+            $appointmentTime = $modalityAppointment->appointment_time;
+            if ($appointmentTime && $appointmentTime !== 'full_day_available') {
+                $appointmentTime = Carbon::parse($appointmentTime)->format('H:i');
+            } else {
+                $appointmentTime = null; // or 'Full Day' if you want to display that
+            }
+
+            $appointmentData = [
+                'id' => $modalityAppointment->id,
+                'modality_id' => $modalityAppointment->modality_id,
+                'appointment_date' => $modalityAppointment->appointment_date,
+                'appointment_time' => $appointmentTime,
+                'notes' => $modalityAppointment->notes,
+                'status' => $modalityAppointment->status,
+                'duration_days' => $modalityAppointment->duration_days,
+                'end_date' => $modalityAppointment->end_date,
+                'patient' => [
+                    'id' => $modalityAppointment->patient->id,
+                    'first_name' => $modalityAppointment->patient->Firstname,
+                    'last_name' => $modalityAppointment->patient->Lastname,
+                    'phone' => $modalityAppointment->patient->phone,
+                    'date_of_birth' => $modalityAppointment->patient->dateOfBirth,
+                    // Also provide alternative field names for compatibility
+                    'firstname' => $modalityAppointment->patient->Firstname,
+                    'lastname' => $modalityAppointment->patient->Lastname,
+                    'dateOfBirth' => $modalityAppointment->patient->dateOfBirth,
+                ],
+                'modality' => $modalityAppointment->modality,
+            ];
+
+            return response()->json([
+                'success' => true,
+                'data' => $appointmentData,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error fetching modality appointment: '.$e->getMessage());
+
             return response()->json([
                 'success' => false,
-                'message' => 'Modality appointment not found.'
-            ], 404);
+                'message' => 'Failed to fetch appointment details.',
+                'error' => $e->getMessage(),
+            ], 500);
         }
-
-        // Fix: Only parse appointment_time if it's a valid time
-        $appointmentTime = $modalityAppointment->appointment_time;
-        if ($appointmentTime && $appointmentTime !== 'full_day_available') {
-            $appointmentTime = Carbon::parse($appointmentTime)->format('H:i');
-        } else {
-            $appointmentTime = null; // or 'Full Day' if you want to display that
-        }
-
-        $appointmentData = [
-            'id' => $modalityAppointment->id,
-            'modality_id' => $modalityAppointment->modality_id,
-            'appointment_date' => $modalityAppointment->appointment_date,
-            'appointment_time' => $appointmentTime,
-            'notes' => $modalityAppointment->notes,
-            'status' => $modalityAppointment->status,
-            'duration_days' => $modalityAppointment->duration_days,
-            'end_date' => $modalityAppointment->end_date,
-            'patient' => [
-                'id' => $modalityAppointment->patient->id,
-                'first_name' => $modalityAppointment->patient->Firstname,
-                'last_name' => $modalityAppointment->patient->Lastname,
-                'phone' => $modalityAppointment->patient->phone,
-                'date_of_birth' => $modalityAppointment->patient->dateOfBirth,
-                // Also provide alternative field names for compatibility
-                'firstname' => $modalityAppointment->patient->Firstname,
-                'lastname' => $modalityAppointment->patient->Lastname,
-                'dateOfBirth' => $modalityAppointment->patient->dateOfBirth,
-            ],
-            'modality' => $modalityAppointment->modality
-        ];
-
-        return response()->json([
-            'success' => true,
-            'data' => $appointmentData
-        ]);
-    } catch (\Exception $e) {
-        Log::error('Error fetching modality appointment: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to fetch appointment details.',
-            'error' => $e->getMessage()
-        ], 500);
     }
-}
 
     public function checkModalityAvailability(Request $request)
     {
@@ -1317,7 +1323,7 @@ public function updateModalityUserPermission(Request $request)
             if (isset($validated['date'])) {
                 $startDate = Carbon::parse($validated['date']);
             } elseif (isset($validated['days'])) {
-                $startDate = Carbon::now()->addDays((int)$validated['days']);
+                $startDate = Carbon::now()->addDays((int) $validated['days']);
             } else {
                 $startDate = Carbon::now();
             }
@@ -1334,7 +1340,7 @@ public function updateModalityUserPermission(Request $request)
                     return response()->json([
                         'success' => false,
                         'message' => 'Duration exceeds maximum allowed days for this modality',
-                        'max_duration' => $modality->time_slot_duration
+                        'max_duration' => $modality->time_slot_duration,
                     ], 422);
                 }
 
@@ -1348,7 +1354,7 @@ public function updateModalityUserPermission(Request $request)
                 }
             }
 
-            if (!$nextAvailableDate) {
+            if (! $nextAvailableDate) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No available slots found',
@@ -1356,8 +1362,8 @@ public function updateModalityUserPermission(Request $request)
                         'current_date' => $startDate->format('Y-m-d'),
                         'next_available_date' => null,
                         'period' => null,
-                        'available_slots' => []
-                    ]
+                        'available_slots' => [],
+                    ],
                 ]);
             }
 
@@ -1397,18 +1403,18 @@ public function updateModalityUserPermission(Request $request)
 
             return response()->json([
                 'success' => true,
-                'data' => $response
+                'data' => $response,
             ]);
         } catch (\Exception $e) {
-            Log::error('Error checking modality availability: ' . $e->getMessage(), [
+            Log::error('Error checking modality availability: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
-                'request' => $request->all()
+                'request' => $request->all(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while checking modality availability.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -1425,6 +1431,7 @@ public function updateModalityUserPermission(Request $request)
             // Skip Fridays
             if ($currentDate->dayOfWeek === Carbon::FRIDAY) {
                 $currentDate->addDay();
+
                 continue;
             }
 
@@ -1435,7 +1442,7 @@ public function updateModalityUserPermission(Request $request)
                 $bookedSlots = $this->getBookedSlots($modalityId, $currentDate->format('Y-m-d'));
                 $availableSlots = array_diff($workingHours, $bookedSlots);
 
-                if (!empty($availableSlots)) {
+                if (! empty($availableSlots)) {
                     return $currentDate;
                 }
             }
@@ -1488,7 +1495,8 @@ public function updateModalityUserPermission(Request $request)
 
             return true;
         } catch (\Exception $e) {
-            Log::error('Error checking modality date availability: ' . $e->getMessage());
+            Log::error('Error checking modality date availability: '.$e->getMessage());
+
             return false;
         }
     }
@@ -1566,24 +1574,24 @@ public function updateModalityUserPermission(Request $request)
         } elseif ($daysDifference == 1) {
             return 'Tomorrow';
         } elseif ($daysDifference <= 7) {
-            return $daysDifference . ' day(s)';
+            return $daysDifference.' day(s)';
         } elseif ($daysDifference <= 30) {
             $weeks = floor($daysDifference / 7);
             $remainingDays = $daysDifference % 7;
 
             if ($remainingDays == 0) {
-                return $weeks . ' week(s)';
+                return $weeks.' week(s)';
             } else {
-                return $weeks . ' week(s) and ' . $remainingDays . ' day(s)';
+                return $weeks.' week(s) and '.$remainingDays.' day(s)';
             }
         } else {
             $months = floor($daysDifference / 30);
             $remainingDays = $daysDifference % 30;
 
             if ($remainingDays == 0) {
-                return $months . ' month(s)';
+                return $months.' month(s)';
             } else {
-                return $months . ' month(s) and ' . $remainingDays . ' day(s)';
+                return $months.' month(s) and '.$remainingDays.' day(s)';
             }
         }
     }
@@ -1600,6 +1608,7 @@ public function updateModalityUserPermission(Request $request)
             // Skip Fridays for days slot type
             if ($currentDate->dayOfWeek === Carbon::FRIDAY) {
                 $currentDate->addDay();
+
                 continue;
             }
 
@@ -1613,7 +1622,6 @@ public function updateModalityUserPermission(Request $request)
 
         return null;
     }
-
 
     /**
      * Check if a period of days is available for booking
@@ -1631,7 +1639,7 @@ public function updateModalityUserPermission(Request $request)
             }
 
             // Check if date is available
-            if (!$this->isModalityDateAvailableForThisDate($modalityId, $checkDate)) {
+            if (! $this->isModalityDateAvailableForThisDate($modalityId, $checkDate)) {
                 return false;
             }
 
@@ -1648,8 +1656,6 @@ public function updateModalityUserPermission(Request $request)
 
         return true;
     }
-
-
 
     // Update the store method to handle canceled appointment rebooking
     public function store(Request $request)
@@ -1675,7 +1681,7 @@ public function updateModalityUserPermission(Request $request)
             if ($appointmentDate->dayOfWeek === Carbon::FRIDAY) {
                 return response()->json([
                     'message' => 'Booking on Friday is not allowed for this modality type.',
-                    'errors' => ['appointment_date' => ['You cannot book on a Friday.']]
+                    'errors' => ['appointment_date' => ['You cannot book on a Friday.']],
                 ], 422);
             }
 
@@ -1683,18 +1689,17 @@ public function updateModalityUserPermission(Request $request)
                 if ($durationDays > 1) {
                     return response()->json([
                         'message' => 'You can only book one day at a time for this modality type, except on Thursdays.',
-                        'errors' => ['duration_days' => ['You cannot book more than one day.']]
+                        'errors' => ['duration_days' => ['You cannot book more than one day.']],
                     ], 422);
                 }
             } else { // It's a Thursday
                 if ($durationDays > 3) {
                     return response()->json([
                         'message' => 'On Thursdays, you can book a maximum of three days.',
-                        'errors' => ['duration_days' => ['You can book a maximum of three days on Thursday.']]
+                        'errors' => ['duration_days' => ['You can book a maximum of three days on Thursday.']],
                     ], 422);
                 }
             }
-
 
             // If rebooking a canceled appointment, check for the exact canceled appointment
             if ($validated['is_rebook_canceled'] ?? false) {
@@ -1704,10 +1709,10 @@ public function updateModalityUserPermission(Request $request)
                     ->whereDate('appointment_date', $appointmentDate->format('Y-m-d'))
                     ->first();
 
-                if (!$canceledAppointment) {
+                if (! $canceledAppointment) {
                     return response()->json([
                         'message' => 'No canceled appointment found for the selected date.',
-                        'errors' => ['appointment_date' => ['No canceled appointment available for rebooking.']]
+                        'errors' => ['appointment_date' => ['No canceled appointment available for rebooking.']],
                     ], 422);
                 }
 
@@ -1734,7 +1739,7 @@ public function updateModalityUserPermission(Request $request)
                     if ($existingAppointment) {
                         return response()->json([
                             'message' => "Date {$currentDate->format('Y-m-d')} is already booked.",
-                            'errors' => ['appointment_date' => ["The date {$currentDate->format('Y-m-d')} is already booked."]]
+                            'errors' => ['appointment_date' => ["The date {$currentDate->format('Y-m-d')} is already booked."]],
                         ], 422);
                     }
                 }
@@ -1760,11 +1765,11 @@ public function updateModalityUserPermission(Request $request)
             return response()->json([
                 'success' => true,
                 'message' => "Successfully created {$durationDays} day(s) appointment.",
-                'data' => new ModalityAppointmentResource($appointments[0])
+                'data' => new ModalityAppointmentResource($appointments[0]),
             ]);
         } else {
             // Original logic for minutes slot type
-            if (!MoalityAppointments::isSlotAvailable(
+            if (! MoalityAppointments::isSlotAvailable(
                 $validated['modality_id'],
                 $validated['appointment_date'],
                 $appointmentTime,
@@ -1772,7 +1777,7 @@ public function updateModalityUserPermission(Request $request)
             )) {
                 return response()->json([
                     'message' => 'This time slot is already booked.',
-                    'errors' => ['appointment_time' => ['The selected time slot is no longer available.']]
+                    'errors' => ['appointment_time' => ['The selected time slot is no longer available.']],
                 ], 422);
             }
 
@@ -1789,6 +1794,7 @@ public function updateModalityUserPermission(Request $request)
             return new ModalityAppointmentResource($modalityAppointment);
         }
     }
+
     public function nextModalityAppointment(Request $request, $modalityAppointmentId)
     {
         $existingModalityAppointment = MoalityAppointments::findOrFail($modalityAppointmentId);
@@ -1816,7 +1822,7 @@ public function updateModalityUserPermission(Request $request)
             if ($appointmentDate->dayOfWeek === Carbon::FRIDAY) {
                 return response()->json([
                     'message' => 'Booking on Friday is not allowed for this modality type.',
-                    'errors' => ['appointment_date' => ['You cannot book on a Friday.']]
+                    'errors' => ['appointment_date' => ['You cannot book on a Friday.']],
                 ], 422);
             }
 
@@ -1824,29 +1830,28 @@ public function updateModalityUserPermission(Request $request)
                 if ($durationDays > 1) {
                     return response()->json([
                         'message' => 'You can only book one day at a time for this modality type, except on Thursdays.',
-                        'errors' => ['duration_days' => ['You cannot book more than one day.']]
+                        'errors' => ['duration_days' => ['You cannot book more than one day.']],
                     ], 422);
                 }
             } else { // It's a Thursday
                 if ($durationDays > 3) {
                     return response()->json([
                         'message' => 'On Thursdays, you can book a maximum of three days.',
-                        'errors' => ['duration_days' => ['You can book a maximum of three days on Thursday.']]
+                        'errors' => ['duration_days' => ['You can book a maximum of three days on Thursday.']],
                     ], 422);
                 }
             }
 
-
             if (empty($validated['duration_days'])) {
                 return response()->json([
                     'message' => 'Duration in days is required for this modality type.',
-                    'errors' => ['duration_days' => ['The duration in days is required.']]
+                    'errors' => ['duration_days' => ['The duration in days is required.']],
                 ], 422);
             }
             if ($validated['duration_days'] > $modality->time_slot_duration) {
                 return response()->json([
                     'message' => "Maximum booking duration for this modality is {$modality->time_slot_duration} day(s).",
-                    'errors' => ['duration_days' => ["Cannot book for more than {$modality->time_slot_duration} day(s)."]]
+                    'errors' => ['duration_days' => ["Cannot book for more than {$modality->time_slot_duration} day(s)."]],
                 ], 422);
             }
             $endDate = $appointmentDate->copy()->addDays($validated['duration_days'] - 1)->format('Y-m-d');
@@ -1856,7 +1861,7 @@ public function updateModalityUserPermission(Request $request)
                 if ($currentDay->dayOfWeek === Carbon::FRIDAY) {
                     return response()->json([
                         'message' => 'Booking cannot include Fridays for this modality type.',
-                        'errors' => ['appointment_date' => ['The booking period cannot include a Friday.']]
+                        'errors' => ['appointment_date' => ['The booking period cannot include a Friday.']],
                     ], 422);
                 }
             }
@@ -1864,7 +1869,7 @@ public function updateModalityUserPermission(Request $request)
 
         // Check if the new slot is already booked
         if (
-            !MoalityAppointments::isSlotAvailable(
+            ! MoalityAppointments::isSlotAvailable(
                 $validated['modality_id'],
                 $validated['appointment_date'],
                 $appointmentTime,
@@ -1874,7 +1879,7 @@ public function updateModalityUserPermission(Request $request)
         ) {
             return response()->json([
                 'message' => 'This time slot or period is already booked.',
-                'errors' => ['appointment_time' => ['The selected time slot/period is no longer available.']]
+                'errors' => ['appointment_time' => ['The selected time slot/period is no longer available.']],
             ], 422);
         }
 
@@ -1895,10 +1900,9 @@ public function updateModalityUserPermission(Request $request)
     public function show($id)
     {
         $modalityAppointment = MoalityAppointments::findOrFail($id);
+
         return new ModalityAppointmentResource($modalityAppointment);
     }
-
-
 
     public function availableModalityAppointments($modalityId)
     {
@@ -1933,9 +1937,10 @@ public function updateModalityUserPermission(Request $request)
                                     return $appointment->appointment_time
                                         ? Carbon::parse($appointment->appointment_time)->format('H:i')
                                         : 'Full Day';
-                                })->toArray()
+                                })->toArray(),
                         ];
                     }
+
                     return null;
                 })
                 ->filter() // Remove null entries
@@ -1954,6 +1959,7 @@ public function updateModalityUserPermission(Request $request)
                 // Skip Fridays
                 if ($searchDate->dayOfWeek === Carbon::FRIDAY) {
                     $searchDate->addDay();
+
                     continue;
                 }
 
@@ -1962,6 +1968,7 @@ public function updateModalityUserPermission(Request $request)
                 // Skip if this date is in the canceled appointments list
                 if (in_array($currentDateString, $canceledDates)) {
                     $searchDate->addDay();
+
                     continue;
                 }
 
@@ -1973,11 +1980,11 @@ public function updateModalityUserPermission(Request $request)
                         $bookedSlots = $this->getBookedSlots($modalityId, $searchDate->format('Y-m-d'));
                         $availableSlots = array_diff($workingHours, $bookedSlots);
 
-                        if (!empty($availableSlots)) {
+                        if (! empty($availableSlots)) {
                             $nextAvailableDate = [
                                 'date' => $searchDate->format('Y-m-d'),
                                 'available_times' => array_values($availableSlots),
-                                'slot_type' => 'minutes'
+                                'slot_type' => 'minutes',
                             ];
                             break;
                         }
@@ -2008,13 +2015,13 @@ public function updateModalityUserPermission(Request $request)
                             }
                         }
 
-                        if (!empty($availableDurations)) {
+                        if (! empty($availableDurations)) {
                             $nextAvailableDate = [
                                 'date' => $searchDate->format('Y-m-d'),
                                 'available_durations' => $availableDurations,
                                 'max_duration' => $maxDuration,
                                 'slot_type' => 'days',
-                                'available_times' => $this->getModalityWorkingHours($modalityId, $searchDate->format('Y-m-d'))
+                                'available_times' => $this->getModalityWorkingHours($modalityId, $searchDate->format('Y-m-d')),
                             ];
                             break;
                         }
@@ -2031,20 +2038,20 @@ public function updateModalityUserPermission(Request $request)
                     'normal_appointments' => $nextAvailableDate,
                     'modality_info' => [
                         'slot_type' => $modality->slot_type,
-                        'max_duration' => $modality->time_slot_duration
-                    ]
-                ]
+                        'max_duration' => $modality->time_slot_duration,
+                    ],
+                ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Error fetching available modality appointments: ' . $e->getMessage(), [
+            Log::error('Error fetching available modality appointments: '.$e->getMessage(), [
                 'modality_id' => $modalityId,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch available appointments',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -2075,13 +2082,12 @@ public function updateModalityUserPermission(Request $request)
         return $originalDuration - $bookedDays;
     }
 
-
     // ...existing code...
     public function changeModalityAppointmentStatus(Request $request, $id)
     {
         $validated = $request->validate([
-            'status' => 'required|integer|in:' . implode(',', array_column(AppointmentSatatusEnum::cases(), 'value')),
-            'reason' => 'nullable|string'
+            'status' => 'required|integer|in:'.implode(',', array_column(AppointmentSatatusEnum::cases(), 'value')),
+            'reason' => 'nullable|string',
         ]);
 
         $modalityAppointment = MoalityAppointments::findOrFail($id);
@@ -2111,10 +2117,9 @@ public function updateModalityUserPermission(Request $request)
         $modalityAppointment->delete();
 
         return response()->json([
-            'message' => 'Modality appointment deleted successfully.'
+            'message' => 'Modality appointment deleted successfully.',
         ]);
     }
-  
 
     public function update(Request $request, $id)
     {
@@ -2144,7 +2149,7 @@ public function updateModalityUserPermission(Request $request)
             if ($appointmentDate->dayOfWeek === Carbon::FRIDAY) {
                 return response()->json([
                     'message' => 'Booking on Friday is not allowed for this modality type.',
-                    'errors' => ['appointment_date' => ['You cannot book on a Friday.']]
+                    'errors' => ['appointment_date' => ['You cannot book on a Friday.']],
                 ], 422);
             }
 
@@ -2152,14 +2157,14 @@ public function updateModalityUserPermission(Request $request)
                 if ($durationDays > 1) {
                     return response()->json([
                         'message' => 'You can only book one day at a time for this modality type, except on Thursdays.',
-                        'errors' => ['duration_days' => ['You cannot book more than one day.']]
+                        'errors' => ['duration_days' => ['You cannot book more than one day.']],
                     ], 422);
                 }
             } else { // It's a Thursday
                 if ($durationDays > 3) {
                     return response()->json([
                         'message' => 'On Thursdays, you can book a maximum of three days.',
-                        'errors' => ['duration_days' => ['You can book a maximum of three days on Thursday.']]
+                        'errors' => ['duration_days' => ['You can book a maximum of three days on Thursday.']],
                     ], 422);
                 }
             }
@@ -2167,13 +2172,13 @@ public function updateModalityUserPermission(Request $request)
             if (empty($validated['duration_days'])) {
                 return response()->json([
                     'message' => 'Duration in days is required for this modality type.',
-                    'errors' => ['duration_days' => ['The duration in days is required.']]
+                    'errors' => ['duration_days' => ['The duration in days is required.']],
                 ], 422);
             }
             if ($validated['duration_days'] > $modality->time_slot_duration) {
                 return response()->json([
                     'message' => "Maximum booking duration for this modality is {$modality->time_slot_duration} day(s).",
-                    'errors' => ['duration_days' => ["Cannot book for more than {$modality->time_slot_duration} day(s)."]]
+                    'errors' => ['duration_days' => ["Cannot book for more than {$modality->time_slot_duration} day(s)."]],
                 ], 422);
             }
             $endDate = $appointmentDate->copy()->addDays($validated['duration_days'] - 1)->format('Y-m-d');
@@ -2183,7 +2188,7 @@ public function updateModalityUserPermission(Request $request)
                 if ($currentDay->dayOfWeek === Carbon::FRIDAY) {
                     return response()->json([
                         'message' => 'Booking cannot include Fridays for this modality type.',
-                        'errors' => ['appointment_date' => ['The booking period cannot include a Friday.']]
+                        'errors' => ['appointment_date' => ['The booking period cannot include a Friday.']],
                     ], 422);
                 }
             }
@@ -2191,7 +2196,7 @@ public function updateModalityUserPermission(Request $request)
 
         // Check if the time slot/period is already booked, excluding the current appointment
         if (
-            !MoalityAppointments::isSlotAvailableForUpdate(
+            ! MoalityAppointments::isSlotAvailableForUpdate(
                 $modalityId,
                 $appointmentDate->format('Y-m-d'), // Pass formatted date
                 $appointmentTime,
@@ -2202,7 +2207,7 @@ public function updateModalityUserPermission(Request $request)
         ) {
             return response()->json([
                 'message' => 'This time slot or period is already booked.',
-                'errors' => ['appointment_time' => ['The selected time slot/period is no longer available.']]
+                'errors' => ['appointment_time' => ['The selected time slot/period is no longer available.']],
             ], 422);
         }
 

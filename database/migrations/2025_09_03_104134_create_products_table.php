@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->enum('category', ['Medical Supplies', 'Equipment', 'Medication', 'Others']);
             $table->boolean('is_clinical')->default(false); // true for medications
-            
+
             // Medication-specific fields
             $table->integer('code_interne')->nullable();
             $table->string('code_pch')->nullable();
@@ -26,7 +26,7 @@ return new class extends Migration
             $table->string('forme')->nullable();
             $table->integer('boite_de')->nullable();
             $table->string('nom_commercial')->nullable();
-            
+
             $table->enum('status', ['In Stock', 'Low Stock', 'Out of Stock'])->default('In Stock');
             $table->timestamps();
         });

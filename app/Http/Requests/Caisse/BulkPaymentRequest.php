@@ -16,13 +16,13 @@ class BulkPaymentRequest extends FormRequest
         return [
             'fiche_navette_id' => 'required|integer|exists:fiche_navettes,id',
             'caisse_session_id' => 'nullable|integer',
-            'cashier_id' => 'required|integer|exists:users,id',
+            'cashier_id' => 'nullable|integer|exists:users,id',
             'patient_id' => 'required|integer|exists:patients,id',
             'payment_method' => 'required|string|in:cash,card,cheque,transfer',
             'transaction_type' => 'required|string|in:bulk_payment',
             'total_amount' => 'required|numeric|min:0.01',
             'notes' => 'nullable|string|max:1000',
-            
+
             // Items array validation
             'items' => 'required|array|min:1',
             'items.*.fiche_navette_item_id' => 'required|integer|exists:fiche_navette_items,id',
@@ -39,7 +39,6 @@ class BulkPaymentRequest extends FormRequest
         return [
             'fiche_navette_id.required' => 'Fiche navette ID is required',
             'fiche_navette_id.exists' => 'Fiche navette not found',
-            'cashier_id.required' => 'Cashier ID is required',
             'cashier_id.exists' => 'Cashier not found',
             'patient_id.required' => 'Patient ID is required',
             'patient_id.exists' => 'Patient not found',

@@ -2,12 +2,11 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use App\Models\Schedule;
 use App\Models\Doctor;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Schedule;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\ServiceProvider;
 
 class ScheduleServiceProvider extends ServiceProvider
 {
@@ -53,11 +52,11 @@ class ScheduleServiceProvider extends ServiceProvider
 
         // Clear specific doctor caches
         Cache::forget("doctor_availability_data_{$doctorId}");
-        
+
         // Clear any date-specific caches for the next 30 days
         $startDate = now();
         $endDate = now()->addDays(30);
-        
+
         while ($startDate <= $endDate) {
             $dateStr = $startDate->format('Y-m-d');
             Cache::forget("doctor_{$doctorId}_hours_{$dateStr}");

@@ -13,58 +13,58 @@ return new class extends Migration
     {
         Schema::table('stock_movements', function (Blueprint $table) {
             // Check if columns don't exist before adding them
-            if (!Schema::hasColumn('stock_movements', 'movement_number')) {
+            if (! Schema::hasColumn('stock_movements', 'movement_number')) {
                 $table->string('movement_number')->unique()->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'product_id')) {
+            if (! Schema::hasColumn('stock_movements', 'product_id')) {
                 $table->unsignedBigInteger('product_id')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'requesting_service_id')) {
+            if (! Schema::hasColumn('stock_movements', 'requesting_service_id')) {
                 $table->unsignedBigInteger('requesting_service_id')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'providing_service_id')) {
+            if (! Schema::hasColumn('stock_movements', 'providing_service_id')) {
                 $table->unsignedBigInteger('providing_service_id')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'requesting_user_id')) {
+            if (! Schema::hasColumn('stock_movements', 'requesting_user_id')) {
                 $table->unsignedBigInteger('requesting_user_id')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'approving_user_id')) {
+            if (! Schema::hasColumn('stock_movements', 'approving_user_id')) {
                 $table->unsignedBigInteger('approving_user_id')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'executing_user_id')) {
+            if (! Schema::hasColumn('stock_movements', 'executing_user_id')) {
                 $table->unsignedBigInteger('executing_user_id')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'requested_quantity')) {
+            if (! Schema::hasColumn('stock_movements', 'requested_quantity')) {
                 $table->decimal('requested_quantity', 10, 2)->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'approved_quantity')) {
+            if (! Schema::hasColumn('stock_movements', 'approved_quantity')) {
                 $table->decimal('approved_quantity', 10, 2)->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'executed_quantity')) {
+            if (! Schema::hasColumn('stock_movements', 'executed_quantity')) {
                 $table->decimal('executed_quantity', 10, 2)->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'status')) {
+            if (! Schema::hasColumn('stock_movements', 'status')) {
                 $table->string('status')->default('draft');
             }
-            if (!Schema::hasColumn('stock_movements', 'request_reason')) {
+            if (! Schema::hasColumn('stock_movements', 'request_reason')) {
                 $table->text('request_reason')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'approval_notes')) {
+            if (! Schema::hasColumn('stock_movements', 'approval_notes')) {
                 $table->text('approval_notes')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'execution_notes')) {
+            if (! Schema::hasColumn('stock_movements', 'execution_notes')) {
                 $table->text('execution_notes')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'requested_at')) {
+            if (! Schema::hasColumn('stock_movements', 'requested_at')) {
                 $table->timestamp('requested_at')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'approved_at')) {
+            if (! Schema::hasColumn('stock_movements', 'approved_at')) {
                 $table->timestamp('approved_at')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'executed_at')) {
+            if (! Schema::hasColumn('stock_movements', 'executed_at')) {
                 $table->timestamp('executed_at')->nullable();
             }
-            if (!Schema::hasColumn('stock_movements', 'expected_delivery_date')) {
+            if (! Schema::hasColumn('stock_movements', 'expected_delivery_date')) {
                 $table->timestamp('expected_delivery_date')->nullable();
             }
         });
@@ -95,9 +95,9 @@ return new class extends Migration
                 'providing_service_id',
                 'requesting_service_id',
                 'product_id',
-                'movement_number'
+                'movement_number',
             ];
-            
+
             foreach ($columnsToCheck as $column) {
                 if (Schema::hasColumn('stock_movements', $column)) {
                     $table->dropColumn($column);

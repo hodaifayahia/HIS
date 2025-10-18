@@ -18,7 +18,7 @@ class TransferApprovalResource extends JsonResource
             'status_text' => $this->status_text,
             'status_color' => $this->status_color,
             'notes' => $this->notes,
-            
+
             // User information
             'user' => $this->whenLoaded('user', function () {
                 return [
@@ -26,21 +26,27 @@ class TransferApprovalResource extends JsonResource
                     'name' => $this->user->name,
                     'email' => $this->user->email,
                     'role' => $this->user->role,
-                    'avatar' => isset($this->user->avatar) && $this->user->avatar 
-                        ? asset('storage/' . $this->user->avatar) 
+                    'avatar' => isset($this->user->avatar) && $this->user->avatar
+                        ? asset('storage/'.$this->user->avatar)
                         : null,
+                    // Current permission status for caisse approval
+                    'can_approve_caisse' => (
+                        method_exists($this->user, 'hasPermissionTo')
+                        ? (bool) $this->user->hasPermissionTo('caisse.approve')
+                        : false
+                    ),
                 ];
             }),
-            
+
             // Methods
             'can_approve_transfer' => function ($amount) {
                 return $this->canApproveTransfer($amount);
             },
-            
+
             // Timestamps
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
-            
+
             // Human readable dates
             'created_at_human' => $this->created_at?->diffForHumans(),
             'updated_at_human' => $this->updated_at?->diffForHumans(),

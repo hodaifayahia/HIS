@@ -2,13 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\CONFIGURATION\Service;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\CONFIGURATION\Service;
-use App\Models\User;
-use App\Models\Product;
-use App\Models\StockMovementItem;
 
 class StockMovement extends Model
 {
@@ -99,7 +96,7 @@ class StockMovement extends Model
     {
         return $query->where(function ($q) use ($serviceId) {
             $q->where('requesting_service_id', $serviceId)
-              ->orWhere('providing_service_id', $serviceId);
+                ->orWhere('providing_service_id', $serviceId);
         });
     }
 
@@ -129,8 +126,8 @@ class StockMovement extends Model
         parent::boot();
 
         static::creating(function ($movement) {
-            if (!$movement->movement_number) {
-                $movement->movement_number = 'SM-' . date('Y') . '-' . 
+            if (! $movement->movement_number) {
+                $movement->movement_number = 'SM-'.date('Y').'-'.
                     str_pad(static::count() + 1, 6, '0', STR_PAD_LEFT);
             }
         });

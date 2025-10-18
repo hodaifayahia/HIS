@@ -30,6 +30,12 @@ const filterOptions = [
 ];
 
 const dialogVisible = ref(false); // Controls the modal's visibility (true/false)
+const isExtensionMode = ref(false); // Toggle between edit and extension modes
+const extensionData = ref({
+    reason: '',
+    notes: ''
+}); // Extension specific data
+
 const currentItem = ref({
     id: null,
     start_date: null, // Will be a Date object
@@ -38,7 +44,8 @@ const currentItem = ref({
     max_price: null,
     min_price: null,
     discount_percentage: null,
-    avenant_id: null
+    avenant_id: null,
+    percentages: [] // Array to hold multiple percentages
 });
 
 const familyAuthOptions = ["ascendant", "descendant", "Conjoint", "adherent", "autre"];
@@ -175,6 +182,17 @@ const fetchAgreementDetails = async () => {
             fetchedData = fetchedData ? [fetchedData] : [];
         }
 
+        // Fetch contract percentages if not on avenant page
+        let contractPercentages = [];
+        if (props.avenantpage !== "yes" && props.contractid) {
+            try {
+                const contractResponse = await axios.get(`/api/conventions/${props.contractid}`);
+                contractPercentages = contractResponse.data.data.contract_percentages || [];
+            } catch (error) {
+                console.warn("Could not fetch contract percentages:", error);
+            }
+        }
+
         // Map data and convert date strings to Date objects for reactivity and proper input display
         items.value = fetchedData.map(item => ({
             ...item,
@@ -184,12 +202,26 @@ const fetchAgreementDetails = async () => {
             min_price: item.min_price !== null && item.min_price !== undefined ? parseFloat(item.min_price) : null,
             discount_percentage: item.discount_percentage !== null && item.discount_percentage !== undefined ? parseFloat(item.discount_percentage) : null,
             family_auth: item.family_auth || "",
-            source_type: item.avenant_id ? "Avenant" : "Contract"
+            source_type: item.avenant_id ? "Avenant" : "Contract",
+            contract_percentages: contractPercentages // Add percentages to each item
         }));
         currentPage.value = 1;
     } catch (error) {
         toast.error(`Failed to load agreement details: ${error.response?.data?.message || error.message || 'Unknown error'}`);
         console.error("Error fetching agreement details:", error.response?.data || error);
+    }
+};
+
+const fetchContractPercentages = async () => {
+    try {
+        const response = await axios.get(`/api/conventions/${props.contractid}`);
+        const convention = response.data.data;
+
+        // Set percentages from the contract
+        currentItem.value.percentages = convention.contract_percentages || [];
+    } catch (error) {
+        toast.error(`Failed to fetch contract percentages: ${error.response?.data?.message || error.message}`);
+        console.error("Error fetching contract percentages:", error.response?.data || error);
     }
 };
 
@@ -202,6 +234,17 @@ const editItem = (item) => {
     // Ensure dates are Date objects for proper v-model binding
     currentItem.value.start_date = item.start_date ? new Date(item.start_date) : null;
     currentItem.value.end_date = item.end_date ? new Date(item.end_date) : null;
+
+    // Reset extension mode and data
+    isExtensionMode.value = false;
+    extensionData.value = {
+        reason: '',
+        notes: ''
+    };
+
+    // Fetch contract percentages
+    fetchContractPercentages();
+
     dialogVisible.value = true;
 };
 
@@ -245,38 +288,83 @@ const saveItem = async () => {
     }
 
     try {
-        const payload = {
-            start_date: formatDateForAPI(currentItem.value.start_date), // Send YYYY-MM-DD to API
-            end_date: formatDateForAPI(currentItem.value.end_date),     // Send YYYY-MM-DD to API
-            family_auth: currentItem.value.family_auth,
-            max_price: currentItem.value.max_price,
-            min_price: currentItem.value.min_price,
-            discount_percentage: currentItem.value.discount_percentage,
-            avenant_id: currentItem.value.avenant_id || null
-        };
-
-        let apiUrl;
-        if (!currentItem.value.id) {
-            toast.error('Cannot update: Agreement Detail ID is missing.');
-            return;
-        }
-
-        if (props.avenantpage === "yes") {
-            apiUrl = `/api/convention/agreementdetails/avenant/${props.avenantid}/${currentItem.value.id}`;
+        if (isExtensionMode.value) {
+            // Handle extension mode - extend the contract
+            await extendAgreementDetail();
         } else {
-            apiUrl = `/api/convention/agreementdetails/${props.contractid}/${currentItem.value.id}`;
+            // Handle regular edit mode
+            await updateAgreementDetail();
         }
+    } catch (error) {
+        console.error("Error saving agreement detail:", error);
+        toast.error(`Failed to ${isExtensionMode.value ? 'extend' : 'update'} agreement detail: ${error.response?.data?.message || error.message}`);
+    }
+};
 
-        await axios.put(apiUrl, payload);
+const updateAgreementDetail = async () => {
+    const payload = {
+        start_date: formatDateForAPI(currentItem.value.start_date), // Send YYYY-MM-DD to API
+        end_date: formatDateForAPI(currentItem.value.end_date),     // Send YYYY-MM-DD to API
+        family_auth: currentItem.value.family_auth,
+        max_price: currentItem.value.max_price,
+        min_price: currentItem.value.min_price,
+        // discount_percentage removed since we now use multiple percentages
+        avenant_id: currentItem.value.avenant_id || null
+    };
+
+    let apiUrl;
+    if (!currentItem.value.id) {
+        toast.error('Cannot update: Agreement Detail ID is missing.');
+        return;
+    }
+
+    if (props.avenantpage === "yes") {
+        apiUrl = `/api/convention/agreementdetails/avenant/${props.avenantid}/${currentItem.value.id}`;
+    } else {
+        apiUrl = `/api/convention/agreementdetails/${props.contractid}/${currentItem.value.id}`;
+    }
+
+    await axios.put(apiUrl, payload);
+
+    await fetchAgreementDetails(); // Re-fetch to update table
+
+    dialogVisible.value = false;
+
+    toast.success('Agreement details updated successfully');
+};
+
+const extendAgreementDetail = async () => {
+    if (!extensionData.value.reason) {
+        toast.error('Extension reason is required');
+        return;
+    }
+
+    const payload = {
+        new_end_date: formatDateForAPI(currentItem.value.end_date),
+        reason: extensionData.value.reason,
+        notes: extensionData.value.notes
+    };
+
+    // For extension, we need to extend the contract, not just the agreement detail
+    // The contract ID should be available in props.contractid
+    const contractId = props.avenantpage === "yes" ? props.avenantid : props.contractid;
+
+    try {
+        await axios.post(`/api/conventions/${contractId}/extend`, payload);
 
         await fetchAgreementDetails(); // Re-fetch to update table
 
         dialogVisible.value = false;
 
-        toast.success('Agreement details updated successfully');
+        toast.success('Contract extended successfully');
     } catch (error) {
-        toast.error(`Failed to update agreement details: ${error.response?.data?.message || error.message}`);
-        console.error("Error updating agreement details:", error.response?.data || error);
+        console.error('Extension error:', error);
+
+        if (error.response?.data?.error === 'MAX_EXTENSIONS_REACHED') {
+            toast.error('Maximum extension limit of 3 times has been reached for this contract');
+        } else {
+            toast.error('Failed to extend contract: ' + (error.response?.data?.message || error.message));
+        }
     }
 };
 
@@ -294,6 +382,18 @@ const computedEndDate = computed({
         currentItem.value.end_date = val ? new Date(val) : null;
     }
 });
+
+// Method to check if an item can be extended
+const canExtend = (item) => {
+    if (!item.end_date) return false;
+    
+    const endDate = new Date(item.end_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+    
+    // Can extend if end date is in the future and extension count is less than 3
+    return endDate >= today && (item.extension_count || 0) < 3;
+};
 </script>
 
 <template>
@@ -334,6 +434,7 @@ const computedEndDate = computed({
                             <tr>
                                 <th scope="col">ID</th>
                                 <th scope="col">Source</th>
+                                <th scope="col">Extend</th>
                                 <th scope="col">Start Date</th>
                                 <th scope="col">End Date</th>
                                 <th scope="col">Family Auth</th>
@@ -356,12 +457,36 @@ const computedEndDate = computed({
                                         {{ item.source_type }}
                                     </span>
                                 </td>
+                                <td>
+                                    <span
+                                        :class="{
+                                            'badge bg-success': canExtend(item),
+                                            'badge bg-warning': !canExtend(item) && (item.extension_count || 0) < 3,
+                                            'badge bg-danger': (item.extension_count || 0) >= 3
+                                        }"
+                                    >
+                                        {{ (item.extension_count || 0) >= 3 ? 'Max Reached' : canExtend(item) ? 'Yes' : 'No' }}
+                                        <small v-if="item.extension_count > 0">({{ item.extension_count }}/3)</small>
+                                    </span>
+                                </td>
                                 <td>{{ formatDateDisplay(item.start_date) }}</td>
                                 <td>{{ formatDateDisplay(item.end_date) }}</td>
                                 <td>{{ formatFamilyAuth(item.family_auth) }}</td>
                                 <td>{{ item.max_price !== null ? item.max_price.toFixed(2) : 'N/A' }}</td>
                                 <td>{{ item.min_price !== null ? item.min_price.toFixed(2) : 'N/A' }}</td>
-                                <td>{{ formatPercentage(item.discount_percentage) }}</td>
+                                <td>
+                                    <div v-if="item.contract_percentages && item.contract_percentages.length > 0">
+                                        <span v-for="(percentage, index) in item.contract_percentages" :key="percentage.id || index" class="badge bg-primary me-1">
+                                            {{ percentage.percentage }}%
+                                        </span>
+                                    </div>
+                                    <div v-else-if="item.discount_percentage">
+                                        {{ formatPercentage(item.discount_percentage) }}
+                                    </div>
+                                    <div v-else>
+                                        N/A
+                                    </div>
+                                </td>
                                 <td>
                                     <button
                                         v-if="contractState === 'pending' || avenantState === 'pending'"
@@ -401,59 +526,152 @@ const computedEndDate = computed({
             <div class="modal-custom-dialog">
                 <div class="modal-custom-content">
                     <div class="modal-custom-header">
-                        <h5 class="modal-custom-title">Edit Agreement Detail</h5>
-                        <button type="button" class="btn-close" @click="dialogVisible = false" aria-label="Close"></button>
+                        <div class="d-flex justify-content-between align-items-center w-100">
+                            <h5 class="modal-custom-title">{{ isExtensionMode ? 'Extend Agreement Detail' : 'Edit Agreement Detail' }}</h5>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="form-check form-switch">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        id="extensionMode"
+                                        v-model="isExtensionMode"
+                                    />
+                                    <label class="form-check-label" for="extensionMode">
+                                        Extension Mode
+                                    </label>
+                                </div>
+                                <button type="button" class="btn-close" @click="dialogVisible = false" aria-label="Close"></button>
+                            </div>
+                        </div>
                     </div>
                     <div class="modal-custom-body">
                         <form @submit.prevent="saveItem">
-                            <div class="mb-3">
-                                <label for="startDate" class="form-label">Start Date</label>
-                                <input
-                                    type="date"
-                                    class="form-control"
-                                    id="startDate"
-                                    v-model="computedStartDate"
-                                    required
-                                />
+                            <!-- Extension Mode Fields -->
+                            <div v-if="isExtensionMode">
+                                <div class="alert alert-info">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Extension mode allows you to extend the contract end date without creating an avenant.
+                                    <br>
+                                    <small class="text-muted">
+                                        Current extensions: {{ currentItem.extension_count || 0 }}/3
+                                        <span v-if="(currentItem.extension_count || 0) >= 3" class="text-danger">
+                                            (Maximum extensions reached)
+                                        </span>
+                                    </small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="currentEndDate" class="form-label">Current End Date</label>
+                                    <input
+                                        type="date"
+                                        class="form-control"
+                                        id="currentEndDate"
+                                        :value="formatDateForAPI(currentItem.end_date)"
+                                        disabled
+                                    />
+                                    <small class="form-text text-muted">Current contract end date</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newEndDate" class="form-label">New End Date <span class="text-danger">*</span></label>
+                                    <input
+                                        type="date"
+                                        class="form-control"
+                                        id="newEndDate"
+                                        v-model="computedEndDate"
+                                        :min="formatDateForAPI(new Date())"
+                                        required
+                                    />
+                                    <small class="form-text text-muted">Select the new end date for the contract</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="extensionReason" class="form-label">Reason for Extension <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="extensionReason" v-model="extensionData.reason" required>
+                                        <option value="">Select a reason</option>
+                                        <option value="performance">Performance Extension</option>
+                                        <option value="budget">Budget Adjustment</option>
+                                        <option value="regulatory">Regulatory Requirements</option>
+                                        <option value="client_request">Client Request</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="extensionNotes" class="form-label">Notes</label>
+                                    <textarea
+                                        class="form-control"
+                                        id="extensionNotes"
+                                        rows="3"
+                                        v-model="extensionData.notes"
+                                        placeholder="Additional notes about the extension..."
+                                    ></textarea>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label for="endDate" class="form-label">End Date</label>
-                                <input
-                                    type="date"
-                                    class="form-control"
-                                    id="endDate"
-                                    v-model="computedEndDate"
-                                    :min="formatDateForAPI(new Date())"
-                                    required
-                                />
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Family Authorization</label>
-                                <MultiSelect
-                                    v-model="selectedFamilyAuth"
-                                    :options="familyAuthOptions"
-                                    display="chip"
-                                    placeholder="Select Family Authorization"
-                                    class="w-full md:w-20rem"
-                                />
-                            </div>
-                            <div class="mb-3">
-                                <label for="maxPrice" class="form-label">Max Price</label>
-                                <input type="number" step="0.01" class="form-control" id="maxPrice" v-model="currentItem.max_price" />
-                            </div>
-                            <div class="mb-3">
-                                <label for="minPrice" class="form-label">Min Price</label>
-                                <input type="number" step="0.01" class="form-control" id="minPrice" v-model="currentItem.min_price" />
-                            </div>
-                            <div class="mb-3">
-                                <label for="discountPercentage" class="form-label">Discount Percentage</label>
-                                <input type="number" step="0.01" class="form-control" id="discountPercentage" v-model="currentItem.discount_percentage" max="100" />
+
+                            <!-- Edit Mode Fields -->
+                            <div v-else>
+                                <div class="mb-3">
+                                    <label for="startDate" class="form-label">Start Date</label>
+                                    <input
+                                        type="date"
+                                        class="form-control"
+                                        id="startDate"
+                                        v-model="computedStartDate"
+                                        required
+                                    />
+                                </div>
+                                <div class="mb-3">
+                                    <label for="endDate" class="form-label">End Date</label>
+                                    <input
+                                        type="date"
+                                        class="form-control"
+                                        id="endDate"
+                                        v-model="computedEndDate"
+                                        :min="formatDateForAPI(new Date())"
+                                        required
+                                    />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Family Authorization</label>
+                                    <MultiSelect
+                                        v-model="selectedFamilyAuth"
+                                        append-to="self"
+                                        :options="familyAuthOptions"
+                                        display="chip"
+                                        placeholder="Select Family Authorization"
+                                        class="w-full md:w-20rem"
+                                    />
+                                </div>
+                                <div class="mb-3">
+                                    <label for="maxPrice" class="form-label">Max Price</label>
+                                    <input type="number" step="0.01" class="form-control" id="maxPrice" v-model="currentItem.max_price" />
+                                </div>
+                                <div class="mb-3">
+                                    <label for="minPrice" class="form-label">Min Price</label>
+                                    <input type="number" step="0.01" class="form-control" id="minPrice" v-model="currentItem.min_price" />
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Contract Percentages</label>
+                                    <div v-if="currentItem.percentages && currentItem.percentages.length > 0" class="border rounded p-3 bg-light">
+                                        <div v-for="(percentage, index) in currentItem.percentages" :key="percentage.id || index" class="d-flex justify-content-between align-items-center mb-2">
+                                            <span>Percentage {{ index + 1 }}:</span>
+                                            <span class="badge bg-primary">{{ percentage.percentage }}%</span>
+                                        </div>
+                                    </div>
+                                    <div v-else class="text-muted">
+                                        No percentages configured for this contract.
+                                    </div>
+                                    <small class="form-text text-muted">These percentages are used to calculate pricing for different reimbursement levels.</small>
+                                </div>
                             </div>
                         </form>
                     </div>
                     <div class="modal-custom-footer">
                         <button type="button" class="btn btn-secondary" @click="dialogVisible = false">Close</button>
-                        <button type="button" class="btn btn-primary" @click="saveItem">Save changes</button>
+                        <button type="button" class="btn btn-primary" @click="saveItem">
+                            {{ isExtensionMode ? 'Extend Contract' : 'Save changes' }}
+                        </button>
                     </div>
                 </div>
             </div>

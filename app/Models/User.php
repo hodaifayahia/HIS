@@ -3,9 +3,6 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use App\Models\Doctor;
-use App\Models\Specialization;
-use App\Models\UserSpecialization;
 
 use App\RoleSystemEnum;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -15,13 +12,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable , HasRoles;
+    use HasFactory, HasRoles , Notifiable;
 
     use SoftDeletes;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -43,10 +40,12 @@ class User extends Authenticatable
         'created_by',
         'background',
     ];
+
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -69,10 +68,12 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
     public function doctor()
     {
         return $this->hasOne(Doctor::class);
     }
+
     public function activeSpecializations()
     {
         return $this->hasMany(UserSpecialization::class)->where('status', 'active');
@@ -87,13 +88,34 @@ class User extends Authenticatable
     }
 
     /**
+     * Direct relation to Specialization models via the pivot table.
+     * This allows code that expects $user->specializations or eager loads
+     * 'specializations' to work.
+     */
+    public function specializations()
+    {
+        return $this->belongsToMany(
+            Specialization::class,
+            'user_specializations',
+            'user_id',
+            'specialization_id'
+        )->withPivot(['status'])->withTimestamps();
+    }
+
+    /**
+     * Get all specializations (regardless of status)
+     * This returns the Specialization models, not UserSpecialization pivot records
+     */
+    public function getAllSpecializations()
+    {
+        return $this->specializations()->withoutGlobalScopes();
+    }
+
+    /**
      * Sync specializations for the user.
      * Accepts an array of specialization IDs. Existing specializations not in the
      * provided array will be marked inactive. New or existing provided specializations
      * will be created or marked active.
-     *
-     * @param array $specializationIds
-     * @return void
      */
     public function syncSpecializations(array $specializationIds): void
     {
@@ -132,7 +154,8 @@ class User extends Authenticatable
             'specialization_id' // Foreign key on doctors table
         );
     }
-      public function paymentAccesses()
+
+    public function paymentAccesses()
     {
         return $this->hasMany(UserPaymentMethod::class);
     }
@@ -143,14 +166,14 @@ class User extends Authenticatable
     {
         // This will return an array of the PaymentMethodEnum cases (objects)
         return $this->paymentAccesses
-                    ->where('status', 'active') // Only get active ones, or whatever logic you need
-                    ->map(fn($access) => $access->payment_method_key->value)
-                    ->toArray();
+            ->where('status', 'active') // Only get active ones, or whatever logic you need
+            ->map(fn ($access) => $access->payment_method_key->value)
+            ->toArray();
     }
 
     // public function role() : Attribute {
     //     return Attribute::make(
     //         get: fn ($value) =>RoleSystemEnum::from($value)->name,
     //     );}
-    
+
 }

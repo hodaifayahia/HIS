@@ -318,7 +318,7 @@ export default {
       this.isSubmitting = true;
 
       try {
-        const response = await axios.post('/api/pharmacy/stockages', this.formData);
+        const response = await axios.post('/api/stockages', this.formData);
         if (response.data.success) {
           this.$emit('success', response.data.data);
           this.closeModal();

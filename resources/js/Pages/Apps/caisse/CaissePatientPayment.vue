@@ -1238,12 +1238,12 @@ const loadItems = async () => {
       axios.get(`/api/reception/fiche-navette/${ficheId.value}/items`),
       axios.get('/api/financial-transactions', { params: { fiche_navette_id: ficheId.value, per_page: 1000 } }),
     ]);
+    console.log('Fetched items response:', itemsRes)
     
     const rawItems = itemsRes?.data?.data ?? itemsRes?.data ?? [];
     const rawTransactions = transactionsRes?.data?.data ?? transactionsRes?.data ?? [];
     
-    console.log('Raw items from API:', rawItems);
-    console.log('Raw transactions from API:', rawTransactions);
+    
     
     allTransactions.value = rawTransactions;
 

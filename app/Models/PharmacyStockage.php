@@ -136,9 +136,10 @@ class PharmacyStockage extends Model
      */
     public function getAvailableCapacityAttribute()
     {
-        if (!$this->capacity) {
+        if (! $this->capacity) {
             return null;
         }
+
         return $this->capacity - $this->total_quantity;
     }
 
@@ -147,9 +148,10 @@ class PharmacyStockage extends Model
      */
     public function getIsAtCapacityAttribute()
     {
-        if (!$this->capacity) {
+        if (! $this->capacity) {
             return false;
         }
+
         return $this->total_quantity >= $this->capacity;
     }
 
@@ -158,9 +160,10 @@ class PharmacyStockage extends Model
      */
     public function getCapacityUtilizationAttribute()
     {
-        if (!$this->capacity) {
+        if (! $this->capacity) {
             return 0;
         }
+
         return round(($this->total_quantity / $this->capacity) * 100, 2);
     }
 
@@ -169,7 +172,7 @@ class PharmacyStockage extends Model
      */
     public function getWarehouseTypeLabelAttribute()
     {
-        return match($this->warehouse_type) {
+        return match ($this->warehouse_type) {
             'Central Pharmacy (PC)' => 'Central Pharmacy',
             'Service Pharmacy (PS)' => 'Service Pharmacy',
             default => $this->warehouse_type

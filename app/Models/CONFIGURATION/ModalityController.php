@@ -2,27 +2,21 @@
 
 namespace App\Http\Controllers\CONFIGURATION;
 
+use App\AppointmentSatatusEnum;
 use App\Http\Controllers\Controller;
-use App\Models\CONFIGURATION\Modality;
-use App\Models\CONFIGURATION\ModalitySchedule;
-use App\Models\CONFIGURATION\ModalityAvailableMonth;
-use App\Models\CONFIGURATION\AppointmentModalityForce;
-use App\Models\CONFIGURATION\ModalityType;
-use App\Models\Specialization;
-use Illuminate\Http\Request;
+use App\Http\Requests\CONFIGURATION\StoreModalityRequest;
+use App\Http\Requests\CONFIGURATION\UpdateModalityRequest;
 use App\Http\Resources\CONFIGURATION\ModalityResource;
-use Illuminate\Support\Carbon;
+use App\Models\CONFIGURATION\Modality;
+use App\Models\Specialization;
+use App\Services\CONFIGURATION\ModalityService;
+use Illuminate\Http\Request;
+// Assuming you have a similar Enum for days
+use Illuminate\Support\Carbon; // Assuming you have a similar Enum for appointment statuses
+// Import the new classes
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use App\DayOfWeekEnum; // Assuming you have a similar Enum for days
-use App\AppointmentSatatusEnum; // Assuming you have a similar Enum for appointment statuses
-
-// Import the new classes
-use App\Http\Requests\CONFIGURATION\StoreModalityRequest;
-use App\Http\Requests\CONFIGURATION\UpdateModalityRequest;
-use App\Services\CONFIGURATION\ModalityService;
 
 class ModalityController extends Controller
 {
@@ -50,7 +44,7 @@ class ModalityController extends Controller
             'specialization:id,name',
             'schedules',
             'availableMonths',
-            'appointmentModalityForce'
+            'appointmentModalityForce',
         ]);
 
         // Mimic DoctorController's role-based filtering for 'is_active'
@@ -64,9 +58,9 @@ class ModalityController extends Controller
         }
 
         if ($filter) {
-            $modalitiesQuery->where(function($query) use ($filter) {
+            $modalitiesQuery->where(function ($query) use ($filter) {
                 $query->where('name', 'like', "%{$filter}%")
-                      ->orWhere('internal_code', 'like', "%{$filter}%");
+                    ->orWhere('internal_code', 'like', "%{$filter}%");
             });
         }
         if ($specialization_id) {
@@ -97,10 +91,10 @@ class ModalityController extends Controller
     public function getModality(Request $request, $id = null)
     {
         if ($id) {
-            $modality = Modality::with(['modalityType', 'specialization', 'schedules', 'availableMonths',  ])
-                                 ->find($id);
+            $modality = Modality::with(['modalityType', 'specialization', 'schedules', 'availableMonths'])
+                ->find($id);
 
-            if (!$modality) {
+            if (! $modality) {
                 return response()->json(['message' => 'Modality not found'], 404);
             }
 
@@ -126,13 +120,13 @@ class ModalityController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => new ModalityResource($modality)
+                'data' => new ModalityResource($modality),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Modality not found.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 404);
         }
     }
@@ -159,7 +153,7 @@ class ModalityController extends Controller
                     'modalities.id',
                     'modalities.name as modality_name',
                     'modalities.specialization_id',
-                    'specializations.name as specialization_name'
+                    'specializations.name as specialization_name',
                 ])
                 ->join('specializations', 'modalities.specialization_id', '=', 'specializations.id');
 
@@ -173,7 +167,7 @@ class ModalityController extends Controller
                 return response()->json([
                     'data' => [],
                     'month' => $validated['month'],
-                    'total_modalities' => 0
+                    'total_modalities' => 0,
                 ]);
             }
 
@@ -185,7 +179,7 @@ class ModalityController extends Controller
                 ->where('is_active', true)
                 ->where(function ($q) use ($startDate, $endDate) {
                     $q->whereBetween('date', [$startDate, $endDate])
-                      ->orWhereNull('date');
+                        ->orWhereNull('date');
                 })
                 ->whereIn('modality_id', $modalityIds)
                 ->get();
@@ -207,21 +201,21 @@ class ModalityController extends Controller
             $excludedDates = DB::table('excluded_dates') // Assuming `excluded_dates` table can store `modality_id`
                 ->where(function ($query) use ($modalityIds) {
                     $query->whereIn('modality_id', $modalityIds)
-                          ->where('exclusionType', 'complete') // Assuming this field exists
-                          ->orWhereNull('modality_id'); // Global exclusions
+                        ->where('exclusionType', 'complete') // Assuming this field exists
+                        ->orWhereNull('modality_id'); // Global exclusions
                 })
                 ->where(function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('start_date', [$startDate, $endDate])
-                          ->orWhereBetween('end_date', [$startDate, $endDate])
-                          ->orWhere(function ($q) use ($startDate, $endDate) {
-                              $q->where('start_date', '<=', $startDate)
+                        ->orWhereBetween('end_date', [$startDate, $endDate])
+                        ->orWhere(function ($q) use ($startDate, $endDate) {
+                            $q->where('start_date', '<=', $startDate)
                                 ->where('end_date', '>=', $endDate);
-                          });
+                        });
                 })
                 ->get();
 
             $result = $modalities->map(function ($modality) use ($schedules, $appointments, $excludedDates, $startDate, $endDate) {
-                if (!$modality->modality_name || !$modality->specialization_name) {
+                if (! $modality->modality_name || ! $modality->specialization_name) {
                     return null;
                 }
 
@@ -253,18 +247,18 @@ class ModalityController extends Controller
             return response()->json([
                 'data' => $result,
                 'month' => $validated['month'],
-                'total_modalities' => $result->count()
+                'total_modalities' => $result->count(),
             ]);
 
         } catch (\Exception $e) {
             \Log::error('Error in WorkingDates (ModalityController)', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'message' => 'Error fetching working dates for modalities',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -287,10 +281,11 @@ class ModalityController extends Controller
 
             $isExcluded = $modalityExcludedDates->contains(function ($excludedDate) use ($currentDate) {
                 $endDate = $excludedDate->end_date ?? $excludedDate->start_date;
+
                 return $currentDate->between($excludedDate->start_date, $endDate);
             });
 
-            if (!$isExcluded) {
+            if (! $isExcluded) {
                 $hasSpecificSchedule = $schedules->contains(function ($schedule) use ($dateStr) {
                     return $schedule->date === $dateStr && $schedule->is_active;
                 });
@@ -327,14 +322,15 @@ class ModalityController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Modality and associated data created successfully!',
-                'data' => new ModalityResource($modality->fresh(['modalityType', 'specialization', 'schedules', 'availableMonths',  ]))
+                'data' => new ModalityResource($modality->fresh(['modalityType', 'specialization', 'schedules', 'availableMonths'])),
             ], 201);
         } catch (\Exception $e) {
-            \Log::error('Error creating modality: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \Log::error('Error creating modality: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error creating modality',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -350,14 +346,15 @@ class ModalityController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Modality and associated data updated successfully!',
-                'data' => new ModalityResource($modality->fresh(['modalityType', 'specialization', 'schedules', 'availableMonths',  ]))
+                'data' => new ModalityResource($modality->fresh(['modalityType', 'specialization', 'schedules', 'availableMonths'])),
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error updating modality: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \Log::error('Error updating modality: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error updating modality',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -372,10 +369,11 @@ class ModalityController extends Controller
 
             return response()->json(['message' => 'Modality deleted successfully.']);
         } catch (\Exception $e) {
-            \Log::error('Error deleting modality: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \Log::error('Error deleting modality: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'message' => 'Error deleting modality',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -394,13 +392,14 @@ class ModalityController extends Controller
             $count = $this->modalityService->bulkDeleteModalities($request->ids);
 
             return response()->json([
-                'message' => "$count modalities deleted successfully"
+                'message' => "$count modalities deleted successfully",
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error bulk deleting modalities: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            \Log::error('Error bulk deleting modalities: '.$e->getMessage(), ['trace' => $e->getTraceAsString()]);
+
             return response()->json([
                 'message' => 'Error deleting modalities',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -434,19 +433,19 @@ class ModalityController extends Controller
 
         $modalities = Modality::where(function ($query) use ($searchTerm) {
             $query->where('name', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('internal_code', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('dicom_ae_title', 'LIKE', "%{$searchTerm}%")
-                  ->orWhere('ip_address', 'LIKE', "%{$searchTerm}%")
-                  ->orWhereHas('modalityType', function ($q) use ($searchTerm) {
-                      $q->where('name', 'LIKE', "%{$searchTerm}%");
-                  })
-                  ->orWhereHas('specialization', function ($q) use ($searchTerm) {
-                      $q->where('name', 'LIKE', "%{$searchTerm}%");
-                  });
+                ->orWhere('internal_code', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('dicom_ae_title', 'LIKE', "%{$searchTerm}%")
+                ->orWhere('ip_address', 'LIKE', "%{$searchTerm}%")
+                ->orWhereHas('modalityType', function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%");
+                })
+                ->orWhereHas('specialization', function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', "%{$searchTerm}%");
+                });
         })
-        ->with(['modalityType', 'specialization'])
-        ->orderBy('created_at', 'desc')
-        ->paginate();
+            ->with(['modalityType', 'specialization'])
+            ->orderBy('created_at', 'desc')
+            ->paginate();
 
         return ModalityResource::collection($modalities);
     }

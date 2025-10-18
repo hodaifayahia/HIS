@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-     public function up()
+    public function up()
     {
         Schema::create('item_dependencies', function (Blueprint $table) {
             $table->id();
@@ -23,7 +23,7 @@ return new class extends Migration
             // i want to add base price and final price and organisme share and convention id and remise_id
             // type of remise : convention or remise or both
             $table->foreignId('remise_id')->nullable()->constrained('remises')->onDelete('set null');
-              $table->decimal('final_price_after_convention', 10, 2)->nullable();
+            $table->decimal('final_price_after_convention', 10, 2)->nullable();
             $table->decimal('final_price_after_remise', 10, 2)->nullable();
             $table->decimal('base_price', 10, 2)->nullable();
             $table->string('status')->nullable();
@@ -35,11 +35,11 @@ return new class extends Migration
             $table->text('custom_name')->nullable();
             $table->boolean('is_package')->default(false)->comment('Indicates if this dependency is part of a custom package');
             $table->timestamps();
-            
+
             // Indexes for performance
             $table->index(['parent_item_id', 'dependency_type']);
             $table->index('dependent_item_id');
-            
+
         });
     }
 

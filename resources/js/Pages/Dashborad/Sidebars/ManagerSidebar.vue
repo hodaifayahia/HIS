@@ -61,6 +61,13 @@ const hasPermission = (requiredRoles) => {
             </li>
              
             <li class="nav-item">
+                <router-link :to="{ name: 'manger.patient-positions' }" active-class="active" class="nav-link">
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Patient Positions</p>
+                </router-link>
+            </li>
+
+            <li class="nav-item">
                 <router-link :to="{ name: 'manger.refund-requests' }" active-class="active" class="nav-link">
                     <i class="far fa-circle nav-icon"></i>
                     <p>patient Refund </p>

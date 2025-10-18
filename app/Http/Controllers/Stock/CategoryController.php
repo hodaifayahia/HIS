@@ -17,14 +17,14 @@ class CategoryController extends Controller
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%");
         }
 
         $categories = $query->get();
 
         return response()->json([
             'success' => true,
-            'data' => $categories
+            'data' => $categories,
         ]);
     }
 
@@ -32,13 +32,13 @@ class CategoryController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255|unique:categories',
-            'description' => 'nullable|string|max:500'
+            'description' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -47,7 +47,7 @@ class CategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $category,
-            'message' => 'Category created successfully'
+            'message' => 'Category created successfully',
         ], 201);
     }
 
@@ -55,21 +55,21 @@ class CategoryController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $category
+            'data' => $category,
         ]);
     }
 
     public function update(Request $request, Category $category)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:categories,name,' . $category->id,
-            'description' => 'nullable|string|max:500'
+            'name' => 'required|string|max:255|unique:categories,name,'.$category->id,
+            'description' => 'nullable|string|max:500',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -78,7 +78,7 @@ class CategoryController extends Controller
         return response()->json([
             'success' => true,
             'data' => $category,
-            'message' => 'Category updated successfully'
+            'message' => 'Category updated successfully',
         ]);
     }
 
@@ -88,7 +88,7 @@ class CategoryController extends Controller
         if ($category->products()->count() > 0) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cannot delete category that has associated products'
+                'message' => 'Cannot delete category that has associated products',
             ], 422);
         }
 
@@ -96,7 +96,7 @@ class CategoryController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Category deleted successfully'
+            'message' => 'Category deleted successfully',
         ]);
     }
 }

@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Stock;
 
 use App\Http\Controllers\Controller;
-use App\Models\ServiceProductSetting;
 use App\Models\Product;
 use App\Models\Service;
-use App\Http\Requests\StoreServiceProductSettingRequest;
+use App\Models\ServiceProductSetting;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class ServiceProductSettingController extends Controller
 {
@@ -21,38 +20,38 @@ class ServiceProductSettingController extends Controller
         $validator = Validator::make([
             'service_id' => $serviceId,
             'product_param' => $productParam,
-            'product_forme' => $productForme
+            'product_forme' => $productForme,
         ], [
             'service_id' => 'required|exists:services,id',
             'product_param' => 'required',
-            'product_forme' => 'nullable|string'
+            'product_forme' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         // Find product - could be by ID or by name
         $product = null;
-        
+
         // Try to find by ID first (for API routes)
         if (is_numeric($productParam)) {
             $product = Product::find($productParam);
         }
-        
+
         // If not found by ID, try by name (for web routes)
-        if (!$product) {
+        if (! $product) {
             $product = Product::where('name', $productParam)->first();
         }
-        
-        if (!$product) {
+
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Product not found'
+                'message' => 'Product not found',
             ], 404);
         }
 
@@ -61,11 +60,11 @@ class ServiceProductSettingController extends Controller
 
         // Handle product_forme parameter - could be passed as URL param or query param
         $formeValue = $productForme ?: $request->get('product_forme');
-        
+
         if ($formeValue && $formeValue !== 'N/A') {
             $query->where('product_forme', $formeValue);
         } else {
-            $query->where(function($q) use ($formeValue) {
+            $query->where(function ($q) use ($formeValue) {
                 if ($formeValue === 'N/A' || $formeValue === null) {
                     $q->whereNull('product_forme');
                 } else {
@@ -76,14 +75,14 @@ class ServiceProductSettingController extends Controller
 
         $setting = $query->first();
 
-        if (!$setting) {
+        if (! $setting) {
             // Return default settings if not found
             $setting = $this->getDefaultSettings($serviceId, $product->id, $formeValue, $product);
         }
 
         return response()->json([
             'success' => true,
-            'data' => $setting
+            'data' => $setting,
         ]);
     }
 
@@ -111,14 +110,14 @@ class ServiceProductSettingController extends Controller
             'auto_reorder' => 'nullable|boolean',
             'custom_name' => 'nullable|string|max:255',
             'color_code' => 'nullable|in:default,red,orange,yellow,green,blue,purple',
-            'priority' => 'nullable|in:low,normal,high,critical'
+            'priority' => 'nullable|in:low,normal,high,critical',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -127,21 +126,21 @@ class ServiceProductSettingController extends Controller
 
             // Find product - could be by ID or by name
             $product = null;
-            
+
             // Try to find by ID first (if product_id is provided)
             if ($request->has('product_id') && is_numeric($request->product_id)) {
                 $product = Product::find($request->product_id);
             }
-            
+
             // If not found by ID, try by name
-            if (!$product && $request->has('product_name')) {
+            if (! $product && $request->has('product_name')) {
                 $product = Product::where('name', $request->product_name)->first();
             }
-            
-            if (!$product) {
+
+            if (! $product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product not found'
+                    'message' => 'Product not found',
                 ], 404);
             }
 
@@ -154,7 +153,7 @@ class ServiceProductSettingController extends Controller
             // Check if settings already exist
             $existingSetting = ServiceProductSetting::where('service_id', $request->service_id)
                 ->where('product_id', $product->id)
-                ->where(function($query) use ($productForme) {
+                ->where(function ($query) use ($productForme) {
                     if ($productForme === null) {
                         $query->whereNull('product_forme');
                     } else {
@@ -168,7 +167,7 @@ class ServiceProductSettingController extends Controller
                 $existingSetting->update(array_merge($request->all(), [
                     'product_id' => $product->id,
                     'product_name' => $request->product_name,
-                    'product_forme' => $productForme
+                    'product_forme' => $productForme,
                 ]));
                 $setting = $existingSetting;
             } else {
@@ -177,7 +176,7 @@ class ServiceProductSettingController extends Controller
                     'service_id' => $request->service_id,
                     'product_id' => $product->id,
                     'product_name' => $request->product_name,
-                    'product_forme' => $productForme
+                    'product_forme' => $productForme,
                 ]));
             }
 
@@ -186,15 +185,16 @@ class ServiceProductSettingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Product settings saved successfully',
-                'data' => $setting
+                'data' => $setting,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to save product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -207,7 +207,7 @@ class ServiceProductSettingController extends Controller
         $validator = Validator::make(array_merge($request->all(), [
             'service_id' => $serviceId,
             'product_param' => $productName,
-            'product_forme' => $productForme
+            'product_forme' => $productForme,
         ]), [
             'service_id' => 'required|exists:services,id',
             'product_param' => 'required',
@@ -227,14 +227,14 @@ class ServiceProductSettingController extends Controller
             'auto_reorder' => 'nullable|boolean',
             'custom_name' => 'nullable|string|max:255',
             'color_code' => 'nullable|in:default,red,orange,yellow,green,blue,purple',
-            'priority' => 'nullable|in:low,normal,high,critical'
+            'priority' => 'nullable|in:low,normal,high,critical',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -243,21 +243,21 @@ class ServiceProductSettingController extends Controller
 
             // Find product - could be by ID or by name
             $product = null;
-            
+
             // Try to find by ID first (for API routes)
             if (is_numeric($productName)) {
                 $product = Product::find($productName);
             }
-            
+
             // If not found by ID, try by name (for web routes)
-            if (!$product) {
+            if (! $product) {
                 $product = Product::where('name', $productName)->first();
             }
-            
-            if (!$product) {
+
+            if (! $product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product not found'
+                    'message' => 'Product not found',
                 ], 404);
             }
 
@@ -267,7 +267,7 @@ class ServiceProductSettingController extends Controller
             if ($productForme && $productForme !== 'N/A') {
                 $query->where('product_forme', $productForme);
             } else {
-                $query->where(function($q) use ($productForme) {
+                $query->where(function ($q) use ($productForme) {
                     if ($productForme === 'N/A' || $productForme === null) {
                         $q->whereNull('product_forme');
                     } else {
@@ -278,10 +278,10 @@ class ServiceProductSettingController extends Controller
 
             $setting = $query->first();
 
-            if (!$setting) {
+            if (! $setting) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product settings not found'
+                    'message' => 'Product settings not found',
                 ], 404);
             }
 
@@ -292,15 +292,16 @@ class ServiceProductSettingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Product settings updated successfully',
-                'data' => $setting
+                'data' => $setting,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -313,39 +314,39 @@ class ServiceProductSettingController extends Controller
         $validator = Validator::make([
             'service_id' => $serviceId,
             'product_param' => $productName,
-            'product_forme' => $productForme
+            'product_forme' => $productForme,
         ], [
             'service_id' => 'required|exists:services,id',
             'product_param' => 'required',
-            'product_forme' => 'nullable|string'
+            'product_forme' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             // Find product - could be by ID or by name
             $product = null;
-            
+
             // Try to find by ID first (for API routes)
             if (is_numeric($productName)) {
                 $product = Product::find($productName);
             }
-            
+
             // If not found by ID, try by name (for web routes)
-            if (!$product) {
+            if (! $product) {
                 $product = Product::where('name', $productName)->first();
             }
-            
-            if (!$product) {
+
+            if (! $product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product not found'
+                    'message' => 'Product not found',
                 ], 404);
             }
 
@@ -355,7 +356,7 @@ class ServiceProductSettingController extends Controller
             if ($productForme && $productForme !== 'N/A') {
                 $query->where('product_forme', $productForme);
             } else {
-                $query->where(function($q) use ($productForme) {
+                $query->where(function ($q) use ($productForme) {
                     if ($productForme === 'N/A' || $productForme === null) {
                         $q->whereNull('product_forme');
                     } else {
@@ -366,10 +367,10 @@ class ServiceProductSettingController extends Controller
 
             $setting = $query->first();
 
-            if (!$setting) {
+            if (! $setting) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product settings not found'
+                    'message' => 'Product settings not found',
                 ], 404);
             }
 
@@ -377,14 +378,14 @@ class ServiceProductSettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Product settings deleted successfully'
+                'message' => 'Product settings deleted successfully',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -395,14 +396,14 @@ class ServiceProductSettingController extends Controller
     public function getByService(Request $request, $serviceId)
     {
         $validator = Validator::make(['service_id' => $serviceId], [
-            'service_id' => 'required|exists:services,id'
+            'service_id' => 'required|exists:services,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -411,8 +412,8 @@ class ServiceProductSettingController extends Controller
 
         // Apply filters
         if ($request->has('product_name')) {
-            $query->whereHas('product', function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->product_name . '%');
+            $query->whereHas('product', function ($q) use ($request) {
+                $q->where('name', 'like', '%'.$request->product_name.'%');
             });
         }
 
@@ -428,7 +429,7 @@ class ServiceProductSettingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $settings
+            'data' => $settings,
         ]);
     }
 
@@ -442,14 +443,14 @@ class ServiceProductSettingController extends Controller
             'settings' => 'required|array',
             'settings.*.product_id' => 'required|exists:products,id',
             'settings.*.product_name' => 'required|string|max:255',
-            'settings.*.product_forme' => 'nullable|string|max:255'
+            'settings.*.product_forme' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -459,21 +460,21 @@ class ServiceProductSettingController extends Controller
             $results = [];
             foreach ($request->settings as $settingData) {
                 $productForme = $settingData['product_forme'] ?? null;
-                
+
                 if ($productForme === 'N/A') {
                     $productForme = null;
                 }
-                
+
                 $setting = ServiceProductSetting::updateOrCreate(
                     [
                         'service_id' => $serviceId,
                         'product_id' => $settingData['product_id'],
-                        'product_forme' => $productForme
+                        'product_forme' => $productForme,
                     ],
                     array_merge($settingData, [
                         'service_id' => $serviceId,
                         'product_id' => $settingData['product_id'],
-                        'product_forme' => $productForme
+                        'product_forme' => $productForme,
                     ])
                 );
                 $results[] = $setting;
@@ -484,15 +485,16 @@ class ServiceProductSettingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Bulk product settings updated successfully',
-                'data' => $results
+                'data' => $results,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to bulk update product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -502,7 +504,7 @@ class ServiceProductSettingController extends Controller
      */
     private function getDefaultSettings($serviceId, $productId, $forme = null, $product = null)
     {
-        if (!$product) {
+        if (! $product) {
             $product = Product::find($productId);
         }
 
@@ -511,7 +513,7 @@ class ServiceProductSettingController extends Controller
             'product_id' => $productId,
             'product_name' => $product ? $product->name : 'Unknown Product',
             'product_forme' => $forme,
-            
+
             // Default Alert Settings
             'low_stock_threshold' => 10,
             'critical_stock_threshold' => 5,
@@ -519,22 +521,22 @@ class ServiceProductSettingController extends Controller
             'reorder_point' => 10,
             'expiry_alert_days' => 30,
             'min_shelf_life_days' => 90,
-            
+
             // Default Notification Settings
             'email_alerts' => true,
             'sms_alerts' => false,
             'alert_frequency' => 'immediate',
             'preferred_supplier' => null,
-            
+
             // Default Inventory Settings
             'batch_tracking' => true,
             'location_tracking' => true,
             'auto_reorder' => false,
-            
+
             // Default Display Settings
             'custom_name' => null,
             'color_code' => 'default',
-            'priority' => 'normal'
+            'priority' => 'normal',
         ];
     }
 }

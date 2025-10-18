@@ -733,7 +733,7 @@ export default {
 
     async fetchProductStockHistory(productId, stockageId) {
       try {
-        const response = await axios.get(`/api/inventory/product-history/${productId}`, {
+        const response = await axios.get(`/api/inventory/by-product/${productId}`, {
           params: { stockage_id: stockageId }
         });
         if (response.data.success) {

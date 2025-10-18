@@ -1,218 +1,217 @@
 <template>
-  <div class="tw-bg-gray-50 tw-min-h-screen">
-    <!-- Header Section -->
-    <div class="tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-py-6">
-      <div class="tw-max-w-7xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8">
-        <div class="tw-flex tw-flex-col md:tw-flex-row tw-justify-between tw-items-center tw-gap-4">
-          <!-- Title & Stats -->
-          <div class="tw-text-center md:tw-text-left">
-            <h1 class="tw-text-3xl tw-font-bold tw-text-white tw-mb-2">
-              Service Demands Management
-            </h1>
-            <div class="tw-flex tw-flex-wrap tw-gap-4 tw-text-sm tw-text-blue-100" v-if="stats">
-              <span><i class="fas fa-list tw-mr-1"></i>{{ stats.total_demands || 0 }} Total</span>
-              <span><i class="fas fa-edit tw-mr-1"></i>{{ stats.draft_demands || 0 }} Drafts</span>
-              <span><i class="fas fa-paper-plane tw-mr-1"></i>{{ stats.sent_demands || 0 }} Sent</span>
-              <span><i class="fas fa-check-circle tw-mr-1"></i>{{ stats.approved_demands || 0 }} Approved</span>
-            </div>
+  <div class="tw-p-6 tw-bg-gray-50 tw-min-h-screen">
+    <!-- Main Content Container -->
+    <div class="tw-max-w-7xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8 tw-py-6">
+      <!-- Header Section -->
+      <div class="tw-bg-white tw-rounded-lg tw-shadow-sm tw-p-6 tw-mb-6">
+        <div class="tw-flex tw-items-center tw-justify-between">
+          <div>
+            <h1 class="tw-text-2xl tw-font-bold tw-text-gray-900">Service Demands</h1>
+            <p class="tw-text-sm tw-text-gray-600 tw-mt-1">Manage service procurement requests</p>
+          </div>
+          <Button 
+            @click="showCreateForm = true" 
+            label="Create Demand" 
+            icon="pi pi-plus"
+            class="tw-bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600"
+          />
+        </div>
+      </div>
+
+      <!-- Search and Filters Bar -->
+      <div class="tw-bg-white tw-rounded-lg tw-shadow-sm tw-p-4 tw-mb-6">
+        <div class="tw-flex tw-flex-col md:tw-flex-row tw-gap-4">
+          <!-- Search Input -->
+          <div class="tw-flex-1">
+            <span class="p-input-icon-left tw-w-full">
+              <i class="pi pi-search" />
+              <InputText 
+                v-model="filters.search" 
+                placeholder="Search by code, service, or notes..."
+                class="tw-w-full"
+                @input="debounceSearch"
+              />
+            </span>
           </div>
 
-          <!-- Actions -->
-          <div class="tw-flex tw-gap-3">
-            <Button 
-              @click="showCreateForm = true" 
-              icon="pi pi-plus" 
-              class="p-button-success"
-              label="New Service Demand"
+          <!-- Filters -->
+          <div class="tw-flex tw-gap-2">
+            <Dropdown 
+              v-model="filters.status"
+              :options="statusOptions"
+              option-label="label"
+              option-value="value"
+              placeholder="All Status"
+              class="tw-min-w-[150px]"
+              @change="filterData"
             />
+
+            <Dropdown 
+              v-model="filters.service_id"
+              :options="services"
+              option-label="name"
+              option-value="id"
+              placeholder="All Services"
+              class="tw-min-w-[180px]"
+              @change="filterData"
+            />
+
             <Button 
-              @click="refreshData" 
-              icon="pi pi-refresh" 
-              class="p-button-secondary"
-              :loading="loading"
+              v-if="filters.search || filters.status || filters.service_id"
+              @click="clearFilters" 
+              icon="pi pi-times" 
+              class="p-button-outlined"
+              v-tooltip="'Clear all filters'"
             />
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Filters Section -->
-    <div class="tw-max-w-7xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8 tw-py-6">
-      <Card class="tw-shadow-lg">
-        <template #content>
-          <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-4">
-            <!-- Search -->
-            <div class="tw-flex tw-items-center tw-gap-2">
-              <label class="tw-text-sm tw-font-medium tw-text-gray-700 tw-min-w-fit">Search:</label>
-              <InputText 
-                v-model="filters.search" 
-                placeholder="Search demands..."
-                class="tw-flex-1"
-                @input="debounceSearch"
-              />
+      <!-- Data Table -->
+      <div class="tw-bg-white tw-rounded-lg tw-shadow-sm tw-overflow-hidden">
+        <DataTable 
+          :value="demands" 
+          :loading="loading"
+          :paginator="true"
+          :rows="10"
+          :totalRecords="totalRecords"
+          lazy
+          @page="onPageChange"
+          @sort="onSort"
+          sortMode="multiple"
+          :rowHover="true"
+          responsiveLayout="scroll"
+          class="p-datatable-sm"
+          :rowClass="rowClass"
+        >
+          <!-- Loading Template -->
+          <template #loading>
+            <div class="tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-16">
+              <div class="tw-relative">
+                <div class="tw-w-16 tw-h-16 tw-border-4 tw-border-indigo-200 tw-rounded-full"></div>
+                <div class="tw-w-16 tw-h-16 tw-border-4 tw-border-indigo-600 tw-border-t-transparent tw-rounded-full tw-animate-spin tw-absolute tw-top-0"></div>
+              </div>
+              <p class="tw-mt-4 tw-text-indigo-600 tw-font-medium">Loading demands...</p>
             </div>
+          </template>
 
-            <!-- Status Filter -->
-            <div class="tw-flex tw-items-center tw-gap-2">
-              <label class="tw-text-sm tw-font-medium tw-text-gray-700 tw-min-w-fit">Status:</label>
-              <Dropdown 
-                v-model="filters.status"
-                :options="statusOptions"
-                option-label="label"
-                option-value="value"
-                placeholder="All Status"
-                class="tw-flex-1"
-                @change="filterData"
-              />
-            </div>
-
-            <!-- Service Filter -->
-            <div class="tw-flex tw-items-center tw-gap-2">
-              <label class="tw-text-sm tw-font-medium tw-text-gray-700 tw-min-w-fit">Service:</label>
-              <Dropdown 
-                v-model="filters.service_id"
-                :options="services"
-                option-label="name"
-                option-value="id"
-                placeholder="All Services"
-                class="tw-flex-1"
-                @change="filterData"
-              />
-            </div>
-
-            <!-- Clear Filters -->
-            <div class="tw-flex tw-justify-end">
+          <!-- Empty Template -->
+          <template #empty>
+            <div class="tw-text-center tw-py-16">
+              <div class="tw-inline-flex tw-items-center tw-justify-center tw-w-20 tw-h-20 tw-bg-gray-100 tw-rounded-full tw-mb-4">
+                <i class="pi pi-inbox tw-text-3xl tw-text-gray-500"></i>
+              </div>
+              <p class="tw-text-xl tw-font-semibold tw-text-gray-800">No Service Demands Found</p>
+              <p class="tw-text-gray-500 tw-mt-2">Create your first demand or adjust filters</p>
               <Button 
-                @click="clearFilters" 
-                icon="pi pi-filter-slash" 
-                class="p-button-text"
-                label="Clear Filters"
+                @click="showCreateForm = true"
+                label="Create First Demand" 
+                icon="pi pi-plus"
+                class="tw-mt-4 tw-bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600"
               />
             </div>
-          </div>
-        </template>
-      </Card>
-    </div>
+          </template>
 
-    <!-- Data Table Section -->
-    <div class="tw-max-w-7xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8 tw-pb-8">
-      <Card class="tw-shadow-lg">
-        <template #content>
-          <DataTable 
-            :value="demands" 
-            :loading="loading"
-            :paginator="true"
-            :rows="15"
-            :totalRecords="totalRecords"
-            lazy
-            @page="onPageChange"
-            @sort="onSort"
-            sortMode="multiple"
-            class="p-datatable-sm"
-            :rowHover="true"
-            responsiveLayout="scroll"
-          >
-            <!-- Demand Code Column -->
-            <Column field="demand_code" header="Demand Code" sortable style="width: 130px">
-              <template #body="{ data }">
-                <Badge :value="data.demand_code || 'N/A'" severity="info" />
-              </template>
-            </Column>
-
-            <!-- Service Column -->
-            <Column field="service.name" header="Service" sortable style="width: 180px">
-              <template #body="{ data }">
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="fas fa-building tw-text-blue-500"></i>
-                  <span class="tw-font-medium">{{ data.service?.name || 'N/A' }}</span>
+          <!-- Demand Code Column -->
+          <Column field="demand_code" header="Code" sortable style="width: 140px">
+            <template #body="{ data }">
+              <div class="tw-flex tw-items-center tw-gap-2">
+                <div class="tw-w-1 tw-h-8 tw-rounded-full" 
+                     :class="{
+                       'tw-bg-gray-400': data.status === 'draft',
+                       'tw-bg-blue-500': data.status === 'sent',
+                       'tw-bg-green-500': data.status === 'approved',
+                       'tw-bg-red-500': data.status === 'rejected'
+                     }">
                 </div>
-              </template>
-            </Column>
+                <span class="tw-font-mono tw-font-bold tw-text-indigo-900">{{ data.demand_code || 'N/A' }}</span>
+              </div>
+            </template>
+          </Column>
 
-            <!-- Expected Date Column -->
-            <Column field="expected_date" header="Expected Date" sortable style="width: 150px">
-              <template #body="{ data }">
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="fas fa-calendar tw-text-green-500"></i>
-                  <span>{{ formatDate(data.expected_date) }}</span>
-                </div>
-              </template>
-            </Column>
-
-            <!-- Items Count Column -->
-            <Column header="Items" style="width: 100px">
-              <template #body="{ data }">
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="fas fa-box tw-text-orange-500"></i>
-                  <Badge :value="data.items?.length || 0" severity="warning" />
-                </div>
-              </template>
-            </Column>
-
-            <!-- Status Column -->
-            <Column field="status" header="Status" sortable style="width: 120px">
-              <template #body="{ data }">
-                <Tag 
-                  :value="getStatusLabel(data.status)" 
-                  :severity="getStatusSeverity(data.status)"
-                  :icon="getStatusIcon(data.status)"
+          <!-- Service Column -->
+          <Column field="service.name" header="Service" sortable>
+            <template #body="{ data }">
+              <div class="tw-flex tw-items-center tw-gap-3">
+                <Avatar 
+                  :label="data.service?.name?.charAt(0)" 
+                  class="tw-bg-gray-500 tw-text-white"
+                  size="small"
                 />
-              </template>
-            </Column>
+                <span class="tw-font-medium tw-text-gray-800">{{ data.service?.name || 'N/A' }}</span>
+              </div>
+            </template>
+          </Column>
 
-            <!-- Notes Column -->
-            <Column field="notes" header="Notes" style="width: 200px">
-              <template #body="{ data }">
-                <span 
-                  v-if="data.notes" 
-                  class="tw-text-sm tw-text-gray-600 tw-truncate tw-block"
-                  :title="data.notes"
-                >
-                  {{ truncateText(data.notes, 50) }}
-                </span>
-                <span v-else class="tw-text-gray-400 tw-italic">No notes</span>
-              </template>
-            </Column>
-
-            <!-- Created Date Column -->
-            <Column field="created_at" header="Created" sortable style="width: 150px">
-              <template #body="{ data }">
-                <div class="tw-text-sm tw-text-gray-600">
-                  {{ formatDateTime(data.created_at) }}
+          <!-- Date & Items Column -->
+          <Column header="Details" style="width: 200px">
+            <template #body="{ data }">
+              <div class="tw-space-y-1">
+                <div class="tw-flex tw-items-center tw-gap-2 tw-text-sm">
+                  <i class="pi pi-calendar tw-text-gray-400 tw-text-xs"></i>
+                  <span class="tw-text-gray-700 tw-font-medium">{{ formatDate(data.expected_date) }}</span>
                 </div>
-              </template>
-            </Column>
-
-            <!-- Actions Column -->
-            <Column header="Actions" style="width: 150px">
-              <template #body="{ data }">
-                <div class="tw-flex tw-gap-2">
-                  <Button 
-                    icon="pi pi-eye" 
-                    class="p-button-sm p-button-info"
-                    @click="viewDemandDetails(data)"
-                    v-tooltip="'View Details'"
-                  />
-                  <Button 
-                    icon="pi pi-pencil" 
-                    class="p-button-sm p-button-warning"
-                    @click="editDemand(data)"
-                    v-tooltip="'Edit'"
-                    :disabled="data.status !== 'draft'"
-                  />
-                  <Button 
-                    icon="pi pi-send" 
-                    class="p-button-sm p-button-success"
-                    @click="sendDemand(data)"
-                    v-tooltip="'Send'"
-                    :disabled="data.status !== 'draft' || !data.items?.length"
-                  />
+                <div class="tw-flex tw-items-center tw-gap-2 tw-text-sm">
+                  <i class="pi pi-box tw-text-gray-400 tw-text-xs"></i>
+                  <span class="tw-text-gray-600">
+                    <span class="tw-font-semibold tw-text-gray-900">{{ data.items?.length || 0 }}</span> items
+                  </span>
                 </div>
-              </template>
-            </Column>
-          </DataTable>
-        </template>
-      </Card>
+              </div>
+            </template>
+          </Column>
+
+          <!-- Status Column -->
+          <Column field="status" header="Status" sortable style="width: 120px">
+            <template #body="{ data }">
+              <Tag 
+                :value="getStatusLabel(data.status)" 
+                :severity="getStatusSeverity(data.status)"
+                class="tw-px-3 tw-py-1 tw-font-semibold"
+              />
+            </template>
+          </Column>
+
+          <!-- Notes Column -->
+          <Column field="notes" header="Notes">
+            <template #body="{ data }">
+              <div v-if="data.notes" class="tw-bg-gray-50 tw-text-gray-900 tw-px-2 tw-py-1 tw-rounded tw-text-sm">
+                {{ truncateText(data.notes, 60) }}
+              </div>
+              <span v-else class="tw-text-sm tw-text-gray-400 tw-italic">No notes</span>
+            </template>
+          </Column>
+
+          <!-- Actions Column -->
+          <Column header="Actions" style="width: 140px">
+            <template #body="{ data }">
+              <div class="tw-flex tw-items-center tw-gap-1">
+                <Button 
+                  icon="pi pi-eye" 
+                  class="p-button-text p-button-sm"
+                  @click="viewDemandDetails(data)"
+                  v-tooltip.top="'View Details'"
+                />
+                <Button 
+                  icon="pi pi-pencil" 
+                  class="p-button-text p-button-sm"
+                  @click="editDemand(data)"
+                  v-tooltip.top="'Edit'"
+                  :disabled="data.status !== 'draft'"
+                />
+                <Button 
+                  icon="pi pi-send" 
+                  class="p-button-text p-button-sm"
+                  @click="sendDemand(data)"
+                  v-tooltip.top="'Send'"
+                  :disabled="data.status !== 'draft' || !data.items?.length"
+                />
+               
+              </div>
+            </template>
+          </Column>
+        </DataTable>
+      </div>
     </div>
 
     <!-- Create/Edit Dialog -->
@@ -221,7 +220,7 @@
       @update:visible="showCreateForm = $event"
       :header="editingDemand ? 'Edit Service Demand' : 'Create Service Demand'"
       :modal="true"
-      :style="{ width: '600px' }"
+      :style="{ width: '90vw', maxWidth: '600px' }"
     >
       <ServiceDemandForm 
         :demand="editingDemand"
@@ -233,7 +232,7 @@
     </Dialog>
 
     <!-- Toast for notifications -->
-    <Toast />
+    <Toast position="top-right" />
     <ConfirmDialog />
   </div>
 </template>
@@ -256,6 +255,7 @@ import Tag from 'primevue/tag'
 import Dialog from 'primevue/dialog'
 import Toast from 'primevue/toast'
 import ConfirmDialog from 'primevue/confirmdialog'
+import Avatar from 'primevue/avatar'
 
 // Custom Components
 import ServiceDemandForm from '@/Components/Apps/Purchasing/ServiceDemandForm.vue'
@@ -268,7 +268,7 @@ const router = useRouter()
 const toast = useToast()
 const confirm = useConfirm()
 
-// State
+// State - ALL UNCHANGED
 const demands = ref([])
 const services = ref([])
 const stats = ref(null)
@@ -279,7 +279,7 @@ const editingDemand = ref(null)
 const totalRecords = ref(0)
 const searchTimeout = ref(null)
 
-// Filters
+// Filters - ALL UNCHANGED
 const filters = reactive({
   search: '',
   status: null,
@@ -289,7 +289,7 @@ const filters = reactive({
   sortOrder: null
 })
 
-// Status options for dropdown
+// Status options - ALL UNCHANGED
 const statusOptions = [
   { label: 'All Status', value: null },
   { label: 'Draft', value: 'draft' },
@@ -298,7 +298,7 @@ const statusOptions = [
   { label: 'Rejected', value: 'rejected' }
 ]
 
-// Methods
+// ALL METHODS UNCHANGED (keeping exact same functionality)
 const fetchDemands = async () => {
   loading.value = true
   try {
@@ -309,14 +309,13 @@ const fetchDemands = async () => {
       page: filters.page
     }
 
-    // Add sorting if present
     if (filters.sortField) {
       params.sortField = filters.sortField
       params.sortOrder = filters.sortOrder
     }
 
     const result = await ServiceDemandService.getAll(params)
-    
+
     if (result.success) {
       demands.value = result.data.data || []
       totalRecords.value = result.data.total || 0
@@ -370,9 +369,7 @@ const refreshData = async () => {
   ])
 }
 
-// Event Handlers
 const viewDemandDetails = (demand) => {
-  // Navigate to the product details page for this service demand
   router.push({ 
     name: 'purchasing.service-demands.detail', 
     params: { id: demand.id }
@@ -386,19 +383,19 @@ const editDemand = (demand) => {
 
 const sendDemand = (demand) => {
   confirm.require({
-    message: `Are you sure you want to send "${demand.demand_code}"? This action cannot be undone.`,
+    message: `Send demand "${demand.demand_code}" for approval?`,
     header: 'Confirm Send',
     icon: 'pi pi-send',
     acceptClass: 'p-button-success',
     accept: async () => {
       try {
         const result = await ServiceDemandService.send(demand.id)
-        
+
         if (result.success) {
           toast.add({
             severity: 'success',
             summary: 'Success',
-            detail: result.message || 'Service demand sent successfully',
+            detail: 'Service demand sent successfully',
             life: 3000
           })
           await refreshData()
@@ -427,7 +424,7 @@ const handleSave = async (demandData) => {
   formLoading.value = true
   try {
     let result
-    
+
     if (editingDemand.value) {
       result = await ServiceDemandService.update(editingDemand.value.id, demandData)
     } else {
@@ -438,10 +435,10 @@ const handleSave = async (demandData) => {
       toast.add({
         severity: 'success',
         summary: 'Success',
-        detail: result.message || 'Service demand saved successfully',
+        detail: 'Service demand saved successfully',
         life: 3000
       })
-      
+
       showCreateForm.value = false
       editingDemand.value = null
       await refreshData()
@@ -471,12 +468,21 @@ const handleCancel = () => {
   editingDemand.value = null
 }
 
-// Filtering and Pagination
+const showMoreOptions = (event, data) => {
+  console.log('More options for:', data)
+}
+
+const rowClass = (data) => {
+  if (data.status === 'rejected') return 'tw-bg-red-50/30'
+  if (data.status === 'approved') return 'tw-bg-green-50/30'
+  return ''
+}
+
 const debounceSearch = () => {
   if (searchTimeout.value) {
     clearTimeout(searchTimeout.value)
   }
-  
+
   searchTimeout.value = setTimeout(() => {
     filters.page = 1
     fetchDemands()
@@ -507,24 +513,12 @@ const onSort = (event) => {
   fetchDemands()
 }
 
-// Utility Functions
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
-  }).format(new Date(dateString))
-}
-
-const formatDateTime = (dateString) => {
-  if (!dateString) return 'N/A'
-  return new Intl.DateTimeFormat('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
   }).format(new Date(dateString))
 }
 
@@ -563,7 +557,6 @@ const getStatusIcon = (status) => {
   return iconMap[status] || 'pi pi-circle'
 }
 
-// Lifecycle
 onMounted(async () => {
   await Promise.all([
     fetchServices(),
@@ -574,27 +567,28 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* Custom styles for the data table */
-:deep(.p-datatable .p-datatable-tbody > tr > td) {
-  padding: 0.75rem 0.5rem;
-  vertical-align: middle;
-}
-
+/* DataTable styling */
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  background: #f8fafc;
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
   color: #374151;
   font-weight: 600;
-  border-bottom: 2px solid #e5e7eb;
+  font-size: 0.875rem;
+  padding: 0.75rem 1rem;
 }
 
-:deep(.p-button-sm) {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+  padding: 0.75rem 1rem;
+  border-color: #e5e7eb;
 }
 
-.tw-truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+:deep(.p-datatable .p-datatable-tbody > tr:hover) {
+  background-color: #f9fafb;
+}
+
+:deep(.p-paginator) {
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-color: #e5e7eb;
 }
 </style>

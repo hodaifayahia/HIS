@@ -1403,7 +1403,7 @@ export default {
     async addStock() {
       this.submitting = true;
       try {
-        const response = await axios.post('/api/inventories', {
+        const response = await axios.post('/api/inventory', {
           product_id: this.productId,
           stockage_id: this.newStock.location_id,
           quantity: this.newStock.quantity,

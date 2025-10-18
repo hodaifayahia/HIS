@@ -40,8 +40,8 @@ protected $casts = [
         return $this->belongsTo(Doctor::class);
     }
 //create relationship between appointmenprestaiton and apponitment
- public function appointmentprestation(){
-    
+ public function appointmentPrestations(){
+    return $this->hasMany(\App\Models\Appointment\AppointmentPrestation::class, 'appointment_id');
  }
 // In Appointment model
 public function patient()

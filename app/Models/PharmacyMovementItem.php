@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PharmacyMovementItem extends Model
 {
     protected $table = 'pharmacy_stock_movement_items';
-    
+
     protected $fillable = [
         'pharmacy_stock_movement_id',
         'pharmacy_product_id',
@@ -63,7 +63,7 @@ class PharmacyMovementItem extends Model
     {
         // Get available stock for this product in the providing service
         $providingServiceId = $this->pharmacyMovement->providing_service_id;
-        
+
         return \DB::table('inventories')
             ->join('stockages', 'inventories.stockage_id', '=', 'stockages.id')
             ->where('inventories.product_id', $this->product_id)
@@ -76,6 +76,7 @@ class PharmacyMovementItem extends Model
         if ($this->quantity_by_box && $this->product && $this->product->boite_de) {
             return $this->requested_quantity * $this->product->boite_de;
         }
+
         return $this->requested_quantity;
     }
 
@@ -84,6 +85,7 @@ class PharmacyMovementItem extends Model
         if ($this->quantity_by_box && $this->product && $this->product->boite_de) {
             return $this->approved_quantity * $this->product->boite_de;
         }
+
         return $this->approved_quantity;
     }
 
@@ -92,6 +94,7 @@ class PharmacyMovementItem extends Model
         if ($this->quantity_by_box && $this->product && $this->product->boite_de) {
             return $this->executed_quantity * $this->product->boite_de;
         }
+
         return $this->executed_quantity;
     }
 
@@ -100,6 +103,7 @@ class PharmacyMovementItem extends Model
         if ($this->quantity_by_box) {
             return 'boxes';
         }
+
         return $this->product ? ($this->product->forme ?? 'units') : 'units';
     }
 
@@ -108,10 +112,10 @@ class PharmacyMovementItem extends Model
         // Get suggested quantity based on low stock threshold
         $lowStockThreshold = $this->product->low_stock_threshold ?? 10;
         $availableStock = $this->getAvailableStock();
-        
+
         // Suggest quantity to reach the max stock level
         $maxStockLevel = $this->product->max_stock_level ?? ($lowStockThreshold * 2);
-        
+
         return max(0, $maxStockLevel - $availableStock);
     }
 
@@ -143,6 +147,7 @@ class PharmacyMovementItem extends Model
         } elseif ($this->isRejected()) {
             return 'rejected';
         }
+
         return 'pending';
     }
 
@@ -154,7 +159,7 @@ class PharmacyMovementItem extends Model
 
     public function getAdministrationRouteLabel(): string
     {
-        return match($this->administration_route) {
+        return match ($this->administration_route) {
             'oral' => 'Oral',
             'iv' => 'Intravenous',
             'im' => 'Intramuscular',
@@ -169,7 +174,7 @@ class PharmacyMovementItem extends Model
 
     public function getFrequencyLabel(): string
     {
-        return match($this->frequency) {
+        return match ($this->frequency) {
             'once_daily' => 'Once daily',
             'twice_daily' => 'Twice daily',
             'three_times_daily' => 'Three times daily',
@@ -186,7 +191,7 @@ class PharmacyMovementItem extends Model
 
     public function hasContraindications(): bool
     {
-        return !empty($this->contraindications);
+        return ! empty($this->contraindications);
     }
 
     public function requiresExpiryDateCheck(): bool
@@ -197,11 +202,11 @@ class PharmacyMovementItem extends Model
     public function getTotalDailyDose(): ?float
     {
         // Calculate total daily dose based on frequency and requested quantity
-        if (!$this->requested_quantity || !$this->frequency) {
+        if (! $this->requested_quantity || ! $this->frequency) {
             return null;
         }
 
-        $dailyMultiplier = match($this->frequency) {
+        $dailyMultiplier = match ($this->frequency) {
             'once_daily' => 1,
             'twice_daily' => 2,
             'three_times_daily' => 3,

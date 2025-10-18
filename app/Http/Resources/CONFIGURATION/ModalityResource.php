@@ -78,6 +78,7 @@ class ModalityResource extends JsonResource
                         'time_slot_duration' => $schedule->time_slot_duration,
                         'slot_type' => $schedule->slot_type,
                         'is_active' => (bool) $schedule->is_active,
+                        'number_of_patients_per_day' => $schedule->number_of_patients_per_day,
                     ];
                 });
             }),
@@ -94,7 +95,8 @@ class ModalityResource extends JsonResource
         ];
     }
 
-    protected static function formatDate($date)  {
+    protected static function formatDate($date)
+    {
         // This function is used to format the date if needed
         return $date ? $date->format('Y-m-d') : null;
     }

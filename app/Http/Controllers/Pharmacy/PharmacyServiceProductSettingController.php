@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Pharmacy;
 
 use App\Http\Controllers\Controller;
-use App\Models\Pharmacy\PharmacyServiceProductSetting;
 use App\Models\Pharmacy\PharmacyProduct;
+use App\Models\Pharmacy\PharmacyServiceProductSetting;
 use App\Models\Service;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class PharmacyServiceProductSettingController extends Controller
 {
@@ -20,38 +20,38 @@ class PharmacyServiceProductSettingController extends Controller
         $validator = Validator::make([
             'service_id' => $serviceId,
             'product_param' => $productParam,
-            'product_forme' => $productForme
+            'product_forme' => $productForme,
         ], [
             'service_id' => 'required|exists:services,id',
             'product_param' => 'required',
-            'product_forme' => 'nullable|string'
+            'product_forme' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         // Find pharmacy product - could be by ID or by name
         $product = null;
-        
+
         // Try to find by ID first (for API routes)
         if (is_numeric($productParam)) {
             $product = PharmacyProduct::find($productParam);
         }
-        
+
         // If not found by ID, try by name (for web routes)
-        if (!$product) {
+        if (! $product) {
             $product = PharmacyProduct::where('name', $productParam)->first();
         }
-        
-        if (!$product) {
+
+        if (! $product) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pharmacy product not found'
+                'message' => 'Pharmacy product not found',
             ], 404);
         }
 
@@ -60,11 +60,11 @@ class PharmacyServiceProductSettingController extends Controller
 
         // Handle product_forme parameter - could be passed as URL param or query param
         $formeValue = $productForme ?: $request->get('product_forme');
-        
+
         if ($formeValue && $formeValue !== 'N/A') {
             $query->where('product_forme', $formeValue);
         } else {
-            $query->where(function($q) use ($formeValue) {
+            $query->where(function ($q) use ($formeValue) {
                 if ($formeValue === 'N/A' || $formeValue === null) {
                     $q->whereNull('product_forme');
                 } else {
@@ -75,7 +75,7 @@ class PharmacyServiceProductSettingController extends Controller
 
         $setting = $query->first();
 
-        if (!$setting) {
+        if (! $setting) {
             // Return default pharmacy settings if not found
             $setting = $this->getDefaultPharmacySettings($serviceId, $product->id, $formeValue, $product);
         }
@@ -86,8 +86,8 @@ class PharmacyServiceProductSettingController extends Controller
             'meta' => [
                 'is_controlled_substance' => $product->is_controlled_substance ?? false,
                 'requires_prescription' => $product->requires_prescription ?? false,
-                'controlled_substance_schedule' => $product->controlled_substance_schedule ?? null
-            ]
+                'controlled_substance_schedule' => $product->controlled_substance_schedule ?? null,
+            ],
         ]);
     }
 
@@ -128,14 +128,14 @@ class PharmacyServiceProductSettingController extends Controller
             'temperature_min' => 'nullable|numeric',
             'temperature_max' => 'nullable|numeric',
             'dea_reporting_required' => 'nullable|boolean',
-            'inventory_audit_frequency' => 'nullable|in:daily,weekly,monthly,quarterly'
+            'inventory_audit_frequency' => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -144,30 +144,30 @@ class PharmacyServiceProductSettingController extends Controller
 
             // Find pharmacy product - could be by ID or by name
             $product = null;
-            
+
             // Try to find by ID first (if product_id is provided)
             if ($request->has('product_id') && is_numeric($request->product_id)) {
                 $product = PharmacyProduct::find($request->product_id);
             }
-            
+
             // If not found by ID, try by name
-            if (!$product && $request->has('product_name')) {
+            if (! $product && $request->has('product_name')) {
                 $product = PharmacyProduct::where('name', $request->product_name)->first();
             }
-            
-            if (!$product) {
+
+            if (! $product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy product not found'
+                    'message' => 'Pharmacy product not found',
                 ], 404);
             }
 
             // Validate pharmacy-specific settings
             $validationResult = $this->validatePharmacySettings($request, $product);
-            if (!$validationResult['valid']) {
+            if (! $validationResult['valid']) {
                 return response()->json([
                     'success' => false,
-                    'message' => $validationResult['message']
+                    'message' => $validationResult['message'],
                 ], 422);
             }
 
@@ -180,7 +180,7 @@ class PharmacyServiceProductSettingController extends Controller
             // Check if settings already exist
             $existingSetting = PharmacyServiceProductSetting::where('service_id', $request->service_id)
                 ->where('product_id', $product->id)
-                ->where(function($query) use ($productForme) {
+                ->where(function ($query) use ($productForme) {
                     if ($productForme === null) {
                         $query->whereNull('product_forme');
                     } else {
@@ -194,7 +194,7 @@ class PharmacyServiceProductSettingController extends Controller
                 $existingSetting->update(array_merge($request->all(), [
                     'product_id' => $product->id,
                     'product_name' => $request->product_name,
-                    'product_forme' => $productForme
+                    'product_forme' => $productForme,
                 ]));
                 $setting = $existingSetting;
             } else {
@@ -203,7 +203,7 @@ class PharmacyServiceProductSettingController extends Controller
                     'service_id' => $request->service_id,
                     'product_id' => $product->id,
                     'product_name' => $request->product_name,
-                    'product_forme' => $productForme
+                    'product_forme' => $productForme,
                 ]));
             }
 
@@ -212,15 +212,16 @@ class PharmacyServiceProductSettingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Pharmacy product settings saved successfully',
-                'data' => $setting
+                'data' => $setting,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to save pharmacy product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -233,7 +234,7 @@ class PharmacyServiceProductSettingController extends Controller
         $validator = Validator::make(array_merge($request->all(), [
             'service_id' => $serviceId,
             'product_param' => $productName,
-            'product_forme' => $productForme
+            'product_forme' => $productForme,
         ]), [
             'service_id' => 'required|exists:services,id',
             'product_param' => 'required',
@@ -266,14 +267,14 @@ class PharmacyServiceProductSettingController extends Controller
             'temperature_min' => 'nullable|numeric',
             'temperature_max' => 'nullable|numeric',
             'dea_reporting_required' => 'nullable|boolean',
-            'inventory_audit_frequency' => 'nullable|in:daily,weekly,monthly,quarterly'
+            'inventory_audit_frequency' => 'nullable|in:daily,weekly,monthly,quarterly',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -282,21 +283,21 @@ class PharmacyServiceProductSettingController extends Controller
 
             // Find pharmacy product - could be by ID or by name
             $product = null;
-            
+
             // Try to find by ID first (for API routes)
             if (is_numeric($productName)) {
                 $product = PharmacyProduct::find($productName);
             }
-            
+
             // If not found by ID, try by name (for web routes)
-            if (!$product) {
+            if (! $product) {
                 $product = PharmacyProduct::where('name', $productName)->first();
             }
-            
-            if (!$product) {
+
+            if (! $product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy product not found'
+                    'message' => 'Pharmacy product not found',
                 ], 404);
             }
 
@@ -306,7 +307,7 @@ class PharmacyServiceProductSettingController extends Controller
             if ($productForme && $productForme !== 'N/A') {
                 $query->where('product_forme', $productForme);
             } else {
-                $query->where(function($q) use ($productForme) {
+                $query->where(function ($q) use ($productForme) {
                     if ($productForme === 'N/A' || $productForme === null) {
                         $q->whereNull('product_forme');
                     } else {
@@ -317,19 +318,19 @@ class PharmacyServiceProductSettingController extends Controller
 
             $setting = $query->first();
 
-            if (!$setting) {
+            if (! $setting) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy product settings not found'
+                    'message' => 'Pharmacy product settings not found',
                 ], 404);
             }
 
             // Validate pharmacy-specific settings
             $validationResult = $this->validatePharmacySettings($request, $product);
-            if (!$validationResult['valid']) {
+            if (! $validationResult['valid']) {
                 return response()->json([
                     'success' => false,
-                    'message' => $validationResult['message']
+                    'message' => $validationResult['message'],
                 ], 422);
             }
 
@@ -340,15 +341,16 @@ class PharmacyServiceProductSettingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Pharmacy product settings updated successfully',
-                'data' => $setting
+                'data' => $setting,
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update pharmacy product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -361,39 +363,39 @@ class PharmacyServiceProductSettingController extends Controller
         $validator = Validator::make([
             'service_id' => $serviceId,
             'product_param' => $productName,
-            'product_forme' => $productForme
+            'product_forme' => $productForme,
         ], [
             'service_id' => 'required|exists:services,id',
             'product_param' => 'required',
-            'product_forme' => 'nullable|string'
+            'product_forme' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             // Find pharmacy product - could be by ID or by name
             $product = null;
-            
+
             // Try to find by ID first (for API routes)
             if (is_numeric($productName)) {
                 $product = PharmacyProduct::find($productName);
             }
-            
+
             // If not found by ID, try by name (for web routes)
-            if (!$product) {
+            if (! $product) {
                 $product = PharmacyProduct::where('name', $productName)->first();
             }
-            
-            if (!$product) {
+
+            if (! $product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy product not found'
+                    'message' => 'Pharmacy product not found',
                 ], 404);
             }
 
@@ -403,7 +405,7 @@ class PharmacyServiceProductSettingController extends Controller
             if ($productForme && $productForme !== 'N/A') {
                 $query->where('product_forme', $productForme);
             } else {
-                $query->where(function($q) use ($productForme) {
+                $query->where(function ($q) use ($productForme) {
                     if ($productForme === 'N/A' || $productForme === null) {
                         $q->whereNull('product_forme');
                     } else {
@@ -414,10 +416,10 @@ class PharmacyServiceProductSettingController extends Controller
 
             $setting = $query->first();
 
-            if (!$setting) {
+            if (! $setting) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy product settings not found'
+                    'message' => 'Pharmacy product settings not found',
                 ], 404);
             }
 
@@ -425,14 +427,14 @@ class PharmacyServiceProductSettingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Pharmacy product settings deleted successfully'
+                'message' => 'Pharmacy product settings deleted successfully',
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete pharmacy product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -443,14 +445,14 @@ class PharmacyServiceProductSettingController extends Controller
     public function getByService(Request $request, $serviceId)
     {
         $validator = Validator::make(['service_id' => $serviceId], [
-            'service_id' => 'required|exists:services,id'
+            'service_id' => 'required|exists:services,id',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -459,8 +461,8 @@ class PharmacyServiceProductSettingController extends Controller
 
         // Apply filters
         if ($request->has('product_name')) {
-            $query->whereHas('product', function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->product_name . '%');
+            $query->whereHas('product', function ($q) use ($request) {
+                $q->where('name', 'like', '%'.$request->product_name.'%');
             });
         }
 
@@ -493,8 +495,8 @@ class PharmacyServiceProductSettingController extends Controller
             'meta' => [
                 'controlled_count' => $query->where('controlled_substance_tracking', true)->count(),
                 'prescription_count' => $query->where('prescription_required', true)->count(),
-                'temperature_monitored_count' => $query->where('temperature_monitoring', true)->count()
-            ]
+                'temperature_monitored_count' => $query->where('temperature_monitoring', true)->count(),
+            ],
         ]);
     }
 
@@ -508,14 +510,14 @@ class PharmacyServiceProductSettingController extends Controller
             'settings' => 'required|array',
             'settings.*.product_id' => 'required|exists:pharmacy_products,id',
             'settings.*.product_name' => 'required|string|max:255',
-            'settings.*.product_forme' => 'nullable|string|max:255'
+            'settings.*.product_forme' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
@@ -528,39 +530,41 @@ class PharmacyServiceProductSettingController extends Controller
             foreach ($request->settings as $index => $settingData) {
                 try {
                     $product = PharmacyProduct::find($settingData['product_id']);
-                    if (!$product) {
+                    if (! $product) {
                         $errors[$index] = 'Pharmacy product not found';
+
                         continue;
                     }
 
                     // Validate pharmacy-specific settings for this product
                     $validationResult = $this->validatePharmacySettings(new Request($settingData), $product);
-                    if (!$validationResult['valid']) {
+                    if (! $validationResult['valid']) {
                         $errors[$index] = $validationResult['message'];
+
                         continue;
                     }
 
                     $productForme = $settingData['product_forme'] ?? null;
-                    
+
                     if ($productForme === 'N/A') {
                         $productForme = null;
                     }
-                    
+
                     $setting = PharmacyServiceProductSetting::updateOrCreate(
                         [
                             'service_id' => $serviceId,
                             'product_id' => $settingData['product_id'],
-                            'product_forme' => $productForme
+                            'product_forme' => $productForme,
                         ],
                         array_merge($settingData, [
                             'service_id' => $serviceId,
                             'product_id' => $settingData['product_id'],
-                            'product_forme' => $productForme
+                            'product_forme' => $productForme,
                         ])
                     );
                     $results[] = $setting;
                 } catch (\Exception $e) {
-                    $errors[$index] = 'Failed to save: ' . $e->getMessage();
+                    $errors[$index] = 'Failed to save: '.$e->getMessage();
                 }
             }
 
@@ -570,10 +574,10 @@ class PharmacyServiceProductSettingController extends Controller
                 'success' => empty($errors),
                 'message' => empty($errors) ? 'Bulk pharmacy product settings updated successfully' : 'Some settings failed to update',
                 'data' => $results,
-                'updated_count' => count($results)
+                'updated_count' => count($results),
             ];
 
-            if (!empty($errors)) {
+            if (! empty($errors)) {
                 $response['errors'] = $errors;
             }
 
@@ -581,10 +585,11 @@ class PharmacyServiceProductSettingController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to bulk update pharmacy product settings',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -623,7 +628,7 @@ class PharmacyServiceProductSettingController extends Controller
      */
     private function getDefaultPharmacySettings($serviceId, $productId, $forme = null, $product = null)
     {
-        if (!$product) {
+        if (! $product) {
             $product = PharmacyProduct::find($productId);
         }
 
@@ -635,7 +640,7 @@ class PharmacyServiceProductSettingController extends Controller
             'product_id' => $productId,
             'product_name' => $product ? $product->name : 'Unknown Pharmacy Product',
             'product_forme' => $forme,
-            
+
             // Default Alert Settings
             'low_stock_threshold' => $isControlled ? 5 : 10,
             'critical_stock_threshold' => $isControlled ? 2 : 5,
@@ -643,23 +648,23 @@ class PharmacyServiceProductSettingController extends Controller
             'reorder_point' => $isControlled ? 5 : 10,
             'expiry_alert_days' => 30,
             'min_shelf_life_days' => 90,
-            
+
             // Default Notification Settings
             'email_alerts' => true,
             'sms_alerts' => $isControlled,
             'alert_frequency' => $isControlled ? 'immediate' : 'daily',
             'preferred_supplier' => null,
-            
+
             // Default Inventory Settings
             'batch_tracking' => true,
             'location_tracking' => true,
             'auto_reorder' => false,
-            
+
             // Default Display Settings
             'custom_name' => null,
             'color_code' => $isControlled ? 'red' : 'default',
             'priority' => $isControlled ? 'high' : 'normal',
-            
+
             // Pharmacy-specific defaults
             'controlled_substance_tracking' => $isControlled,
             'requires_pharmacist_verification' => $isControlled || $requiresPrescription,
@@ -672,7 +677,7 @@ class PharmacyServiceProductSettingController extends Controller
             'temperature_min' => $product->temperature_range_min ?? null,
             'temperature_max' => $product->temperature_range_max ?? null,
             'dea_reporting_required' => $isControlled,
-            'inventory_audit_frequency' => $isControlled ? 'daily' : 'weekly'
+            'inventory_audit_frequency' => $isControlled ? 'daily' : 'weekly',
         ];
     }
 }

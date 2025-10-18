@@ -19,6 +19,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\ContractPercentage;
 
 class ConventionController extends Controller
 {
@@ -39,7 +40,7 @@ class ConventionController extends Controller
             $organismeId = $request->get('organisme_id');
             $organismeIds = $request->get('organisme_ids'); // Accept multiple ids
 
-            $query = Convention::with(['conventionDetail', 'organisme', 'annexes']);
+            $query = Convention::with(['conventionDetail', 'organisme', 'annexes', 'contractPercentages']);
 
             if ($search) {
                 $query->where('contract_name', 'like', '%' . $search . '%');
@@ -230,9 +231,23 @@ private function formatAuthorizationLabel(string $auth): string
     public function store(StoreConventionRequest $request ): JsonResponse
     {
         try {
+            DB::beginTransaction();
+
             $convention = $this->conventionService->createConvention(
                 $request->validated()
             );
+
+            // Save percentages if provided
+            if ($request->has('percentages') && is_array($request->percentages)) {
+                foreach ($request->percentages as $percentageData) {
+                    ContractPercentage::create([
+                        'contract_id' => $convention->id,
+                        'percentage' => $percentageData['percentage'],
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -241,6 +256,7 @@ private function formatAuthorizationLabel(string $auth): string
             ], 201);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create convention',
@@ -256,7 +272,7 @@ private function formatAuthorizationLabel(string $auth): string
     public function show(Convention $convention): JsonResponse
     {
         try {
-            $convention->load(['conventionDetail', 'organisme']);
+            $convention->load(['conventionDetail', 'organisme', 'contractPercentages']);
 
             return response()->json([
                 'success' => true,
@@ -279,10 +295,28 @@ private function formatAuthorizationLabel(string $auth): string
     public function update(UpdateConventionRequest $request, Convention $convention): JsonResponse
     {
         try {
+            DB::beginTransaction();
+
             $updatedConvention = $this->conventionService->updateConvention(
                 $convention,
                 $request->validated()
             );
+
+            // Update percentages if provided
+            if ($request->has('percentages') && is_array($request->percentages)) {
+                // Delete existing percentages
+                $convention->contractPercentages()->delete();
+
+                // Create new ones
+                foreach ($request->percentages as $percentageData) {
+                    ContractPercentage::create([
+                        'contract_id' => $convention->id,
+                        'percentage' => $percentageData['percentage'],
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -291,6 +325,7 @@ private function formatAuthorizationLabel(string $auth): string
             ]);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update convention',
@@ -396,6 +431,51 @@ private function formatAuthorizationLabel(string $auth): string
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to terminate convention.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Extend the specified convention.
+     * POST /conventions/{conventionId}/extend
+     */
+    public function extend(Request $request, int $conventionId): JsonResponse
+    {
+        try {
+            $request->validate([
+                'new_end_date' => 'required|date|after:today',
+                'reason' => 'nullable|string|max:255',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $result = $this->conventionService->extendConvention($conventionId, $request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contract extended successfully',
+                'data' => $result
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            // Check if it's the maximum extension error
+            if (str_contains($e->getMessage(), 'Maximum extension limit')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'error' => 'MAX_EXTENSIONS_REACHED'
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to extend contract',
                 'error' => $e->getMessage()
             ], 500);
         }

@@ -2,42 +2,52 @@
 
 namespace App\Models\Reception;
 
-use Illuminate\Database\Eloquent\Model;
-use App\Models\CONFIGURATION\Prestation;
-use App\Models\CONFIGURATION\PrestationPackage;
-use App\Models\CONFIGURATION\PrestationPackageitem;
 use App\Models\B2B\Convention;
-use App\Models\User;
+use App\Models\CONFIGURATION\Prestation;
+use App\Models\CONFIGURATION\PrestationPackageitem;
 use App\Models\Patient;
+use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 class ficheNavetteItem extends Model
 {
+    protected $table = 'fiche_navette_items';
+
     protected $fillable = [
         'fiche_navette_id',
         'prestation_id', // Can be null for packages
-        'package_id', // For package items
-        'convention_id',
-        'insured_id',
-        'doctor_id',
         'status',
         'base_price',
-        'custom_name',
-        'discounted_price',
         'final_price',
-        'payment_status',
-        'payment_method',
         'patient_share',
+        'organisme_share',
+        'primary_clinician_id',
+        'assistant_clinician_id',
+        'technician_id',
+        'modality_id',
+        'convention_id',
+        'doctor_id',
+        'patient_id',
+        'uploaded_file',
+        'family_authorization',
+        'prise_en_charge_date',
+        'package_id',
+        'remise_id',
+        'insured_id',
         'remaining_amount',
         'paid_amount',
-        'prise_en_charge_date',
-        'family_authorization',
-        'uploaded_file',
-        'notes',
+        'payment_status',
+        'payment_method',
+        'default_payment_type',
+        'is_nursing_consumption',
     ];
 
     protected $casts = [
         'family_authorization' => 'array',
+        // Ensure uploaded files are stored/returned as JSON arrays
+        'uploaded_file' => 'array',
         'prise_en_charge_date' => 'date',
+        'is_nursing_consumption' => 'boolean',
     ];
 
     /**
@@ -62,7 +72,7 @@ class ficheNavetteItem extends Model
     public function packagePrestations()
     {
         return $this->hasMany(PrestationPackageitem::class, 'prestation_package_id', 'package_id')
-                   ->with('prestation');
+            ->with('prestation');
     }
 
     /**
@@ -105,12 +115,17 @@ class ficheNavetteItem extends Model
         return $this->hasMany(ItemDependency::class, 'parent_item_id');
     }
 
+    public function nursingConsumptions()
+    {
+        return $this->hasMany(\App\Models\Nursing\PatientConsumption::class, 'fiche_navette_item_id');
+    }
+
     /**
      * Check if this item is a package
      */
     public function isPackage(): bool
     {
-        return !is_null($this->package_id) && is_null($this->prestation_id);
+        return ! is_null($this->package_id) && is_null($this->prestation_id);
     }
 
     /**
@@ -118,6 +133,11 @@ class ficheNavetteItem extends Model
      */
     public function isPrestation(): bool
     {
-        return !is_null($this->prestation_id) && is_null($this->package_id);
+        return ! is_null($this->prestation_id) && is_null($this->package_id);
+    }
+
+    public function appointment()
+    {
+        return $this->hasMany(\App\Models\Appointment::class);
     }
 }

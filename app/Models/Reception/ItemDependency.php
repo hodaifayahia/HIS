@@ -26,6 +26,7 @@ class ItemDependency extends Model
         'organisme_share',
         'notes',
         'custom_name' ,// Add this field
+        'default_payment_type',
         'is_package'
     ];
 

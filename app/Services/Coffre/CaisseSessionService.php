@@ -1,72 +1,72 @@
 <?php
+
 // app/Services/Coffre/CaisseSessionService.php
 
 namespace App\Services\Coffre;
 
+use App\Models\Caisse\CaisseTransfer;
 use App\Models\Coffre\Caisse;
-use App\Models\Coffre\Coffre;
 use App\Models\Coffre\CaisseSession;
 use App\Models\Coffre\CaisseSessionDenomination;
-use App\Models\Caisse\CaisseTransfer;
+use App\Models\Coffre\Coffre;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 
 class CaisseSessionService
 {
     public function getAllPaginated(array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
         $query = CaisseSession::with([
-            'caisse', 
-            'user', 
-            'openedBy', 
-            'closedBy', 
-            'sourceCoffre', 
-            'destinationCoffre'
+            'caisse',
+            'user',
+            'openedBy',
+            'closedBy',
+            'sourceCoffre',
+            'destinationCoffre',
         ])->latest('opened_at');
 
         // Apply filters
-        if (!empty($filters['caisse_id'])) {
+        if (! empty($filters['caisse_id'])) {
             $query->where('caisse_id', $filters['caisse_id']);
         }
 
-        if (!empty($filters['user_id'])) {
+        if (! empty($filters['user_id'])) {
             $query->where('user_id', $filters['user_id']);
         }
 
-        if (!empty($filters['open_by'])) {
+        if (! empty($filters['open_by'])) {
             $query->where('open_by', $filters['open_by']);
         }
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('opened_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('opened_at', '<=', $filters['date_to']);
         }
 
-        if (!empty($filters['search'])) {
+        if (! empty($filters['search'])) {
             $query->where(function ($q) use ($filters) {
                 $q->where('opening_notes', 'like', "%{$filters['search']}%")
-                  ->orWhere('closing_notes', 'like', "%{$filters['search']}%")
-                  ->orWhereHas('caisse', function ($caisseQuery) use ($filters) {
-                      $caisseQuery->where('name', 'like', "%{$filters['search']}%");
-                  })
-                  ->orWhereHas('user', function ($userQuery) use ($filters) {
-                      $userQuery->where('name', 'like', "%{$filters['search']}%");
-                  })
-                  ->orWhereHas('openedBy', function ($userQuery) use ($filters) {
-                      $userQuery->where('name', 'like', "%{$filters['search']}%");
-                  });
+                    ->orWhere('closing_notes', 'like', "%{$filters['search']}%")
+                    ->orWhereHas('caisse', function ($caisseQuery) use ($filters) {
+                        $caisseQuery->where('name', 'like', "%{$filters['search']}%");
+                    })
+                    ->orWhereHas('user', function ($userQuery) use ($filters) {
+                        $userQuery->where('name', 'like', "%{$filters['search']}%");
+                    })
+                    ->orWhereHas('openedBy', function ($userQuery) use ($filters) {
+                        $userQuery->where('name', 'like', "%{$filters['search']}%");
+                    });
             });
         }
 
@@ -76,13 +76,13 @@ class CaisseSessionService
     public function findById(int $id): CaisseSession
     {
         return CaisseSession::with([
-            'caisse', 
-            'user', 
-            'openedBy', 
-            'closedBy', 
-            'sourceCoffre', 
+            'caisse',
+            'user',
+            'openedBy',
+            'closedBy',
+            'sourceCoffre',
             'destinationCoffre',
-            'denominations'
+            'denominations',
         ])->findOrFail($id);
     }
 
@@ -92,7 +92,7 @@ class CaisseSessionService
             $currentUser = Auth::user();
 
             // use provided user_id if present, otherwise fall back to authenticated user id
-            $userId = $data['user_id'] ;
+            $userId = $data['user_id'];
 
             // Prevent the same user from having more than one open session
             $userHasOpen = CaisseSession::open()
@@ -105,16 +105,16 @@ class CaisseSessionService
 
             // Check if caisse already has an open session
             $existingSession = CaisseSession::open()
-                                          ->where('caisse_id', $data['caisse_id'])
-                                          ->first();
-            
+                ->where('caisse_id', $data['caisse_id'])
+                ->first();
+
             if ($existingSession) {
                 throw new \Exception('This cash register already has an open session.');
             }
 
             // Validate caisse is active
             $caisse = Caisse::findOrFail($data['caisse_id']);
-            if (!$caisse->is_active) {
+            if (! $caisse->is_active) {
                 throw new \Exception('Cannot open session on inactive cash register.');
             }
 
@@ -124,7 +124,7 @@ class CaisseSessionService
                 'open_by' => $currentUser->id,
                 'coffre_id_source' => $data['coffre_id_source'] ?? null,
                 'opened_at' => now(),
-                
+
                 'opening_amount' => $data['opening_amount'] ?? 0,
                 'status' => 'open',
                 'opening_notes' => $data['opening_notes'] ?? null,
@@ -132,7 +132,7 @@ class CaisseSessionService
 
             // Optionally create a session transfer at the same time as opening the session
             // Accept either a dedicated 'transfer' array or top-level 'to_user_id' + amount fields
-            if (!empty($data['transfer']) || !empty($data['to_user_id'])) {
+            if (! empty($data['transfer']) || ! empty($data['to_user_id'])) {
                 $transferPayload = $data['transfer'] ?? [];
                 $toUserId = $transferPayload['to_user_id'] ?? ($data['to_user_id'] ?? null);
                 $amountSended = $transferPayload['amount_sended'] ?? ($data['transfer_amount'] ?? ($data['opening_amount'] ?? 0));
@@ -163,14 +163,14 @@ class CaisseSessionService
                         \Log::error('Failed to generate transfer token on session open', [
                             'caisse_session_id' => $session->id,
                             'transfer_id' => $transfer->id ?? null,
-                            'error' => $ex->getMessage()
+                            'error' => $ex->getMessage(),
                         ]);
                     }
                 }
             }
 
             // If source coffre specified, create withdrawal transaction
-            if (!empty($data['coffre_id_source']) && ($session->opening_amount > 0)) {
+            if (! empty($data['coffre_id_source']) && ($session->opening_amount > 0)) {
                 $this->createCoffreTransaction(
                     $data['coffre_id_source'],
                     'withdrawal',
@@ -187,12 +187,12 @@ class CaisseSessionService
             } else {
                 Cache::forget('caisse_sessions_all');
             }
-            
+
             return $session->load([
-                'caisse', 
-                'user', 
-                'openedBy', 
-                'sourceCoffre'
+                'caisse',
+                'user',
+                'openedBy',
+                'sourceCoffre',
             ]);
         });
     }
@@ -201,26 +201,26 @@ class CaisseSessionService
     {
         return DB::transaction(function () use ($session, $data) {
             $currentUser = Auth::user();
-            
-            if (!$session->canBeClosed()) {
+
+            if (! $session->canBeClosed()) {
                 throw new \Exception('This session cannot be closed.');
             }
 
             // Calculate total from denominations
             $totalCashCounted = 0;
-            if (!empty($data['denominations'])) {
+            if (! empty($data['denominations'])) {
                 foreach ($data['denominations'] as $denomination) {
                     if ($denomination['quantity'] > 0) {
                         $totalCashCounted += $denomination['value'] * $denomination['quantity'];
                     }
                 }
             }
-            //TODO
+            // TODO
             // Validate closing amount
             if ($data['closing_amount'] < 0) {
                 throw new \Exception('Closing amount cannot be negative.');
             }
-$data['closing_amount'] = $totalCashCounted;
+            $data['closing_amount'] = $totalCashCounted;
             // Update session
             $session->update([
                 'closed_at' => now(),
@@ -232,10 +232,10 @@ $data['closing_amount'] = $totalCashCounted;
                 'coffre_id_destination' => $data['coffre_id_destination'] ?? null,
                 'status' => 'closed',
                 'closing_notes' => $data['closing_notes'] ?? null,
-             ]);
+            ]);
 
             // Save denominations
-            if (!empty($data['denominations'])) {
+            if (! empty($data['denominations'])) {
                 foreach ($data['denominations'] as $denomination) {
                     if ($denomination['quantity'] > 0) {
                         CaisseSessionDenomination::create([
@@ -250,7 +250,7 @@ $data['closing_amount'] = $totalCashCounted;
             }
 
             // Transfer cash to destination coffre if specified
-            if (!empty($data['coffre_id_destination']) && $totalCashCounted > 0) {
+            if (! empty($data['coffre_id_destination']) && $totalCashCounted > 0) {
                 $this->createCoffreTransaction(
                     $data['coffre_id_destination'],
                     'deposit',
@@ -268,15 +268,15 @@ $data['closing_amount'] = $totalCashCounted;
                 Cache::forget('caisse_sessions_all');
                 Cache::forget('coffres_all');
             }
-            
+
             return $session->refresh()->load([
-                'caisse', 
-                'user', 
-                'openedBy', 
-                'closedBy', 
-                'sourceCoffre', 
-                'destinationCoffre', 
-                'denominations'
+                'caisse',
+                'user',
+                'openedBy',
+                'closedBy',
+                'sourceCoffre',
+                'destinationCoffre',
+                'denominations',
             ]);
         });
     }
@@ -289,14 +289,14 @@ $data['closing_amount'] = $totalCashCounted;
             }
 
             $session->update(['status' => 'suspended']);
-            
+
             $store = Cache::getStore();
             if (method_exists($store, 'tags')) {
                 Cache::tags(['caisse_sessions'])->flush();
             } else {
                 Cache::forget('caisse_sessions_all');
             }
-            
+
             return $session->refresh();
         });
     }
@@ -309,14 +309,14 @@ $data['closing_amount'] = $totalCashCounted;
             }
 
             $session->update(['status' => 'open']);
-            
+
             $store = Cache::getStore();
             if (method_exists($store, 'tags')) {
                 Cache::tags(['caisse_sessions'])->flush();
             } else {
                 Cache::forget('caisse_sessions_all');
             }
-            
+
             return $session->refresh();
         });
     }
@@ -330,7 +330,7 @@ $data['closing_amount'] = $totalCashCounted;
         DB::transaction(function () use ($session) {
             // Delete associated denominations
             $session->denominations()->delete();
-            
+
             $session->delete();
             $store = Cache::getStore();
             if (method_exists($store, 'tags')) {
@@ -344,24 +344,24 @@ $data['closing_amount'] = $totalCashCounted;
     public function getActiveSessions(): Collection
     {
         return CaisseSession::active()
-                           ->with([
-                               'caisse', 
-                               'user', 
-                               'openedBy', 
-                               'sourceCoffre'
-                           ])
-                           ->orderBy('opened_at', 'desc')
-                           ->get();
+            ->with([
+                'caisse',
+                'user',
+                'openedBy',
+                'sourceCoffre',
+            ])
+            ->orderBy('opened_at', 'desc')
+            ->get();
     }
 
     public function getCaissesForSelect(): Collection
     {
         return Cache::remember('active_caisses_for_sessions', 300, function () {
             return Caisse::active()
-                         ->with('service')
-                         ->select('id', 'name', 'location', 'service_id', 'is_active')
-                         ->orderBy('name')
-                         ->get();
+                ->with('service')
+                ->select('id', 'name', 'location', 'service_id', 'is_active')
+                ->orderBy('name')
+                ->get();
         });
     }
 
@@ -369,8 +369,8 @@ $data['closing_amount'] = $totalCashCounted;
     {
         return Cache::remember('coffres_for_sessions', 300, function () {
             return Coffre::select('id', 'name', 'location', 'current_balance')
-                         ->orderBy('name')
-                         ->get();
+                ->orderBy('name')
+                ->get();
         });
     }
 
@@ -378,8 +378,8 @@ $data['closing_amount'] = $totalCashCounted;
     {
         return Cache::remember('users_for_sessions', 300, function () {
             return User::select('id', 'name', 'email')
-                       ->orderBy('name')
-                       ->get();
+                ->orderBy('name')
+                ->get();
         });
     }
 
@@ -390,8 +390,8 @@ $data['closing_amount'] = $totalCashCounted;
                 'total_sessions' => CaisseSession::count(),
                 'open_sessions' => CaisseSession::open()->count(),
                 'closed_today' => CaisseSession::closed()
-                                               ->whereDate('cloture_at', today())
-                                               ->count(),
+                    ->whereDate('cloture_at', today())
+                    ->count(),
                 'suspended_sessions' => CaisseSession::where('status', 'suspended')->count(),
                 'average_session_duration' => $this->getAverageSessionDuration(),
                 'total_variance_today' => $this->getTotalVarianceToday(),
@@ -399,25 +399,27 @@ $data['closing_amount'] = $totalCashCounted;
             ];
         });
     }
+
     public function getUserSessions(): array
     {
         $userId = Auth::id();
-        
+
         // Get active sessions
         $activeSessions = CaisseSession::where('user_id', $userId)
-                           ->where('status', 'open')
-                           ->where('is_transfer', false)
-                           ->with(['caisse', 'user', 'openedBy', 'sourceCoffre'])
-                           ->orderBy('opened_at', 'desc')
-                           ->get();
+            ->where('status', 'open')
+            ->where('is_transfer', false)
+            ->with(['caisse', 'user', 'openedBy', 'sourceCoffre'])
+            ->orderBy('opened_at', 'desc')
+            ->get();
 
         // Get transferred sessions
         $transferredSessions = CaisseTransfer::where('to_user_id', $userId)
-                           ->where('status', 'transferred')
-                           ->whereDate('created_at', today())
-                           ->with(['caisse', 'fromUser', 'toUser'])
-                           ->orderBy('created_at', 'desc')
-                           ->get();
+            ->where('status', 'transferred')
+            ->whereDate('created_at', today())
+            ->with(['caisse', 'fromUser', 'toUser'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
         // Return both collections separately
         return [
             'sessions' => $activeSessions,
@@ -425,7 +427,7 @@ $data['closing_amount'] = $totalCashCounted;
             'has_active_session' => $activeSessions->isNotEmpty(),
             'has_transfers' => $transferredSessions->isNotEmpty(),
             'active_count' => $activeSessions->count(),
-            'transfer_count' => $transferredSessions->count()
+            'transfer_count' => $transferredSessions->count(),
         ];
     }
 
@@ -442,22 +444,22 @@ $data['closing_amount'] = $totalCashCounted;
     }
 
     private function createCoffreTransaction(
-        int $coffreId, 
-        string $type, 
-        float $amount, 
-        string $description, 
-        int $userId, 
+        int $coffreId,
+        string $type,
+        float $amount,
+        string $description,
+        int $userId,
         int $sessionId
     ): void {
         $coffre = Coffre::findOrFail($coffreId);
-        
+
         // Update coffre balance
         if ($type === 'deposit') {
             $coffre->increment('current_balance', $amount);
         } else {
             $coffre->decrement('current_balance', $amount);
         }
-        
+
         // Create transaction record if CoffreTransaction model exists
         if (class_exists(\App\Models\Coffre\CoffreTransaction::class)) {
             \App\Models\Coffre\CoffreTransaction::create([
@@ -474,11 +476,13 @@ $data['closing_amount'] = $totalCashCounted;
     private function getAverageSessionDuration(): ?float
     {
         $sessions = CaisseSession::closed()
-                                 ->whereNotNull('cloture_at')
-                                 ->whereDate('cloture_at', '>=', now()->subDays(30))
-                                 ->get();
+            ->whereNotNull('cloture_at')
+            ->whereDate('cloture_at', '>=', now()->subDays(30))
+            ->get();
 
-        if ($sessions->isEmpty()) return null;
+        if ($sessions->isEmpty()) {
+            return null;
+        }
 
         $totalMinutes = $sessions->sum(function ($session) {
             return $session->duration_in_minutes;
@@ -490,18 +494,18 @@ $data['closing_amount'] = $totalCashCounted;
     private function getTotalVarianceToday(): float
     {
         return CaisseSession::closed()
-                           ->whereDate('cloture_at', today())
-                           ->whereNotNull('cash_difference')
-                           ->sum('cash_difference');
+            ->whereDate('cloture_at', today())
+            ->whereNotNull('cash_difference')
+            ->sum('cash_difference');
     }
 
     private function getTotalCashHandledToday(): float
     {
         return CaisseSession::whereDate('opened_at', today())
-                           ->sum('opening_amount') +
+            ->sum('opening_amount') +
                CaisseSession::closed()
-                           ->whereDate('cloture_at', today())
-                           ->whereNotNull('closing_amount')
-                           ->sum('closing_amount');
+                   ->whereDate('cloture_at', today())
+                   ->whereNotNull('closing_amount')
+                   ->sum('closing_amount');
     }
 }

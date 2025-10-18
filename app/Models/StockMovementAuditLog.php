@@ -43,7 +43,7 @@ class StockMovementAuditLog extends Model
     // Helper methods
     public function getFormattedChangesAttribute(): string
     {
-        if (!$this->old_values || !$this->new_values) {
+        if (! $this->old_values || ! $this->new_values) {
             return 'No changes recorded';
         }
 

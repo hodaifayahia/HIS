@@ -20,11 +20,20 @@ const estimatedTotal = computed(() => {
     const price = parseFloat(props.form.public_price) || 0;
     const vatRate = parseFloat(props.form.vat_rate) || 0;
     const consumables = parseFloat(props.form.consumables_cost) || 0;
+    const tvaConsumables = props.form.tva_const_prestation !== undefined && props.form.tva_const_prestation !== null ? parseFloat(props.form.tva_const_prestation) : null;
     const nightTariff = props.form.Tarif_de_nuit_is_active ? (parseFloat(props.form.night_tariff) || 0) : 0;
     const basePrice = price;
 
-    const vatAmount = (basePrice * vatRate) / 100;
-    const total = basePrice + vatAmount + consumables ;
+    let total = 0;
+    if (tvaConsumables !== null && tvaConsumables > 0) {
+        // Apply general VAT to base price and separate VAT to consumables
+        const ttcBase = basePrice * (1 + vatRate / 100);
+        const ttcConsumables = consumables * (1 + tvaConsumables / 100);
+        total = ttcBase + ttcConsumables;
+    } else {
+        const vatAmount = (basePrice * vatRate) / 100;
+        total = basePrice + vatAmount + consumables;
+    }
 
     return new Intl.NumberFormat('en-US', {
         style: 'currency',
@@ -73,6 +82,14 @@ const estimatedTotal = computed(() => {
                         {{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'DZD' }).format(parseFloat(form.consumables_cost) || 0) }}
                     </span>
                 </div>
+                    <div v-if="form.tva_const_prestation !== null && form.tva_const_prestation !== undefined" class="breakdown-item">
+                        <span class="breakdown-label">Consumables VAT ({{ form.tva_const_prestation || 0 }}%):</span>
+                        <span class="breakdown-value">
+                            {{ new Intl.NumberFormat('en-US', { style: 'currency', currency: 'DZD' }).format(
+                                ((parseFloat(form.consumables_cost) || 0) * (parseFloat(form.tva_const_prestation) || 0)) / 100
+                            ) }}
+                        </span>
+                    </div>
             </div>
         </div>
 
@@ -96,7 +113,7 @@ const estimatedTotal = computed(() => {
                         <span v-if="errors.public_price" class="error-message">{{ errors.public_price }}</span>
                     </div>
                     <div class="form-group">
-                        <label class="form-label "> convenience Price </label>
+                        <label class="form-label "> convenience Price  (HT):</label>
                         <div class="input-with-icon">
                             <i class="fas fa-dollar-sign input-icon"></i>
                             <input v-model="form.convenience_prix" type="number" step="0.01" class="form-input with-icon"
@@ -124,6 +141,15 @@ const estimatedTotal = computed(() => {
                         </div>
                         <span v-if="errors.consumables_cost" class="error-message">{{ errors.consumables_cost }}</span>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Consumables VAT Rate (%)</label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-percentage input-icon"></i>
+                            <input v-model="form.tva_const_prestation" type="number" step="0.01" class="form-input with-icon"
+                                :class="{ 'error': errors.tva_const_prestation }" placeholder="(optional)" />
+                        </div>
+                        <span v-if="errors.tva_const_prestation" class="error-message">{{ errors.tva_const_prestation }}</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -148,7 +174,7 @@ const estimatedTotal = computed(() => {
                 </div>
 
                 <div v-if="form.Tarif_de_nuit_is_active" class="form-group">
-                    <label class="form-label required">Night Tariff (TTC)</label>
+                    <label class="form-label required">Night Tariff (HT)</label>
                     <div class="input-with-icon">
                         <i class="fas fa-moon input-icon"></i>
                         <input v-model="form.night_tariff" type="number" step="0.01" class="form-input with-icon"
@@ -210,7 +236,7 @@ const estimatedTotal = computed(() => {
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">Minimum Deposit Amount</label>
+                        <label class="form-label">Minimum Deposit Amount (HT)</label>
                         <div class="input-with-icon">
                             <i class="fas fa-money-bill-wave input-icon"></i>
                             <input v-model="form.min_versement_amount" type="number" step="0.01" class="form-input with-icon"

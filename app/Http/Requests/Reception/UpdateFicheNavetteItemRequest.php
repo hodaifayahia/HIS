@@ -6,39 +6,33 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateFicheNavetteItemRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     */
     public function rules(): array
     {
         return [
-            'doctor_id' => 'nullable|exists:users,id',
-            'status' => 'nullable|string|in:pending,in_progress,completed,cancelled,required,dependency',
-            'custom_name' => 'nullable|string',
-            'convention_id' => 'nullable|exists:conventions,id',
-            'family_authorization' => 'nullable|array',
-            'family_authorization.*' => 'string|in:ascendant,descendant,Conjoint,adherent,autre',
-            'notes' => 'nullable|string',
+            'status' => 'nullable|string|in:pending,completed,cancelled,in_progress,required',
+            'base_price' => 'nullable|numeric|min:0',
+            'final_price' => 'nullable|numeric|min:0',
+            'patient_share' => 'nullable|numeric|min:0',
+            'doctor_share' => 'nullable|numeric|min:0',
+            'doctor_id' => 'nullable|integer|exists:doctors,id',
+            'modality_id' => 'nullable|integer|exists:modalities,id',
+            'prise_en_charge_date' => 'nullable|date',
+            'dependency_prestation_ids' => 'nullable|array',
+            'dependency_prestation_ids.*' => 'required|integer|exists:prestations,id',
+            // Allow updating the stored default payment type and validate allowed values
+            'default_payment_type' => 'nullable|in:Pré-paiement,Post-paiement,Versement',
         ];
     }
 
-    /**
-     * Get the error messages for the defined validation rules.
-     */
     public function messages(): array
     {
         return [
-            'doctor_id.exists' => 'The selected doctor is invalid.',
-            'status.in' => 'The status must be one of: pending, in_progress, completed, cancelled, required, dependency.',
-            'family_authorization.*.in' => 'Family authorization must be one of: ascendant, descendant, Conjoint, adherent, autre.',
+            'default_payment_type.in' => 'Payment type must be one of: Pré-paiement, Post-paiement, or Versement.',
         ];
     }
 }

@@ -436,11 +436,11 @@ export default {
     },
 
     viewServiceStock(service) {
-      this.$router.push({ name: 'stock.services.stock', params: { id: service.id } });
+      this.$router.push({ name: 'pharmacy.services.stock', params: { id: service.id } });
     },
 
     openStockManagement(service) {
-      this.$router.push({ name: 'stock.services.management', params: { id: service.id } });
+      this.$router.push({ name: 'pharmacy.services.management', params: { id: service.id } });
     },
 
     backToServices() {

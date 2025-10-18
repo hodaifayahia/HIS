@@ -15,6 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('number');
+            $table->text('description')->nullable();
+            $table->foreignId('defult_specialization_id')->nullable()->constrained('specializations')->onDelete('cascade');
             $table->timestamps();
         });
     }

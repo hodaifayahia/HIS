@@ -142,24 +142,24 @@ const handleDelete = () => {
         </td>
         
         <td class="table-cell">
-            <div class="service-info">
-                <div class="service-name">{{ prescription.service?.name || 'N/A' }}</div>
-                <div class="specialization-name">{{ prescription.specialization?.name || 'N/A' }}</div>
+            <div class="service-info read-only-info" title="Service and specialization are read-only - Use edit mode to modify">
+                <div class="service-name read-only-value">{{ prescription.service?.name || 'N/A' }}</div>
+                <div class="specialization-name read-only-text">{{ prescription.specialization?.name || 'N/A' }}</div>
             </div>
         </td>
         
         <td class="table-cell">
-            <div class="financial-info">
-                <div class="price-main">{{ formattedPrice }}</div>
+            <div class="financial-info read-only-info" title="Financial information is read-only - Use edit mode to modify">
+                <div class="price-main read-only-value">{{ formattedPrice }}</div>
                 <div class="financial-details">
-                    <small v-if="prescription.vat_rate" class="vat-rate">VAT: {{ prescription.vat_rate }}%</small>
-                    <small class="payment-type">{{ paymentTypeDisplay }}</small>
+                    <small v-if="prescription.vat_rate" class="vat-rate read-only-text">VAT: {{ prescription.vat_rate }}%</small>
+                    <small class="payment-type read-only-text">{{ paymentTypeDisplay }}</small>
                 </div>
             </div>
         </td>
         
         <td class="table-cell">
-            <span class="duration">{{ formattedDuration }}</span>
+            <span class="duration read-only-value" title="Duration is read-only - Use edit mode to modify">{{ formattedDuration }}</span>
         </td>
         
         <!-- Active Status Column -->
@@ -172,18 +172,18 @@ const handleDelete = () => {
         
         <!-- Hospitalization Status Column -->
         <td class="table-cell status-cell">
-            <span :class="['status-badge', hospitalizationClass]">
+            <span :class="['status-badge', hospitalizationClass, 'read-only-badge']" title="Hospitalization settings are read-only - Use edit mode to modify">
                 <i class="fas" :class="prescription.requires_hospitalization ? 'fa-hospital' : 'fa-home'"></i>
                 {{ hospitalizationText }}
             </span>
             <div v-if="prescription.requires_hospitalization && prescription.default_hosp_nights" class="status-detail">
-                <small>{{ prescription.default_hosp_nights }} nights</small>
+                <small class="read-only-text">{{ prescription.default_hosp_nights }} nights</small>
             </div>
         </td>
         
         <!-- Social Security Status Column -->
         <td class="table-cell status-cell">
-            <span :class="['status-badge', socialSecurityClass]">
+            <span :class="['status-badge', socialSecurityClass, 'read-only-badge']" title="Social security settings are read-only - Use edit mode to modify">
                 <i class="fas" :class="prescription.is_social_security_reimbursable ? 'fa-shield-alt' : 'fa-shield'"></i>
                 {{ socialSecurityText }}
             </span>
@@ -625,6 +625,43 @@ const handleDelete = () => {
     font-weight: 600;
 }
 
+/* Read-only styling */
+.read-only-info {
+    position: relative;
+}
+
+.read-only-value {
+    color: #6b7280 !important;
+    font-style: italic;
+}
+
+.read-only-text {
+    color: #9ca3af !important;
+    font-style: italic;
+}
+
+.read-only-badge {
+    opacity: 0.8;
+}
+
+.read-only-info::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(107, 114, 128, 0.05) 2px,
+        rgba(107, 114, 128, 0.05) 4px
+    );
+    pointer-events: none;
+    border-radius: 4px;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1200px) {
     .status-badge {
@@ -635,6 +672,53 @@ const handleDelete = () => {
     .status-cell {
         min-width: 100px;
     }
+}
+
+/* Read-only styling for list view */
+.read-only-info {
+    position: relative;
+}
+
+.read-only-info::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(107, 114, 128, 0.05) 2px,
+        rgba(107, 114, 128, 0.05) 4px
+    );
+    pointer-events: none;
+    border-radius: 4px;
+}
+
+.read-only-value {
+    color: #6b7280 !important;
+    font-style: italic;
+}
+
+.read-only-text {
+    color: #9ca3af !important;
+    font-style: italic;
+}
+
+.read-only-badge {
+    opacity: 0.75;
+    position: relative;
+}
+
+.read-only-badge::after {
+    content: '🔒';
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    font-size: 0.6em;
+    opacity: 0.6;
 }
 
 @media (max-width: 768px) {

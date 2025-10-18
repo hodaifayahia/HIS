@@ -3,21 +3,21 @@
 namespace App\Http\Controllers\Stock;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Stock\ApproveItemsRequest;
+use App\Http\Requests\Stock\RejectItemsRequest;
+use App\Http\Resources\Stock\StockMovementItemResource;
+use App\Http\Resources\stock\StockMovementResource;
+use App\Models\CONFIGURATION\Service;
+use App\Models\Product;
+use App\Models\Specialization;
 use App\Models\StockMovement;
 use App\Models\StockMovementItem;
 use App\Models\UserSpecialization;
-use App\Models\Specialization;
-use App\Models\Product;
-use App\Models\CONFIGURATION\Service;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
-use App\Http\Resources\stock\StockMovementResource;
-use App\Http\Resources\Stock\StockMovementItemResource;
-use App\Http\Requests\Stock\ApproveItemsRequest;
-use App\Http\Requests\Stock\RejectItemsRequest;
 use App\Services\StockMovementApprovalService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 
 class StockMovementController extends Controller
 {
@@ -36,43 +36,48 @@ class StockMovementController extends Controller
     {
         try {
             $user = Auth::user();
-            
-            if (!$user) {
+
+            if (! $user) {
                 \Log::warning('StockMovementController: No authenticated user found');
+
                 return null;
             }
-            
+
             // Get user's active specialization
             $userSpecialization = UserSpecialization::where('user_id', $user->id)
-                                                   ->where('status', true)
-                                                   ->with('specialization.service')
-                                                   ->first();
-            
-            if (!$userSpecialization) {
+                ->where('status', true)
+                ->with('specialization.service')
+                ->first();
+
+            if (! $userSpecialization) {
                 \Log::warning('StockMovementController: No active specialization found for user', ['user_id' => $user->id]);
+
                 return null;
             }
-            
-            if (!$userSpecialization->specialization) {
+
+            if (! $userSpecialization->specialization) {
                 \Log::warning('StockMovementController: Specialization not found', ['specialization_id' => $userSpecialization->specialization_id]);
+
                 return null;
             }
-            
-            if (!$userSpecialization->specialization->service) {
+
+            if (! $userSpecialization->specialization->service) {
                 \Log::warning('StockMovementController: Service not found for specialization', [
                     'specialization_id' => $userSpecialization->specialization_id,
-                    'service_id' => $userSpecialization->specialization->service_id
+                    'service_id' => $userSpecialization->specialization->service_id,
                 ]);
+
                 return null;
             }
-            
+
             return $userSpecialization->specialization->service;
-            
+
         } catch (\Exception $e) {
             \Log::error('StockMovementController: Error getting user service', [
                 'user_id' => Auth::id(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -83,15 +88,15 @@ class StockMovementController extends Controller
     private function getUserSpecialization()
     {
         $user = Auth::user();
-        
-        if (!$user) {
+
+        if (! $user) {
             return null;
         }
-        
+
         return UserSpecialization::where('user_id', $user->id)
-                                ->where('status', 'active')
-                                ->with('specialization.service')
-                                ->first();
+            ->where('status', 'active')
+            ->with('specialization.service')
+            ->first();
     }
 
     /**
@@ -107,7 +112,7 @@ class StockMovementController extends Controller
             },
             'requestingService',
             'providingService',
-            'requestingUser'
+            'requestingUser',
         ]);
 
         // Filter by status
@@ -129,13 +134,13 @@ class StockMovementController extends Controller
                     // default to both
                     $query->where(function ($q) use ($userService) {
                         $q->where('requesting_service_id', $userService->id)
-                          ->orWhere('providing_service_id', $userService->id);
+                            ->orWhere('providing_service_id', $userService->id);
                     });
                 }
             } else {
                 $query->where(function ($q) use ($userService) {
                     $q->where('requesting_service_id', $userService->id)
-                      ->orWhere('providing_service_id', $userService->id);
+                        ->orWhere('providing_service_id', $userService->id);
                 });
             }
         }
@@ -149,7 +154,7 @@ class StockMovementController extends Controller
         }
 
         $movements = $query->orderBy('created_at', 'desc')
-                           ->paginate($request->get('per_page', 15));
+            ->paginate($request->get('per_page', 15));
 
         // Add unit information to products
         $movements->each(function ($movement) {
@@ -163,7 +168,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $movements
+            'data' => $movements,
         ]);
     }
 
@@ -175,25 +180,25 @@ class StockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
-    $drafts = StockMovement::with([
-        'items.product' => function ($query) {
-            $query->with(['inventories' => function ($inventoryQuery) {
-                $inventoryQuery->select('product_id', 'unit');
-            }]);
-        },
-        'providingService',
-        'requestingService',
-        'requestingUser'
-    ])
-                  ->where('requesting_service_id', $userService->id)
-                  ->where('status', 'draft')
-                  ->where('requesting_user_id', $user->id)
-                  ->orderBy('updated_at', 'desc')
-                  ->get();
+        $drafts = StockMovement::with([
+            'items.product' => function ($query) {
+                $query->with(['inventories' => function ($inventoryQuery) {
+                    $inventoryQuery->select('product_id', 'unit');
+                }]);
+            },
+            'providingService',
+            'requestingService',
+            'requestingUser',
+        ])
+            ->where('requesting_service_id', $userService->id)
+            ->where('status', 'draft')
+            ->where('requesting_user_id', $user->id)
+            ->orderBy('updated_at', 'desc')
+            ->get();
 
         // Add unit information to products
         $drafts->each(function ($draft) {
@@ -207,7 +212,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => StockMovementResource::collection($drafts)
+            'data' => StockMovementResource::collection($drafts),
         ]);
     }
 
@@ -219,7 +224,7 @@ class StockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -230,11 +235,11 @@ class StockMovementController extends Controller
                 }]);
             },
             'requestingService',
-            'requestingUser'
+            'requestingUser',
         ])
-                                       ->where('providing_service_id', $userService->id)
-                                       ->where('status', 'pending')
-                                       ->orderBy('created_at', 'desc');
+            ->where('providing_service_id', $userService->id)
+            ->where('status', 'pending')
+            ->orderBy('created_at', 'desc');
 
         $pendingRequests = $query->paginate($request->get('per_page', 15));
 
@@ -250,7 +255,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $pendingRequests
+            'data' => $pendingRequests,
         ]);
     }
 
@@ -262,22 +267,22 @@ class StockMovementController extends Controller
         $request->validate([
             'providing_service_id' => 'required|exists:services,id',
             'request_reason' => 'nullable|string|max:500',
-            'expected_delivery_date' => 'nullable|date|after:today'
+            'expected_delivery_date' => 'nullable|date|after:today',
         ]);
 
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
         // Check if user has any draft for this service
         $existingMovement = StockMovement::where('requesting_service_id', $userService->id)
-                                     ->where('providing_service_id', $request->providing_service_id)
-                                     ->where('requesting_user_id', $user->id)
-                                     ->latest()
-                                     ->first();
+            ->where('providing_service_id', $request->providing_service_id)
+            ->where('requesting_user_id', $user->id)
+            ->latest()
+            ->first();
 
         // If there's an existing movement and it's in draft status, return it
         if ($existingMovement && $existingMovement->status === 'draft') {
@@ -287,9 +292,9 @@ class StockMovementController extends Controller
                         $inventoryQuery->select('product_id', 'unit');
                     }]);
                 },
-                'providingService'
+                'providingService',
             ]);
-            
+
             // Add unit information to products
             $data->items->each(function ($item) {
                 if ($item->product && $item->product->inventories) {
@@ -297,10 +302,10 @@ class StockMovementController extends Controller
                     $item->product->unit = $units->first() ?? 'units';
                 }
             });
-            
+
             return response()->json([
                 'success' => true,
-                'data' => $data
+                'data' => $data,
             ]);
         }
 
@@ -320,13 +325,13 @@ class StockMovementController extends Controller
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
             },
-            'providingService'
+            'providingService',
         ]);
 
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Draft created successfully'
+            'message' => 'Draft created successfully',
         ]);
     }
 
@@ -336,7 +341,7 @@ class StockMovementController extends Controller
             'product_id' => 'required|exists:products,id',
             'requested_quantity' => 'required|numeric|min:0.01',
             'quantity_by_box' => 'boolean',
-            'notes' => 'nullable|string|max:255'
+            'notes' => 'nullable|string|max:255',
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
@@ -353,7 +358,7 @@ class StockMovementController extends Controller
             $existingItem->update([
                 'requested_quantity' => $request->requested_quantity,
                 'quantity_by_box' => $request->boolean('quantity_by_box', false),
-                'notes' => $request->notes
+                'notes' => $request->notes,
             ]);
 
             $data = $existingItem->load([
@@ -361,9 +366,9 @@ class StockMovementController extends Controller
                     $query->with(['inventories' => function ($inventoryQuery) {
                         $inventoryQuery->select('product_id', 'unit');
                     }]);
-                }
+                },
             ]);
-            
+
             // Add unit information to product
             if ($data->product && $data->product->inventories) {
                 $units = $data->product->inventories->pluck('unit')->filter()->unique();
@@ -373,7 +378,7 @@ class StockMovementController extends Controller
             return response()->json([
                 'success' => true,
                 'data' => $data,
-                'message' => 'Item updated successfully'
+                'message' => 'Item updated successfully',
             ]);
         }
 
@@ -381,7 +386,7 @@ class StockMovementController extends Controller
             'product_id' => $request->product_id,
             'requested_quantity' => $request->requested_quantity,
             'quantity_by_box' => $request->boolean('quantity_by_box', false),
-            'notes' => $request->notes
+            'notes' => $request->notes,
         ]);
 
         $data = $item->load([
@@ -389,9 +394,9 @@ class StockMovementController extends Controller
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information to product
         if ($data->product && $data->product->inventories) {
             $units = $data->product->inventories->pluck('unit')->filter()->unique();
@@ -401,7 +406,7 @@ class StockMovementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Item added successfully'
+            'message' => 'Item added successfully',
         ]);
     }
 
@@ -414,7 +419,7 @@ class StockMovementController extends Controller
             'product_id' => 'required|exists:products,id',
             'requested_quantity' => 'required|numeric|min:0.01',
             'quantity_by_box' => 'boolean',
-            'notes' => 'nullable|string|max:255'
+            'notes' => 'nullable|string|max:255',
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
@@ -430,7 +435,7 @@ class StockMovementController extends Controller
             'product_id' => $request->product_id,
             'requested_quantity' => $request->requested_quantity,
             'quantity_by_box' => $request->boolean('quantity_by_box', false),
-            'notes' => $request->notes
+            'notes' => $request->notes,
         ]);
 
         $data = $item->load([
@@ -438,9 +443,9 @@ class StockMovementController extends Controller
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information to product
         if ($data->product && $data->product->inventories) {
             $units = $data->product->inventories->pluck('unit')->filter()->unique();
@@ -450,7 +455,7 @@ class StockMovementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Item updated successfully'
+            'message' => 'Item updated successfully',
         ]);
     }
 
@@ -470,7 +475,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Item removed successfully'
+            'message' => 'Item removed successfully',
         ]);
     }
 
@@ -491,7 +496,7 @@ class StockMovementController extends Controller
 
         $movement->update([
             'status' => 'pending',
-            'requested_at' => now()
+            'requested_at' => now(),
         ]);
 
         // Notify providing service
@@ -502,9 +507,9 @@ class StockMovementController extends Controller
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information to products
         $data->items->each(function ($item) {
             if ($item->product && $item->product->inventories) {
@@ -516,7 +521,7 @@ class StockMovementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Request sent successfully'
+            'message' => 'Request sent successfully',
         ]);
     }
 
@@ -528,12 +533,12 @@ class StockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
         $providingServiceId = $request->get('providing_service_id');
-        if (!$providingServiceId) {
+        if (! $providingServiceId) {
             return response()->json(['error' => 'Providing service ID required'], 422);
         }
 
@@ -636,9 +641,9 @@ class StockMovementController extends Controller
                     'critical_low' => $criticalLowStock->count(),
                     'low_stock' => $lowStock->count(),
                     'expiring_soon' => $expiringSoon->count(),
-                    'expired' => $expired->count()
-                ]
-            ]
+                    'expired' => $expired->count(),
+                ],
+            ],
         ]);
     }
 
@@ -649,7 +654,7 @@ class StockMovementController extends Controller
     {
         $request->validate([
             'status' => 'required|in:approved,rejected,partially_approved',
-            'approval_notes' => 'nullable|string|max:500'
+            'approval_notes' => 'nullable|string|max:500',
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
@@ -657,7 +662,7 @@ class StockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user can approve for this service
-        if (!$userService || $movement->providing_service_id !== $userService->id) {
+        if (! $userService || $movement->providing_service_id !== $userService->id) {
             return response()->json(['error' => 'Unauthorized to approve this request'], 403);
         }
 
@@ -673,30 +678,30 @@ class StockMovementController extends Controller
             if ($request->status === 'partially_approved' && $request->has('item_approvals')) {
                 foreach ($request->item_approvals as $itemId => $approvedQty) {
                     $movement->items()
-                            ->where('id', $itemId)
-                            ->update(['approved_quantity' => $approvedQty]);
+                        ->where('id', $itemId)
+                        ->update(['approved_quantity' => $approvedQty]);
                 }
             } elseif ($request->status === 'approved') {
                 // Approve all items with requested quantities
                 $movement->items()->update([
-                    'approved_quantity' => DB::raw('requested_quantity')
+                    'approved_quantity' => DB::raw('requested_quantity'),
                 ]);
             }
         });
 
         // Notify requesting service
-        $statusMessage = $request->status === 'approved' ? 'approved' : 
+        $statusMessage = $request->status === 'approved' ? 'approved' :
                         ($request->status === 'partially_approved' ? 'partially approved' : 'rejected');
-        $this->notifyService($movement->requesting_service_id, 'movement_' . $statusMessage, $movement);
+        $this->notifyService($movement->requesting_service_id, 'movement_'.$statusMessage, $movement);
 
         $data = $movement->load([
             'items.product' => function ($query) {
                 $query->with(['inventories' => function ($inventoryQuery) {
                     $inventoryQuery->select('product_id', 'unit');
                 }]);
-            }
+            },
         ]);
-        
+
         // Add unit information to products
         $data->items->each(function ($item) {
             if ($item->product && $item->product->inventories) {
@@ -708,7 +713,7 @@ class StockMovementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-            'message' => 'Request ' . $statusMessage . ' successfully'
+            'message' => 'Request '.$statusMessage.' successfully',
         ]);
     }
 
@@ -720,30 +725,30 @@ class StockMovementController extends Controller
         $user = Auth::user();
         $userService = $this->getUserService();
 
-        if (!$userService) {
+        if (! $userService) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
         $stats = [
             'draft' => StockMovement::where('requesting_service_id', $userService->id)
-                                   ->where('status', 'draft')->count(),
+                ->where('status', 'draft')->count(),
             'requesting_pending' => StockMovement::where('requesting_service_id', $userService->id)
-                                                ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'providing_pending' => StockMovement::where('providing_service_id', $userService->id)
-                                               ->where('status', 'pending')->count(),
+                ->where('status', 'pending')->count(),
             'approved' => StockMovement::where('providing_service_id', $userService->id)
-                                      ->where('status', 'approved')->count(),
+                ->where('status', 'approved')->count(),
             'rejected' => StockMovement::where('requesting_service_id', $userService->id)
-                                      ->where('status', 'rejected')->count(),
+                ->where('status', 'rejected')->count(),
             'executed' => StockMovement::where(function ($q) use ($userService) {
                 $q->where('requesting_service_id', $userService->id)
-                  ->orWhere('providing_service_id', $userService->id);
-            })->where('status', 'executed')->count()
+                    ->orWhere('providing_service_id', $userService->id);
+            })->where('status', 'executed')->count(),
         ];
 
         return response()->json([
             'success' => true,
-            'data' => $stats
+            'data' => $stats,
         ]);
     }
 
@@ -766,8 +771,8 @@ class StockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement
-        if (!$userService || 
-            ($movement->requesting_service_id !== $userService->id && 
+        if (! $userService ||
+            ($movement->requesting_service_id !== $userService->id &&
              $movement->providing_service_id !== $userService->id)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -780,20 +785,20 @@ class StockMovementController extends Controller
                 $item->product->name;
                 $item->product->description;
             }
-            
+
             // Ensure product name and description are available
             if ($item->product) {
                 $item->product_name = $item->product->name;
                 $item->product_description = $item->product->description;
             }
-            
+
             // Add provided_quantity (this might be the approved_quantity or requested_quantity based on context)
             $item->provided_quantity = $item->approved_quantity ?? $item->requested_quantity ?? 0;
         });
 
         return response()->json([
             'success' => true,
-            'data' => $movement
+            'data' => $movement,
         ]);
     }
 
@@ -812,7 +817,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Draft deleted successfully'
+            'message' => 'Draft deleted successfully',
         ]);
     }
 
@@ -822,7 +827,7 @@ class StockMovementController extends Controller
     public function availableStock($movementId, Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id'
+            'product_id' => 'required|exists:products,id',
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
@@ -832,8 +837,8 @@ class StockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement
-        if (!$userService || 
-            ($movement->requesting_service_id !== $userService->id && 
+        if (! $userService ||
+            ($movement->requesting_service_id !== $userService->id &&
              $movement->providing_service_id !== $userService->id)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -855,7 +860,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'available_stock' => $availableStock
+            'available_stock' => $availableStock,
         ]);
     }
 
@@ -869,7 +874,7 @@ class StockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement and is the providing service
-        if (!$userService || $movement->providing_service_id !== $userService->id) {
+        if (! $userService || $movement->providing_service_id !== $userService->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -899,9 +904,9 @@ class StockMovementController extends Controller
                         'location' => $inventory->location,
                         'stockage' => [
                             'id' => $stockage->id,
-                            'name' => $stockage->name
+                            'name' => $stockage->name,
                         ],
-                        'product' => $inventory->product
+                        'product' => $inventory->product,
                     ];
                 }
             }
@@ -909,7 +914,7 @@ class StockMovementController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $inventoryItems
+            'data' => $inventoryItems,
         ]);
     }
 
@@ -922,7 +927,7 @@ class StockMovementController extends Controller
             'item_id' => 'required|exists:stock_movement_items,id',
             'selected_inventory' => 'required|array',
             'selected_inventory.*.inventory_id' => 'required|exists:inventories,id',
-            'selected_inventory.*.quantity' => 'required|numeric|min:0.01'
+            'selected_inventory.*.quantity' => 'required|numeric|min:0.01',
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
@@ -930,7 +935,7 @@ class StockMovementController extends Controller
         $userService = $this->getUserService();
 
         // Check if user has access to this movement and is the providing service
-        if (!$userService || $movement->providing_service_id !== $userService->id) {
+        if (! $userService || $movement->providing_service_id !== $userService->id) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -952,14 +957,14 @@ class StockMovementController extends Controller
             foreach ($request->selected_inventory as $selection) {
                 // Verify the inventory item exists and has sufficient quantity
                 $inventory = DB::table('inventories')->find($selection['inventory_id']);
-                if (!$inventory) {
-                    throw new \Exception('Inventory item not found: ' . $selection['inventory_id']);
+                if (! $inventory) {
+                    throw new \Exception('Inventory item not found: '.$selection['inventory_id']);
                 }
-                
+
                 // Use total_units if available, otherwise fall back to quantity
                 $availableQuantity = $inventory->total_units ?? $inventory->quantity;
                 if ($availableQuantity < $selection['quantity']) {
-                    throw new \Exception('Insufficient inventory for item: ' . $inventory->barcode . '. Available: ' . $availableQuantity . ', Requested: ' . $selection['quantity']);
+                    throw new \Exception('Insufficient inventory for item: '.$inventory->barcode.'. Available: '.$availableQuantity.', Requested: '.$selection['quantity']);
                 }
 
                 DB::table('stock_movement_inventory_selections')->insert([
@@ -967,7 +972,7 @@ class StockMovementController extends Controller
                     'inventory_id' => $selection['inventory_id'],
                     'selected_quantity' => $selection['quantity'],
                     'created_at' => now(),
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
 
                 $totalSelectedQuantity += $selection['quantity'];
@@ -975,13 +980,13 @@ class StockMovementController extends Controller
 
             // Update the item's provided quantity
             $item->update([
-                'provided_quantity' => $totalSelectedQuantity
+                'provided_quantity' => $totalSelectedQuantity,
             ]);
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Inventory selection saved successfully'
+            'message' => 'Inventory selection saved successfully',
         ]);
     }
 
@@ -990,9 +995,9 @@ class StockMovementController extends Controller
     {
         $year = date('Y');
         $lastMovement = StockMovement::where('movement_number', 'like', "SM-{$year}-%")
-                                    ->orderBy('id', 'desc')
-                                    ->first();
-        
+            ->orderBy('id', 'desc')
+            ->first();
+
         if ($lastMovement) {
             // Extract the sequential number from the last movement number
             $parts = explode('-', $lastMovement->movement_number);
@@ -1001,8 +1006,8 @@ class StockMovementController extends Controller
         } else {
             $nextNumber = 1;
         }
-        
-        return 'SM-' . $year . '-' . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+
+        return 'SM-'.$year.'-'.str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
     }
 
     private function notifyService($serviceId, $event, $movement)
@@ -1018,40 +1023,40 @@ class StockMovementController extends Controller
     {
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('providing_service_id', $userService->id)
-                                   ->with('items.product')
-                                   ->first();
+                ->where('providing_service_id', $userService->id)
+                ->with('items.product')
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
             // Check if movement can be edited
-            if (!$this->approvalService->canEditMovement($movement)) {
+            if (! $this->approvalService->canEditMovement($movement)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This stock movement cannot be modified in its current state'
+                    'message' => 'This stock movement cannot be modified in its current state',
                 ], 422);
             }
 
             $result = $this->approvalService->approveItems($movement, $request->item_ids);
 
-            if (!empty($result['errors'])) {
+            if (! empty($result['errors'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Some items could not be processed',
-                    'errors' => $result['errors']
+                    'errors' => $result['errors'],
                 ], 422);
             }
 
@@ -1059,19 +1064,19 @@ class StockMovementController extends Controller
                 'success' => true,
                 'message' => $result['message'],
                 'processed_items' => StockMovementItemResource::collection($result['processed_items']),
-                'statistics' => $this->approvalService->getMovementStatistics($movement->fresh())
+                'statistics' => $this->approvalService->getMovementStatistics($movement->fresh()),
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error approving stock movement items: ' . $e->getMessage(), [
+            \Log::error('Error approving stock movement items: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'item_ids' => $request->item_ids ?? [],
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while approving items'
+                'message' => 'An error occurred while approving items',
             ], 500);
         }
     }
@@ -1083,44 +1088,44 @@ class StockMovementController extends Controller
     {
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('providing_service_id', $userService->id)
-                                   ->with('items.product')
-                                   ->first();
+                ->where('providing_service_id', $userService->id)
+                ->with('items.product')
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
             // Check if movement can be edited
-            if (!$this->approvalService->canEditMovement($movement)) {
+            if (! $this->approvalService->canEditMovement($movement)) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'This stock movement cannot be modified in its current state'
+                    'message' => 'This stock movement cannot be modified in its current state',
                 ], 422);
             }
 
             $result = $this->approvalService->rejectItems(
-                $movement, 
-                $request->item_ids, 
+                $movement,
+                $request->item_ids,
                 $request->rejection_reason
             );
 
-            if (!empty($result['errors'])) {
+            if (! empty($result['errors'])) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Some items could not be processed',
-                    'errors' => $result['errors']
+                    'errors' => $result['errors'],
                 ], 422);
             }
 
@@ -1128,20 +1133,20 @@ class StockMovementController extends Controller
                 'success' => true,
                 'message' => $result['message'],
                 'processed_items' => StockMovementItemResource::collection($result['processed_items']),
-                'statistics' => $this->approvalService->getMovementStatistics($movement->fresh())
+                'statistics' => $this->approvalService->getMovementStatistics($movement->fresh()),
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Error rejecting stock movement items: ' . $e->getMessage(), [
+            \Log::error('Error rejecting stock movement items: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'item_ids' => $request->item_ids ?? [],
                 'rejection_reason' => $request->rejection_reason ?? null,
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while rejecting items'
+                'message' => 'An error occurred while rejecting items',
             ], 500);
         }
     }
@@ -1153,21 +1158,21 @@ class StockMovementController extends Controller
     {
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('providing_service_id', $userService->id)
-                                        ->with(['items.product'])
-                                   ->first();
+                ->where('providing_service_id', $userService->id)
+                ->with(['items.product'])
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
@@ -1175,7 +1180,7 @@ class StockMovementController extends Controller
             if ($movement->status !== 'approved') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement must be in approved status to initialize transfer'
+                    'message' => 'Stock movement must be in approved status to initialize transfer',
                 ], 422);
             }
 
@@ -1185,35 +1190,35 @@ class StockMovementController extends Controller
                 // Update stock quantities for each approved item and track sender quantities
                 foreach ($movement->items as $item) {
                     $totalSentQuantity = 0;
-                    
+
                     if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
                         foreach ($item->selectedInventory as $selection) {
                             $inventory = $selection->inventory;
-                            
+
                             // Deduct quantity from provider's stock
                             if ($inventory->quantity >= $selection->quantity) {
                                 $inventory->quantity -= $selection->quantity;
                                 $inventory->save();
-                                
+
                                 // Track the quantity being sent
                                 $totalSentQuantity += $selection->quantity;
-                                
+
                                 \Log::info('Stock deducted for transfer', [
                                     'inventory_id' => $inventory->id,
                                     'product_id' => $inventory->product_id,
                                     'deducted_quantity' => $selection->quantity,
-                                    'remaining_quantity' => $inventory->quantity
+                                    'remaining_quantity' => $inventory->quantity,
                                 ]);
                             } else {
                                 throw new \Exception("Insufficient stock for product: {$item->product->name}");
                             }
                         }
                     }
-                    
+
                     // Update the item with sender quantity tracking
                     $item->update([
                         'sender_quantity' => $totalSentQuantity,
-                        'updated_at' => now()
+                        'updated_at' => now(),
                     ]);
                 }
 
@@ -1228,7 +1233,7 @@ class StockMovementController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Transfer initialized successfully. Stock quantities have been updated.',
-                    'movement' => new StockMovementResource($movement->fresh())
+                    'movement' => new StockMovementResource($movement->fresh()),
                 ]);
 
             } catch (\Exception $e) {
@@ -1237,15 +1242,15 @@ class StockMovementController extends Controller
             }
 
         } catch (\Exception $e) {
-            \Log::error('Error initializing transfer: ' . $e->getMessage(), [
+            \Log::error('Error initializing transfer: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while initializing transfer: ' . $e->getMessage()
+                'message' => 'An error occurred while initializing transfer: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1258,35 +1263,35 @@ class StockMovementController extends Controller
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:good,manque,damaged',
             'notes' => 'nullable|string|max:1000',
-            'missing_quantity' => 'nullable|numeric|min:0'
+            'missing_quantity' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('requesting_service_id', $userService->id)
-                                   ->with(['items.selectedInventory.inventory', 'items.product'])
-                                   ->first();
+                ->where('requesting_service_id', $userService->id)
+                ->with(['items.selectedInventory.inventory', 'items.product'])
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
@@ -1294,7 +1299,7 @@ class StockMovementController extends Controller
             if ($movement->status !== 'in_transfer') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement must be in transfer status to confirm delivery'
+                    'message' => 'Stock movement must be in transfer status to confirm delivery',
                 ], 422);
             }
 
@@ -1311,7 +1316,7 @@ class StockMovementController extends Controller
                         if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
                             foreach ($item->selectedInventory as $selection) {
                                 // Create new inventory record for the requesting service
-                                $newInventory = new \App\Models\Inventory();
+                                $newInventory = new \App\Models\Inventory;
                                 $newInventory->product_id = $selection->inventory->product_id;
                                 $newInventory->service_id = $userService->id;
                                 $newInventory->quantity = $selection->quantity;
@@ -1320,25 +1325,25 @@ class StockMovementController extends Controller
                                 $newInventory->expiry_date = $selection->inventory->expiry_date;
                                 $newInventory->barcode = $selection->inventory->barcode;
                                 $newInventory->save();
-                                
+
                                 \Log::info('Stock added to requesting service', [
                                     'new_inventory_id' => $newInventory->id,
                                     'product_id' => $newInventory->product_id,
                                     'service_id' => $userService->id,
-                                    'quantity' => $selection->quantity
+                                    'quantity' => $selection->quantity,
                                 ]);
                             }
                         }
                     }
-                    
+
                     $movement->status = 'fulfilled';
                     $movement->delivery_status = 'good';
-                    
-                } else if ($deliveryStatus === 'damaged') {
+
+                } elseif ($deliveryStatus === 'damaged') {
                     // Handle damaged products - don't add to inventory, mark as damaged
                     $movement->status = 'damaged';
                     $movement->delivery_status = 'damaged';
-                    
+
                     // Log damaged items for tracking
                     foreach ($movement->items as $item) {
                         if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
@@ -1348,26 +1353,26 @@ class StockMovementController extends Controller
                                     'product_id' => $selection->inventory->product_id,
                                     'quantity' => $selection->quantity,
                                     'batch_number' => $selection->inventory->batch_number,
-                                    'service_id' => $userService->id
+                                    'service_id' => $userService->id,
                                 ]);
                             }
                         }
                     }
-                    
-                } else if ($deliveryStatus === 'manque') {
+
+                } elseif ($deliveryStatus === 'manque') {
                     // Handle missing quantities
                     $movement->status = 'partially_fulfilled';
                     $movement->delivery_status = 'manque';
                     $movement->missing_quantity = $missingQuantity;
-                    
+
                     // Add received quantities to requester's inventory (if any)
                     foreach ($movement->items as $item) {
                         if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
                             foreach ($item->selectedInventory as $selection) {
                                 $receivedQuantity = max(0, $selection->quantity - $missingQuantity);
-                                
+
                                 if ($receivedQuantity > 0) {
-                                    $newInventory = new \App\Models\Inventory();
+                                    $newInventory = new \App\Models\Inventory;
                                     $newInventory->product_id = $selection->inventory->product_id;
                                     $newInventory->service_id = $userService->id;
                                     $newInventory->quantity = $receivedQuantity;
@@ -1390,16 +1395,16 @@ class StockMovementController extends Controller
 
                 DB::commit();
 
-                $statusMessage = $deliveryStatus === 'good' 
-                    ? 'Delivery confirmed successfully. Items have been added to your inventory.' 
-                    : ($deliveryStatus === 'damaged' 
+                $statusMessage = $deliveryStatus === 'good'
+                    ? 'Delivery confirmed successfully. Items have been added to your inventory.'
+                    : ($deliveryStatus === 'damaged'
                         ? 'Delivery confirmed as damaged. Items have been marked as damaged and not added to inventory.'
                         : 'Delivery confirmed with missing quantities. Partial stock has been added to your inventory.');
 
                 return response()->json([
                     'success' => true,
                     'message' => $statusMessage,
-                    'movement' => new StockMovementResource($movement->fresh())
+                    'movement' => new StockMovementResource($movement->fresh()),
                 ]);
 
             } catch (\Exception $e) {
@@ -1408,16 +1413,16 @@ class StockMovementController extends Controller
             }
 
         } catch (\Exception $e) {
-            \Log::error('Error confirming delivery: ' . $e->getMessage(), [
+            \Log::error('Error confirming delivery: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'user_id' => Auth::id(),
                 'status' => $request->status,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while confirming delivery: ' . $e->getMessage()
+                'message' => 'An error occurred while confirming delivery: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1431,35 +1436,35 @@ class StockMovementController extends Controller
             'item_id' => 'required|integer|exists:stock_movement_items,id',
             'status' => 'required|in:good,damaged,manque',
             'notes' => 'nullable|string|max:1000',
-            'received_quantity' => 'nullable|numeric|min:0' // Add received_quantity for manque status
+            'received_quantity' => 'nullable|numeric|min:0', // Add received_quantity for manque status
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('requesting_service_id', $userService->id)
-                                   ->with(['items.selectedInventory.inventory', 'items.product'])
-                                   ->first();
+                ->where('requesting_service_id', $userService->id)
+                ->with(['items.selectedInventory.inventory', 'items.product'])
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
@@ -1467,16 +1472,16 @@ class StockMovementController extends Controller
             if ($movement->status !== 'in_transfer') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement must be in transfer status to confirm delivery'
+                    'message' => 'Stock movement must be in transfer status to confirm delivery',
                 ], 422);
             }
 
             // Find the specific item
             $item = $movement->items->where('id', $request->item_id)->first();
-            if (!$item) {
+            if (! $item) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Item not found in this movement'
+                    'message' => 'Item not found in this movement',
                 ], 404);
             }
 
@@ -1496,12 +1501,12 @@ class StockMovementController extends Controller
                 if ($confirmationStatus === 'good') {
                     // For 'good' status: set executed_quantity equal to approved quantity
                     $item->executed_quantity = $item->approved_quantity;
-                    
+
                     // Add stock to requester's inventory
                     if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
                         foreach ($item->selectedInventory as $selection) {
                             // Create new inventory record for the requesting service
-                            $newInventory = new \App\Models\Inventory();
+                            $newInventory = new \App\Models\Inventory;
                             $newInventory->product_id = $selection->inventory->product_id;
                             $newInventory->service_id = $userService->id;
                             $newInventory->quantity = $selection->quantity;
@@ -1510,18 +1515,18 @@ class StockMovementController extends Controller
                             $newInventory->expiry_date = $selection->inventory->expiry_date;
                             $newInventory->barcode = $selection->inventory->barcode;
                             $newInventory->save();
-                            
+
                             \Log::info('Stock added to requesting service for individual product', [
                                 'new_inventory_id' => $newInventory->id,
                                 'product_id' => $newInventory->product_id,
                                 'service_id' => $userService->id,
                                 'quantity' => $selection->quantity,
-                                'item_id' => $item->id
+                                'item_id' => $item->id,
                             ]);
                         }
                     }
-                    
-                } else if ($confirmationStatus === 'damaged') {
+
+                } elseif ($confirmationStatus === 'damaged') {
                     // Handle damaged products - don't add to inventory, mark as damaged
                     // Log damaged items for tracking
                     if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
@@ -1532,15 +1537,15 @@ class StockMovementController extends Controller
                                 'product_id' => $selection->inventory->product_id,
                                 'quantity' => $selection->quantity,
                                 'batch_number' => $selection->inventory->batch_number,
-                                'service_id' => $userService->id
+                                'service_id' => $userService->id,
                             ]);
                         }
                     }
-                    
+
                     // Set executed quantity to 0 for damaged items
                     $item->executed_quantity = 0;
-                    
-                } else if ($confirmationStatus === 'manque') {
+
+                } elseif ($confirmationStatus === 'manque') {
                     // For 'manque' status: update received_quantity and set executed_quantity to received quantity
                     if ($receivedQuantity !== null) {
                         $item->received_quantity = $receivedQuantity;
@@ -1549,14 +1554,14 @@ class StockMovementController extends Controller
                         // If no received quantity provided, set executed to 0
                         $item->executed_quantity = 0;
                     }
-                    
+
                     // Handle missing quantities - don't add to inventory
                     \Log::info('Missing stock reported for individual product', [
                         'movement_id' => $movement->id,
                         'item_id' => $item->id,
                         'product_id' => $item->product_id,
                         'service_id' => $userService->id,
-                        'received_quantity' => $receivedQuantity
+                        'received_quantity' => $receivedQuantity,
                     ]);
                 }
 
@@ -1564,16 +1569,16 @@ class StockMovementController extends Controller
 
                 DB::commit();
 
-                $statusMessage = $confirmationStatus === 'good' 
-                    ? 'Product confirmed successfully. Item has been added to your inventory.' 
-                    : ($confirmationStatus === 'damaged' 
+                $statusMessage = $confirmationStatus === 'good'
+                    ? 'Product confirmed successfully. Item has been added to your inventory.'
+                    : ($confirmationStatus === 'damaged'
                         ? 'Product confirmed as damaged. Item has been marked as damaged and not added to inventory.'
                         : 'Product confirmed as missing. Item has been marked as not received.');
 
                 return response()->json([
                     'success' => true,
                     'message' => $statusMessage,
-                    'item' => new StockMovementItemResource($item->fresh())
+                    'item' => new StockMovementItemResource($item->fresh()),
                 ]);
 
             } catch (\Exception $e) {
@@ -1582,17 +1587,17 @@ class StockMovementController extends Controller
             }
 
         } catch (\Exception $e) {
-            \Log::error('Error confirming individual product: ' . $e->getMessage(), [
+            \Log::error('Error confirming individual product: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'item_id' => $request->item_id,
                 'user_id' => Auth::id(),
                 'status' => $request->status,
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while confirming product: ' . $e->getMessage()
+                'message' => 'An error occurred while confirming product: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1606,7 +1611,7 @@ class StockMovementController extends Controller
             'items' => 'required|array',
             'items.*.item_id' => 'required|integer|exists:stock_movement_items,id',
             'items.*.received_quantity' => 'required|numeric|min:0',
-            'items.*.sender_quantity' => 'nullable|numeric|min:0'
+            'items.*.sender_quantity' => 'nullable|numeric|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -1614,35 +1619,35 @@ class StockMovementController extends Controller
                 'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $validator->errors(),
-                'submitted_data' => $request->all()
+                'submitted_data' => $request->all(),
             ], 422);
         }
 
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('requesting_service_id', $userService->id)
-                                   ->with(['items.product', 'items.selectedInventory.inventory'])
-                                   ->first();
+                ->where('requesting_service_id', $userService->id)
+                ->with(['items.product', 'items.selectedInventory.inventory'])
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
             if ($movement->status !== 'in_transfer') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement must be in transfer status to validate quantities'
+                    'message' => 'Stock movement must be in transfer status to validate quantities',
                 ], 422);
             }
 
@@ -1653,21 +1658,21 @@ class StockMovementController extends Controller
 
             foreach ($request->items as $validation) {
                 $item = $movement->items->where('id', $validation['item_id'])->first();
-                if (!$item) {
+                if (! $item) {
                     continue;
                 }
 
                 $requestedQuantity = $item->approved_quantity;
                 $senderQuantity = $validation['sender_quantity'] ?? $item->sender_quantity ?? $requestedQuantity;
                 $receivedQuantity = $validation['received_quantity'];
-                
+
                 // Calculate shortage based on sender quantity (what was actually sent)
                 $shortageQuantity = max(0, $senderQuantity - $receivedQuantity);
 
                 // Automatic status determination based on quantity comparison
                 $automaticStatus = null;
                 $executedQuantity = null;
-                
+
                 if ($receivedQuantity >= $senderQuantity) {
                     // Received quantity meets or exceeds sent quantity - set status to 'good'
                     $automaticStatus = 'good';
@@ -1684,7 +1689,7 @@ class StockMovementController extends Controller
                     'received_quantity' => $receivedQuantity,
                     'confirmation_status' => $automaticStatus,
                     'executed_quantity' => $executedQuantity,
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
 
                 $result = [
@@ -1698,7 +1703,7 @@ class StockMovementController extends Controller
                     'status' => $shortageQuantity > 0 ? 'insufficient' : 'good',
                     'automatic_status' => $automaticStatus,
                     'executed_quantity' => $executedQuantity,
-                    'submitted_data' => $validation
+                    'submitted_data' => $validation,
                 ];
 
                 $validationResults[] = $result;
@@ -1716,21 +1721,21 @@ class StockMovementController extends Controller
                 'summary' => [
                     'good_items' => collect($validationResults)->where('automatic_status', 'good')->count(),
                     'manque_items' => collect($validationResults)->where('automatic_status', 'manque')->count(),
-                    'automatic_processing' => true
-                ]
+                    'automatic_processing' => true,
+                ],
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            \Log::error('Error validating quantities: ' . $e->getMessage(), [
+            \Log::error('Error validating quantities: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while validating quantities: ' . $e->getMessage()
+                'message' => 'An error occurred while validating quantities: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1745,42 +1750,42 @@ class StockMovementController extends Controller
             'validations.*.item_id' => 'required|integer|exists:stock_movement_items,id',
             'validations.*.received_quantity' => 'required|numeric|min:0',
             'validations.*.status' => 'required|in:good,insufficient',
-            'validations.*.notes' => 'nullable|string|max:1000'
+            'validations.*.notes' => 'nullable|string|max:1000',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
-                'errors' => $validator->errors()
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('requesting_service_id', $userService->id)
-                                   ->with(['items.product', 'items.selectedInventory.inventory'])
-                                   ->first();
+                ->where('requesting_service_id', $userService->id)
+                ->with(['items.product', 'items.selectedInventory.inventory'])
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
             if ($movement->status !== 'in_transfer') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement must be in transfer status to process validation'
+                    'message' => 'Stock movement must be in transfer status to process validation',
                 ], 422);
             }
 
@@ -1792,7 +1797,7 @@ class StockMovementController extends Controller
 
                 foreach ($request->validations as $validation) {
                     $item = $movement->items->where('id', $validation['item_id'])->first();
-                    if (!$item) {
+                    if (! $item) {
                         continue;
                     }
 
@@ -1813,9 +1818,9 @@ class StockMovementController extends Controller
                             foreach ($item->selectedInventory as $selection) {
                                 // Calculate proportional quantity for this selection
                                 $proportionalQuantity = ($selection->quantity / $requestedQuantity) * $receivedQuantity;
-                                
+
                                 if ($proportionalQuantity > 0) {
-                                    $newInventory = new \App\Models\Inventory();
+                                    $newInventory = new \App\Models\Inventory;
                                     $newInventory->product_id = $selection->inventory->product_id;
                                     $newInventory->service_id = $userService->id;
                                     $newInventory->quantity = $proportionalQuantity;
@@ -1831,7 +1836,7 @@ class StockMovementController extends Controller
                         $item->save();
                         $processedItems[] = $item;
 
-                    } else if ($validation['status'] === 'shortage' && $shortageQuantity > 0) {
+                    } elseif ($validation['status'] === 'shortage' && $shortageQuantity > 0) {
                         // Keep original record unchanged for received quantity
                         if ($receivedQuantity > 0) {
                             $item->confirmation_status = 'good';
@@ -1839,7 +1844,7 @@ class StockMovementController extends Controller
                             $item->confirmed_at = now();
                             $item->confirmed_by = Auth::id();
                             $item->executed_quantity = $item->approved_quantity; // Set executed to approved quantity
-                            
+
                             // Update approved quantity to received quantity
                             $item->approved_quantity = $receivedQuantity;
 
@@ -1847,9 +1852,9 @@ class StockMovementController extends Controller
                             if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
                                 foreach ($item->selectedInventory as $selection) {
                                     $proportionalQuantity = ($selection->quantity / $requestedQuantity) * $receivedQuantity;
-                                    
+
                                     if ($proportionalQuantity > 0) {
-                                        $newInventory = new \App\Models\Inventory();
+                                        $newInventory = new \App\Models\Inventory;
                                         $newInventory->product_id = $selection->inventory->product_id;
                                         $newInventory->service_id = $userService->id;
                                         $newInventory->quantity = $proportionalQuantity;
@@ -1867,13 +1872,13 @@ class StockMovementController extends Controller
                         }
 
                         // Create new record for shortage quantity
-                        $shortageItem = new \App\Models\StockMovementItem();
+                        $shortageItem = new \App\Models\StockMovementItem;
                         $shortageItem->stock_movement_id = $movement->id;
                         $shortageItem->product_id = $item->product_id;
                         $shortageItem->requested_quantity = $shortageQuantity;
                         $shortageItem->approved_quantity = $shortageQuantity;
                         $shortageItem->confirmation_status = 'manque';
-                        $shortageItem->confirmation_notes = "Shortage: {$shortageQuantity} units not received. " . ($validation['notes'] ?? '');
+                        $shortageItem->confirmation_notes = "Shortage: {$shortageQuantity} units not received. ".($validation['notes'] ?? '');
                         $shortageItem->confirmed_at = now();
                         $shortageItem->confirmed_by = Auth::id();
                         $shortageItem->executed_quantity = 0;
@@ -1887,7 +1892,7 @@ class StockMovementController extends Controller
                             'shortage_item_id' => $shortageItem->id,
                             'product_id' => $item->product_id,
                             'shortage_quantity' => $shortageQuantity,
-                            'received_quantity' => $receivedQuantity
+                            'received_quantity' => $receivedQuantity,
                         ]);
                     }
                 }
@@ -1900,7 +1905,7 @@ class StockMovementController extends Controller
                     'processed_items' => count($processedItems),
                     'shortage_records' => count($shortageRecords),
                     'items' => $processedItems,
-                    'shortages' => $shortageRecords
+                    'shortages' => $shortageRecords,
                 ]);
 
             } catch (\Exception $e) {
@@ -1909,15 +1914,15 @@ class StockMovementController extends Controller
             }
 
         } catch (\Exception $e) {
-            \Log::error('Error processing validation: ' . $e->getMessage(), [
+            \Log::error('Error processing validation: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while processing validation: ' . $e->getMessage()
+                'message' => 'An error occurred while processing validation: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -1929,22 +1934,22 @@ class StockMovementController extends Controller
     {
         try {
             $userService = $this->getUserService();
-            if (!$userService) {
+            if (! $userService) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User service not found'
+                    'message' => 'User service not found',
                 ], 403);
             }
 
             $movement = StockMovement::where('id', $movementId)
-                                   ->where('requesting_service_id', $userService->id)
-                                   ->with(['items'])
-                                   ->first();
+                ->where('requesting_service_id', $userService->id)
+                ->with(['items'])
+                ->first();
 
-            if (!$movement) {
+            if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement not found or access denied'
+                    'message' => 'Stock movement not found or access denied',
                 ], 404);
             }
 
@@ -1952,7 +1957,7 @@ class StockMovementController extends Controller
             if ($movement->status !== 'in_transfer') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Stock movement must be in transfer status to finalize confirmation'
+                    'message' => 'Stock movement must be in transfer status to finalize confirmation',
                 ], 422);
             }
 
@@ -1969,10 +1974,10 @@ class StockMovementController extends Controller
                 if ($goodItems->count() === $movement->items->count()) {
                     $movement->status = 'fulfilled';
                     $movement->delivery_status = 'good';
-                } else if ($goodItems->count() > 0) {
+                } elseif ($goodItems->count() > 0) {
                     $movement->status = 'partially_fulfilled';
                     $movement->delivery_status = 'mixed';
-                } else if ($damagedItems->count() > 0) {
+                } elseif ($damagedItems->count() > 0) {
                     $movement->status = 'damaged';
                     $movement->delivery_status = 'damaged';
                 } else {
@@ -1990,7 +1995,7 @@ class StockMovementController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Confirmation finalized successfully.',
-                    'movement' => new StockMovementResource($movement->fresh())
+                    'movement' => new StockMovementResource($movement->fresh()),
                 ]);
 
             } catch (\Exception $e) {
@@ -1999,15 +2004,15 @@ class StockMovementController extends Controller
             }
 
         } catch (\Exception $e) {
-            \Log::error('Error finalizing confirmation: ' . $e->getMessage(), [
+            \Log::error('Error finalizing confirmation: '.$e->getMessage(), [
                 'movement_id' => $movementId,
                 'user_id' => Auth::id(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            
+
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while finalizing confirmation: ' . $e->getMessage()
+                'message' => 'An error occurred while finalizing confirmation: '.$e->getMessage(),
             ], 500);
         }
     }

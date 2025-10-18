@@ -51,6 +51,21 @@ const totalPackages = computed(() => packages.value.length)
 const activePackages = computed(() => packages.value.filter(pkg => pkg.is_active).length)
 
 // Methods
+// Helper: normalize various server values for is_active into a boolean
+const normalizeIsActive = (val) => {
+  if (val === undefined || val === null) return true
+  if (typeof val === 'boolean') return val
+  if (typeof val === 'number') return Boolean(val)
+  if (typeof val === 'string') {
+    const lower = val.toLowerCase().trim()
+    if (lower === '1' || lower === 'true') return true
+    if (lower === '0' || lower === 'false') return false
+    const n = Number(val)
+    return !Number.isNaN(n) ? Boolean(n) : true
+  }
+  return Boolean(val)
+}
+
 const loadPackages = async () => {
   loading.value = true
   error.value = null
@@ -58,7 +73,11 @@ const loadPackages = async () => {
   try {
     const response = await prestationPackageService.getAll()
     if (response.success) {
-      packages.value = response.data || []
+      // Normalize is_active across the loaded packages to booleans to avoid truthy string issues
+      packages.value = (response.data || []).map(p => ({
+        ...p,
+        is_active: normalizeIsActive(p.is_active)
+      }))
     } else {
       throw new Error(response.message || 'Failed to load packages')
     }
@@ -82,7 +101,16 @@ const openCreateModal = () => {
 }
 
 const openEditModal = (packageData) => {
-  selectedPackage.value = { ...packageData }
+  console.log('Opening edit modal with packageData:', packageData)
+  console.log('Original is_active:', packageData.is_active, 'Type:', typeof packageData.is_active)
+  
+  const normalizedIsActive = normalizeIsActive(packageData.is_active)
+  console.log('Normalized is_active:', normalizedIsActive)
+  
+  // ensure selectedPackage carries a normalized boolean is_active
+  selectedPackage.value = { ...packageData, is_active: normalizedIsActive }
+  console.log('selectedPackage.value set to:', selectedPackage.value)
+  
   isEditMode.value = true
   showModal.value = true
 }

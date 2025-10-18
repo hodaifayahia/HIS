@@ -14,14 +14,14 @@ return new class extends Migration
         Schema::table('service_demand_purchasing_items', function (Blueprint $table) {
             // Add foreign key constraints with custom names
             $table->foreign('service_demand_purchasing_id', 'fk_sdpi_sdp_id')
-                  ->references('id')->on('service_demand_purchasings')
-                  ->onDelete('cascade');
-            
+                ->references('id')->on('service_demand_purchasings')
+                ->onDelete('cascade');
+
             // Check if products table exists before adding foreign key
             if (Schema::hasTable('products')) {
                 $table->foreign('product_id', 'fk_sdpi_product_id')
-                      ->references('id')->on('products')
-                      ->onDelete('cascade');
+                    ->references('id')->on('products')
+                    ->onDelete('cascade');
             }
         });
     }

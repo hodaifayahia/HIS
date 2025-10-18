@@ -383,8 +383,8 @@ async getPrestationsDependencies(prestationIds) {
      */
     async getAllDoctors() {
         try {
-            // Use the existing search route with empty query
-            const response = await axios.get('/api/doctors/search?q=');
+            // Use global doctors API like Emergency version
+            const response = await axios.get('/api/doctors');
             return {
                 success: true,
                 data: response.data.data || response.data
@@ -533,6 +533,27 @@ async getPrestationsDependencies(prestationIds) {
     },
 
     /**
+     * Update a dependency's stored default_payment_type
+     */
+    async updateDependency(dependencyId, data) {
+        try {
+            const response = await axios.put(`/api/reception/fiche-navette/dependencies/${dependencyId}`, data);
+            return {
+                success: true,
+                data: response.data.data,
+                message: response.data.message || response.data
+            };
+        } catch (error) {
+            console.error('Error updating dependency:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to update dependency',
+                error
+            };
+        }
+    },
+
+    /**
      * Remove a fiche navette item using ficheNavetteItemController
      */
     async removeFicheNavetteItem(ficheNavetteId, itemId) {
@@ -623,6 +644,44 @@ async getPrestationsDependencies(prestationIds) {
     },
 
     /**
+     * Get contract percentages for an organisme
+     * Returns an array of { label, value } objects suitable for Dropdown
+     */
+    async getContractPercentagesByOrganisme(organismeId) {
+        try {
+            // Use existing conventions endpoint filtered by organisme to retrieve contract percentages
+            const response = await axios.get('/api/conventions', {
+                params: { organisme_id: organismeId, per_page: -1 }
+            });
+
+            const conventions = response.data.data || [];
+            const raw = Array.isArray(conventions) ? conventions : (conventions.data || [])
+
+            const map = new Map();
+            raw.forEach(conv => {
+                const cps = conv.contract_percentages || conv.contractPercentages || [];
+                if (Array.isArray(cps)) {
+                    cps.forEach(cp => {
+                        const id = cp.id ?? cp.contract_percentage_id ?? null;
+                        const percentage = cp.percentage ?? cp.value ?? null;
+                        if (percentage !== null) {
+                            // Use id when available, else fallback to percentage as value
+                            const value = id ?? Number(percentage);
+                            map.set(value, { label: `${percentage}%`, value, percentage: Number(percentage), id });
+                        }
+                    })
+                }
+            })
+
+            const data = Array.from(map.values())
+            return { success: true, data }
+        } catch (error) {
+            console.error('Error fetching contract percentages:', error);
+            return { success: false, message: error.response?.data?.message || 'Failed to fetch percentages' }
+        }
+    },
+
+    /**
      * Get prestations by convention
      */
     async getPrestationsByConvention(conventionId, priseEnChargeDate = null) {
@@ -672,6 +731,26 @@ async getPrestationsDependencies(prestationIds) {
             };
         }
     },
+    /**
+     * Fetch the best matching PrestationPricing for a prestation with optional filters.
+     * params: { prestation_id, contract_percentage_id, annex_id, avenant_id }
+     */
+    async matchPrestationPricing(params = {}) {
+        try {
+            const response = await axios.get('/api/prestation-pricing/match', { params });
+            return {
+                success: true,
+                data: response.data.data
+            };
+        } catch (error) {
+            console.error('Error matching prestation pricing:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to match prestation pricing',
+                error
+            };
+        }
+    },
   async createConventionPrescription(ficheNavetteId, data) {
     try {
         const response = await axios.post(`/api/fiche-navette/${ficheNavetteId}/convention-prescription`, data, {
@@ -701,13 +780,15 @@ async removeDependency(dependencyId) {
     }
 },
 
-async getPatientConventions(patientId , ficheNavetteId) {
+async getPatientConventions(patientId, ficheNavetteId) {
     try {
-        const response = await axios.get(`/api/reception/patients/${patientId}/conventions`,{
+        // Use the shared patients conventions endpoint (no reception prefix)
+        const response = await axios.get(`/api/reception/fiche-navette/patients/${patientId}/conventions`, {
             params: {
                 fiche_navette_id: ficheNavetteId
             }
         })
+
         return {
             success: true,
             data: response.data.data || response.data
@@ -805,6 +886,43 @@ async getGroupedItems(ficheNavetteId) {
             return {
                 success: false,
                 message: error.response?.data?.message || 'Failed to fetch custom packages',
+                error
+            };
+        }
+    },
+
+    /**
+     * Print fiche navette ticket
+     */
+    async printTicket(ficheNavetteId) {
+        try {
+            const response = await axios.post(
+                `/api/reception/fiche-navette/${ficheNavetteId}/print-ticket`,
+                {},
+                {
+                    responseType: 'blob' // Important for PDF download
+                }
+            );
+            
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `fiche-navette-ticket-${ficheNavetteId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            return {
+                success: true,
+                message: 'Ticket printed successfully'
+            };
+        } catch (error) {
+            console.error('Error printing ticket:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to print ticket',
                 error
             };
         }

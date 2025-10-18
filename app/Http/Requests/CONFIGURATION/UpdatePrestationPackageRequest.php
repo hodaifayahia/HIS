@@ -3,12 +3,11 @@
 namespace App\Http\Requests\CONFIGURATION;
 
 use Illuminate\Foundation\Http\FormRequest;
+
 class UpdatePrestationPackageRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
-     *
-     * @return bool
      */
     public function authorize(): bool
     {
@@ -28,6 +27,7 @@ class UpdatePrestationPackageRequest extends FormRequest
             'name' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'price' => ['nullable', 'numeric', 'min:0'],
+            'is_active' => ['nullable', 'boolean'],
             // The list of prestations is also nullable, allowing for updates to other fields without changing the items.
             'prestations' => ['nullable', 'array'],
             'prestations.*' => ['required', 'exists:prestations,id'],

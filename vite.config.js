@@ -12,7 +12,9 @@ export default defineConfig({
         },
         watch: {
             usePolling: true
-        }
+        },
+        cors: true,
+        origin: 'http://10.47.0.26:5174'
     },
     plugins: [
         laravel({

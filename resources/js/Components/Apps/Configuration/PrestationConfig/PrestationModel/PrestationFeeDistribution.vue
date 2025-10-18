@@ -142,7 +142,7 @@ const formatCurrency = (amount) => {
 <template>
     <div class="tab-content">
         <div class="header-section">
-            <h3 class="section-title">Revenue Distribution (TTC)</h3> <h4 class="fs-3">{{ props.estimatedTotal }}</h4>
+            <h3 class="section-title">Revenue Distribution (HT)</h3> <h4 class="fs-3">{{ props.estimatedTotal }}</h4>
             <p class="section-description">Configure how revenue is distributed among different roles</p>
         </div>
 

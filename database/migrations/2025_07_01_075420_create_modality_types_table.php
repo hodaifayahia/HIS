@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('modality_types', function (Blueprint $table) {
             $table->id();
-            $table->text('image_url');
+            $table->text('image_url')->nullable();
             $table->string('name')->unique();
             $table->text('description')->nullable();
             $table->timestamps();

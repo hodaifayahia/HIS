@@ -17,13 +17,13 @@ class Stockage extends Model
         'temperature_controlled',
         'security_level',
         'location_code',
-        'warehouse_type'
+        'warehouse_type',
     ];
 
     protected $casts = [
         'capacity' => 'integer',
         'temperature_controlled' => 'boolean',
-        'service_id' => 'integer'
+        'service_id' => 'integer',
     ];
 
     /**

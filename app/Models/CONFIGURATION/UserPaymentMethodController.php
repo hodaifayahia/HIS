@@ -1,16 +1,16 @@
 <?php
+
 // filepath: d:\Projects\AppointmentSystem\AppointmentSystem-main\app\Http\Controllers\CONFIGURATION\UserPaymentMethodController.php
 
 namespace App\Http\Controllers\CONFIGURATION;
 
+use App\Enums\Payment\PaymentMethodEnum;
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Http\Resources\CONFIGURATION\UserPaymentMethodResource;
+use App\Http\Resources\CONFIGURATION\UserResource;
 use App\Models\User;
 use App\Services\CONFIGURATION\UserPaymentMethodService;
-use App\Http\Resources\CONFIGURATION\UserResource;
-use App\Http\Resources\CONFIGURATION\UserPaymentMethodResource;
-use App\Http\Requests\CONFIGURATION\UserPaymentMethodRequest;
-use App\Enums\Payment\PaymentMethodEnum;
+use Illuminate\Http\Request;
 
 class UserPaymentMethodController extends Controller
 {
@@ -28,15 +28,16 @@ class UserPaymentMethodController extends Controller
     {
         try {
             $users = $this->userPaymentMethodService->getAllUsersWithPaymentAccess();
+
             return response()->json([
                 'success' => true,
-                'data' => UserPaymentMethodResource::collection($users)
+                'data' => UserPaymentMethodResource::collection($users),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load users with payment access.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -62,7 +63,7 @@ class UserPaymentMethodController extends Controller
             ]);
 
             // Check if this is a bulk assignment (has userIds) or new user creation
-            if ($request->has('userIds') && !empty($request->input('userIds'))) {
+            if ($request->has('userIds') && ! empty($request->input('userIds'))) {
                 // Bulk assignment
                 $paymentMethodKeys = $request->input('paymentMethodKeys', []);
                 $userIds = $request->input('userIds', []);
@@ -79,7 +80,7 @@ class UserPaymentMethodController extends Controller
                     'message' => "Successfully assigned payment methods to {$assignedCount} user(s).",
                     'data' => [
                         'assigned_count' => $assignedCount,
-                    ]
+                    ],
                 ], 200);
             } else {
                 // New user creation
@@ -88,7 +89,7 @@ class UserPaymentMethodController extends Controller
                     'email' => $request->input('email'),
                     'password' => $request->input('password'),
                     'allowedMethods' => $request->input('allowedMethods', []),
-                    'status' => $request->input('status', 'active')
+                    'status' => $request->input('status', 'active'),
                 ];
 
                 $user = $this->userPaymentMethodService->createUserWithPaymentMethods($userData);
@@ -96,14 +97,14 @@ class UserPaymentMethodController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'User created successfully with payment methods.',
-                    'data' => new UserResource($user)
+                    'data' => new UserResource($user),
                 ], 201);
             }
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
@@ -121,15 +122,16 @@ class UserPaymentMethodController extends Controller
     {
         try {
             $userPaymentMethods = $this->userPaymentMethodService->getUserWithPaymentAccess($user);
+
             return response()->json([
                 'success' => true,
-                'data' => UserPaymentMethodResource::collection($userPaymentMethods)
+                'data' => UserPaymentMethodResource::collection($userPaymentMethods),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load user payment access.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -139,7 +141,7 @@ class UserPaymentMethodController extends Controller
      */
     public function update(Request $request, $user)
     {
-       $user =  User::findOrFail($user);
+        $user = User::findOrFail($user);
         try {
             // Manual validation
             $request->validate([
@@ -152,23 +154,23 @@ class UserPaymentMethodController extends Controller
                 $user,
                 $request->all()
             );
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'User payment methods updated successfully.',
-                'data' => new UserPaymentMethodResource($userPaymentMethod)
+                'data' => new UserPaymentMethodResource($userPaymentMethod),
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors' => $e->errors()
+                'errors' => $e->errors(),
             ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update user payment methods.', 
-                'error' => $e->getMessage()
+                'message' => 'Failed to update user payment methods.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -180,15 +182,16 @@ class UserPaymentMethodController extends Controller
     {
         try {
             $this->userPaymentMethodService->deleteUser($user);
+
             return response()->json([
                 'success' => true,
-                'message' => 'User deleted successfully.'
+                'message' => 'User deleted successfully.',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete user.', 
-                'error' => $e->getMessage()
+                'message' => 'Failed to delete user.',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -201,13 +204,13 @@ class UserPaymentMethodController extends Controller
         try {
             return response()->json([
                 'success' => true,
-                'data' => PaymentMethodEnum::toArrayForDropdown()
+                'data' => PaymentMethodEnum::toArrayForDropdown(),
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to load payment methods.',
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

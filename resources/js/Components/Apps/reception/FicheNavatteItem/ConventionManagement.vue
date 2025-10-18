@@ -66,6 +66,24 @@ const conventions = ref([])
 const filteredConventions = ref([])
 const conventionPrestations = ref([])
 
+// Contract percentages for the selected organisme
+const contractPercentages = ref([])
+const selectedContractPercentage = ref(null)
+
+// Derived values for selected percentage
+const selectedContractPercentageId = computed(() => {
+  if (!selectedContractPercentage.value) return null
+  // If the option is an object with id, return it
+  if (typeof selectedContractPercentage.value === 'object') return selectedContractPercentage.value.id || selectedContractPercentage.value.value || null
+  return selectedContractPercentage.value
+})
+
+const selectedContractPercentageValue = computed(() => {
+  if (!selectedContractPercentage.value) return null
+  if (typeof selectedContractPercentage.value === 'object') return selectedContractPercentage.value.percentage ?? selectedContractPercentage.value.value ?? null
+  return Number(selectedContractPercentage.value)
+})
+
 // New: Specialization and Doctor selection (after convention selection)
 const specializations = ref([])
 const allDoctors = ref([])
@@ -182,7 +200,6 @@ const canCreatePrescription = computed(() => {
 
 // ADD THESE COMPUTED PROPERTIES FOR SAFE FALLBACK LOGIC
 const safeDoctorId = computed(() => {
-  console.log('=== safeDoctorId computed ===')
   
   // Priority 1: Get from the current prestation for appointment
   if (currentPrestationForAppointment.value?.doctorId) {
@@ -434,6 +451,8 @@ const onOrganismeChange = async () => {
 
   if (!currentOrganisme.value) {
     filteredConventions.value = []
+    contractPercentages.value = []
+    selectedContractPercentage.value = null
     return
   }
 
@@ -445,6 +464,19 @@ const onOrganismeChange = async () => {
   } catch (error) {
     console.error('Error filtering conventions:', error)
     filteredConventions.value = []
+  }
+
+  // Load contract percentages for this organisme (optional)
+  try {
+    const pctResult = await ficheNavetteService.getContractPercentagesByOrganisme(currentOrganisme.value)
+    if (pctResult && pctResult.success) {
+      contractPercentages.value = Array.isArray(pctResult.data) ? pctResult.data : []
+    } else {
+      contractPercentages.value = []
+    }
+  } catch (e) {
+    console.error('Error loading contract percentages:', e)
+    contractPercentages.value = []
   }
 }
 
@@ -766,6 +798,11 @@ const createConventionWithData = (organismeObj, conventionObj, specializationObj
     if (newUniquePrestations.length > 0) {
       existingConvention.prestations.push(...newUniquePrestations);
       existingConvention.totalPrestations = existingConvention.prestations.length;
+      // If the user selected a contract percentage for this addition, store it on the existing convention
+      if (selectedContractPercentageValue.value !== null && selectedContractPercentageValue.value !== undefined) {
+        existingConvention.contractPercentage = selectedContractPercentageValue.value
+        existingConvention.contractPercentageId = selectedContractPercentageId.value
+      }
       toast.add({
         severity: 'success',
         summary: 'Prestations Added',
@@ -788,6 +825,8 @@ const createConventionWithData = (organismeObj, conventionObj, specializationObj
       selectedAdherentPatient: selectedAdherentPatient.value,
       organisme: organismeObj,
       convention: conventionObj,
+      contractPercentage: selectedContractPercentageValue.value,
+      contractPercentageId: selectedContractPercentageId.value,
       prestations: [...prestations],
       specialization: specializationObj,
       doctor: doctorObj,
@@ -855,7 +894,7 @@ const formatCurrency = (amount) => {
   if (!amount && amount !== 0) return 'N/A'
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency: 'EUR'
+    currency: 'DZD',
   }).format(amount)
 }
 
@@ -908,6 +947,9 @@ const resetStep2Fields = () => {
   selectedDoctor.value = null
   conventionPrestations.value = []
   filteredConventions.value = []
+  // reset percentage selection
+  contractPercentages.value = []
+  selectedContractPercentage.value = null
 }
 
 const resetAll = () => {
@@ -1013,12 +1055,22 @@ const proceedWithPrescriptionCreation = async () => {
     completedConventions.value.forEach((conv, index) => {
       formData.append(`conventions[${index}][convention_id]`, conv.convention.id)
       formData.append(`conventions[${index}][doctor_id]`, conv.doctor.id)
+      if (conv.contractPercentage !== undefined && conv.contractPercentage !== null) {
+        formData.append(`conventions[${index}][contract_percentage]`, conv.contractPercentage)
+      }
+      if (conv.contractPercentageId !== undefined && conv.contractPercentageId !== null) {
+        formData.append(`conventions[${index}][contract_percentage_id]`, conv.contractPercentageId)
+      }
       
-      conv.prestations.forEach((prestation, prestIndex) => {
+       conv.prestations.forEach((prestation, prestIndex) => {
         formData.append(`conventions[${index}][prestations][${prestIndex}][prestation_id]`, prestation.prestation_id || prestation.id)
         formData.append(`conventions[${index}][prestations][${prestIndex}][doctor_id]`, conv.doctor.id)
-        formData.append(`conventions[${index}][prestations][${prestIndex}][convention_price]`, prestation.convention_price || prestation.price)
+        // Send the same price that's displayed in the UI: patient_price || price
+        const displayedPrice = prestation.patient_price || prestation.price
+        formData.append(`conventions[${index}][prestations][${prestIndex}][convention_price]`, displayedPrice)
+        formData.append(`conventions[${index}][prestations][${prestIndex}][patient_price]`, displayedPrice)
       })
+    
     })
 
     // Append other fields
@@ -1034,7 +1086,34 @@ const proceedWithPrescriptionCreation = async () => {
     })
 
     console.log('Sending prescription creation request...')
-    const response = await ficheNavetteService.createConventionPrescription(props.ficheNavetteId, formData)
+    
+    let response
+    if (props.ficheNavetteId) {
+      // Adding to existing fiche
+      response = await ficheNavetteService.createConventionPrescription(props.ficheNavetteId, formData)
+    } else {
+      // Creating new fiche with convention data
+      // Convert FormData to regular object for createFicheNavette
+      const conventionData = {
+        prise_en_charge_date: formatDateForApi(priseEnChargeDate.value),
+        familyAuth: selectedFamilyAuth.value,
+        adherentPatient_id: selectedAdherentPatient.value?.id,
+        conventions: completedConventions.value.map(conv => ({
+          convention_id: conv.convention.id,
+          doctor_id: conv.doctor.id,
+          contract_percentage: conv.contractPercentage ?? null,
+          prestations: conv.prestations.map(prestation => ({
+            prestation_id: prestation.prestation_id || prestation.id,
+            doctor_id: conv.doctor.id,
+            convention_price: prestation.convention_price || prestation.price
+          }))
+        })),
+        // Note: File upload might need separate handling for new fiches
+        // uploadedFiles: uploadedFiles.value
+      }
+      response = await ficheNavetteService.createFicheNavette(conventionData)
+    }
+    
     console.log('Prescription creation response:', response)
 
     if (response.success) {
@@ -1269,6 +1348,20 @@ watch(showSameDayModal, (newValue) => {
                         </div>
 
                         <div class="field-group">
+                          <label>Contract Percentage</label>
+                          <Dropdown
+                            v-model="selectedContractPercentage"
+                            :options="contractPercentages"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select percentage (optional)"
+                            :disabled="!currentOrganisme || contractPercentages.length === 0"
+                            class="field-input"
+                            showClear
+                          />
+                        </div>
+
+                        <div class="field-group">
                           <label>Conventions</label>
                           <Dropdown
                             v-model="currentConvention"
@@ -1284,6 +1377,7 @@ watch(showSameDayModal, (newValue) => {
                             filterPlaceholder="Search conventions..."
                           />
                         </div>
+
 
                         <div class="field-group">
                           <label>Specialization *</label>
@@ -1381,9 +1475,9 @@ watch(showSameDayModal, (newValue) => {
                                   <small class="prestation-service">Service: {{ option.service_name }}</small>
                                 </div>
                                 <div class="prestation-pricing">
-                                  <span class="prestation-price">{{ formatCurrency(option.convention_price || option.price) }}</span>
+                                  <span class="prestation-price">{{ formatCurrency(option.patient_price || option.price) }}</span>
                                   <small v-if="option.base_price && option.convention_price !== option.base_price" class="original-price">
-                                    Original: {{ formatCurrency(option.base_price) }}
+                                    Original: {{ formatCurrency(option.patient_price) }}
                                   </small>
                                 </div>
                               </div>
@@ -1470,7 +1564,7 @@ watch(showSameDayModal, (newValue) => {
                         <h5>Added Conventions</h5>
                         <div class="convention-list">
                           <div
-                            v-for="(convention, conventionIndex) in completedConventions"
+                            v-for="convention in completedConventions"
                             :key="convention.id"
                             class="convention-item expanded"
                           >
@@ -1486,6 +1580,7 @@ watch(showSameDayModal, (newValue) => {
                                   <Tag :value="`Dr. ${convention.doctor.name}`" severity="help" />
                                   <Tag :value="convention.selectedFamilyAuth" severity="info" />
                                   <Tag :value="formatDate(convention.priseEnChargeDate)" severity="secondary" />
+                                  <Tag v-if="convention.contractPercentage !== undefined && convention.contractPercentage !== null" :value="`${convention.contractPercentage}%`" severity="help" />
                                 </div>
                               </div>
                               <Button
@@ -1503,10 +1598,42 @@ watch(showSameDayModal, (newValue) => {
                                   v-for="prestation in convention.prestations"
                                   :key="prestation.prestation_id"
                                   class="prestation-item"
+                                  :class="{
+                                    'from-avenant': prestation.pricing_source === 'avenant',
+                                    'from-annex': prestation.pricing_source === 'annex',
+                                    'from-public': prestation.pricing_source === 'public_pricing'
+                                  }"
                                 >
                                   <div class="prestation-info">
                                     <div class="prestation-header">
                                       <strong class="prestation-title">{{ prestation.name }}</strong>
+                                      
+                                      <!-- Pricing Source Badge -->
+                                      <Tag
+                                        v-if="prestation.pricing_source === 'avenant'"
+                                        value="Avenant"
+                                        severity="success"
+                                        icon="pi pi-check-circle"
+                                        size="small"
+                                        class="ml-2"
+                                      />
+                                      <Tag
+                                        v-else-if="prestation.pricing_source === 'annex'"
+                                        value="Annex"
+                                        severity="info"
+                                        icon="pi pi-file"
+                                        size="small"
+                                        class="ml-2"
+                                      />
+                                      <Tag
+                                        v-else-if="prestation.pricing_source === 'public_pricing'"
+                                        value="Public"
+                                        severity="warn"
+                                        icon="pi pi-exclamation-triangle"
+                                        size="small"
+                                        class="ml-2"
+                                      />
+                                      
                                       <Tag
                                         v-if="prestation.need_an_appointment"
                                         value="Appointment Required"
@@ -1517,15 +1644,28 @@ watch(showSameDayModal, (newValue) => {
                                       <Tag
                                         v-if="prestation.specialization && prestation.specialization !== 'Unknown'"
                                         :value="prestation.specialization"
-                                        severity="info"
+                                        severity="secondary"
                                         size="small"
                                         class="ml-2"
                                       />
                                     </div>
-                                    <small class="prestation-code">Code: {{ prestation.prestation_code || prestation.internal_code }}</small>
+                                    <small class="prestation-code">
+                                      Code: {{ prestation.prestation_code || prestation.internal_code }}
+                                      <span v-if="prestation.pricing_source === 'avenant' && prestation.avenant_id" class="text-muted ml-2">
+                                        (Avenant #{{ prestation.avenant_id }})
+                                      </span>
+                                      <span v-else-if="prestation.pricing_source === 'annex' && prestation.annex_id" class="text-muted ml-2">
+                                        (Annex #{{ prestation.annex_id }})
+                                      </span>
+                                    </small>
+                                    <!-- Show patient vs company price breakdown for avenant/annex -->
+                                    <small v-if="prestation.pricing_source === 'avenant' || prestation.pricing_source === 'annex'" class="price-breakdown text-muted">
+                                      Patient: {{ formatCurrency(prestation.patient_price || 0) }} | 
+                                      Company: {{ formatCurrency(prestation.company_price || 0) }}
+                                    </small>
                                   </div>
                                   <div class="prestation-actions">
-                                    <span class="prestation-price">{{ formatCurrency(prestation.convention_price || prestation.price) }}</span>
+                                    <span class="prestation-price">{{ formatCurrency(prestation.patient_price || prestation.price) }}</span>
                                     <Button
                                       icon="pi pi-times"
                                       class="p-button-text p-button-danger p-button-sm"
@@ -1955,6 +2095,23 @@ watch(showSameDayModal, (newValue) => {
   padding: 0.75rem;
   background: #f8fafc;
   border-radius: 6px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.prestation-item.from-avenant {
+  border-left-color: #22c55e;
+  background: linear-gradient(to right, #f0fdf4 0%, #f8fafc 100%);
+}
+
+.prestation-item.from-annex {
+  border-left-color: #3b82f6;
+  background: linear-gradient(to right, #eff6ff 0%, #f8fafc 100%);
+}
+
+.prestation-item.from-public {
+  border-left-color: #f59e0b;
+  background: linear-gradient(to right, #fffbeb 0%, #f8fafc 100%);
 }
 
 .prestation-info {
@@ -1977,6 +2134,12 @@ watch(showSameDayModal, (newValue) => {
 .prestation-code {
   font-size: 0.8rem;
   color: #64748b;
+}
+
+.price-breakdown {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin-top: 0.25rem;
 }
 
 .prestation-actions {

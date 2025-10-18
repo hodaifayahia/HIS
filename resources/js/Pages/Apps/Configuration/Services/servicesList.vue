@@ -87,6 +87,7 @@ const openModal = (service = null) => {
  * Closes the ServiceModel.
  */
 const closeModal = () => {
+        getServices(); // Refresh the list to ensure consistency
     isModalOpen.value = false;
     selectedService.value = null;
 };
@@ -108,10 +109,8 @@ const handleServiceAdded = (newService) => {
  * @param {Object} updatedService - The updated service object from the API response.
  */
 const handleServiceUpdated = (updatedService) => {
-    const index = services.value.findIndex(s => s.id === updatedService.id);
-    if (index !== -1) {
-        services.value[index] = updatedService; // Replace the old object with the updated one
-    }
+    // Refresh the entire list from the server to ensure data consistency
+    getServices();
     closeModal();
 };
 

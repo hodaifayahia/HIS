@@ -74,18 +74,6 @@ const contactForm = ref({
     mobile: '',
     is_primary: false
 });
-
-// Watch for prop changes
-watch(() => props.fournisseurData, (newVal) => {
-    if (newVal && Object.keys(newVal).length > 0) {
-        fournisseur.value = { ...newVal };
-        isEdit.value = !!newVal.id;
-    } else {
-        resetForm();
-        isEdit.value = false;
-    }
-}, { immediate: true });
-
 const resetForm = () => {
     fournisseur.value = {
         id: null,
@@ -103,6 +91,18 @@ const resetForm = () => {
         contacts: []
     };
 };
+// Watch for prop changes
+watch(() => props.fournisseurData, (newVal) => {
+    if (newVal && Object.keys(newVal).length > 0) {
+        fournisseur.value = { ...newVal };
+        isEdit.value = !!newVal.id;
+    } else {
+        resetForm();
+        isEdit.value = false;
+    }
+}, { immediate: true });
+
+
 
 // Methods
 const saveFournisseur = async () => {

@@ -16,10 +16,7 @@ export const useAuthStore = defineStore('auth', {
       this.loginError = null;
       
       try {
-        // First, get CSRF token (required by Fortify)
-        await axios.get('/sanctum/csrf-cookie');
-        
-        // Attempt login via Fortify
+        // Attempt login via Fortify (CSRF token is handled by Laravel automatically for session-based auth)
         const response = await axios.post('/login', credentials);
         
         // After successful login, get the authenticated user

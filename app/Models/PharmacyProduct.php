@@ -176,8 +176,9 @@ class PharmacyProduct extends Model
     {
         $name = $this->name;
         if ($this->strength && $this->strength_unit) {
-            $name .= ' ' . $this->strength . $this->strength_unit;
+            $name .= ' '.$this->strength.$this->strength_unit;
         }
+
         return $name;
     }
 
@@ -202,10 +203,11 @@ class PharmacyProduct extends Model
      */
     public function generateBarcode()
     {
-        if (!$this->barcode) {
-            $this->barcode = 'PH' . str_pad($this->id, 8, '0', STR_PAD_LEFT);
+        if (! $this->barcode) {
+            $this->barcode = 'PH'.str_pad($this->id, 8, '0', STR_PAD_LEFT);
             $this->save();
         }
+
         return $this->barcode;
     }
 
@@ -214,10 +216,11 @@ class PharmacyProduct extends Model
      */
     public function generateSku()
     {
-        if (!$this->sku) {
-            $this->sku = 'SKU-PH-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
+        if (! $this->sku) {
+            $this->sku = 'SKU-PH-'.str_pad($this->id, 6, '0', STR_PAD_LEFT);
             $this->save();
         }
+
         return $this->sku;
     }
 }
