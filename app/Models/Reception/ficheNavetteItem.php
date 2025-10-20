@@ -6,11 +6,13 @@ use App\Models\B2B\Convention;
 use App\Models\CONFIGURATION\Prestation;
 use App\Models\CONFIGURATION\PrestationPackageitem;
 use App\Models\Patient;
-use App\Models\User;
+use App\Models\Doctor;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ficheNavetteItem extends Model
 {
+    use HasFactory;
     protected $table = 'fiche_navette_items';
 
     protected $fillable = [
@@ -88,7 +90,7 @@ class ficheNavetteItem extends Model
      */
     public function doctor()
     {
-        return $this->belongsTo(User::class, 'doctor_id');
+        return $this->belongsTo(Doctor::class, 'doctor_id');
     }
 
     /**

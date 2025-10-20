@@ -6,9 +6,11 @@ use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ficheNavette extends Model
 {
+    use HasFactory;
     protected $table = 'fiche_navettes';
 
     protected $fillable = [

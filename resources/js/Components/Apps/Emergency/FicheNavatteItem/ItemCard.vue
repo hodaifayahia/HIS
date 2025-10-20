@@ -114,7 +114,7 @@ const cardTitle = computed(() => {
 
 const cardSubtitle = computed(() => {
   if (props.group.doctor_name) {
-    return `Dr. ${props.group.doctor_name}`
+    return props.group.doctor_name
   }
   return 'No doctor assigned'
 })

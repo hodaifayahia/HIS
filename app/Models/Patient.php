@@ -11,7 +11,6 @@ use Illuminate\Support\Str;
 class Patient extends Model
 {
     use HasFactory, Notifiable;
-    use SoftDeletes;
 
     protected $fillable = [
         'Firstname',

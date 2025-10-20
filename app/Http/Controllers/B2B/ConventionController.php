@@ -511,4 +511,74 @@ private function formatAuthorizationLabel(string $auth): string
             ], 500);
         }
     }
+
+    /**
+     * Get contract percentages for filtering
+     * GET /conventions/contract-percentages
+     */
+    public function getContractPercentages(Request $request): JsonResponse
+    {
+        try {
+            $organismeId = $request->get('organisme_id');
+            $conventionId = $request->get('convention_id');
+            $annexId = $request->get('annex_id');
+            $avenantId = $request->get('avenant_id');
+
+            // If annex_id is provided but convention_id is not, derive convention_id from annex
+            if ($annexId ) {
+                $annex = \App\Models\B2B\Annex::find($annexId);
+                if ($annex) {
+                    $conventionId = $annex->convention_id;
+                }
+            }
+
+            // If avenant_id is provided but convention_id is not, derive convention_id from avenant
+            if ($avenantId && !$conventionId) {
+                $avenant = \App\Models\B2B\Avenant::find($avenantId);
+                if ($avenant) {
+                    $conventionId = $avenant->convention_id;
+                }
+            }
+
+            $query = ContractPercentage::query();
+
+            // If organisme_id is provided, filter by conventions of that organisme
+            if ($organismeId) {
+                $query->whereHas('convention', function ($q) use ($organismeId) {
+                    $q->where('organisme_id', $organismeId);
+                });
+            }
+
+            // If convention_id is provided (either directly or derived from annex/avenant), filter by specific convention
+            if ($conventionId) {
+                $query->where('contract_id', $conventionId);
+            }
+
+            $percentages = $query->select('id', 'percentage', 'contract_id')
+                ->distinct('percentage')
+                ->orderBy('percentage')
+                ->get()
+                ->map(function ($percentage) {
+                    return [
+                        'id' => $percentage->id,
+                        'percentage' => $percentage->percentage,
+                        'label' => $percentage->percentage . '%',
+                        'value' => $percentage->id,
+                        'contract_id' => $percentage->contract_id
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $percentages
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch contract percentages',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

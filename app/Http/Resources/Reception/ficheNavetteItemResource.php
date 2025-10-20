@@ -22,6 +22,7 @@ class ficheNavetteItemResource extends JsonResource
             'package_id' => $this->package_id,
             'remaining_amount' => $this->remaining_amount,
             'paid_amount' => $this->paid_amount,
+            'doctor_name' => $this->whenLoaded('doctor', fn () => str_replace('Dr. ', '', $this->doctor->user->name ?? null)),
             'convention_id' => $this->convention_id,
             'insured_id' => $this->insured_id,
             'doctor_id' => $this->doctor_id,
@@ -100,6 +101,9 @@ class ficheNavetteItemResource extends JsonResource
 
         // Add package data if this is a package
         if ($this->isPackage() && $this->relationLoaded('package')) {
+            // For packages, ensure final_price reflects the package price, not individual prestation totals
+            $data['final_price'] = (float) $this->package->price;
+            
             $data['package'] = [
                 'id' => $this->package->id,
                 'name' => $this->package->name,
@@ -120,6 +124,15 @@ class ficheNavetteItemResource extends JsonResource
                             $finalPrice = 0.0;
                         }
 
+                        // Get doctor information for package prestation
+                        $doctorInfo = null;
+                        if ($packageItem->prestation->relationLoaded('doctor') && $packageItem->prestation->doctor) {
+                            $doctorInfo = [
+                                'id' => $packageItem->prestation->doctor->id,
+                                'name' => $packageItem->prestation->doctor->name,
+                            ];
+                        }
+
                         return [
                             'id' => $packageItem->prestation->id,
                             'name' => $packageItem->prestation->name,
@@ -133,6 +146,7 @@ class ficheNavetteItemResource extends JsonResource
                             'specialization_name' => $packageItem->prestation->specialization->name ?? null,
                             'specialization_id' => $packageItem->prestation->specialization_id,
                             'package_item_id' => $packageItem->id,
+                            'doctor' => $doctorInfo,
                         ];
                     }
 
@@ -204,6 +218,10 @@ class ficheNavetteItemResource extends JsonResource
                             'id' => $prestation->specialization->id,
                             'name' => $prestation->specialization->name,
                         ] : null,
+                        'doctor' => ($prestation->relationLoaded('doctor') && $prestation->doctor) ? [
+                            'id' => $prestation->doctor->id,
+                            'name' => $prestation->doctor->name,
+                        ] : null,
                     ];
 
                     $prestationName = $prestation->name;
@@ -231,11 +249,15 @@ class ficheNavetteItemResource extends JsonResource
                                     'service_id' => $prestation->service_id ?? null,
                                     'specialization_id' => $prestation->specialization_id ?? null,
                                     'specialization' => null,
+                                    'doctor' => ($prestation->relationLoaded('doctor') && $prestation->doctor) ? [
+                                        'id' => $prestation->doctor->id,
+                                        'name' => $prestation->doctor->name,
+                                    ] : null,
                                 ];
                                 $prestationName = $prestation->name;
                             }
                         } catch (\Exception $e) {
-                            \Log::warning('Could not load prestation for dependency', [
+                            \Illuminate\Support\Facades\Log::warning('Could not load prestation for dependency', [
                                 'dependency_id' => $dependency->id,
                                 'dependent_prestation_id' => $dependency->dependent_prestation_id,
                                 'error' => $e->getMessage(),

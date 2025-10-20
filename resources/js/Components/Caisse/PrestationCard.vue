@@ -75,6 +75,15 @@
             }" class="tw-text-xs"></i>
             <span>{{ paymentStatus.text }}</span>
           </div>
+          <!-- Doctor Tags -->
+          <div 
+            v-for="doctor in doctorTags" 
+            :key="doctor.id"
+            class="tw-inline-flex tw-items-center tw-gap-1 tw-text-xs tw-bg-purple-100 tw-text-purple-800 tw-px-3 tw-py-1.5 tw-rounded-full tw-font-medium tw-border tw-border-purple-200"
+          >
+            <i class="pi pi-user-md tw-text-xs"></i>
+            <span>{{ doctor.name }}</span>
+          </div>
         </div>
 
         <div v-if="minVersementAmount > 0" class="tw-bg-gray-50 tw-rounded-lg tw-p-3 tw-border tw-border-gray-200">
@@ -494,10 +503,48 @@ const handlePayment = () => {
 }
 
 const displayName = computed(() => {
-  return props.item.display_name ?? 
-         props.item.prestation?.name ?? 
-         props.item.custom_name ?? 
-         'Prestation'
+  
+  // For packages, show the package name with price in the title
+  if (props.item.package) {
+    return `${props.item.package.name} - ${formatCurrency(props.item.final_price)}`
+  }
+  
+  let name = props.item.display_name ?? 
+             props.item.prestation?.name ?? 
+             props.item.custom_name ?? 
+             'Prestation'
+
+  // Handle multiple doctors or single doctor
+  const doctors = []
+  
+  // Main item doctor
+  if (props.item.doctor_name) {
+    doctors.push(props.item.doctor_name)
+  }
+  
+  // Package prestations doctors
+  if (props.item.package?.prestations) {
+    props.item.package.prestations.forEach(prestation => {
+      if (prestation.doctor?.name && !doctors.includes(prestation.doctor.name)) {
+        doctors.push(prestation.doctor.name)
+      }
+    })
+  }
+  
+  // Dependencies doctors
+  if (props.item.dependencies) {
+    props.item.dependencies.forEach(dependency => {
+      if (dependency.dependencyPrestation?.doctor?.name && !doctors.includes(dependency.dependencyPrestation.doctor.name)) {
+        doctors.push(dependency.dependencyPrestation.doctor.name)
+      }
+    })
+  }
+
+  if (doctors.length > 0) {
+    name += ` (${doctors.join(', ')})`
+  }
+
+  return name
 })
 
 const serviceName = computed(() => {
@@ -505,6 +552,47 @@ const serviceName = computed(() => {
          (props.item.prestation?.service?.name ?? 
           props.item.service_name ?? 
           '')
+})
+
+const doctorTags = computed(() => {
+  const doctors = []
+  
+  // Main item doctor
+  if (props.item.doctor_name) {
+    doctors.push({
+      id: props.item.doctor_id || 'unknown',
+      name: props.item.doctor_name,
+      source: 'main'
+    })
+  }
+  
+  // Package prestations doctors
+  if (props.item.package?.prestations) {
+    props.item.package.prestations.forEach(prestation => {
+      if (prestation.doctor?.name && !doctors.some(d => d.id === prestation.doctor.id)) {
+        doctors.push({
+          id: prestation.doctor.id,
+          name: prestation.doctor.name,
+          source: 'package'
+        })
+      }
+    })
+  }
+  
+  // Dependencies doctors
+  if (props.item.dependencies) {
+    props.item.dependencies.forEach(dependency => {
+      if (dependency.dependencyPrestation?.doctor?.name && !doctors.some(d => d.id === dependency.dependencyPrestation.doctor.id)) {
+        doctors.push({
+          id: dependency.dependencyPrestation.doctor.id,
+          name: dependency.dependencyPrestation.doctor.name,
+          source: 'dependency'
+        })
+      }
+    })
+  }
+
+  return doctors
 })
 
 const cardClass = computed(() => {

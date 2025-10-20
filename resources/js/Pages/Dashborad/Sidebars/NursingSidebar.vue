@@ -44,7 +44,7 @@ const hasPermission = (requiredRoles) => {
             <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isPatientManagementOpen }">
                 <router-link to="/nursing/fiche-navette" active-class="active" class="nav-link">
                     <i class="far fa-circle nav-icon"></i>
-                    <p>Fiche Navette</p>
+                    <p>Patient Overview</p>
                 </router-link>
             </li>
             <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isPatientManagementOpen }">

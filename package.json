@@ -4,15 +4,21 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
-        "start": "concurrently \"php artisan serve \" \"npm run dev\" \"php artisan queue:work --timeout=0\" \"php artisan reverb:start --port=5207\""
+        "start": "concurrently \"php artisan serve \" \"npm run dev\" \"php artisan queue:work --timeout=0\" \"php artisan reverb:start --port=5207\"",
+        "lint": "eslint . --ext .js,.vue",
+        "phpstan": "php artisan phpstan"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.10",
         "@tailwindcss/typography": "^0.5.16",
         "@types/html-docx-js": "^0.3.4",
         "@vue/babel-plugin-jsx": "^1.4.0",
+        "@vue/eslint-config-prettier": "^10.2.0",
         "axios": "^1.10.0",
         "concurrently": "^9.2.0",
+        "eslint": "^9.38.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-vue": "^10.5.1",
         "husky": "^9.1.7",
         "laravel-echo": "^2.1.6",
         "laravel-vite-plugin": "^2.0.1",

@@ -41,7 +41,7 @@ const toast = useToast()
 // Header Information
 const breadcrumbItems = computed(() => [
   { label: 'Reception', route: '/reception' },
-  { label: 'Fiche Navette', route: '/emergency/fiche-navette' },
+  { label: 'Patient Overview', route: '/emergency/fiche-navette' },
   { label: `Fiche #${props.ficheId}` }
 ])
 

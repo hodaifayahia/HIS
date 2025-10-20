@@ -178,12 +178,12 @@ const adminRoutes = [{
                     name: 'admin.consultation.folderlist',
                     component: () => import('../Pages/Consultation/folder/FolderList.vue'),
                 },
-                {
-                    path: 'template/:folderid',
-                    name: 'admin.consultation.template',
-                    component: () => import('../Pages/Consultation/template/templateList.vue'),
-                    props: true,
-                },
+                // {
+                //     path: 'template/:folderid',
+                //     name: 'admin.consultation.template',
+                //     component: () => import('../Pages/Consultation/template/templateList.vue'),
+                //     props: true,
+                // },
                 {
                     path: 'template/create/:doctor_id?/:folderid?',
                     name: 'admin.consultation.template.add',

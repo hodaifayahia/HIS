@@ -2,6 +2,7 @@
 
 namespace App\Models\B2B;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ use App\Models\ContractPercentage;
 
 class Convention extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'organisme_id',
         'name',

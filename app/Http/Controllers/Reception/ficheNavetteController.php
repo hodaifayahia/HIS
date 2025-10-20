@@ -43,8 +43,10 @@ class ficheNavetteController extends Controller
             // Request underlying DB columns used by the accessor instead of the accessor name
             'items.prestation:id,name,internal_code,public_price,consumables_cost,vat_rate,tva_const_prestation,specialization_id',
             'items.prestation.specialization:id,name',
+            'items.prestation.doctor:id,name',
             'items.dependencies:id,dependency_type,notes,payment_status,dependent_prestation_id,is_package',
             'items.dependencies.dependencyPrestation:id,name,internal_code,public_price,consumables_cost,vat_rate,tva_const_prestation',
+            'items.dependencies.dependencyPrestation.doctor:id,name',
         ])
             ->select([
                 'id', 'patient_id', 'creator_id', 'status', 'fiche_date',
@@ -215,8 +217,8 @@ class ficheNavetteController extends Controller
             }
         }
 
-        // Load the fiche and its items (with prestation + specialization)
-        $fiche = FicheNavette::with(['items.prestation.specialization', 'patient'])->find($ficheId);
+        // Load the fiche and its items (with prestation + specialization + doctor)
+        $fiche = FicheNavette::with(['items.prestation.specialization', 'items.prestation.doctor', 'patient'])->find($ficheId);
 
         if (! $fiche) {
             return response()->json([
@@ -264,8 +266,8 @@ class ficheNavetteController extends Controller
         // Parent item ids for loading dependencies
         $parentItemIds = $filteredItems->pluck('id')->unique()->values()->toArray();
 
-        // Load dependencies for those parent items (with their prestation and specialization)
-        $dependencies = ItemDependency::with(['dependencyPrestation.specialization'])
+        // Load dependencies for those parent items (with their prestation, specialization, and doctor)
+        $dependencies = ItemDependency::with(['dependencyPrestation.specialization', 'dependencyPrestation.doctor'])
             ->whereIn('parent_item_id', $parentItemIds)
             ->get();
 

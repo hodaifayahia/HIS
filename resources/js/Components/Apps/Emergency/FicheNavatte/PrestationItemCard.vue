@@ -71,6 +71,16 @@ const confirm = useConfirm()
 // State
 const showDetailsModal = ref(false)
 const showRemiseModal = ref(false)
+const showPaymentTypeDialog = ref(false)
+const editingItem = ref(null)
+const selectedPaymentType = ref(null)
+
+// Payment type options match backend validation
+const paymentTypeOptions = [
+  { label: 'Pré-paiement', value: 'Pré-paiement' },
+  { label: 'Post-paiement', value: 'Post-paiement' },
+  { label: 'Versement', value: 'Versement' }
+]
 
 // Safe access to group items
 const groupItems = computed(() => {
@@ -86,8 +96,41 @@ const cardTitle = computed(() => {
 })
 
 const cardSubtitle = computed(() => {
+  const doctors = []
+  
+  // Main group doctor
   if (props.group?.doctor_name) {
-    return `Dr. ${props.group.doctor_name}`
+    doctors.push(props.group.doctor_name)
+  }
+  
+  // Collect doctors from all items in the group
+  groupItems.value.forEach(item => {
+    // Item doctor
+    if (item.doctor_name && !doctors.includes(item.doctor_name)) {
+      doctors.push(item.doctor_name)
+    }
+    
+    // Package prestations doctors
+    if (item.package?.prestations) {
+      item.package.prestations.forEach(prestation => {
+        if (prestation.doctor?.name && !doctors.includes(prestation.doctor.name)) {
+          doctors.push(prestation.doctor.name)
+        }
+      })
+    }
+    
+    // Dependencies doctors
+    if (item.dependencies) {
+      item.dependencies.forEach(dependency => {
+        if (dependency.dependencyPrestation?.doctor?.name && !doctors.includes(dependency.dependencyPrestation.doctor.name)) {
+          doctors.push(dependency.dependencyPrestation.doctor.name)
+        }
+      })
+    }
+  })
+  
+  if (doctors.length > 0) {
+    return `Dr. ${doctors.join(', Dr. ')}`
   }
   return 'No doctor assigned'
 })
@@ -194,53 +237,6 @@ const packageDependencies = computed(() => {
   
   return packageDeps
 })
-
-const nursingConsumptionRows = computed(() => {
-  const rows = []
-
-  groupItems.value.forEach(item => {
-    if (Array.isArray(item.nursing_consumptions) && item.nursing_consumptions.length) {
-      const parentName = item.prestation?.name || item.package?.name || props.group?.name || 'Nursing Care'
-
-      item.nursing_consumptions.forEach((consumption, index) => {
-        const quantity = Number(consumption.quantity ?? 0) || 0
-        const explicitUnit = consumption.unit_price != null ? Number(consumption.unit_price) : null
-        const explicitTotal = consumption.total_price != null ? Number(consumption.total_price) : null
-        const derivedUnit = explicitUnit ?? (explicitTotal != null && quantity > 0 ? explicitTotal / quantity : null)
-        const totalPrice = explicitTotal ?? (derivedUnit != null ? derivedUnit * quantity : null)
-
-        rows.push({
-          id: consumption.id ?? `${item.id}-${index}`,
-          productName: consumption.product?.name || consumption.pharmacy_product?.name || 'Unknown product',
-          productCode: consumption.product?.code_interne ?? consumption.product?.designation ?? null,
-          sourceLabel: consumption.pharmacy_product ? 'Pharmacy' : 'Stock',
-          quantity,
-          unitPrice: derivedUnit,
-          totalPrice: totalPrice ?? 0,
-          consumedBy: consumption.consumed_by,
-          recordedAt: consumption.created_at,
-          parentItemName: parentName,
-          product: consumption.product,
-          pharmacyProduct: consumption.pharmacy_product,
-        })
-      })
-    }
-  })
-
-  return rows
-})
-
-const nursingConsumptionCount = computed(() => nursingConsumptionRows.value.length)
-
-const nursingConsumptionsTotalQuantity = computed(() =>
-  nursingConsumptionRows.value.reduce((sum, row) => sum + (Number(row.quantity) || 0), 0)
-)
-
-const nursingConsumptionsTotalPrice = computed(() =>
-  nursingConsumptionRows.value.reduce((sum, row) => sum + (Number(row.totalPrice) || 0), 0)
-)
-
-const hasNursingConsumptions = computed(() => nursingConsumptionCount.value > 0)
 
 // Add this computed property to get the organism color
 const organismColor = computed(() => {
@@ -373,9 +369,10 @@ const mainDisplayItems = computed(() => {
           id: `dep_${dep.id || Math.random()}`,
           prestation: prestation,
           status: dep.status || 'required',
-          base_price: prestation.public_price || 0,
-          final_price: prestation.public_price || 0,
-          patient_share: prestation.public_price || 0,
+          // Prefer the combined TTC (with consumables VAT) when available
+          base_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+          final_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+          patient_share: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
           dependencies: [],
           isDependency: true,
           originalDependency: dep,
@@ -405,25 +402,11 @@ const formatCurrency = (amount) => {
   }).format(amount || 0)
 }
 
-const formatDateTime = (value) => {
-  if (!value) return '—'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('fr-FR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
 const getStatusData = (status) => {
   return statusOptions.find(option => option.value === status) || statusOptions[0]
 }
 
 const getItemTypeIcon = (item) => {
-  if (item.is_nursing_consumption) return 'pi pi-plus-circle'
   if (item.isDependency && item.prestation?.is_package) return 'pi pi-box'
   if (item.prestation_id) return 'pi pi-medical'
   if (item.package_id) return 'pi pi-box'
@@ -431,11 +414,20 @@ const getItemTypeIcon = (item) => {
 }
 
 const getItemTypeBadge = (item) => {
-  if (item.is_nursing_consumption) return { label: 'Nursing', severity: 'info' }
   if (item.isDependency && item.prestation?.is_package) return { label: 'Package', severity: 'warning' }
   if (item.prestation_id) return { label: 'Prestation', severity: 'success' }
   if (item.package_id) return { label: 'Package', severity: 'info' }
   return { label: 'Unknown', severity: 'secondary' }
+}
+
+// Human-friendly payment label formatter
+const paymentLabel = (raw) => {
+  const status = String(raw || 'unpaid').toLowerCase()
+  if (status === 'unpaid') return 'Not Paid'
+  if (status === 'partial') return 'Partial'
+  if (status === 'paid') return 'Paid'
+  // fallback: capitalize
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 const getConventionBadge = (item) => {
@@ -456,16 +448,8 @@ const openDetails = () => {
   showDetailsModal.value = true
 }
 
-const updateDetailsVisibility = (value) => {
-  showDetailsModal.value = value
-}
-
 const openRemiseModal = () => {
   showRemiseModal.value = true
-}
-
-const updateRemiseVisibility = (value) => {
-  showRemiseModal.value = value
 }
 
   const removeItemGroup = (itemsGroup) => {
@@ -501,6 +485,50 @@ const removeDependency = async (dependency) => {
       detail: error.message || 'Failed to remove dependency',
       life: 3000
     })
+  }
+}
+
+const openPaymentTypeDialog = (item) => {
+  editingItem.value = item
+  selectedPaymentType.value = item.default_payment_type || null
+  showPaymentTypeDialog.value = true
+}
+
+const cancelPaymentTypeChange = () => {
+  editingItem.value = null
+  selectedPaymentType.value = null
+  showPaymentTypeDialog.value = false
+}
+
+const savePaymentTypeChange = async () => {
+  if (!editingItem.value) return
+  try {
+    let res
+
+    // If editingItem is a dependency (has parent_item_id) call dependency endpoint
+    if (editingItem.value.parent_item_id && editingItem.value.id) {
+      // dependency ids are numeric in DB
+      res = await ficheNavetteService.updateDependency(editingItem.value.id, {
+        default_payment_type: selectedPaymentType.value
+      })
+    } else {
+      // Otherwise update the fiche navette item
+      res = await ficheNavetteService.updateFicheNavetteItem(props.ficheNavetteId, editingItem.value.id, {
+        default_payment_type: selectedPaymentType.value
+      })
+    }
+
+    if (res.success) {
+      toast.add({ severity: 'success', summary: 'Saved', detail: 'Payment type updated', life: 3000 })
+      // Notify parent to refresh items
+      emit('item-updated', { refresh: true })
+      cancelPaymentTypeChange()
+    } else {
+      throw new Error(res.message || 'Update failed')
+    }
+  } catch (error) {
+    console.error('Error updating payment type:', error)
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to update payment type', life: 5000 })
   }
 }
 
@@ -586,6 +614,35 @@ const individualTotal = computed(() => {
 
 // NEW: compute a correct total for the group including main items + their dependencies (non-package)
 const totalPrice = computed(() => {
+  // If this is a package, use the package's total price directly
+  if (props.group?.type === 'package') {
+    // First try to get the declared package price from the group
+    const declaredPackagePrice = parseFloat(props.group?.total_price ?? 0) || 0
+    if (declaredPackagePrice > 0) {
+      return declaredPackagePrice
+    }
+    
+    // If no declared price, try to get it from the first item's package data
+    const firstItem = groupItems.value[0]
+    if (firstItem?.package?.total_price) {
+      return parseFloat(firstItem.package.total_price) || 0
+    }
+    
+    // If no package total price, try to get it from final_price of the main item
+    if (firstItem?.final_price) {
+      return parseFloat(firstItem.final_price) || 0
+    }
+    
+    // Fallback: sum individual prestations in the package
+    const packageSum = packagePrestations.value.reduce((sum, p) => {
+      const v = parseFloat(p.public_price ?? p.final_price ?? 0) || 0
+      return sum + v
+    }, 0)
+    
+    if (packageSum > 0) return packageSum
+  }
+
+  // For non-package groups, sum main items + their dependencies
   // Sum main display items (these include package dependencies already added to mainDisplayItems)
   const mainSum = mainDisplayItems.value.reduce((sum, item) => {
     const v = parseFloat(item.final_price ?? item.base_price ?? item.prestation?.public_price ?? item.package?.total_price ?? 0) || 0
@@ -605,49 +662,83 @@ const totalPrice = computed(() => {
     return sum + price
   }, 0)
 
-  // Sum packagePrestations (only relevant when group is a package)
-  const packageSum = packagePrestations.value.reduce((sum, p) => {
-    const v = parseFloat(p.public_price ?? p.final_price ?? 0) || 0
-    return sum + v
-  }, 0)
-
-  // If group is a package prefer packagePrestations sum or declared package price if present
-  const declaredPackagePrice = parseFloat(props.group?.total_price ?? 0) || 0
-
-  if (props.group?.type === 'package') {
-    if (packageSum > 0) return packageSum
-    if (declaredPackagePrice > 0) return declaredPackagePrice
-    // fallback: mainSum already includes package dependencies added to mainDisplayItems, but also add non-package deps just in case
-    return mainSum + dependencySum
-  }
-
-  // For non-package groups include main items + their non-package dependencies
   return mainSum + dependencySum
 })
 
 // Get payment status information
 const paymentStatusInfo = computed(() => {
   // Check if any item in the group has payment_status
-  const itemsWithPaymentStatus = groupItems.value.filter(item => item.payment_status)
-  
-  if (itemsWithPaymentStatus.length === 0) {
-    return null
-  }
-  
-  // Get unique payment statuses
-  const paymentStatuses = itemsWithPaymentStatus.map(item => item.payment_status).filter(Boolean)
-  const uniqueStatuses = [...new Set(paymentStatuses)]
-  
-  // If multiple statuses, show the most critical one
+  // Consider items with explicit payment_status or infer 'unpaid' when missing
+  if (!groupItems.value || groupItems.value.length === 0) return null
+
+  // Collect statuses, defaulting missing statuses to 'unpaid'
+  const paymentStatuses = groupItems.value.map(item => item.payment_status ? String(item.payment_status).toLowerCase() : 'unpaid')
+  const uniqueStatuses = [...new Set(paymentStatuses.filter(Boolean))]
+
+  // Prioritize most severe status
   if (uniqueStatuses.includes('unpaid')) {
-    return { status: 'unpaid', label: 'Unpaid', severity: 'danger', color: '#dc3545' }
+    return { status: 'unpaid', label: 'Not Paid', severity: 'danger', color: '#dc3545' }
   } else if (uniqueStatuses.includes('partial')) {
     return { status: 'partial', label: 'Partial', severity: 'warning', color: '#fd7e14' }
   } else if (uniqueStatuses.includes('paid')) {
     return { status: 'paid', label: 'Paid', severity: 'success', color: '#28a745' }
   }
-  
+
   return null
+})
+
+// Doctor tags for display
+const doctorTags = computed(() => {
+  const doctors = []
+  
+  // Main group doctor
+  if (props.group?.doctor_name) {
+    doctors.push({
+      id: props.group.doctor_id || 'unknown',
+      name: props.group.doctor_name,
+      source: 'group'
+    })
+  }
+  
+  // Collect doctors from all items in the group
+  groupItems.value.forEach(item => {
+    // Item doctor
+    if (item.doctor_name && !doctors.some(d => d.id === item.doctor_id)) {
+      doctors.push({
+        id: item.doctor_id || 'unknown',
+        name: item.doctor_name,
+        source: 'item'
+      })
+    }
+    
+    // Package prestations doctors
+    if (item.package?.prestations) {
+      item.package.prestations.forEach(prestation => {
+        if (prestation.doctor?.name && !doctors.some(d => d.id === prestation.doctor.id)) {
+          doctors.push({
+            id: prestation.doctor.id,
+            name: prestation.doctor.name,
+            source: 'package'
+          })
+        }
+      })
+    }
+    
+    // Dependencies doctors
+    if (item.dependencies) {
+      item.dependencies.forEach(dependency => {
+        if (dependency.dependencyPrestation?.doctor?.name && !doctors.some(d => d.id === dependency.dependencyPrestation.doctor.id)) {
+          doctors.push({
+            id: dependency.dependencyPrestation.doctor.id,
+            name: dependency.dependencyPrestation.doctor.name,
+            source: 'dependency'
+          })
+        }
+      })
+    }
+  })
+  
+  return doctors
 })
 </script>
 
@@ -690,6 +781,25 @@ const paymentStatusInfo = computed(() => {
           <Chip
             v-if="conventionChips.length > 2"
             :label="`+${conventionChips.length - 2}`"
+            severity="secondary"
+            size="small"
+          />
+        </div>
+        
+        <!-- Doctor Tags -->
+        <div v-if="doctorTags.length > 0" class="doctor-chips">
+          <Chip
+            v-for="doctor in doctorTags.slice(0, 2)"
+            :key="doctor.id"
+            :label="`Dr. ${doctor.name}`"
+            severity="secondary"
+            class="doctor-chip"
+            size="small"
+            icon="pi pi-user-md"
+          />
+          <Chip
+            v-if="doctorTags.length > 2"
+            :label="`+${doctorTags.length - 2} more`"
             severity="secondary"
             size="small"
           />
@@ -738,7 +848,8 @@ const paymentStatusInfo = computed(() => {
         
         <div class="info-item">
           <span class="info-label">Total:</span>
-          <strong class="total-price">{{ formatCurrency(totalPrice) }}</strong>
+          <strong class="total-price" v-if="paymentStatusInfo && paymentStatusInfo.status === 'unpaid'">{{ paymentStatusInfo.label }}</strong>
+          <strong class="total-price" v-else>{{ formatCurrency(totalPrice) }}</strong>
         </div>
       </div>
 
@@ -771,20 +882,6 @@ const paymentStatusInfo = computed(() => {
           />
         </div>
       </div>
-
-      <div v-if="hasNursingConsumptions" class="nursing-summary">
-        <div class="info-item">
-          <span class="info-label">Nursing Products:</span>
-          <Chip
-            :label="`${nursingConsumptionCount} product${nursingConsumptionCount !== 1 ? 's' : ''}`"
-            severity="info"
-          />
-        </div>
-        <div class="info-item">
-          <span class="info-label">Nursing Total:</span>
-          <strong class="total-price">{{ formatCurrency(nursingConsumptionsTotalPrice) }}</strong>
-        </div>
-      </div>
       
       <!-- Package Dependencies Info -->
       <div v-if="packageDependencies && packageDependencies.length > 0" class="package-dependencies-summary">
@@ -808,7 +905,7 @@ const paymentStatusInfo = computed(() => {
             </div>
             <div v-if="group.doctor_name" class="detail-row">
               <span class="detail-label">Assigned Doctor:</span>
-              <span class="detail-value">{{ group.doctor_name }}</span>
+              <span class="detail-value">Dr. {{ group.doctor_name }}</span>
             </div>
           </div>
         </div>
@@ -841,8 +938,7 @@ const paymentStatusInfo = computed(() => {
 
     <!-- Details Modal -->
     <Dialog
-      :visible="showDetailsModal"
-      @update:visible="updateDetailsVisibility"
+      v-model:visible="showDetailsModal"
       :header="`${cardTitle} - Details`"
       :style="{ width: '1200px', maxHeight: '90vh' }"
       :modal="true"
@@ -928,13 +1024,6 @@ const paymentStatusInfo = computed(() => {
                 <span class="detail-label">Package Dependencies:</span>
                 <Chip
                   :label="`${packageDependencies.length} packages`"
-                  severity="info"
-                />
-              </div>
-              <div v-if="hasNursingConsumptions" class="detail-item">
-                <span class="detail-label">Nursing Products:</span>
-                <Chip
-                  :label="`${nursingConsumptionCount} product${nursingConsumptionCount !== 1 ? 's' : ''}`"
                   severity="info"
                 />
               </div>
@@ -1110,37 +1199,23 @@ const paymentStatusInfo = computed(() => {
               <Column field="payment_status" header="Payment Status">
                 <template #body="{ data }">
                   <Chip
-                    v-if="data.payment_status"
-                    :label="data.payment_status.charAt(0).toUpperCase() + data.payment_status.slice(1)"
-                    :severity="data.payment_status === 'paid' ? 'success' : data.payment_status === 'partial' ? 'warning' : 'danger'"
+                    :label="paymentLabel(data.payment_status)"
+                    :severity="(data.payment_status || 'unpaid') === 'paid' ? 'success' : (data.payment_status || 'unpaid') === 'partial' ? 'warning' : 'danger'"
                     size="small"
                     :style="{
-                      backgroundColor: data.payment_status === 'paid' ? '#28a745' : 
-                                     data.payment_status === 'partial' ? '#fd7e14' : '#dc3545',
+                      backgroundColor: (data.payment_status || 'unpaid') === 'paid' ? '#28a745' : 
+                                     (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545',
                       color: 'white',
-                      borderColor: data.payment_status === 'paid' ? '#28a745' : 
-                                  data.payment_status === 'partial' ? '#fd7e14' : '#dc3545'
+                      borderColor: (data.payment_status || 'unpaid') === 'paid' ? '#28a745' : 
+                                  (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545'
                     }"
                   />
-                  <span v-else class="text-muted">Not set</span>
-                </template>
-              </Column>
-
-              <Column field="base_price" header="Base Price">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.base_price) }}
                 </template>
               </Column>
 
               <Column field="final_price" header="Final Price">
                 <template #body="{ data }">
-                  <strong>{{ formatCurrency(data.final_price) }}</strong>
-                </template>
-              </Column>
-
-              <Column field="patient_share" header="Patient Share">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.patient_share) }}
+                  <strong>{{ formatCurrency(data.final_price ?? data.base_price ?? 0) }}</strong>
                 </template>
               </Column>
 
@@ -1161,98 +1236,25 @@ const paymentStatusInfo = computed(() => {
 
               <Column header="Actions">
                 <template #body="{ data }">
-                  <Button
-                    icon="pi pi-trash"
-                    class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                    @click="removeItem(data.id)"
-                    v-tooltip.top="'Remove item'"
-                  />
+                  <div class="item-actions">
+                    <Button
+                      icon="pi pi-pencil"
+                      class="p-button-rounded p-button-text p-button-sm p-button-info"
+                      @click="openPaymentTypeDialog(data)"
+                      v-tooltip.top="'Edit payment type'"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                      @click="removeItem(data.id)"
+                      v-tooltip.top="'Remove item'"
+                    />
+                  </div>
                 </template>
               </Column>
             </DataTable>
             <div v-else class="no-items">
               <p>No items found in this group.</p>
-            </div>
-          </template>
-        </Card>
-
-        <Card v-if="hasNursingConsumptions" class="mb-4">
-          <template #title>
-            <div class="table-title">
-              <i class="pi pi-plus-circle"></i>
-              Nursing Products ({{ nursingConsumptionCount }})
-            </div>
-          </template>
-          <template #content>
-            <DataTable
-              :value="nursingConsumptionRows"
-              class="nursing-consumptions-table"
-              responsiveLayout="scroll"
-              :rowHover="true"
-              :rows="10"
-              :paginator="nursingConsumptionRows.length > 10"
-            >
-              <Column field="productName" header="Product" style="min-width: 240px">
-                <template #body="{ data }">
-                  <div class="nursing-product-cell">
-                    <i class="pi pi-plus-circle nursing-product-icon"></i>
-                    <div class="nursing-product-details">
-                      <div class="nursing-product-name">{{ data.productName }}</div>
-                      <div v-if="data.productCode" class="nursing-product-code">Code: {{ data.productCode }}</div>
-                      <div v-if="data.parentItemName" class="nursing-parent-name">Linked to: {{ data.parentItemName }}</div>
-                    </div>
-                  </div>
-                </template>
-              </Column>
-              <Column field="sourceLabel" header="Source" style="min-width: 140px">
-                <template #body="{ data }">
-                  <Tag
-                    :value="data.sourceLabel"
-                    :severity="data.sourceLabel === 'Pharmacy' ? 'info' : 'secondary'"
-                    class="nursing-source-tag"
-                  />
-                </template>
-              </Column>
-              <Column field="quantity" header="Qty" style="min-width: 110px">
-                <template #body="{ data }">
-                  <Chip
-                    :label="data.quantity"
-                    severity="success"
-                    class="nursing-quantity-chip"
-                  />
-                </template>
-              </Column>
-              <Column field="unitPrice" header="Unit Price" style="min-width: 140px" class="text-right">
-                <template #body="{ data }">
-                  {{ data.unitPrice != null ? formatCurrency(data.unitPrice) : '—' }}
-                </template>
-              </Column>
-              <Column field="totalPrice" header="Total" style="min-width: 140px" class="text-right">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.totalPrice) }}
-                </template>
-              </Column>
-              <Column field="consumedBy" header="Consumed By" style="min-width: 160px">
-                <template #body="{ data }">
-                  {{ data.consumedBy ? `User #${data.consumedBy}` : '—' }}
-                </template>
-              </Column>
-              <Column field="recordedAt" header="Recorded At" style="min-width: 180px">
-                <template #body="{ data }">
-                  {{ formatDateTime(data.recordedAt) }}
-                </template>
-              </Column>
-            </DataTable>
-
-            <div class="nursing-summary-grid mt-3">
-              <div class="summary-row">
-                <span class="summary-label">Total Quantity</span>
-                <span class="summary-value">{{ nursingConsumptionsTotalQuantity }}</span>
-              </div>
-              <div class="summary-row">
-                <span class="summary-label">Total Amount</span>
-                <span class="summary-value">{{ formatCurrency(nursingConsumptionsTotalPrice) }}</span>
-              </div>
             </div>
           </template>
         </Card>
@@ -1338,14 +1340,20 @@ const paymentStatusInfo = computed(() => {
               <!-- Add Actions Column for Delete Button -->
               <Column header="Actions" style="width: 120px">
                 <template #body="{ data }">
-                  <div class="dependency-actions">
-                    <Button
-                      icon="pi pi-trash"
-                      class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                      @click="confirmRemoveDependency(data)"
-                      v-tooltip.top="'Remove dependency'"
-                    />
-                  </div>
+                      <div class="dependency-actions">
+                        <Button
+                          icon="pi pi-pencil"
+                          class="p-button-rounded p-button-text p-button-sm p-button-info"
+                          @click="openPaymentTypeDialog(data)"
+                          v-tooltip.top="'Edit payment type'"
+                        />
+                        <Button
+                          icon="pi pi-trash"
+                          class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                          @click="confirmRemoveDependency(data)"
+                          v-tooltip.top="'Remove dependency'"
+                        />
+                      </div>
                 </template>
               </Column>
             </DataTable>
@@ -1365,8 +1373,7 @@ const paymentStatusInfo = computed(() => {
 
     <!-- Remise Modal -->
     <RemiseModal
-      :visible="showRemiseModal"
-      @update:visible="updateRemiseVisibility"
+      v-model:visible="showRemiseModal"
       :patientId="props.patientId"
       :group="group"
       :ficheNavetteId="props.ficheNavetteId"
@@ -1374,6 +1381,33 @@ const paymentStatusInfo = computed(() => {
       :doctors="doctors"
       @apply-remise="handleApplyRemise"
     />
+
+    <!-- Payment Type Edit Dialog -->
+    <Dialog
+      v-model:visible="showPaymentTypeDialog"
+      header="Edit Payment Type"
+      :modal="true"
+      :style="{ width: '420px' }"
+      :closable="false"
+    >
+      <div class="p-fluid">
+        <div class="p-field">
+          <label for="paymentType">Payment Type</label>
+          <Dropdown
+            inputId="paymentType"
+            :options="paymentTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            v-model="selectedPaymentType"
+            placeholder="Select a payment type"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" class="p-button-text" @click="cancelPaymentTypeChange" />
+        <Button label="Save" icon="pi pi-check" @click="savePaymentTypeChange" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
@@ -1507,11 +1541,25 @@ const paymentStatusInfo = computed(() => {
 }
 
 .convention-chip {
-  font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+}
+
+.doctor-chips {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.doctor-chip {
+  font-size: 0.75rem;
+  background-color: var(--blue-100) !important;
+  color: var(--blue-700) !important;
+  border-color: var(--blue-200) !important;
 }
 
 .type-chip {
+  font-weight: 500;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
@@ -1577,14 +1625,6 @@ const paymentStatusInfo = computed(() => {
   padding-top: 1rem;
 }
 
-.nursing-summary {
-  border-top: 1px solid #e9ecef;
-  padding-top: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
 .package-dependencies-summary {
   border-top: 1px solid #e9ecef;
   padding-top: 1rem;
@@ -1647,68 +1687,6 @@ const paymentStatusInfo = computed(() => {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.nursing-product-cell {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.nursing-product-icon {
-  color: var(--primary-color, #007bff);
-  font-size: 1.1rem;
-  margin-top: 0.25rem;
-}
-
-.nursing-product-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.nursing-product-name {
-  font-weight: 600;
-  color: #2c3e50;
-}
-
-.nursing-product-code,
-.nursing-parent-name {
-  font-size: 0.8rem;
-  color: #6c757d;
-}
-
-.nursing-source-tag {
-  text-transform: capitalize;
-}
-
-.nursing-quantity-chip {
-  font-weight: 600;
-}
-
-.nursing-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.75rem;
-}
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 1rem;
-  border-radius: 0.5rem;
-  background: #f8f9fa;
-}
-
-.summary-label {
-  font-weight: 500;
-  color: #495057;
-}
-
-.summary-value {
   font-weight: 600;
   color: #2c3e50;
 }

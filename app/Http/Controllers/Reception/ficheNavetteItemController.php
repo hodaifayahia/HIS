@@ -291,10 +291,13 @@ class ficheNavetteItemController extends Controller
             $ficheNavette = ficheNavette::with([
                 'items.prestation.service',
                 'items.prestation.specialization',
+                'items.prestation.doctor',
                 'items.package.items.prestation.service',
                 'items.package.items.prestation.specialization',
+                'items.package.items.prestation.doctor',
                 'items.dependencies.dependencyPrestation.service',
                 'items.dependencies.dependencyPrestation.specialization',
+                'items.dependencies.dependencyPrestation.doctor',
                 'items.nursingConsumptions.product',
                 'items.nursingConsumptions.pharmacy',
                 'items.convention.organisme',

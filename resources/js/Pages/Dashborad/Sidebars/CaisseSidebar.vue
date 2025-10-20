@@ -46,7 +46,7 @@ const hasPermission = (requiredRoles) => {
              <li class="nav-item">
                 <router-link to="/caisse/caisse-session" active-class="active" class="nav-link">
                     <i class="nav-icon fas fa-user-injured"></i>
-                    <p>Patients</p>
+                    <p>Patient Overview</p>
                 </router-link>
             </li>
              <li class="nav-item">

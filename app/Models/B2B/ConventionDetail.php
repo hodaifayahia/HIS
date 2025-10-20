@@ -2,12 +2,16 @@
 
 namespace App\Models\B2B;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use App\Models\B2B\Convention;
 
 class ConventionDetail extends Model
 {
+    use HasFactory;
+    
    protected $table = 'conventions_details';
 
     protected $fillable = [

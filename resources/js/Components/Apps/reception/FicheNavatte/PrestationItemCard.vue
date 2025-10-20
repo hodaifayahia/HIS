@@ -96,8 +96,41 @@ const cardTitle = computed(() => {
 })
 
 const cardSubtitle = computed(() => {
+  const doctors = []
+  
+  // Main group doctor
   if (props.group?.doctor_name) {
-    return `Dr. ${props.group.doctor_name}`
+    doctors.push(props.group.doctor_name)
+  }
+  
+  // Collect doctors from all items in the group
+  groupItems.value.forEach(item => {
+    // Item doctor
+    if (item.doctor_name && !doctors.includes(item.doctor_name)) {
+      doctors.push(item.doctor_name)
+    }
+    
+    // Package prestations doctors
+    if (item.package?.prestations) {
+      item.package.prestations.forEach(prestation => {
+        if (prestation.doctor?.name && !doctors.includes(prestation.doctor.name)) {
+          doctors.push(prestation.doctor.name)
+        }
+      })
+    }
+    
+    // Dependencies doctors
+    if (item.dependencies) {
+      item.dependencies.forEach(dependency => {
+        if (dependency.dependencyPrestation?.doctor?.name && !doctors.includes(dependency.dependencyPrestation.doctor.name)) {
+          doctors.push(dependency.dependencyPrestation.doctor.name)
+        }
+      })
+    }
+  })
+  
+  if (doctors.length > 0) {
+    return `Dr. ${doctors.join(', Dr. ')}`
   }
   return 'No doctor assigned'
 })
@@ -581,6 +614,35 @@ const individualTotal = computed(() => {
 
 // NEW: compute a correct total for the group including main items + their dependencies (non-package)
 const totalPrice = computed(() => {
+  // If this is a package, use the package's total price directly
+  if (props.group?.type === 'package') {
+    // First try to get the declared package price from the group
+    const declaredPackagePrice = parseFloat(props.group?.total_price ?? 0) || 0
+    if (declaredPackagePrice > 0) {
+      return declaredPackagePrice
+    }
+    
+    // If no declared price, try to get it from the first item's package data
+    const firstItem = groupItems.value[0]
+    if (firstItem?.package?.total_price) {
+      return parseFloat(firstItem.package.total_price) || 0
+    }
+    
+    // If no package total price, try to get it from final_price of the main item
+    if (firstItem?.final_price) {
+      return parseFloat(firstItem.final_price) || 0
+    }
+    
+    // Fallback: sum individual prestations in the package
+    const packageSum = packagePrestations.value.reduce((sum, p) => {
+      const v = parseFloat(p.public_price ?? p.final_price ?? 0) || 0
+      return sum + v
+    }, 0)
+    
+    if (packageSum > 0) return packageSum
+  }
+
+  // For non-package groups, sum main items + their dependencies
   // Sum main display items (these include package dependencies already added to mainDisplayItems)
   const mainSum = mainDisplayItems.value.reduce((sum, item) => {
     const v = parseFloat(item.final_price ?? item.base_price ?? item.prestation?.public_price ?? item.package?.total_price ?? 0) || 0
@@ -600,23 +662,6 @@ const totalPrice = computed(() => {
     return sum + price
   }, 0)
 
-  // Sum packagePrestations (only relevant when group is a package)
-  const packageSum = packagePrestations.value.reduce((sum, p) => {
-    const v = parseFloat(p.public_price ?? p.final_price ?? 0) || 0
-    return sum + v
-  }, 0)
-
-  // If group is a package prefer packagePrestations sum or declared package price if present
-  const declaredPackagePrice = parseFloat(props.group?.total_price ?? 0) || 0
-
-  if (props.group?.type === 'package') {
-    if (packageSum > 0) return packageSum
-    if (declaredPackagePrice > 0) return declaredPackagePrice
-    // fallback: mainSum already includes package dependencies added to mainDisplayItems, but also add non-package deps just in case
-    return mainSum + dependencySum
-  }
-
-  // For non-package groups include main items + their non-package dependencies
   return mainSum + dependencySum
 })
 
@@ -640,6 +685,60 @@ const paymentStatusInfo = computed(() => {
   }
 
   return null
+})
+
+// Doctor tags for display
+const doctorTags = computed(() => {
+  const doctors = []
+  
+  // Main group doctor
+  if (props.group?.doctor_name) {
+    doctors.push({
+      id: props.group.doctor_id || 'unknown',
+      name: props.group.doctor_name,
+      source: 'group'
+    })
+  }
+  
+  // Collect doctors from all items in the group
+  groupItems.value.forEach(item => {
+    // Item doctor
+    if (item.doctor_name && !doctors.some(d => d.id === item.doctor_id)) {
+      doctors.push({
+        id: item.doctor_id || 'unknown',
+        name: item.doctor_name,
+        source: 'item'
+      })
+    }
+    
+    // Package prestations doctors
+    if (item.package?.prestations) {
+      item.package.prestations.forEach(prestation => {
+        if (prestation.doctor?.name && !doctors.some(d => d.id === prestation.doctor.id)) {
+          doctors.push({
+            id: prestation.doctor.id,
+            name: prestation.doctor.name,
+            source: 'package'
+          })
+        }
+      })
+    }
+    
+    // Dependencies doctors
+    if (item.dependencies) {
+      item.dependencies.forEach(dependency => {
+        if (dependency.dependencyPrestation?.doctor?.name && !doctors.some(d => d.id === dependency.dependencyPrestation.doctor.id)) {
+          doctors.push({
+            id: dependency.dependencyPrestation.doctor.id,
+            name: dependency.dependencyPrestation.doctor.name,
+            source: 'dependency'
+          })
+        }
+      })
+    }
+  })
+  
+  return doctors
 })
 </script>
 
@@ -682,6 +781,25 @@ const paymentStatusInfo = computed(() => {
           <Chip
             v-if="conventionChips.length > 2"
             :label="`+${conventionChips.length - 2}`"
+            severity="secondary"
+            size="small"
+          />
+        </div>
+        
+        <!-- Doctor Tags -->
+        <div v-if="doctorTags.length > 0" class="doctor-chips">
+          <Chip
+            v-for="doctor in doctorTags.slice(0, 2)"
+            :key="doctor.id"
+            :label="`Dr. ${doctor.name}`"
+            severity="secondary"
+            class="doctor-chip"
+            size="small"
+            icon="pi pi-user-md"
+          />
+          <Chip
+            v-if="doctorTags.length > 2"
+            :label="`+${doctorTags.length - 2} more`"
             severity="secondary"
             size="small"
           />
@@ -787,7 +905,7 @@ const paymentStatusInfo = computed(() => {
             </div>
             <div v-if="group.doctor_name" class="detail-row">
               <span class="detail-label">Assigned Doctor:</span>
-              <span class="detail-value">{{ group.doctor_name }}</span>
+              <span class="detail-value">Dr. {{ group.doctor_name }}</span>
             </div>
           </div>
         </div>
@@ -1095,21 +1213,9 @@ const paymentStatusInfo = computed(() => {
                 </template>
               </Column>
 
-              <Column field="base_price" header="Base Price">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.base_price) }}
-                </template>
-              </Column>
-
               <Column field="final_price" header="Final Price">
                 <template #body="{ data }">
                   <strong>{{ formatCurrency(data.final_price ?? data.base_price ?? 0) }}</strong>
-                </template>
-              </Column>
-
-              <Column field="patient_share" header="Patient Share">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.patient_share) }}
                 </template>
               </Column>
 
@@ -1435,11 +1541,25 @@ const paymentStatusInfo = computed(() => {
 }
 
 .convention-chip {
-  font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+}
+
+.doctor-chips {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.doctor-chip {
+  font-size: 0.75rem;
+  background-color: var(--blue-100) !important;
+  color: var(--blue-700) !important;
+  border-color: var(--blue-200) !important;
 }
 
 .type-chip {
+  font-weight: 500;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 

@@ -86,7 +86,7 @@ const hasPermission = (requiredRoles) => {
                                 class="nav-link tw-rounded-lg tw-transition-all tw-duration-300 tw-flex tw-items-center tw-gap-3 tw-pl-4 hover:tw-translate-x-1"
                             >
                                 <div class="tw-w-2 tw-h-2 tw-bg-white/30 tw-rounded-full"></div>
-                                <p class="tw-text-sm">Fiche Navette</p>
+                                <p class="tw-text-sm">Patient Overview</p>
                             </router-link>
                         </li>
                         <li class="nav-item tw-mb-1">

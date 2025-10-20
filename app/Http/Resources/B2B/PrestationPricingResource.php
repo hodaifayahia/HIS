@@ -54,6 +54,15 @@ class PrestationPricingResource extends JsonResource
             $formattedId = $this->id . '_' . $this->prestation_id . '_' .$this->prestation->service->id ;
         
 
+        // Prepare contract percentage info if relation is loaded
+        $contractPercentageData = null;
+        if ($this->relationLoaded('contractPercentage') && $this->contractPercentage) {
+            $contractPercentageData = [
+                'id' => $this->contractPercentage->id,
+                'percentage' => (float) $this->contractPercentage->percentage,
+            ];
+        }
+
         return [
             'id'=> $this->id,
             'prestation_id' => $this->prestation_id,
@@ -62,6 +71,9 @@ class PrestationPricingResource extends JsonResource
             'service' => $this->prestation->service->name,
             'organisme_abrv' => $displayOrganismeAbrv, // Now uses the guaranteed non-null value
             'formatted_id' => $formattedId,
+            // Expose contract percentage fields for filtering and display
+            'contract_percentage_id' => $this->contract_percentage_id,
+            'contract_percentage' => $contractPercentageData,
             'pricing' => [
                 'prix' =>  $this->prix, // Convention price
                 'prix_with_vat' => $this->price_with_vat, // Convention price with VAT

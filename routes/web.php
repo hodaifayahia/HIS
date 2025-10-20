@@ -138,6 +138,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/auth/validate-password', [PasswordValidationController::class, 'validateCurrentUserPassword']);
         Route::post('/auth/validate-user-password', [PasswordValidationController::class, 'validateUserPassword']);
 
+        // Convention Routes - Must be before any resource routes that might conflict
+        Route::get('/conventions/contract-percentages', [ConventionController::class, 'getContractPercentages']);
+
         Route::apiResource('/roles', RoleController::class);
 
         // Doctor Routes
@@ -448,6 +451,8 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/conventions/{conventionId}/activate', [ConventionController::class, 'activate']);
         Route::patch('/conventions/{conventionId}/expire', [ConventionController::class, 'expire']);
         Route::post('/conventions/{conventionId}/extend', [ConventionController::class, 'extend']);
+        Route::get('/conventions/contract-percentages', [ConventionController::class, 'getContractPercentages']);
+
         Route::get('/prestation/annex/price', [PrescriptionController::class, 'getAnnexPrestation']);
         // Verify this route:
         Route::post('/organismes/settings', [ConventionController::class, 'activateConvenation']);

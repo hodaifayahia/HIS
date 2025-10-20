@@ -3,8 +3,10 @@
 namespace App\Services\B2B;
 
 use App\Models\B2B\Annex;
+use App\Models\B2B\Avenant;
 use App\Models\B2B\Convention;
 use App\Models\B2B\ConventionDetail;
+use App\Models\B2B\PrestationPricing;
 use App\Models\CONFIGURATION\Prestation;
 use Illuminate\Support\Carbon;
 // Carbon
@@ -207,6 +209,9 @@ class ConventionService
                     'activation_at' => $activationCarbon,
                 ]);
 
+                // Create initial avenant and copy prestations from annexes
+                $this->createInitialAvenantWithPrestations($conventionId, $activationCarbon);
+
                 // Update related models if they need immediate activation
                 // Example:
                 // ConventionDetail::where('convention_id', $conventionId)
@@ -219,6 +224,44 @@ class ConventionService
                 ];
             }
         });
+    }
+
+    /**
+     * Create initial avenant and copy prestations from all annexes
+     */
+    private function createInitialAvenantWithPrestations(int $conventionId, Carbon $activationDate): void
+    {
+        // Create the initial avenant
+        $avenant = Avenant::create([
+            'convention_id' => $conventionId,
+            'name' => 'Initial Avenant',
+            'description' => 'Initial avenant created during contract activation',
+            'start_date' => $activationDate,
+            'head' => true,
+            'creator_id' => auth()->id() ?? 1, // Use authenticated user or default to 1
+        ]);
+
+        // Get all annexes for this convention
+        $annexes = Annex::where('convention_id', $conventionId)->get();
+
+        foreach ($annexes as $annex) {
+            // Get all prestation pricings from this annex
+            $annexPrestations = PrestationPricing::where('annex_id', $annex->id)->get();
+
+            foreach ($annexPrestations as $annexPrestation) {
+                // Create a copy in the avenant
+                PrestationPricing::create([
+                    'avenant_id' => $avenant->id,
+                    'prestation_id' => $annexPrestation->prestation_id,
+                    'contract_percentage_id' => $annexPrestation->contract_percentage_id,
+                    'discount_percentage' => $annexPrestation->discount_percentage,
+                    'max_price' => $annexPrestation->max_price,
+                    'company_price' => $annexPrestation->company_price,
+                    'patient_price' => $annexPrestation->patient_price,
+                    'head' => true, // Mark as head for the avenant
+                ]);
+            }
+        }
     }
 
     public function expireConventionById(int $conventionId): array

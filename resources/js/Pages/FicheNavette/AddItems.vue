@@ -99,17 +99,18 @@ const onServiceChange = async () => {
   dependencies.value = []
   
   if (selectedService.value) {
+    let result = null; // Initialize result to null
     try {
       loading.value = true
       
       if (showPackages.value) {
-        const result = await ficheNavetteService.getPackagesByService(selectedService.value)
-        if (result.success) {
+        result = await ficheNavetteService.getPackagesByService(selectedService.value)
+        if (result && result.success) { // Check if result is not null
           packages.value = result.data
         }
       } else {
-        const result = await ficheNavetteService.getPrestationsByService(selectedService.value)
-        if (result.success) {
+        result = await ficheNavetteService.getPrestationsByService(selectedService.value)
+        if (result && result.success) { // Check if result is not null
           prestations.value = result.data
         }
       }

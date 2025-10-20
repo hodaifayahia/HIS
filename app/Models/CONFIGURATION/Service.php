@@ -4,10 +4,12 @@ namespace App\Models\CONFIGURATION;
 
 use App\Models\B2B\Annex;
 use App\Models\Specialization;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Service extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'name',
         'description',

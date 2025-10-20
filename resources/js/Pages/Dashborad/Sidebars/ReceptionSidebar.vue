@@ -58,7 +58,7 @@ const hasPermission = (requiredRoles) => {
                     <li class="nav-item">
                         <router-link to="/reception/fiche-navettes" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Fiche Navette</p> </router-link>
+                            <p>Patient Overview</p> </router-link>
                     </li>
                     <li class="nav-item">
                         <router-link to="/reception/fiche-navette/custom-package" active-class="active" class="nav-link">

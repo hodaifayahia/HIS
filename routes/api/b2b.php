@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/convention/dashboard', [ConvenctionDashborad::class, 'getDashboardData']);
 
 // Conventions
+Route::get('/conventions/contract-percentages', [ConventionController::class, 'getContractPercentages']);
 Route::apiResource('/conventions', ConventionController::class);
 Route::patch('/conventions/{conventionId}/activate', [ConventionController::class, 'activate']);
 Route::patch('/conventions/{conventionId}/expire', [ConventionController::class, 'expire']);

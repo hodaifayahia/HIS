@@ -8,11 +8,11 @@ const crmRoutes = [
     name: 'crm',
     meta: { role: ['admin', 'SuperAdmin'], appKey: 'crm' },
     children: [
-      {
-        path: 'dashboard',
-        name: 'crm.dashboard',
-        component: () => import('../Pages/Apps/crm/dashboard/CrmDashboard.vue'),
-      },
+      // {
+      //   path: 'dashboard',
+      //   name: 'crm.dashboard',
+      //   component: () => import('../Pages/Apps/crm/Dashboard/CrmDashboard'),
+      // },
       // B2C: Patient CRM
       {
         path: 'patients',

@@ -12,16 +12,44 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create(); // Uncomment if you want 10 random users
+        // Create base users first
+        User::factory(10)->create();
 
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
-        
-        // Add this line to call your PavilionSeeder
+        // Seed in dependency order
         $this->call([
+            // Core configuration seeders
+            ServiceSeeder::class,
+            SpecializationSeeder::class,
             PavilionSeeder::class,
+            CategorySeeder::class,
+            
+            // CRM and B2B seeders
+            OrganismeSeeder::class,
+            ConventionSeeder::class,
+            
+            // Medical staff and resources
+            DoctorSeeder::class,
+            PatientSeeder::class,
+            ScheduleSeeder::class,
+            
+            // Products and inventory
+            ProductSeeder::class,
+            PrestationSeeder::class,
+            FournisseurSeeder::class,
+            MedicationSeeder::class,
+            StockageSeeder::class,
+            InventorySeeder::class,
+            
+            // Medical records and operations
+            AllergySeeder::class,
+            AppointmentSeeder::class,
+            WaitListSeeder::class,
+            BonCommendSeeder::class,
+            
+            // Existing seeders
+            MedicationDoctorFavoratSeeder::class,
+            CaissePermissionSeeder::class,
+            RolesTableSeeder::class,
         ]);
     }
 }

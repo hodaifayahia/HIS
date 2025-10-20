@@ -4,6 +4,7 @@ namespace App\Models\CONFIGURATION;
 
 use App\Models\B2B\PrestationPricing;
 use App\Models\Specialization;
+use App\Models\Doctor;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -130,6 +131,10 @@ class Prestation extends Model
     public function specialization(): BelongsTo
     {
         return $this->belongsTo(Specialization::class, 'specialization_id');
+    }
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class, 'doctor_id');
     }
 
     public function modalityType(): BelongsTo

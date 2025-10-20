@@ -1076,7 +1076,7 @@ onMounted(() => {
                       </div>
                       <small class="field-hint" v-if="selectedDoctor">
                         <i class="pi pi-info-circle"></i>
-                        Dr. {{ selectedDoctor.name }} will be automatically applied to all prestations
+                        {{ selectedDoctor.name }} will be automatically applied to all prestations
                       </small>
                     </div>
                   </div>

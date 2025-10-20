@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 
 // Components
-import FicheNavetteHeader from '../../../../Components/Apps/reception/FicheNavatteItem/FicheNavetteHeader.vue'
+import FicheNavetteHeader from '../../../../Components/Apps/Emergency/FicheNavatteItem/FicheNavetteHeader.vue'
 import FicheNavetteInfo from '../../../../Components/Apps/reception/FicheNavatteItem/FicheNavetteInfo.vue'
 import FicheNavetteItemsSection from '../../../../Components/Apps/Emergency/FicheNavatteItem/FicheNavetteItemsSection.vue'
 import LoadingSpinner from '../../../../Components/Common/LoadingSpinner.vue'
@@ -244,8 +244,10 @@ const toggleCreateForm = () => {
 }
 
 const goBack = () => {
-  router.push('/reception/fiche-navette')
-}
+  router.push({
+    name: 'emergency.fiche-navette'
+  })
+} 
 
 // Lifecycle
 onMounted(async () => {

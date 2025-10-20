@@ -31,6 +31,10 @@ const pinia = createPinia();
 // ✅ Create app instance
 const app = createApp(App);
 app.use(pinia);
+
+if (import.meta.env.DEV) {
+    app.config.devtools = true;
+}
     app.component('ConfirmDialog', ConfirmDialog)
     app.component('Toast', Toast)
 
