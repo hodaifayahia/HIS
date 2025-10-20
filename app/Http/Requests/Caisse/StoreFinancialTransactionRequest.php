@@ -24,10 +24,11 @@ class StoreFinancialTransactionRequest extends FormRequest
             'cashier_id' => 'nullable|integer|exists:users,id',
             'amount' => 'required|numeric|min:0.01',
             'transaction_type' => 'required|string|in:payment,refund,donation,credit,adjustment',
-            'payment_method' => 'required|string|in:cash,card,cheque,transfer,other',
+            'payment_method' => 'required|string|in:cash,card,cheque,transfer,bank_transfer,other',
             'notes' => 'nullable|string|max:500',
             'dependent_prestation_id' => 'nullable|integer',
             'items' => 'nullable|string',
+            'is_bank_transaction' => 'nullable|boolean',
         ];
     }
 
@@ -38,6 +39,9 @@ class StoreFinancialTransactionRequest extends FormRequest
             'fiche_navette_item_id.exists' => 'The selected fiche navette item does not exist.',
             'item_dependency_id.exists' => 'The selected item dependency does not exist.',
             'cashier_id.exists' => 'The selected cashier does not exist.',
+            'bank_id_account.required_if' => 'Bank account ID is required when bank transaction is enabled.',
+            'bank_id_account.integer' => 'Bank account ID must be a valid integer.',
+            'bank_id_account.exists' => 'The selected bank account does not exist.',
         ];
     }
 }

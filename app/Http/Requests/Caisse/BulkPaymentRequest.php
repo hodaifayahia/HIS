@@ -18,10 +18,14 @@ class BulkPaymentRequest extends FormRequest
             'caisse_session_id' => 'nullable|integer',
             'cashier_id' => 'nullable|integer|exists:users,id',
             'patient_id' => 'required|integer|exists:patients,id',
-            'payment_method' => 'required|string|in:cash,card,cheque,transfer',
+            'payment_method' => 'required|string|in:cash,card,cheque,transfer,bank_transfer',
             'transaction_type' => 'required|string|in:bulk_payment',
             'total_amount' => 'required|numeric|min:0.01',
             'notes' => 'nullable|string|max:1000',
+
+            // Bank transaction fields
+            'is_bank_transaction' => 'boolean',
+            'bank_id' => 'nullable|integer|exists:banks,id|required_if:is_bank_transaction,true',
 
             // Items array validation
             'items' => 'required|array|min:1',
@@ -46,6 +50,8 @@ class BulkPaymentRequest extends FormRequest
             'payment_method.in' => 'Invalid payment method',
             'total_amount.required' => 'Total amount is required',
             'total_amount.min' => 'Total amount must be greater than 0',
+            'bank_id.required_if' => 'Bank selection is required for bank transactions',
+            'bank_id.exists' => 'Selected bank not found',
             'items.required' => 'Items array is required',
             'items.min' => 'At least one item is required',
             'items.*.fiche_navette_item_id.required' => 'Item ID is required for each item',

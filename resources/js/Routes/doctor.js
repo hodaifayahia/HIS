@@ -50,6 +50,16 @@ const doctorRoutes = [  {
                 component: () => import('../Components/Doctor/DoctorScheduleAuthView.vue'),
             },
             {
+            path: 'schedule-management',
+            name: 'doctor.schedule.management',
+            component: () => import('../Components/Doctor/EnhancedDoctorSchedule.vue'),
+        },
+        {
+            path: 'schedule-demo',
+            name: 'doctor.schedule.demo',
+            component: () => import('../Components/Doctor/ScheduleDemo.vue'),
+        },
+            {
                 path: 'availability',
                 name: 'doctor.availability',
                 component: () => import('../Components/Doctor/DoctorAvilibilte.vue'),

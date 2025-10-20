@@ -81,12 +81,8 @@ const filteredCustomPrestations = computed(() => {
     )
   }
 
-  if (selectedSpecializationsFilter.value.length > 0) {
-    filtered = filtered.filter(p =>
-      p.specialization_id &&
-      selectedSpecializationsFilter.value.includes(p.specialization_id)
-    )
-  }
+  // Removed specialization filtering to show all prestations regardless of selected specialization
+  // This ensures all relevant items are displayed when any specialization is selected
 
   return filtered
 })

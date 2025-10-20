@@ -204,12 +204,12 @@ const goToTransactionList = () => {
   
   try {
     const routeParams = { 
-      name: 'coffre.caisse.transfers', 
+      name: 'coffre.caisse.financial-transactions', 
       params: { caisse_id: caisseId.value },
       query: {}
     };
     
-    // If there's a current session, pass its ID to filter transfers by session
+    // If there's a current session, pass its ID to filter transactions by session
     if (currentSession.value && currentSession.value.id) {
       routeParams.query.session_id = currentSession.value.id;
     }
@@ -224,7 +224,7 @@ const goToTransactionList = () => {
     });
   } catch (error) {
     console.error('Navigation error:', error);
-    showToast('error', 'Error', 'Failed to navigate to transfers page');
+    showToast('error', 'Error', 'Failed to navigate to transactions page');
   }
 };
 

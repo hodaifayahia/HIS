@@ -34,9 +34,17 @@ class CoffreTransactionController extends Controller
         try {
             $perPage = $request->get('per_page', 15);
             $coffreId = $request->get('coffre_id'); // Get coffre_id filter
+            $search = $request->get('search'); // Get search parameter
             
-            // Pass coffre_id filter to service
-            $result = $this->service->getAllPaginated($perPage, $coffreId);
+            // Validate and convert caisse_session_id parameter
+            $caisseSessionId = $request->get('caisse_session_id');
+            if ($caisseSessionId !== null) {
+                // Convert to integer if it's a valid numeric value, otherwise set to null
+                $caisseSessionId = is_numeric($caisseSessionId) ? (int) $caisseSessionId : null;
+            }
+            
+            // Pass filters to service
+            $result = $this->service->getAllPaginated($perPage, $coffreId, $caisseSessionId, $search);
             
             return response()->json([
                 'success' => true,

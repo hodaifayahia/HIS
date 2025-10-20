@@ -82,11 +82,8 @@ const filteredPrestations = computed(() => {
     return []
   }
   
-  if (selectedSpecialization.value) {
-    const filtered = props.availablePrestations.filter(p => p.specialization_id === selectedSpecialization.value)
-    console.log('PrestationSelection: Filtered prestations by specialization:', filtered.length)
-    return filtered
-  }
+  // Removed specialization filtering to show all prestations regardless of selected specialization
+  // This ensures all relevant items are displayed when any specialization is selected
   
   console.log('PrestationSelection: Returning all prestations:', props.availablePrestations.length)
   return props.availablePrestations

@@ -144,6 +144,7 @@ const fetchAllDoctors = async () => {
 const fetchAllPrestations = async () => {
   try {
     const prestationResult = await ficheNavetteService.getAllPrestations();
+    console.log('Prestation Result:', prestationResult);
     const packageResult = await ficheNavetteService.getAllPackages();
 
     if (prestationResult.success) {
@@ -847,7 +848,7 @@ onMounted(() => {
                   />
                 </div>
                 <ToggleButton
-                  v-model="enableConventionMode"
+                  v-model:visiable="enableConventionMode"
                   onLabel="Convention"
                   offLabel="Regular"
                   onIcon="pi pi-building"
@@ -988,7 +989,7 @@ onMounted(() => {
     />
 
     <SameDayAppointmentModal
-      v-model="showSameDayModal"
+      v-model:visible="showSameDayModal"
       :doctor-id="safeDoctorId"
       :patient-id="props.patientId"
       :fuckuifwork="fuckuifwork"
@@ -999,7 +1000,7 @@ onMounted(() => {
     />
     
     <AppointmentRequiredAlert
-      v-model="showAppointmentAlert"
+      v-model:visible="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
       :selected-doctor="selectedDoctor"
@@ -1009,7 +1010,7 @@ onMounted(() => {
     />
     
     <DoctorSelectionModal
-      v-model="showDoctorSelectionModal"
+      v-model:visible="showDoctorSelectionModal"
       :prestation="selectedPrestationForAppointment"
       :doctors="allDoctors"
       :specializations="specializations"
@@ -1019,7 +1020,7 @@ onMounted(() => {
     />
     
     <ReasonModel
-      :show="showCancelReasonModal"
+      v-model:visible="showCancelReasonModal"
       @submit="onReasonSubmitted"
       @close="showCancelReasonModal = false; prestationToCancel = null"
     />

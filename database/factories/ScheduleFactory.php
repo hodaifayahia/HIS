@@ -20,7 +20,7 @@ class ScheduleFactory extends Factory
         return [
             'doctor_id' => Doctor::factory(),
             'day_of_week' => $this->faker->randomElement($daysOfWeek),
-            'date' => $this->faker->optional()->dateTimeBetween('now', '+3 months')->format('Y-m-d'),
+            'date' => $this->faker->optional(0.7)->dateTimeBetween('now', '+3 months')?->format('Y-m-d'),
             'number_of_patients_per_day' => $this->faker->numberBetween(5, 50),
             'start_time' => $this->faker->time('H:i', '08:00'),
             'end_time' => $this->faker->time('H:i', '18:00'),

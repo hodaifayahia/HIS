@@ -847,7 +847,7 @@ onMounted(() => {
                   
                 </div>
                 <ToggleButton
-                  v-model="enableConventionMode"
+                  v-model:visiable="enableConventionMode"
                   onLabel="Convention"
                   offLabel="Regular"
                   onIcon="pi pi-building"
@@ -981,7 +981,7 @@ onMounted(() => {
 
     <!-- All Modals -->
     <ConventionModal
-      v-model:visible="showConventionModal"
+      v-model:visible:="showConventionModal"
       :ficheNavetteId="props.ficheNavetteId"
       :patientId="props.patientId"
       @convention-items-added="onConventionItemsAdded"
@@ -989,7 +989,7 @@ onMounted(() => {
     />
 
     <SameDayAppointmentModal
-      v-model="showSameDayModal"
+      v-model:visible="showSameDayModal"
       :doctor-id="safeDoctorId"
       :patient-id="props.patientId"
       :fuckuifwork="fuckuifwork"
@@ -1000,7 +1000,7 @@ onMounted(() => {
     />
     
     <AppointmentRequiredAlert
-      v-model="showAppointmentAlert"
+      v-model:visible="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
       :selected-doctor="selectedDoctor"
@@ -1010,7 +1010,7 @@ onMounted(() => {
     />
     
     <DoctorSelectionModal
-      v-model="showDoctorSelectionModal"
+      v-model:visible="showDoctorSelectionModal"
       :prestation="selectedPrestationForAppointment"
       :doctors="allDoctors"
       :specializations="specializations"
@@ -1020,7 +1020,7 @@ onMounted(() => {
     />
     
     <ReasonModel
-      :show="showCancelReasonModal"
+      v-model:visible="showCancelReasonModal"
       @submit="onReasonSubmitted"
       @close="showCancelReasonModal = false; prestationToCancel = null"
     />

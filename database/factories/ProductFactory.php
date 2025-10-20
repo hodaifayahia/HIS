@@ -12,26 +12,24 @@ class ProductFactory extends Factory
 
     public function definition(): array
     {
-        $medicamentTypes = ['Comprimé', 'Gélule', 'Sirop', 'Injectable', 'Pommade', 'Gouttes'];
-        $formes = ['Oral', 'Injectable', 'Topique', 'Ophtalmique', 'Auriculaire'];
-        $categories = ['Antibiotique', 'Antalgique', 'Anti-inflammatoire', 'Cardiovasculaire', 'Neurologique'];
+        $medicationTypes = ['Tablet', 'Capsule', 'Syrup', 'Injectable', 'Ointment', 'Drops'];
+        $forms = ['Oral', 'Injectable', 'Topical', 'Ophthalmic', 'Otic'];
+        $categories = ['Antibiotic', 'Analgesic', 'Anti-inflammatory', 'Cardiovascular', 'Neurological'];
 
         return [
             'name' => $this->faker->words(2, true),
             'description' => $this->faker->sentence(),
             'category' => $this->faker->randomElement($categories),
-            'is_clinical' => $this->faker->boolean(30), // 30% chance of being clinical
-            'is_required_approval' => $this->faker->boolean(20), // 20% chance of requiring approval
             'is_request_approval' => $this->faker->boolean(15), // 15% chance of requesting approval
             'code_interne' => $this->faker->unique()->numberBetween(1000, 9999),
             'code_pch' => $this->faker->optional()->regexify('[A-Z]{2}[0-9]{4}'),
-            'code' => $this->faker->unique()->regexify('[A-Z]{3}[0-9]{3}'),
             'designation' => $this->faker->words(3, true),
-            'type_medicament' => $this->faker->randomElement($medicamentTypes),
-            'forme' => $this->faker->randomElement($formes),
+            'type_medicament' => $this->faker->randomElement($medicationTypes),
+            'forme' => $this->faker->randomElement($forms),
             'boite_de' => $this->faker->numberBetween(1, 100),
+            'quantity_by_box' => $this->faker->boolean(70), // 70% chance of having quantity by box
             'nom_commercial' => $this->faker->company() . ' ' . $this->faker->word(),
-            'status' => $this->faker->randomElement(['active', 'inactive', 'discontinued']),
+            'status' => $this->faker->randomElement(['In Stock', 'Low Stock', 'Out of Stock']),
         ];
     }
 

@@ -7,6 +7,7 @@ use App\Models\Patient;
 use App\Models\User;
 use App\Models\Reception\ficheNavetteItem;
 use App\Models\Reception\ItemDependency;
+use App\Models\Bank\BankAccount;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -29,11 +30,15 @@ class FinancialTransaction extends Model
         'b2b_invoice_id',
         'notes',
         'status',
+        'is_bank_transaction',
+        'bank_id_account',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-    'item_dependency_id' => 'integer',
+        'item_dependency_id' => 'integer',
+        'is_bank_transaction' => 'boolean',
+        'bank_id_account' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -70,6 +75,11 @@ class FinancialTransaction extends Model
     public function itemDependency()
     {
         return $this->belongsTo(ItemDependency::class, 'item_dependency_id');
+    }
+
+    public function bankAccount()
+    {
+        return $this->belongsTo(BankAccount::class, 'bank_id_account');
     }
 
     public function b2bInvoice()

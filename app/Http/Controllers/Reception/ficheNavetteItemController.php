@@ -555,25 +555,48 @@ class ficheNavetteItemController extends Controller
     public function getPatientConventions(GetPatientConventionsRequest $request, $patientId): JsonResponse
     {
         try {
-            // Get convention IDs and prestation IDs from fiche navette items
+            // Get fiche navette items (include package_id) and consider both direct prestations
+            // and prestations that are part of a package
             $ficheNavetteItems = ficheNavetteItem::where('fiche_navette_id', $request->validated()['fiche_navette_id'])
-                ->get(['convention_id', 'prestation_id', 'uploaded_file'])
+                ->get(['convention_id', 'prestation_id', 'package_id', 'uploaded_file'])
                 ->filter(function ($item) {
-                    return $item->convention_id && $item->prestation_id;
+                    // Keep items that have a convention and either a direct prestation or a package
+                    return $item->convention_id && ($item->prestation_id || $item->package_id);
                 });
 
+            // Convention IDs seen on the fiche
             $conventionIds = $ficheNavetteItems->pluck('convention_id')->unique()->values();
-            $prestationIds = $ficheNavetteItems->pluck('prestation_id')->unique()->values();
+
+            // Direct prestation IDs from fiche items
+            $directPrestationIds = $ficheNavetteItems->pluck('prestation_id')->filter()->unique()->values();
+
+            // For package items, fetch the prestations that belong to those packages
+            $packageIds = $ficheNavetteItems->pluck('package_id')->filter()->unique()->values();
+            $packagePrestationIds = collect();
+            if ($packageIds->isNotEmpty()) {
+                $packagePrestationIds = \DB::table('prestation_packageitems')
+                    ->whereIn('prestation_package_id', $packageIds)
+                    ->pluck('prestation_id')
+                    ->unique()
+                    ->values();
+            }
+
+            // Merge direct prestation ids with those coming from packages
+            $prestationIds = $directPrestationIds->merge($packagePrestationIds)->unique()->values();
 
             // Fetch conventions directly from the database
             $conventions = \DB::table('conventions')
                 ->whereIn('id', $conventionIds)
                 ->get();
 
-            // Fetch prestations directly from the database
-            $prestations = \DB::table('prestations')
-                ->whereIn('id', $prestationIds)
-                ->get();
+            // Fetch prestations directly from the database (guard against empty list)
+            if ($prestationIds->isEmpty()) {
+                $prestations = collect();
+            } else {
+                $prestations = \DB::table('prestations')
+                    ->whereIn('id', $prestationIds)
+                    ->get();
+            }
 
             // Fetch organismes directly from the database
             $organismes = \DB::table('organismes')
@@ -599,11 +622,31 @@ class ficheNavetteItemController extends Controller
                     'conventions_count' => $organismeConventions->count(),
                     'conventions' => $organismeConventions->map(function ($convention) use ($ficheNavetteItems, $prestations) {
                         // Get prestation_ids for this convention from ficheNavetteItems
-                        $prestationIdsForConvention = $ficheNavetteItems
+                        $directForConvention = $ficheNavetteItems
                             ->where('convention_id', $convention->id)
                             ->pluck('prestation_id')
+                            ->filter()
                             ->unique()
                             ->values();
+
+                        // Include prestations that come from packages for this convention
+                        $packageIdsForConvention = $ficheNavetteItems
+                            ->where('convention_id', $convention->id)
+                            ->pluck('package_id')
+                            ->filter()
+                            ->unique()
+                            ->values();
+
+                        $packagePrestationIdsForConvention = collect();
+                        if ($packageIdsForConvention->isNotEmpty()) {
+                            $packagePrestationIdsForConvention = \DB::table('prestation_packageitems')
+                                ->whereIn('prestation_package_id', $packageIdsForConvention)
+                                ->pluck('prestation_id')
+                                ->unique()
+                                ->values();
+                        }
+
+                        $prestationIdsForConvention = $directForConvention->merge($packagePrestationIdsForConvention)->unique()->values();
 
                         // Get prestation details for this convention
                         $conventionPrestations = $prestations->whereIn('id', $prestationIdsForConvention);

@@ -18,13 +18,26 @@ use App\Models\Bank\BankAccountTransaction;
 
 class CoffreTransactionService
 {
-    public function getAllPaginated(int $perPage = 15, $coffreId = null): LengthAwarePaginator
+    public function getAllPaginated(int $perPage = 15, $coffreId = null, $caisseSessionId = null, $search = null): LengthAwarePaginator
     {
     $query = CoffreTransaction::with(['coffre', 'user', 'destinationCoffre', 'approvalRequest']);
         
         // Filter by coffre_id if provided
-        if ($coffreId) {
+        if ($coffreId !== null) {
             $query->where('coffre_id', $coffreId);
+        }
+        
+        // Filter by caisse_session_id if provided (including 0)
+        if ($caisseSessionId !== null) {
+            $query->where('source_caisse_session_id', $caisseSessionId);
+        }
+        
+        // Filter by search term if provided
+        if ($search !== null && $search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('transaction_type', 'like', "%{$search}%");
+            });
         }
         
         return $query->latest('id')->paginate($perPage);

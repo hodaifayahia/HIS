@@ -1739,4 +1739,217 @@ gh pr create --title "Fix: Bug description" --body "Description of changes"
 
 ---
 
+## Case Studies & Lessons Learned
+
+### Case Study 1: Carbon Date Parsing Bug (October 2025)
+
+#### Problem Description
+**Bug Type:** Date/Time Handling  
+**Severity:** High  
+**Component:** Backend (Laravel)  
+**File:** `app/Http/Controllers/AppointmentController.php`
+
+**Issue:** Malformed datetime strings were being created when concatenating date strings with Carbon time objects, resulting in strings like `"2025-10-22 2025-10-20 08:00:00"` instead of the expected `"2025-10-22 08:00:00"`.
+
+#### Root Cause Analysis
+The bug occurred in two methods:
+1. `calculateTotalAvailableTime()` (lines ~930-980)
+2. `getDoctorWorkingHours()` (lines ~1050-1100)
+
+**Root Cause:** Direct concatenation of date strings with Carbon objects without proper formatting:
+```php
+// BUGGY CODE
+$startTime = Carbon::parse($dateString.' '.$schedule->start_time);
+$endTime = Carbon::parse($dateString.' '.$schedule->end_time);
+```
+
+When `$schedule->start_time` was a Carbon instance (due to model casting), it would be converted to string using Carbon's default `__toString()` method, which includes the full date, creating malformed strings.
+
+#### Detection Method
+- **Initial Detection:** Manual testing of appointment scheduling functionality
+- **Debugging Tools Used:**
+  - `php artisan tinker` for reproducing the issue
+  - Direct code inspection
+  - Laravel Debugbar (would have helped if enabled)
+
+#### Solution Implemented
+**Fix:** Explicitly format Carbon instances to time-only strings before concatenation:
+
+```php
+// FIXED CODE
+$startTimeStr = $schedule->start_time instanceof Carbon 
+    ? $schedule->start_time->format('H:i:s') 
+    : $schedule->start_time;
+$endTimeStr = $schedule->end_time instanceof Carbon 
+    ? $schedule->end_time->format('H:i:s') 
+    : $schedule->end_time;
+
+$startTime = Carbon::parse($dateString.' '.$startTimeStr);
+$endTime = Carbon::parse($dateString.' '.$endTimeStr);
+```
+
+#### Testing Strategy
+1. **Unit Tests:** Created `DateParsingLogicTest.php` to test the core logic without database dependencies
+2. **Feature Tests:** Created `AppointmentDateParsingTest.php` for integration testing
+3. **Manual Testing:** Used `php artisan tinker` to verify fixes
+
+#### Prevention Measures
+1. **Static Analysis:** PHPStan would have caught this type mismatch
+2. **Code Review:** Checklist item added for date/time concatenation patterns
+3. **Testing:** Comprehensive test coverage for date/time handling edge cases
+
+#### Lessons Learned
+1. **Always format objects before string concatenation** - Never assume object-to-string conversion will produce expected format
+2. **Test with different data types** - Models with casts can return different types than expected
+3. **Use type checking** - Always check if variables are instances of specific classes before operations
+4. **Comprehensive testing** - Create both unit and integration tests for critical functionality
+5. **Documentation** - Document expected data types and formats in method docblocks
+
+#### Code Review Checklist Addition
+- [ ] Are date/time concatenations properly formatted?
+- [ ] Are Carbon instances explicitly formatted before string operations?
+- [ ] Are there tests covering different data type scenarios?
+- [ ] Are method parameters and return types properly documented?
+
+#### Tools That Would Have Helped
+- **PHPStan Level 6+:** Would have detected type mismatches
+- **Laravel Debugbar:** Would have shown the malformed SQL queries
+- **Xdebug:** Would have allowed step-through debugging to see exact values
+
+#### Related Files Modified
+- `app/Http/Controllers/AppointmentController.php` (lines 930-980, 1050-1100)
+- `tests/Unit/DateParsingLogicTest.php` (new)
+- `tests/Feature/AppointmentDateParsingTest.php` (new)
+
+#### Time to Resolution
+- **Detection to Fix:** 2 hours
+- **Testing and Validation:** 1 hour
+- **Documentation:** 30 minutes
+- **Total:** 3.5 hours
+
+---
+
+## Case Study: Specialization Filtering Bug Fix
+
+### Problem Description
+**Issue:** Cardiology specialization not showing all available prestations in FicheNavette item selection across Emergency, Reception, and Nursing modules.
+
+**Symptoms:**
+- Users could only see prestations that matched their selected specialization
+- Cardiology prestations were missing when cardiology specialization was selected
+- Issue affected multiple Vue.js components across different modules
+
+### Root Cause Analysis
+
+#### Backend Investigation
+1. **Initial Hypothesis:** Backend API filtering prestations by user specialization
+2. **Investigation Method:** 
+   - Searched codebase for `getPrestationsForFicheByAuthenticatedUser` method
+   - Found in `app/Http/Services/Reception/FicheNavetteService.php`
+   - Discovered specialization filtering logic in lines 1079-1083
+
+#### Frontend Investigation
+1. **Component Analysis:** Found filtering logic in multiple Vue components:
+   - `CustomPrestationSelection.vue` (Emergency, Reception, Nursing)
+   - `PrestationSelection.vue` (Emergency, Reception, Nursing)
+2. **Filtering Logic:** Components were filtering prestations by `specialization_id` in computed properties
+
+### Solution Implementation
+
+#### Backend Fix
+```php
+// Before (in FicheNavetteService.php)
+if ($user->specializations && $user->specializations->isNotEmpty()) {
+    $specializationIds = $user->specializations->pluck('id')->toArray();
+    $query->whereIn('specialization_id', $specializationIds);
+}
+
+// After - Removed specialization filtering
+// Users should see all prestations regardless of their specialization
+```
+
+#### Frontend Fixes
+Updated 6 Vue.js components to remove specialization filtering:
+
+```javascript
+// Before (in filteredPrestations computed property)
+if (this.selectedSpecializationsFilter && this.selectedSpecializationsFilter.length > 0) {
+    filtered = filtered.filter(prestation => 
+        this.selectedSpecializationsFilter.includes(prestation.specialization_id)
+    );
+}
+
+// After - Removed specialization filtering
+// Show all prestations regardless of specialization selection
+```
+
+### Testing & Validation
+
+#### Verification Script
+Created `test_specialization_fix.php` to verify:
+- API endpoint accessibility
+- Frontend component modifications
+- Removal of filtering logic
+
+#### Results
+- ✅ All 6 frontend components successfully updated
+- ✅ Backend filtering logic removed
+- ✅ Specialization filtering comments added for future reference
+
+### Files Modified
+1. **Backend:**
+   - `app/Http/Services/Reception/FicheNavetteService.php` (lines 1079-1083)
+
+2. **Frontend Components:**
+   - `resources/js/Components/Apps/Emergency/components/CustomPrestationSelection.vue`
+   - `resources/js/Components/Apps/reception/components/CustomPrestationSelection.vue`
+   - `resources/js/Components/Apps/Nursing/components/CustomPrestationSelection.vue`
+   - `resources/js/Components/Apps/Emergency/components/PrestationSelection.vue`
+   - `resources/js/Components/Apps/reception/components/PrestationSelection.vue`
+   - `resources/js/Components/Apps/Nursing/components/PrestationSelection.vue`
+
+### Lessons Learned
+
+#### Technical Insights
+1. **Multi-layer Filtering:** Bug existed in both backend API and frontend components
+2. **Component Replication:** Same filtering logic was duplicated across multiple modules
+3. **Business Logic Clarity:** Need clearer requirements about specialization restrictions
+
+#### Process Improvements
+1. **Systematic Search:** Used codebase search to identify all affected components
+2. **Consistent Fixes:** Applied same solution pattern across all components
+3. **Documentation:** Added comments explaining the removal of filtering logic
+
+#### Prevention Strategies
+1. **Centralized Logic:** Consider creating shared composables for common filtering logic
+2. **Business Rules Documentation:** Document when specialization filtering should/shouldn't apply
+3. **Cross-module Testing:** Test similar functionality across all modules when fixing bugs
+
+### Code Review Checklist Additions
+- [ ] Are business rules consistently applied across all modules?
+- [ ] Is filtering logic centralized or properly documented if duplicated?
+- [ ] Are specialization restrictions clearly defined in requirements?
+- [ ] Have similar components in other modules been checked for the same issue?
+
+### Tools That Helped
+- **Semantic Search:** Quickly identified all components with similar filtering logic
+- **Regex Search:** Found exact patterns of specialization filtering code
+- **File Comparison:** Ensured consistent fixes across all affected files
+
+### Time to Resolution
+- **Problem Identification:** 30 minutes
+- **Root Cause Analysis:** 45 minutes  
+- **Backend Fix:** 15 minutes
+- **Frontend Fixes:** 60 minutes
+- **Testing & Validation:** 30 minutes
+- **Documentation:** 20 minutes
+- **Total:** 3 hours 20 minutes
+
+### Related Issues to Monitor
+- Ensure no other components have similar specialization filtering that shouldn't be there
+- Monitor user feedback to confirm all prestations are now accessible
+- Consider adding tests to prevent regression of this filtering logic
+
+---
+
 This playbook should be regularly updated as new tools, techniques, and best practices are discovered. Keep it as a living document that evolves with your team's needs and the system's complexity.

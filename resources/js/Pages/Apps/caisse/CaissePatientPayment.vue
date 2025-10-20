@@ -44,7 +44,9 @@ const fichePatientName = ref(null)
 
 const globalPayment = reactive({
   amount: null,
-  method: 'cash'
+  method: 'cash',
+  bankId: null,
+  isBankTransaction: false
 })
 
 // Overpayment handling
@@ -1438,7 +1440,10 @@ const processDirectPayment = async (item, amount, paymentMethod, itemIndex) => {
     amount: amount,
     transaction_type: 'payment',
     payment_method: mapPaymentMethod(paymentMethod),
-    notes: `Payment for fiche item ${item.id}`
+    notes: `Payment for fiche item ${item.id}`,
+    // Add bank transaction fields for individual payments
+    is_bank_transaction: paymentMethod === 'transfer' ? true : false,
+    bank_id: paymentMethod === 'transfer' ? globalPayment.bankId : null
   }
 
   try {
@@ -1580,7 +1585,10 @@ const processDependencyDirectPayment = async (parentItem, dep, amount, paymentMe
     amount: amount,
     transaction_type: 'payment',
     payment_method: mapPaymentMethod(paymentMethod),
-    notes: `Payment for dependency ${dep.id} under fiche item ${parentItem.id}`
+    notes: `Payment for dependency ${dep.id} under fiche item ${parentItem.id}`,
+    // Add bank transaction fields for dependency payments
+    is_bank_transaction: paymentMethod === 'bank_transfer' ? true : false,
+    bank_id: paymentMethod === 'bank_transfer' ? globalPayment.bankId : null
   }
 
   try {
@@ -1637,6 +1645,7 @@ const payGlobal = async () => {
     checkGlobalOverpayment()
     return
   }
+
 
   // Check if global payment method requires approval
   if (globalPayment.method === 'card' || globalPayment.method === 'cheque') {
@@ -1726,7 +1735,10 @@ const payGlobal = async () => {
     transaction_type: 'bulk_payment',
     total_amount: amount, // Use the actual payment amount
     items: bulkPaymentItems,
-    notes: `Global bulk payment for ${bulkPaymentItems.length} items`
+    notes: `Global bulk payment for ${bulkPaymentItems.length} items`,
+    // Add bank transaction fields
+    is_bank_transaction: globalPayment.isBankTransaction || false,
+    bank_id: globalPayment.bankId || null
   }
 
   console.log('Sending bulk payment request:', bulkPayload)
@@ -1843,6 +1855,8 @@ onMounted(async () => {
             <GlobalPayment
               v-model:amount="globalPayment.amount"
               v-model:method="globalPayment.method"
+              v-model:bank-id="globalPayment.bankId"
+              v-model:is-bank-transaction="globalPayment.isBankTransaction"
               :max-amount="totalOutstanding"
               @pay-global="payGlobal"
             />

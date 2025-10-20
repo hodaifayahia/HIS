@@ -215,7 +215,7 @@ onMounted(() => {
           </div>
 
           <!-- Closing Amount -->
-          <!-- <div class="form-group mb-3">
+          <div class="form-group mb-3">
             <label for="closing_amount" class="form-label">
               <i class="pi pi-dollar"></i>
               Expected Closing Amount *
@@ -236,7 +236,7 @@ onMounted(() => {
             <small v-if="errors.closing_amount" class="p-error">
               {{ errors.closing_amount[0] }}
             </small>
-          </div> -->
+          </div>
 
           <!-- Safe Selection -->
           <div class="form-group mb-3">

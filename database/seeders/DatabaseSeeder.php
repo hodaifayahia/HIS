@@ -18,8 +18,9 @@ class DatabaseSeeder extends Seeder
         // Seed in dependency order
         $this->call([
             // Core configuration seeders
-            ServiceSeeder::class,
+            // ServiceSeeder::class,
             SpecializationSeeder::class,
+            ModalitySeeder::class,
             PavilionSeeder::class,
             CategorySeeder::class,
             
@@ -50,6 +51,8 @@ class DatabaseSeeder extends Seeder
             MedicationDoctorFavoratSeeder::class,
             CaissePermissionSeeder::class,
             RolesTableSeeder::class,
+            // Ensure an admin user exists
+            AdminUserSeeder::class,
         ]);
     }
 }

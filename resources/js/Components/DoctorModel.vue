@@ -130,11 +130,20 @@ watch(
       const formatTime = (timeString) => {
         if (!timeString) return '';
         try {
-          const date = new Date(`2000-01-01T${timeString}`); // Use a dummy date to parse time
-          return date.toTimeString().slice(0, 5); // Extracts HH:mm
+          // Handle different time formats
+          if (timeString.includes('T')) {
+            // ISO format: 2024-01-01T09:00:00.000000Z
+            const date = new Date(timeString);
+            return date.toTimeString().slice(0, 5); // Extracts HH:mm
+          } else if (timeString.includes(':')) {
+            // Simple time format: 09:00:00 or 09:00
+            const timeParts = timeString.split(':');
+            return `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+          }
+          return timeString;
         } catch (e) {
           console.error("Error formatting time:", timeString, e);
-          return '';
+          return timeString || '';
         }
       };
 
@@ -158,7 +167,12 @@ watch(
         avatar: newValue?.avatar || null,
         appointmentBookingWindow: newValue?.appointment_booking_window,
         customDates: Array.isArray(newValue?.schedules) ? [...newValue.schedules] : [],
-        schedules: Array.isArray(newValue?.schedules) ? [...newValue.schedules] : [],
+        schedules: Array.isArray(newValue?.schedules) ? 
+          newValue.schedules.map(schedule => ({
+            ...schedule,
+            start_time: formatTime(schedule.start_time),
+            end_time: formatTime(schedule.end_time)
+          })) : [],
         password: '',
         number_of_patients_per_day: (doctor.value.number_of_patients_per_day === undefined)
           ? computedNumber

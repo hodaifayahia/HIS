@@ -939,8 +939,16 @@ class AppointmentController extends Controller
                     continue;
                 }
 
-                $startTime = Carbon::parse($dateString.' '.$schedule->start_time);
-                $endTime = Carbon::parse($dateString.' '.$schedule->end_time);
+                // Handle time fields that might be datetime objects or time strings
+                $startTimeStr = $schedule->start_time instanceof Carbon 
+                    ? $schedule->start_time->format('H:i:s') 
+                    : $schedule->start_time;
+                $endTimeStr = $schedule->end_time instanceof Carbon 
+                    ? $schedule->end_time->format('H:i:s') 
+                    : $schedule->end_time;
+
+                $startTime = Carbon::parse($dateString.' '.$startTimeStr);
+                $endTime = Carbon::parse($dateString.' '.$endTimeStr);
 
                 if ($timeSlotMinutes > 0 && ! $isLimitedExclusion) {
                     // Fixed time slot approach (only for regular schedules)
@@ -1219,8 +1227,16 @@ class AppointmentController extends Controller
         $totalAvailableTime = 0;
 
         foreach ($schedules as $schedule) {
-            $startTime = Carbon::parse($date.' '.$schedule->start_time);
-            $endTime = Carbon::parse($date.' '.$schedule->end_time);
+            // Handle time fields that might be datetime objects or time strings
+            $startTimeStr = $schedule->start_time instanceof Carbon 
+                ? $schedule->start_time->format('H:i:s') 
+                : $schedule->start_time;
+            $endTimeStr = $schedule->end_time instanceof Carbon 
+                ? $schedule->end_time->format('H:i:s') 
+                : $schedule->end_time;
+                
+            $startTime = Carbon::parse($date.' '.$startTimeStr);
+            $endTime = Carbon::parse($date.' '.$endTimeStr);
             $totalAvailableTime += $endTime->diffInMinutes($startTime);
         }
 

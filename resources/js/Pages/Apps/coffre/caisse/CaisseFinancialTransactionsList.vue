@@ -260,12 +260,22 @@ const props = defineProps({
   caisseId: {
     type: [String, Number],
     required: true
+  },
+  sessionId: {
+    type: [String, Number],
+    default: null
   }
 })
 
 // Composables
 const toast = useToast()
 const router = useRouter()
+const route = useRoute()
+
+// Get sessionId from route query if not provided as prop
+const sessionId = computed(() => {
+  return props.sessionId || route.query.session_id
+})
 
 // Reactive state
 const transactions = ref([])
@@ -275,35 +285,34 @@ const perPage = ref(15)
 const meta = ref(null)
 const stats = ref({
   total: 0,
-  payments: 0,
-  refunds: 0,
+  deposits: 0,
+  withdrawals: 0,
   total_amount: 0
 })
 const viewMode = ref('table')
 
 // Filters
 const filters = ref({
-  caisse_id: props.caisseId,
+  caisse_session_id: sessionId.value,
   transaction_type: '',
-  payment_method: ''
+  status: ''
 })
 
 // Options
 const transactionTypeOptions = [
   { label: 'All Types', value: '' },
-  { label: 'Payment', value: 'payment' },
-  { label: 'Refund', value: 'refund' },
+  { label: 'Deposit', value: 'deposit' },
+  { label: 'Withdrawal', value: 'withdrawal' },
+  { label: 'Transfer In', value: 'transfer_in' },
+  { label: 'Transfer Out', value: 'transfer_out' },
   { label: 'Adjustment', value: 'adjustment' }
 ]
 
-const paymentMethodOptions = [
-  { label: 'All Methods', value: '' },
-  { label: 'Cash', value: 'cash' },
-  { label: 'Card', value: 'card' },
-  { label: 'Check', value: 'check' },
-  { label: 'Transfer', value: 'transfer' },
-  { label: 'Insurance', value: 'insurance' },
-  { label: 'Patient Balance', value: 'patient-balance' }
+const statusOptions = [
+  { label: 'All Status', value: '' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Completed', value: 'completed' },
+  { label: 'Rejected', value: 'rejected' }
 ]
 
 // Methods
@@ -314,13 +323,18 @@ const fetchTransactions = async (page = 1) => {
       page,
       per_page: perPage.value,
       search: searchQuery.value,
-      caisse_id: props.caisseId,
       ...filters.value
     }
 
-    console.log('Fetching financial transactions with params:', params)
+    // Add session_id filter if provided
+    if (sessionId.value) {
+      params.caisse_session_id = sessionId.value
+      console.log('Filtering by session ID:', sessionId.value)
+    }
 
-    const response = await axios.get('/api/financial-transactions', { params })
+    console.log('Fetching coffre transactions with params:', params)
+
+    const response = await axios.get('/api/coffre-transactions', { params })
 
     console.log('API Response:', response.data)
 
@@ -334,8 +348,8 @@ const fetchTransactions = async (page = 1) => {
       } else {
         stats.value = {
           total: transactions.value.length,
-          payments: transactions.value.filter(t => t.transaction_type === 'payment').length,
-          refunds: transactions.value.filter(t => t.transaction_type === 'refund').length,
+          deposits: transactions.value.filter(t => t.transaction_type === 'deposit').length,
+          withdrawals: transactions.value.filter(t => t.transaction_type === 'withdrawal').length,
           total_amount: transactions.value.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0)
         }
       }
@@ -394,29 +408,30 @@ const formatDate = (dateString) => {
 
 const getTransactionTypeLabel = (type) => {
   const labels = {
-    payment: 'Payment',
-    refund: 'Refund',
+    deposit: 'Deposit',
+    withdrawal: 'Withdrawal',
+    transfer_in: 'Transfer In',
+    transfer_out: 'Transfer Out',
     adjustment: 'Adjustment'
   }
   return labels[type] || type
 }
 
-const getPaymentMethodLabel = (method) => {
+const getStatusLabel = (status) => {
   const labels = {
-    cash: 'Cash',
-    card: 'Card',
-    check: 'Check',
-    transfer: 'Bank Transfer',
-    insurance: 'Insurance',
-    'patient-balance': 'Patient Balance'
+    pending: 'Pending',
+    completed: 'Completed',
+    rejected: 'Rejected'
   }
-  return labels[method] || method
+  return labels[status] || status
 }
 
 const getTransactionIcon = (type) => {
   const icons = {
-    payment: 'pi pi-plus-circle',
-    refund: 'pi pi-minus-circle',
+    deposit: 'pi pi-plus-circle',
+    withdrawal: 'pi pi-minus-circle',
+    transfer_in: 'pi pi-arrow-down',
+    transfer_out: 'pi pi-arrow-up',
     adjustment: 'pi pi-cog'
   }
   return icons[type] || 'pi pi-money-bill'
@@ -424,8 +439,10 @@ const getTransactionIcon = (type) => {
 
 const getTransactionIconClass = (type) => {
   const classes = {
-    payment: 'tw-bg-green-500 tw-text-white',
-    refund: 'tw-bg-red-500 tw-text-white',
+    deposit: 'tw-bg-green-500 tw-text-white',
+    withdrawal: 'tw-bg-red-500 tw-text-white',
+    transfer_in: 'tw-bg-blue-500 tw-text-white',
+    transfer_out: 'tw-bg-orange-500 tw-text-white',
     adjustment: 'tw-bg-yellow-500 tw-text-white'
   }
   return classes[type] || 'tw-bg-gray-500 tw-text-white'
@@ -433,8 +450,10 @@ const getTransactionIconClass = (type) => {
 
 const getTransactionBgClass = (type) => {
   const classes = {
-    payment: 'tw-bg-gradient-to-r tw-from-green-500 tw-to-emerald-500',
-    refund: 'tw-bg-gradient-to-r tw-from-red-500 tw-to-rose-500',
+    deposit: 'tw-bg-gradient-to-r tw-from-green-500 tw-to-emerald-500',
+    withdrawal: 'tw-bg-gradient-to-r tw-from-red-500 tw-to-rose-500',
+    transfer_in: 'tw-bg-gradient-to-r tw-from-blue-500 tw-to-indigo-500',
+    transfer_out: 'tw-bg-gradient-to-r tw-from-orange-500 tw-to-amber-500',
     adjustment: 'tw-bg-gradient-to-r tw-from-yellow-500 tw-to-orange-500'
   }
   return classes[type] || 'tw-bg-gradient-to-r tw-from-gray-500 tw-to-slate-600'
@@ -442,11 +461,22 @@ const getTransactionBgClass = (type) => {
 
 const getTransactionSeverity = (type) => {
   const severities = {
-    payment: 'success',
-    refund: 'danger',
-    adjustment: 'warning'
+    deposit: 'success',
+    withdrawal: 'danger',
+    transfer_in: 'info',
+    transfer_out: 'warning',
+    adjustment: 'secondary'
   }
   return severities[type] || 'secondary'
+}
+
+const getStatusSeverity = (status) => {
+  const severities = {
+    pending: 'warning',
+    completed: 'success',
+    rejected: 'danger'
+  }
+  return severities[status] || 'secondary'
 }
 
 // Lifecycle

@@ -17,6 +17,10 @@
             <span :class="getTransactionTypeClass(tx.transaction_type)">
               {{ getTransactionTypeText(tx.transaction_type) }}
             </span>
+            <span v-if="tx.is_bank_transaction && tx.bank_id" class="tw-ml-2 tw-px-2 tw-py-1 tw-bg-blue-100 tw-text-blue-800 tw-rounded-full tw-text-xs tw-font-medium">
+              <i class="pi pi-building tw-mr-1"></i>
+              Bank ID: {{ tx.bank_id }}
+            </span>
           </div>
         </div>
         <div class="tw-flex tw-items-center tw-gap-2">

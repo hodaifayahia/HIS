@@ -19,11 +19,13 @@ class BankAccount extends Model
         'current_balance',
         'description',
         'is_active',
+        'is_defult'
     ];
 
     protected $casts = [
         'current_balance' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_defult' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

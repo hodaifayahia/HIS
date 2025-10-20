@@ -286,6 +286,10 @@
                   <i class="pi pi-credit-card tw-text-xs"></i>
                   <span>{{ tx.payment_method }}</span>
                 </div>
+                <div v-if="tx.is_bank_transaction && tx.bank_id" class="tw-flex tw-items-center tw-gap-1 tw-text-blue-600 tw-text-sm tw-bg-blue-100 tw-px-2 tw-py-1 tw-rounded-full">
+                  <i class="pi pi-building tw-text-xs"></i>
+                  <span>Bank: {{ tx.bank_id }}</span>
+                </div>
               </div>
               
               <div class="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-text-gray-500 tw-mb-1">

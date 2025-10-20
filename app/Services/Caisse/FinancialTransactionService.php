@@ -660,17 +660,29 @@ class FinancialTransactionService
      */
     private function processGlobalPayment(array $data): array
     {
+        
         $items = $data['items'];
         $totalAmount = $data['total_amount'];
         $cashierId = $data['cashier_id'];
         $patientId = $data['patient_id'];
         $paymentMethod = $data['payment_method'];
         $notes = $data['notes'] ?? 'Global payment';
+        $isBankTransaction = $data['is_bank_transaction'] ?? false;
+        $bankIdAccount = $data['bank_id_account'] ?? null;
 
         $results = [];
         $processedTransactions = [];
         $updatedItems = [];
 
+          if (($data['is_bank_transaction'] ?? false) && empty($data['bank_id_account'])) {
+                $defaultBankAccount = \App\Models\Bank\BankAccount::where('is_defult', true)
+                    ->where('is_active', true)
+                    ->first();
+                
+                if ($defaultBankAccount) {
+                    $data['bank_id_account'] = $defaultBankAccount->id;
+                }
+            }
         // Calculate total outstanding amount needed
         $totalOutstanding = 0;
         foreach ($items as $item) {
@@ -748,6 +760,8 @@ class FinancialTransactionService
                 'transaction_type' => 'payment',
                 'payment_method' => $paymentMethod,
                 'notes' => $notes.' - Payment for '.($item['item_name'] ?? 'item'),
+                'is_bank_transaction' => $isBankTransaction,
+                'bank_id_account' => $bankIdAccount,
             ];
 
             // Add dependency info if applicable
@@ -778,6 +792,8 @@ class FinancialTransactionService
                 'transaction_type' => 'donation',
                 'payment_method' => $paymentMethod,
                 'notes' => $notes ? "Global payment donation: {$notes}" : 'Global payment excess donated',
+                'is_bank_transaction' => $isBankTransaction,
+                'bank_id_account' => $bankIdAccount,
             ]);
 
             $processedTransactions[] = $donationTransaction;

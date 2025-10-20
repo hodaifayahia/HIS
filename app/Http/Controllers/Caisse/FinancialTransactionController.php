@@ -16,10 +16,8 @@ use App\Models\manager\RefundAuthorization;
 use App\Services\Caisse\FinancialTransactionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Log;
 use Illuminate\Support\Facades\Auth;
-
-// improt Log
+use Illuminate\Support\Facades\Log;
 
 class FinancialTransactionController extends Controller
 {
@@ -106,10 +104,7 @@ class FinancialTransactionController extends Controller
      */
     public function store(StoreFinancialTransactionRequest $request): JsonResponse
     {
-        // Remove dd() for production
-
-        try {
-            // Ensure cashier_id defaults to the authenticated user when not provided by client
+        try {   // Ensure cashier_id defaults to the authenticated user when not provided by client
             $data = $request->validated();
             if (empty($data['cashier_id'])) {
                 $data['cashier_id'] = Auth::id();
@@ -630,7 +625,7 @@ class FinancialTransactionController extends Controller
                     'originalTransaction',
                 ]);
             } catch (\Throwable $e) {
-                \Log::warning('Failed to load transaction relationships in getByFicheNavette: '.$e->getMessage());
+                Log::warning('Failed to load transaction relationships in getByFicheNavette: '.$e->getMessage());
             }
 
             // collect fiche_navette_item_ids from returned transactions
@@ -734,7 +729,7 @@ class FinancialTransactionController extends Controller
             $refundData = [
                 'fiche_navette_item_id' => $originalTransaction->fiche_navette_item_id,
                 'patient_id' => $originalTransaction->patient_id,
-                'cashier_id' => auth()->id(),
+                'cashier_id' => Auth::id(),
                 'amount' => $request->amount,
                 'transaction_type' => 'refund',
                 'payment_method' => $originalTransaction->payment_method,
@@ -881,7 +876,7 @@ class FinancialTransactionController extends Controller
                 }
             }
         } catch (\Exception $e) {
-            \Log::error('Failed to update fiche navette item amounts after refund: '.$e->getMessage());
+            Log::error('Failed to update fiche navette item amounts after refund: '.$e->getMessage());
         }
     }
 
@@ -919,7 +914,7 @@ class FinancialTransactionController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            \Log::error('Failed to update item amounts: '.$e->getMessage());
+            Log::error('Failed to update item amounts: '.$e->getMessage());
         }
     }
 }

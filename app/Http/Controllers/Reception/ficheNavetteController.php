@@ -155,8 +155,8 @@ class ficheNavetteController extends Controller
     }
 
     /**
-     * Return prestations for a fiche filtered to the authenticated user's specializations.
-     * Frontend should call this when opening Details to ensure only relevant prestations are shown.
+     * Return all prestations for a fiche without filtering by user specializations.
+     * This ensures all items are displayed when any specialization is selected.
      */
     public function getPrestationsForFicheByAuthenticatedUser($ficheId, ?Request $request = null)
     {
@@ -170,53 +170,6 @@ class ficheNavetteController extends Controller
             ], 401);
         }
 
-        try {
-            $user = User::with(['activeSpecializations.specialization', 'specializations', 'specialization'])->find($user->id) ?? $user;
-        } catch (\Throwable $e) {
-            // ignore and continue
-        }
-
-        // collect specialization ids from possible relation shapes
-        $specIds = [];
-        if (isset($user->activeSpecializations) && $user->activeSpecializations) {
-            try {
-                $specIds = collect($user->activeSpecializations)->map(function ($s) {
-                    if (isset($s->specialization_id)) {
-                        return $s->specialization_id;
-                    }
-                    if (isset($s->specialization) && isset($s->specialization->id)) {
-                        return $s->specialization->id;
-                    }
-                    if (isset($s->id)) {
-                        return $s->id;
-                    }
-
-                    return null;
-                })->filter()->unique()->values()->toArray();
-            } catch (\Throwable $ex) {
-                $specIds = [];
-            }
-        }
-
-        if (empty($specIds)) {
-            if (isset($user->specialization_id) && $user->specialization_id) {
-                $specIds = [(int) $user->specialization_id];
-            } elseif (isset($user->specialization_ids) && is_array($user->specialization_ids) && ! empty($user->specialization_ids)) {
-                $specIds = array_map('intval', $user->specialization_ids);
-            } elseif (isset($user->specializations) && is_array($user->specializations) && ! empty($user->specializations)) {
-                $specIds = array_values(array_filter(array_map(function ($s) {
-                    if (is_array($s) && isset($s['id'])) {
-                        return (int) $s['id'];
-                    }
-                    if (is_object($s) && isset($s->id)) {
-                        return (int) $s->id;
-                    }
-
-                    return null;
-                }, $user->specializations)));
-            }
-        }
-
         // Load the fiche and its items (with prestation + specialization + doctor)
         $fiche = FicheNavette::with(['items.prestation.specialization', 'items.prestation.doctor', 'patient'])->find($ficheId);
 
@@ -228,38 +181,19 @@ class ficheNavetteController extends Controller
             ], 200);
         }
 
-        // If no spec ids, return empty
-        if (empty($specIds)) {
-            return response()->json([
-                'success' => true,
-                'data' => [],
-                'message' => 'No specializations found for user',
-            ], 200);
-        }
-
         $allItems = $fiche->items ?? collect();
 
-        // Filter fiche items by user specializations
-        $filteredItems = $allItems->filter(function ($item) use ($specIds) {
+        // Return all items without filtering by user specializations
+        $filteredItems = $allItems->filter(function ($item) {
             $prestation = $item->prestation ?? null;
-            if (! $prestation) {
-                return false;
-            }
-            $sid = null;
-            if (isset($prestation->specialization_id) && $prestation->specialization_id) {
-                $sid = (int) $prestation->specialization_id;
-            } elseif (isset($prestation->specialization) && isset($prestation->specialization->id)) {
-                $sid = (int) $prestation->specialization->id;
-            }
-
-            return $sid !== null && in_array($sid, $specIds, true);
+            return $prestation !== null;
         })->values();
 
         if ($filteredItems->isEmpty()) {
             return response()->json([
                 'success' => true,
                 'data' => [],
-                'message' => 'No prestations found for this fiche for the authenticated user',
+                'message' => 'No prestations found for this fiche',
             ], 200);
         }
 
@@ -271,15 +205,10 @@ class ficheNavetteController extends Controller
             ->whereIn('parent_item_id', $parentItemIds)
             ->get();
 
-        // Filter dependencies by specialization
-        $filteredDeps = $dependencies->filter(function ($dep) use ($specIds) {
+        // Return all dependencies without filtering by specialization
+        $filteredDeps = $dependencies->filter(function ($dep) {
             $pre = $dep->dependencyPrestation ?? null;
-            if (! $pre) {
-                return false;
-            }
-            $sid = $pre->specialization_id ?? ($pre->specialization->id ?? null);
-
-            return $sid !== null && in_array((int) $sid, $specIds, true);
+            return $pre !== null;
         })->values();
 
         // Build a map of filtered items for quick parent lookup
@@ -849,21 +778,7 @@ private function isConsultationType($prestation): bool
     {
         try {
             $prestations = Prestation::with(['service', 'specialization'])
-                ->select([
-                    'id',
-                    'name',
-                    'internal_code',
-                    'price_with_vat_and_consumables_variant',
-                    'need_an_appointment', // IMPORTANT: Include this field
-                    'service_id',
-                    'specialization_id',
-                    'default_duration_minutes',
-                    'description',
-                    'required_prestations_info',
-                ])
-                ->where('is_active', true)
                 ->get();
-
             return response()->json([
                 'success' => true,
                 'data' => PrestationResource::collection($prestations),

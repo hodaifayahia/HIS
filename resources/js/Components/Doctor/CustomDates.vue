@@ -53,8 +53,23 @@ const calculatePatientsPerShift = (startTime, endTime, slot) => {
 
 function formatTimeForInput(time) {
   if (!time) return '';
-  const [hours, minutes] = time.split(':');
-  return `${hours}:${minutes}`;
+  
+  try {
+    // Handle different time formats
+    if (time.includes('T')) {
+      // ISO format: 2024-01-01T09:00:00.000000Z
+      const date = new Date(time);
+      return date.toTimeString().slice(0, 5); // Extracts HH:mm
+    } else if (time.includes(':')) {
+      // Simple time format: 09:00:00 or 09:00
+      const timeParts = time.split(':');
+      return `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+    }
+    return time;
+  } catch (e) {
+    console.error("Error formatting time:", time, e);
+    return time || '';
+  }
 }
 
 const processExistingSchedules = (schedules) => {

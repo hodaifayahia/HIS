@@ -88,8 +88,8 @@ const populateSchedules = (existingSchedules) => {
       if (schedules[day][shift]) {
         schedules[day][shift] = {
           isActive: true,
-          startTime: schedule.start_time.slice(0, 5),
-          endTime: schedule.end_time.slice(0, 5),
+          startTime: formatTimeForInput(schedule.start_time),
+          endTime: formatTimeForInput(schedule.end_time),
           patients_per_day: schedule.number_of_patients_per_day || 0
         };
       }
@@ -133,6 +133,28 @@ const fetchExcludedDates = async (doctorId) => {
       console.error('Error fetching excluded dates:', error);
     }
   };
+
+// Helper function to format time for input
+function formatTimeForInput(time) {
+  if (!time) return '';
+  
+  try {
+    // Handle different time formats
+    if (time.includes('T')) {
+      // ISO format: 2024-01-01T09:00:00.000000Z
+      const date = new Date(time);
+      return date.toTimeString().slice(0, 5); // Extracts HH:mm
+    } else if (time.includes(':')) {
+      // Simple time format: 09:00:00 or 09:00
+      const timeParts = time.split(':');
+      return `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+    }
+    return time;
+  } catch (e) {
+    console.error("Error formatting time:", time, e);
+    return time || '';
+  }
+}
 
 // Calculate patients per shift
 const calculatePatientsPerDay = (startTime, endTime, slot) => {

@@ -402,24 +402,7 @@ async getPrestationsDependencies(prestationIds) {
     /**
      * Get all prestations using existing route
      */
-    async getAllPrestations() {
-        try {
-            // Use the existing search route with empty query
-            const response = await axios.get('/api/reception/prestations/search?q=');
-            return {
-                success: true,
-                data: response.data.data || response.data
-            };
-        } catch (error) {
-            console.error('Error fetching all prestations:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Failed to fetch prestations',
-                error
-            };
-        }
-    },
-
+   
     /**
      * Get items for a fiche navette using ficheNavetteItemController
      */

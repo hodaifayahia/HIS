@@ -80,9 +80,8 @@ const filteredDoctors = computed(() => {
 
 const filteredPrestations = computed(() => {
   if (!props.availablePrestations.length) return []
-  if (selectedSpecialization.value) {
-    return props.availablePrestations.filter(p => p.specialization_id === selectedSpecialization.value)
-  }
+  // Removed specialization filtering to show all prestations regardless of selected specialization
+  // This ensures all relevant items are displayed when any specialization is selected
   return props.availablePrestations
 })
 
