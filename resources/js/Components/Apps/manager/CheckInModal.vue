@@ -404,12 +404,12 @@ const closeModal = () => {
 
 <style scoped>
 :deep(.p-dialog-header) {
-    @apply tw-bg-blue-600 tw-text-white;
+    @apply bg-blue-600 tw-text-white;
 }
 :deep(.p-dialog-title) {
-    @apply tw-text-white;
+    @apply text-white;
 }
 :deep(.p-dialog-header-icon) {
-    @apply tw-text-white;
+    @apply text-white;
 }
 </style>

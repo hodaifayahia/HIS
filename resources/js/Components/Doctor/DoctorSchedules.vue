@@ -423,43 +423,43 @@ const handlePatientsChange = (day, shift, event) => {
 <style scoped>
 /* Custom PrimeVue component overrides */
 :deep(.p-card) {
-  @apply tw-transition-all tw-duration-300;
+  @apply transition-all tw-duration-300;
 }
 
 :deep(.p-card-header) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-  @apply tw-border-2 tw-border-gray-300 tw-rounded-md tw-transition-all tw-duration-200;
+  @apply border-2 tw-border-gray-300 tw-rounded-md tw-transition-all tw-duration-200;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
-  @apply tw-bg-blue-500 tw-border-blue-500;
+  @apply bg-blue-500 tw-border-blue-500;
 }
 
 :deep(.p-checkbox .p-checkbox-box:hover) {
-  @apply tw-border-blue-400;
+  @apply border-blue-400;
 }
 
 :deep(.p-inputnumber-input) {
-  @apply tw-bg-white;
+  @apply bg-white;
 }
 
 :deep(.p-inputnumber-button) {
-  @apply tw-bg-gray-100 tw-border-gray-300 hover:tw-bg-gray-200;
+  @apply bg-gray-100 tw-border-gray-300 hover:tw-bg-gray-200;
 }
 
 :deep(.p-message) {
-  @apply tw-rounded-lg tw-border-l-4;
+  @apply rounded-lg tw-border-l-4;
 }
 
 :deep(.p-message.p-message-error) {
-  @apply tw-bg-red-50 tw-border-red-500 tw-text-red-700;
+  @apply bg-red-50 tw-border-red-500 tw-text-red-700;
 }
 
 /* Animation classes */
@@ -480,21 +480,21 @@ const handlePatientsChange = (day, shift, event) => {
 }
 
 ::-webkit-scrollbar-track {
-  @apply tw-bg-gray-100;
+  @apply bg-gray-100;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply tw-bg-gray-400 tw-rounded-full;
+  @apply bg-gray-400 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply tw-bg-gray-500;
+  @apply bg-gray-500;
 }
 
 /* Responsive grid adjustments */
 @media (max-width: 768px) {
   :deep(.tw-grid-cols-1.md\:tw-grid-cols-2) {
-    @apply tw-grid-cols-1;
+    @apply grid-cols-1;
   }
 }
 </style>

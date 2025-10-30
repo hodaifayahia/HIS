@@ -84,6 +84,43 @@ class UserController extends Controller
     }
 
     /**
+     * Get current user info with all assigned services
+     */
+    public function getUserInfo()
+    {
+        try {
+            $user = Auth::user();
+
+            // Load relationships
+            $user->load('doctor', 'activeSpecializations.specialization.service');
+
+            // Get all unique service IDs from user's specializations
+            $serviceIds = $user->activeSpecializations
+                ->pluck('specialization.service.id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+            return response()->json([
+                'success' => true,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'service_ids' => $serviceIds, // Array of all service IDs user is assigned to
+                'specializations' => $user->activeSpecializations->pluck('specialization_id')->toArray(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching user information',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Get all active specializations
      */
     public function getSpecializations()

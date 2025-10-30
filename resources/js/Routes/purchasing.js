@@ -6,7 +6,13 @@ const purchasingRoutes = [{
     children: [
         {
             path: '',
+            name: 'purchasing.index',
             redirect: { name: 'purchasing.service-demands.index' }
+        },
+        {
+            path: 'products',
+            name: 'purchasing.products',
+            component: () => import('../Pages/Apps/Purchasing/products/productList.vue'),
         },
         {
             path: 'service-demands',

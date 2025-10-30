@@ -17,7 +17,7 @@ class OrganismeController extends Controller
     {
         // Use pagination to avoid loading too many records at once
         // You can specify the number of items per page, e.g., paginate(15)
-        $organismes = Organisme::paginate(15);
+        $organismes = Organisme::paginate(100);
 
         return OrganisemResource::collection($organismes);
     }

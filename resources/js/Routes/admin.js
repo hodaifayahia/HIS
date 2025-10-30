@@ -16,11 +16,14 @@ const adminRoutes = [{
                     path: 'patient',
                     name: 'admin.patient',
                     component: () => import('../Pages/Patient/PatientList.vue'),
+                    meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'doctor', 'receptionist', 'secretary'] }, // Override parent meta to allow more roles
                 },
                 {
                     path: 'patient/appointments/:id',
                     name: 'admin.patient.appointments',
-                    component: () => import('../Pages/Patient/PatientAppointmentList.vue'),
+                    component: () => import('../Pages/Patient/PatientPortalPage.vue'),
+                    meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'doctor', 'receptionist', 'secretary'] }, // Override parent meta to allow more roles
+                    props: true,    
                 },
                 {
                     path: 'modality-appointment',

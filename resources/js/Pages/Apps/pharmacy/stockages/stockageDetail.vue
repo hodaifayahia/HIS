@@ -533,6 +533,7 @@ const fetchTools = async () => {
   try {
     const params = {
       page: currentPage.value,
+      per_page: 15,
       ...filters.value
     };
 

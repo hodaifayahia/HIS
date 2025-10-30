@@ -1,68 +1,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import { useToastr } from '../../Components/toster';
-import PatientModel from "../../Components/PatientModel.vue";
 import PatientListItem from './PatientListItem.vue';
-import { useAuthStore } from '../../stores/auth';
 
-const patients = ref([]);
-const loading = ref(false);
-const error = ref(null);
-const toaster = useToastr();
-
-// Use the Pinia store
-const authStore = useAuthStore();
-
-// Use computed instead of ref for role to prevent reactivity issues
-const role = computed(() => authStore.user?.role || '');
-
-const paginationData = ref({});
-const selectedPatient = ref({});
-const searchQuery = ref('');
-const isModalOpen = ref(false);
-
-const getPatients = async (page = 1) => {
-    try {
-        loading.value = true;
-        const response = await axios.get(`/api/patients?page=${page}`);
-
-        if (response.data.data) {
-            patients.value = response.data.data;
-            paginationData.value = response.data.meta;
-        } else {
-            patients.value = response.data;
-        }
-
-        console.log('Pagination Data:', paginationData.value);
-    } catch (err) {
-        console.error('Error fetching patients:', err);
-        error.value = err.response?.data?.message || 'Failed to load patients';
-    } finally {
-        loading.value = false;
-    }
-};
-
-const openModal = (patient = null) => {
-    selectedPatient.value = patient ? { ...patient } : {};
-    isModalOpen.value = true;
-};
-
-const closeModal = () => {
-    isModalOpen.value = false;
-};
-
-const refreshPatients = async () => {
-    await getPatients();
-};
-
-onMounted(async () => {
-    // Initialize auth store first
-    if (!authStore.user) {
-        await authStore.getUser();
-    }
-    // Then get patients
-    await getPatients();
+onMounted(() => {
+    // Component initialization if needed
 });
 </script>
 
@@ -87,27 +28,11 @@ onMounted(async () => {
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-lg-12">
-                        <PatientListItem
-                            :role="role"
-                            :patients="patients"
-                            :loading="loading"
-                            :error="error"
-                            :paginationData="paginationData"
-                            @edit="openModal"
-                            @refresh="refreshPatients"
-                            @paginate="getPatients"
-                        />
+                        <PatientListItem />
                     </div>
                 </div>
             </div>
         </div>
-
-        <PatientModel
-            :show-modal="isModalOpen"
-            :spec-data="selectedPatient"
-            @close="closeModal"
-            @specUpdate="refreshPatients"
-        />
     </div>
 </template>
 

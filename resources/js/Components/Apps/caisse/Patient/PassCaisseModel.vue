@@ -598,62 +598,62 @@ const formatCurrency = (amount) => {
 :deep(.p-inputtextarea),
 :deep(.p-dropdown),
 :deep(.p-inputnumber-input) {
-  @apply tw-rounded-lg tw-border-2 tw-border-gray-200 tw-shadow-sm tw-transition-all tw-duration-200 focus:tw-ring-4 focus:tw-ring-blue-500/20 focus:tw-border-blue-500 focus:tw-shadow-md;
+  @apply rounded-lg tw-border-2 tw-border-gray-200 tw-shadow-sm tw-transition-all tw-duration-200 focus:tw-ring-4 focus:tw-ring-blue-500/20 focus:tw-border-blue-500 focus:tw-shadow-md;
 }
 
 :deep(.p-inputtext:hover),
 :deep(.p-inputtextarea:hover),
 :deep(.p-dropdown:not(.p-disabled):hover),
 :deep(.p-inputnumber-input:hover) {
-  @apply tw-border-gray-300 tw-shadow-md;
+  @apply border-gray-300 tw-shadow-md;
 }
 
 :deep(.p-dropdown-panel) {
-  @apply tw-rounded-lg tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden;
+  @apply rounded-lg tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden;
 }
 
 :deep(.p-dropdown-panel .p-dropdown-item) {
-  @apply tw-p-3 tw-transition-all tw-duration-150 tw-text-sm;
+  @apply p-3 tw-transition-all tw-duration-150 tw-text-sm;
 }
 
 :deep(.p-dropdown-panel .p-dropdown-item:hover) {
-  @apply tw-bg-blue-50;
+  @apply bg-blue-50;
 }
 
 :deep(.p-dropdown-panel .p-dropdown-items-wrapper) {
-  @apply tw-max-h-40 tw-overflow-y-auto;
+  @apply max-h-40 tw-overflow-y-auto;
 }
 
 :deep(.p-button) {
-  @apply tw-font-semibold tw-border-0 tw-shadow-sm tw-transition-all tw-duration-200 tw-text-sm;
+  @apply font-semibold tw-border-0 tw-shadow-sm tw-transition-all tw-duration-200 tw-text-sm;
 }
 
 :deep(.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider) {
-  @apply tw-bg-gradient-to-r tw-from-blue-500 tw-to-indigo-500;
+  @apply bg-gradient-to-r tw-from-blue-500 tw-to-indigo-500;
 }
 
 :deep(.p-inputswitch .p-inputswitch-slider) {
-  @apply tw-transition-all tw-duration-300 tw-shadow-sm;
+  @apply transition-all tw-duration-300 tw-shadow-sm;
 }
 
 :deep(.p-password-input) {
-  @apply tw-w-full;
+  @apply w-full;
 }
 
 /* Custom scrollbar for dropdown */
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar) {
-  @apply tw-w-1.5;
+  @apply w-1.5;
 }
 
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar-track) {
-  @apply tw-bg-gray-100;
+  @apply bg-gray-100;
 }
 
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar-thumb) {
-  @apply tw-bg-gray-300 tw-rounded-full;
+  @apply bg-gray-300 tw-rounded-full;
 }
 
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar-thumb:hover) {
-  @apply tw-bg-gray-400;
+  @apply bg-gray-400;
 }
 </style>

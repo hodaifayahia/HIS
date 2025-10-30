@@ -25,7 +25,7 @@ import AppointmentRequiredAlert from './AppointmentRequiredAlert.vue'
 import SameDayAppointmentModal from './SameDayAppointmentModal.vue'
 
 // Services
-import { ficheNavetteService } from '../../../../Components/Apps/services/Emergency/ficheNavetteService.js'
+import { ficheNavetteService } from '../../../../Components/Apps/services/Reception/ficheNavetteService.js'
 
 // Props & Emits
 const props = defineProps({
@@ -65,6 +65,24 @@ const organismes = ref([])
 const conventions = ref([])
 const filteredConventions = ref([])
 const conventionPrestations = ref([])
+
+// Contract percentages for the selected organisme
+const contractPercentages = ref([])
+const selectedContractPercentage = ref(null)
+
+// Derived values for selected percentage
+const selectedContractPercentageId = computed(() => {
+  if (!selectedContractPercentage.value) return null
+  // If the option is an object with id, return it
+  if (typeof selectedContractPercentage.value === 'object') return selectedContractPercentage.value.id || selectedContractPercentage.value.value || null
+  return selectedContractPercentage.value
+})
+
+const selectedContractPercentageValue = computed(() => {
+  if (!selectedContractPercentage.value) return null
+  if (typeof selectedContractPercentage.value === 'object') return selectedContractPercentage.value.percentage ?? selectedContractPercentage.value.value ?? null
+  return Number(selectedContractPercentage.value)
+})
 
 // New: Specialization and Doctor selection (after convention selection)
 const specializations = ref([])
@@ -295,43 +313,14 @@ const safePatientId = computed(() => {
 
 // Methods
 const formatDateForApi = (date) => {
-  console.log('=== formatDateForApi called ===')
-  console.log('Input date:', date)
-  console.log('Input type:', typeof date)
-  
-  if (!date) {
-    console.log('No date provided, returning null')
-    return null
-  }
-  
-  try {
-    // Handle if date is already a Date object
-    const dateObj = date instanceof Date ? date : new Date(date)
-    
-    console.log('Date object:', dateObj)
-    console.log('Is valid date?:', !isNaN(dateObj.getTime()))
-    
-    if (isNaN(dateObj.getTime())) {
-      console.error('Invalid date object')
-      return null
-    }
-    
-    const formatted = dateObj.toISOString().split('T')[0]
-    console.log('Formatted date:', formatted)
-    return formatted
-  } catch (error) {
-    console.error('Error formatting date:', error)
-    return null
-  }
+  if (!date) return null
+  return new Date(date).toISOString().split('T')[0]
 }
 const fetchFamilyAuthorization = async () => {
-  console.log('=== fetchFamilyAuthorization called ===')
-  console.log('Raw priseEnChargeDate value:', priseEnChargeDate.value)
-  console.log('Type:', typeof priseEnChargeDate.value)
-  console.log('Is Date?:', priseEnChargeDate.value instanceof Date)
+  console.log('fetchFamilyAuthorization called with date:', priseEnChargeDate.value) // Debug
   
   if (!priseEnChargeDate.value) {
-    console.log('No date selected, clearing options')
+    console.log('No date selected, clearing options') // Debug
     familyAuthOptions.value = []
     selectedFamilyAuth.value = null
     return
@@ -340,53 +329,26 @@ const fetchFamilyAuthorization = async () => {
   try {
     familyAuthLoading.value = true
     const formattedDate = formatDateForApi(priseEnChargeDate.value)
+    console.log('Formatted date for API:', formattedDate) // Debug
     
-    console.log('Formatted date for API:', formattedDate)
-    console.log('Formatted date type:', typeof formattedDate)
-    console.log('Formatted date is valid?:', formattedDate !== null && formattedDate !== 'Invalid Date')
-    
-    // Additional validation: ensure we have a valid date string
-    if (!formattedDate || formattedDate === 'null' || formattedDate === 'Invalid Date') {
-      console.error('Invalid formatted date:', formattedDate)
-      toast.add({
-        severity: 'error',
-        summary: 'Invalid Date',
-        detail: 'Please select a valid date',
-        life: 3000
-      })
-      familyAuthLoading.value = false
-      return
-    }
-    
-    console.log('Making API call with date:', formattedDate)
     const response = await ficheNavetteService.getFamilyAuthorization(formattedDate)
-    console.log('API response:', response)
+    console.log('API response:', response) // Debug
     
     if (response.success) {
       familyAuthOptions.value = response.data || []
-      console.log('✓ Family auth options loaded:', familyAuthOptions.value.length, 'options')
+      console.log('Family auth options set:', familyAuthOptions.value) // Debug
     } else {
-      console.error('✗ API returned error:', response.message)
+      console.error('API returned error:', response.message)
       familyAuthOptions.value = []
-      toast.add({
-        severity: 'warn',
-        summary: 'No Options',
-        detail: response.message || 'No family authorization options found for this date',
-        life: 3000
-      })
     }
   } catch (error) {
-    console.error('✗ Error fetching family authorization:', error)
-    console.error('Error details:', error.response?.data)
+    console.error('Error fetching family authorization:', error)
     familyAuthOptions.value = []
-    
-    // Show more specific error message
-    const errorMessage = error.response?.data?.message || error.message || 'Failed to load family authorization options'
     toast.add({
       severity: 'error',
-      summary: 'Error Loading Options',
-      detail: errorMessage,
-      life: 5000
+      summary: 'Error',
+      detail: 'Failed to load family authorization options',
+      life: 3000
     })
   } finally {
     familyAuthLoading.value = false
@@ -411,14 +373,9 @@ const onAdherentPatientSelected = (patient) => {
 
 const loadOrganismes = async () => {
   try {
-    console.log('Loading organismes...') // Debug
     const result = await ficheNavetteService.getCompanies()
-    console.log('Organismes result:', result) // Debug
     if (result.success) {
       organismes.value = result.data || []
-      console.log('Organismes loaded:', organismes.value.length, 'items') // Debug
-    } else {
-      console.error('Failed to load organismes:', result.message)
     }
   } catch (error) {
     console.error('Error loading organismes:', error)
@@ -427,14 +384,9 @@ const loadOrganismes = async () => {
 
 const loadConventions = async () => {
   try {
-    console.log('Loading conventions...') // Debug
     const result = await ficheNavetteService.getConventions()
-    console.log('Conventions result:', result) // Debug
     if (result.success) {
       conventions.value = Array.isArray(result.data) ? result.data : []
-      console.log('Conventions loaded:', conventions.value.length, 'items') // Debug
-    } else {
-      console.error('Failed to load conventions:', result.message)
     }
   } catch (error) {
     console.error('Error loading conventions:', error)
@@ -499,23 +451,32 @@ const onOrganismeChange = async () => {
 
   if (!currentOrganisme.value) {
     filteredConventions.value = []
+    contractPercentages.value = []
+    selectedContractPercentage.value = null
     return
   }
 
   try {
-    console.log('Fetching conventions for organisme:', currentOrganisme.value) // Debug
     const result = await ficheNavetteService.getConventionsByOrganismes([currentOrganisme.value])
-    console.log('Filtered conventions result:', result) // Debug
     if (result.success) {
       filteredConventions.value = Array.isArray(result.data) ? result.data : []
-      console.log('Filtered conventions:', filteredConventions.value.length, 'items') // Debug
-    } else {
-      console.error('Failed to filter conventions:', result.message)
-      filteredConventions.value = []
     }
   } catch (error) {
     console.error('Error filtering conventions:', error)
     filteredConventions.value = []
+  }
+
+  // Load contract percentages for this organisme (optional)
+  try {
+    const pctResult = await ficheNavetteService.getContractPercentagesByOrganisme(currentOrganisme.value)
+    if (pctResult && pctResult.success) {
+      contractPercentages.value = Array.isArray(pctResult.data) ? pctResult.data : []
+    } else {
+      contractPercentages.value = []
+    }
+  } catch (e) {
+    console.error('Error loading contract percentages:', e)
+    contractPercentages.value = []
   }
 }
 
@@ -837,6 +798,11 @@ const createConventionWithData = (organismeObj, conventionObj, specializationObj
     if (newUniquePrestations.length > 0) {
       existingConvention.prestations.push(...newUniquePrestations);
       existingConvention.totalPrestations = existingConvention.prestations.length;
+      // If the user selected a contract percentage for this addition, store it on the existing convention
+      if (selectedContractPercentageValue.value !== null && selectedContractPercentageValue.value !== undefined) {
+        existingConvention.contractPercentage = selectedContractPercentageValue.value
+        existingConvention.contractPercentageId = selectedContractPercentageId.value
+      }
       toast.add({
         severity: 'success',
         summary: 'Prestations Added',
@@ -859,6 +825,8 @@ const createConventionWithData = (organismeObj, conventionObj, specializationObj
       selectedAdherentPatient: selectedAdherentPatient.value,
       organisme: organismeObj,
       convention: conventionObj,
+      contractPercentage: selectedContractPercentageValue.value,
+      contractPercentageId: selectedContractPercentageId.value,
       prestations: [...prestations],
       specialization: specializationObj,
       doctor: doctorObj,
@@ -926,7 +894,7 @@ const formatCurrency = (amount) => {
   if (!amount && amount !== 0) return 'N/A'
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency: 'DZD'
+    currency: 'DZD',
   }).format(amount)
 }
 
@@ -955,63 +923,19 @@ const removeFile = (fileId) => {
 }
 
 const removeConvention = (conventionId) => {
-  console.log('=== removeConvention called ===')
-  console.log('Removing convention with ID:', conventionId)
-  console.log('Current conventions:', completedConventions.value.length)
-  
   completedConventions.value = completedConventions.value.filter(conv => conv.id !== conventionId)
-  
-  console.log('Conventions after removal:', completedConventions.value.length)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Convention Removed',
-    detail: 'Convention has been removed successfully',
-    life: 3000
-  })
 }
 
 const removePrestationFromConvention = (conventionId, prestationId) => {
-  console.log('=== removePrestationFromConvention called ===')
-  console.log('Convention ID:', conventionId)
-  console.log('Prestation ID to remove:', prestationId)
-  
   const convention = completedConventions.value.find(conv => conv.id === conventionId)
-  
-  if (!convention) {
-    console.error('Convention not found with ID:', conventionId)
-    return
-  }
-  
-  console.log('Found convention:', convention.convention.contract_name)
-  console.log('Current prestations count:', convention.prestations.length)
-  console.log('Prestations before removal:', convention.prestations.map(p => ({
-    id: p.id || p.prestation_id,
-    name: p.name || p.prestation_name
-  })))
-  
-  // Filter out the prestation - handle both id and prestation_id fields
-  const beforeLength = convention.prestations.length
-  convention.prestations = convention.prestations.filter(p => {
-    const pId = p.prestation_id || p.id
-    return pId !== prestationId
-  })
-  
-  const afterLength = convention.prestations.length
-  console.log(`Prestations after removal: ${afterLength} (removed ${beforeLength - afterLength})`)
-  
-  convention.totalPrestations = convention.prestations.length
-  
-  if (convention.prestations.length === 0) {
-    console.log('No prestations left, removing entire convention')
-    removeConvention(conventionId)
-  } else {
-    toast.add({
-      severity: 'success',
-      summary: 'Prestation Removed',
-      detail: 'Prestation has been removed from the convention',
-      life: 3000
-    })
+  if (convention) {
+    convention.prestations = convention.prestations.filter(p => p.prestation_id !== prestationId)
+    convention.totalPrestations = convention.prestations.length
+    
+    // Remove entire convention if no prestations left
+    if (convention.prestations.length === 0) {
+      removeConvention(conventionId)
+    }
   }
 }
 
@@ -1023,6 +947,9 @@ const resetStep2Fields = () => {
   selectedDoctor.value = null
   conventionPrestations.value = []
   filteredConventions.value = []
+  // reset percentage selection
+  contractPercentages.value = []
+  selectedContractPercentage.value = null
 }
 
 const resetAll = () => {
@@ -1078,7 +1005,10 @@ const createConventionPrescription = async () => {
       firstSpecializationId = convention.specialization.id
     }
   })
-
+  
+  console.log('Total prestations needing appointments:', allPrestationsNeedingAppointments.length)
+  console.log('First doctor ID for appointments:', firstDoctorId)
+  console.log('First specialization ID for appointments:', firstSpecializationId)
   
   // If there are prestations needing appointments, show the alert
   if (allPrestationsNeedingAppointments.length > 0) {
@@ -1125,8 +1055,14 @@ const proceedWithPrescriptionCreation = async () => {
     completedConventions.value.forEach((conv, index) => {
       formData.append(`conventions[${index}][convention_id]`, conv.convention.id)
       formData.append(`conventions[${index}][doctor_id]`, conv.doctor.id)
+      if (conv.contractPercentage !== undefined && conv.contractPercentage !== null) {
+        formData.append(`conventions[${index}][contract_percentage]`, conv.contractPercentage)
+      }
+      if (conv.contractPercentageId !== undefined && conv.contractPercentageId !== null) {
+        formData.append(`conventions[${index}][contract_percentage_id]`, conv.contractPercentageId)
+      }
       
-      conv.prestations.forEach((prestation, prestIndex) => {
+       conv.prestations.forEach((prestation, prestIndex) => {
         formData.append(`conventions[${index}][prestations][${prestIndex}][prestation_id]`, prestation.prestation_id || prestation.id)
         formData.append(`conventions[${index}][prestations][${prestIndex}][doctor_id]`, conv.doctor.id)
         // Send the same price that's displayed in the UI: patient_price || price
@@ -1134,34 +1070,22 @@ const proceedWithPrescriptionCreation = async () => {
         formData.append(`conventions[${index}][prestations][${prestIndex}][convention_price]`, displayedPrice)
         formData.append(`conventions[${index}][prestations][${prestIndex}][patient_price]`, displayedPrice)
       })
+    
     })
 
     // Append other fields
     formData.append('prise_en_charge_date', formatDateForApi(priseEnChargeDate.value))
     formData.append('familyAuth', selectedFamilyAuth.value)
-    
     if (selectedAdherentPatient.value?.id) {
       formData.append('adherentPatient_id', selectedAdherentPatient.value.id)
     }
-    
+
     // Append files
     uploadedFiles.value.forEach((file, index) => {
       formData.append(`uploadedFiles[${index}]`, file.file)
     })
 
-  
-    // CRITICAL: Always add fiche_navette_id when present
-    // This MUST be included for backend validation
-    if (props.ficheNavetteId) {
-      formData.append('fiche_navette_id', props.ficheNavetteId)
-      console.log('✓ Added fiche_navette_id to FormData:', props.ficheNavetteId)
-    } else {
-      console.error('✗ WARNING: ficheNavetteId is missing or falsy!')
-      console.error('Current value:', props.ficheNavetteId)
-    }
-
     console.log('Sending prescription creation request...')
-    console.log('Fiche Navette ID:', props.ficheNavetteId)
     
     let response
     if (props.ficheNavetteId) {
@@ -1170,19 +1094,18 @@ const proceedWithPrescriptionCreation = async () => {
     } else {
       // Creating new fiche with convention data
       // Convert FormData to regular object for createFicheNavette
-        const conventionData = {
+      const conventionData = {
         prise_en_charge_date: formatDateForApi(priseEnChargeDate.value),
         familyAuth: selectedFamilyAuth.value,
         adherentPatient_id: selectedAdherentPatient.value?.id,
         conventions: completedConventions.value.map(conv => ({
           convention_id: conv.convention.id,
           doctor_id: conv.doctor.id,
+          contract_percentage: conv.contractPercentage ?? null,
           prestations: conv.prestations.map(prestation => ({
             prestation_id: prestation.prestation_id || prestation.id,
             doctor_id: conv.doctor.id,
-            // Send the same price that's displayed in the UI: patient_price || price
-            convention_price: prestation.patient_price || prestation.price || null,
-            patient_price: prestation.patient_price || prestation.price || null
+            convention_price: prestation.convention_price || prestation.price
           }))
         })),
         // Note: File upload might need separate handling for new fiches
@@ -1223,8 +1146,6 @@ const proceedWithPrescriptionCreation = async () => {
 
 // Initialize data when component mounts
 onMounted(async () => {
-  console.log('=== ConventionManagement mounted ===')
-  console.log('Fiche Navette ID:', props.ficheNavetteId)
   await Promise.all([
     loadOrganismes(),
     loadConventions(),
@@ -1232,45 +1153,18 @@ onMounted(async () => {
     loadAllDoctors(),
     loadFicheNavetteData() // LOAD FICHE NAVETTE DATA TO GET PATIENT ID
   ])
-  console.log('=== All data loaded ===')
-  console.log('Organismes count:', organismes.value.length)
-  console.log('Conventions count:', conventions.value.length)
-  console.log('Specializations count:', specializations.value.length)
-  console.log('Doctors count:', allDoctors.value.length)
 })
 
 // FIXED: Add the correct watch for date changes
 watch(priseEnChargeDate, async (newDate) => {
-  console.log('=== priseEnChargeDate changed ===')
-  console.log('New date:', newDate)
+  console.log('Date changed:', newDate) // Debug log
   await onDateChanged()
 }, { immediate: false })
 
 // Watch for family auth changes
-watch(selectedFamilyAuth, (newValue) => {
-  console.log('=== selectedFamilyAuth changed ===')
-  console.log('New value:', newValue)
+watch(selectedFamilyAuth, () => {
   onFamilyAuthChanged()
 })
-
-// Watch for organismes to debug loading
-watch(organismes, (newValue) => {
-  console.log('=== organismes updated ===')
-  console.log('Count:', newValue.length)
-}, { deep: true })
-
-// Watch for conventions to debug loading
-watch(conventions, (newValue) => {
-  console.log('=== conventions updated ===')
-  console.log('Count:', newValue.length)
-}, { deep: true })
-
-// Watch for filteredConventions to debug filtering
-watch(filteredConventions, (newValue) => {
-  console.log('=== filteredConventions updated ===')
-  console.log('Count:', newValue.length)
-  console.log('Items:', newValue)
-}, { deep: true })
 
 // ADD WATCH FOR APPOINTMENT MODAL DEBUGGING
 watch(showSameDayModal, (newValue) => {
@@ -1295,17 +1189,17 @@ watch(showSameDayModal, (newValue) => {
 
 <template>
   <Dialog
-    :visible="visibleModal"
+    v-model:visible="visibleModal"
     modal
     header="Convention Prescription"
     :style="{ width: '90vw', maxWidth: '1400px' }"
     :maximizable="true"
     :closable="true"
     class="convention-modal"
-    @hide="() => { emit('update:visible', false); resetAll(); }"
+    @hide="resetAll"
   >
     <div class="modal-content">
-      <Stepper v-model="activeStep" class="custom-stepper">
+      <Stepper v-model:activeStep="activeStep" class="custom-stepper">
         <StepperPanel header="Setup & Authorization">
           <template #content>
             <div class="step-content">
@@ -1423,14 +1317,14 @@ watch(showSameDayModal, (newValue) => {
 
                 <template #content>
                   <div class="convention-selection">
-                    // <div v-if="!canProceedToConventions" class="prerequisites-warning">
-                    //   <Message severity="warn" :closable="false">
-                    //     <i class="pi pi-exclamation-triangle"></i>
-                    //     Please complete all setup requirements in Step 1 before selecting conventions
-                    //   </Message>
-                    // </div>
+                    <div v-if="!canProceedToConventions" class="prerequisites-warning">
+                      <Message severity="warn" :closable="false">
+                        <i class="pi pi-exclamation-triangle"></i>
+                        Please complete all setup requirements in Step 1 before selecting conventions
+                      </Message>
+                    </div>
 
-                    <div >
+                    <div v-else>
                       <p class="step-description">
                         Select conventions and prestations for <strong>{{ formatDate(priseEnChargeDate) }}</strong>.
                         You must select specialization and doctor to filter prestations properly.
@@ -1454,6 +1348,20 @@ watch(showSameDayModal, (newValue) => {
                         </div>
 
                         <div class="field-group">
+                          <label>Contract Percentage</label>
+                          <Dropdown
+                            v-model="selectedContractPercentage"
+                            :options="contractPercentages"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Select percentage (optional)"
+                            :disabled="!currentOrganisme || contractPercentages.length === 0"
+                            class="field-input"
+                            showClear
+                          />
+                        </div>
+
+                        <div class="field-group">
                           <label>Conventions</label>
                           <Dropdown
                             v-model="currentConvention"
@@ -1469,6 +1377,7 @@ watch(showSameDayModal, (newValue) => {
                             filterPlaceholder="Search conventions..."
                           />
                         </div>
+
 
                         <div class="field-group">
                           <label>Specialization *</label>
@@ -1568,7 +1477,7 @@ watch(showSameDayModal, (newValue) => {
                                 <div class="prestation-pricing">
                                   <span class="prestation-price">{{ formatCurrency(option.patient_price || option.price) }}</span>
                                   <small v-if="option.base_price && option.convention_price !== option.base_price" class="original-price">
-                                    Original: {{ formatCurrency(option.base_price) }}
+                                    Original: {{ formatCurrency(option.patient_price) }}
                                   </small>
                                 </div>
                               </div>
@@ -1655,7 +1564,7 @@ watch(showSameDayModal, (newValue) => {
                         <h5>Added Conventions</h5>
                         <div class="convention-list">
                           <div
-                            v-for="(convention) in completedConventions"
+                            v-for="convention in completedConventions"
                             :key="convention.id"
                             class="convention-item expanded"
                           >
@@ -1671,6 +1580,7 @@ watch(showSameDayModal, (newValue) => {
                                   <Tag :value="`Dr. ${convention.doctor.name}`" severity="help" />
                                   <Tag :value="convention.selectedFamilyAuth" severity="info" />
                                   <Tag :value="formatDate(convention.priseEnChargeDate)" severity="secondary" />
+                                  <Tag v-if="convention.contractPercentage !== undefined && convention.contractPercentage !== null" :value="`${convention.contractPercentage}%`" severity="help" />
                                 </div>
                               </div>
                               <Button
@@ -1686,7 +1596,7 @@ watch(showSameDayModal, (newValue) => {
                               <div class="prestations-grid">
                                 <div
                                   v-for="prestation in convention.prestations"
-                                  :key="prestation.prestation_id || prestation.id"
+                                  :key="prestation.prestation_id"
                                   class="prestation-item"
                                   :class="{
                                     'from-avenant': prestation.pricing_source === 'avenant',
@@ -1696,7 +1606,7 @@ watch(showSameDayModal, (newValue) => {
                                 >
                                   <div class="prestation-info">
                                     <div class="prestation-header">
-                                      <strong class="prestation-title">{{ prestation.prestation_name || prestation.name }}</strong>
+                                      <strong class="prestation-title">{{ prestation.name }}</strong>
                                       
                                       <!-- Pricing Source Badge -->
                                       <Tag
@@ -1759,7 +1669,7 @@ watch(showSameDayModal, (newValue) => {
                                     <Button
                                       icon="pi pi-times"
                                       class="p-button-text p-button-danger p-button-sm"
-                                      @click="removePrestationFromConvention(convention.id, prestation.prestation_id || prestation.id)"
+                                      @click="removePrestationFromConvention(convention.id, prestation.prestation_id)"
                                       title="Remove this prestation"
                                     />
                                   </div>
@@ -1897,24 +1807,27 @@ watch(showSameDayModal, (newValue) => {
     </div>
 
     <!-- Appointment Required Alert -->
-   <AppointmentRequiredAlert
-      v-model="showAppointmentAlert"
+    <AppointmentRequiredAlert
+      v-model:visible="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
-      :selected-doctor="selectedDoctor"
+      :selected-doctor="safeDoctorId"
       @proceed-with-appointments="handleProceedWithAppointments"
       @proceed-without-appointments="handleProceedWithoutAppointments"
-      @cancel="showAppointmentAlert = false"
+      @cancel="handleCancelAppointmentProcess"
     />
-    <SameDayAppointmentModal
-      v-model="showSameDayModal"
-      :doctor-id="safeDoctorId"
-      :patient-id="safePatientId"
-      :prestation-id="safePrestationId"
-      :doctor-specialization-id="safeSpecializationId"
-      @appointment-booked="onSameDayAppointmentBooked"
-      @added-to-waitlist="onAddedToWaitingList"
-    />
+    
+    <!-- Same Day Appointment Modal -->   
+   <SameDayAppointmentModal
+  v-model:visible="showSameDayModal"
+  :doctor-id="safeDoctorId"
+  :patient-id="safePatientId"
+  :fuckuifwork="fuckuifwork"
+  :prestation-id="safePrestationId"
+  :doctor-specialization-id="safeSpecializationId"
+  @appointment-booked="onSameDayAppointmentBooked"
+  @added-to-waitlist="onAddedToWaitingList"
+/>
   </Dialog>
 </template>
 
@@ -2023,35 +1936,25 @@ watch(showSameDayModal, (newValue) => {
 /* Progress Indicators */
 .step-progress {
   margin-top: 2rem;
-  min-height: 100px; /* Ensure section is visible */
 }
 
 .progress-indicators {
-  display: flex !important; /* Force display */
+  display: flex;
   gap: 1rem;
   flex-wrap: wrap;
   margin-bottom: 1.5rem;
-  padding: 1rem; /* Add padding for visibility */
-  background: #f8fafc; /* Add background to make it visible */
-  border-radius: 8px;
 }
 
 .progress-item {
-  display: flex !important; /* Force display */
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   color: #94a3b8;
   font-size: 0.9rem;
-  padding: 0.5rem 1rem; /* Add padding */
-  background: #ffffff; /* Add white background */
-  border-radius: 6px;
-  transition: all 0.3s ease;
 }
 
 .progress-item.completed {
   color: #22c55e;
-  background: #f0fdf4; /* Light green background when completed */
-  border: 1px solid #22c55e;
 }
 
 .progress-item .pi {

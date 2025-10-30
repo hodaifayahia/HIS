@@ -120,27 +120,38 @@ class StockMovementController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter by service (for user's service)
+        // Filter by service (for user's ALL services)
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Get ALL service IDs user is assigned to
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if ($userService) {
+        if (!empty($userServiceIds)) {
             if ($request->has('role')) {
                 if ($request->role === 'requester') {
-                    $query->where('requesting_service_id', $userService->id);
+                    // Show movements where user's services are requesting
+                    $query->whereIn('requesting_service_id', $userServiceIds);
                 } elseif ($request->role === 'provider') {
-                    $query->where('providing_service_id', $userService->id);
+                    // Show movements where user's services are providing
+                    $query->whereIn('providing_service_id', $userServiceIds);
                 } else {
-                    // default to both
-                    $query->where(function ($q) use ($userService) {
-                        $q->where('requesting_service_id', $userService->id)
-                            ->orWhere('providing_service_id', $userService->id);
+                    // default to both - show all movements for user's services
+                    $query->where(function ($q) use ($userServiceIds) {
+                        $q->whereIn('requesting_service_id', $userServiceIds)
+                            ->orWhereIn('providing_service_id', $userServiceIds);
                     });
                 }
             } else {
-                $query->where(function ($q) use ($userService) {
-                    $q->where('requesting_service_id', $userService->id)
-                        ->orWhere('providing_service_id', $userService->id);
+                // Show all movements for user's services (both requesting and providing)
+                $query->where(function ($q) use ($userServiceIds) {
+                    $q->whereIn('requesting_service_id', $userServiceIds)
+                        ->orWhereIn('providing_service_id', $userServiceIds);
                 });
             }
         }
@@ -178,9 +189,17 @@ class StockMovementController extends Controller
     public function getDrafts()
     {
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Get ALL service IDs user is assigned to
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if (! $userService) {
+        if (empty($userServiceIds)) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -194,7 +213,7 @@ class StockMovementController extends Controller
             'requestingService',
             'requestingUser',
         ])
-            ->where('requesting_service_id', $userService->id)
+            ->whereIn('requesting_service_id', $userServiceIds)
             ->where('status', 'draft')
             ->where('requesting_user_id', $user->id)
             ->orderBy('updated_at', 'desc')
@@ -222,9 +241,17 @@ class StockMovementController extends Controller
     public function getPendingApprovals(Request $request)
     {
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Get ALL service IDs user is assigned to
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if (! $userService) {
+        if (empty($userServiceIds)) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -237,7 +264,7 @@ class StockMovementController extends Controller
             'requestingService',
             'requestingUser',
         ])
-            ->where('providing_service_id', $userService->id)
+            ->whereIn('providing_service_id', $userServiceIds)
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc');
 
@@ -265,20 +292,34 @@ class StockMovementController extends Controller
     public function createDraft(Request $request)
     {
         $request->validate([
+            'requesting_service_id' => 'required|exists:services,id',
             'providing_service_id' => 'required|exists:services,id',
             'request_reason' => 'nullable|string|max:500',
             'expected_delivery_date' => 'nullable|date|after:today',
         ]);
 
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Verify user has access to the requesting service
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if (! $userService) {
-            return response()->json(['error' => 'User not assigned to any service'], 403);
+        if (!in_array($request->requesting_service_id, $userServiceIds)) {
+            return response()->json(['error' => 'You do not have access to the selected requesting service'], 403);
+        }
+        
+        // Prevent requesting from same service
+        if ($request->requesting_service_id === $request->providing_service_id) {
+            return response()->json(['error' => 'Cannot request from your own service'], 422);
         }
 
-        // Check if user has any draft for this service
-        $existingMovement = StockMovement::where('requesting_service_id', $userService->id)
+        // Check if user has any draft for this service combination
+        $existingMovement = StockMovement::where('requesting_service_id', $request->requesting_service_id)
             ->where('providing_service_id', $request->providing_service_id)
             ->where('requesting_user_id', $user->id)
             ->latest()
@@ -311,7 +352,7 @@ class StockMovementController extends Controller
 
         $movement = StockMovement::create([
             'movement_number' => $this->generateMovementNumber(),
-            'requesting_service_id' => $userService->id,
+            'requesting_service_id' => $request->requesting_service_id,
             'providing_service_id' => $request->providing_service_id,
             'requesting_user_id' => $user->id,
             'status' => 'draft',

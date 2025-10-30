@@ -73,13 +73,15 @@ class CaisseController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Caisse $caisse): JsonResponse
+    public function destroy( $id): JsonResponse
     {
-        $this->service->delete($caisse);
-
+        $caisse = $this->service->findById($id);
+        $caisse->delete();
+        
         return response()->json([
+            'success' => true,
             'message' => 'Cash register deleted successfully'
-        ], 204);
+        ], 200);
     }
 
     /**

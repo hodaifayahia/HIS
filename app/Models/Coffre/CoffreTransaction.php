@@ -6,6 +6,7 @@ namespace App\Models\Coffre;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 //import bank
 use App\Models\Bank\Bank;
 
@@ -43,9 +44,9 @@ class CoffreTransaction extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function sourceCaisseSession()
+    public function sourceCaisseSession(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\CaisseSession::class, 'source_caisse_session_id');
+        return $this->belongsTo(\App\Models\Coffre\CaisseSession::class, 'source_caisse_session_id');
     }
 
     public function destinationBanque()

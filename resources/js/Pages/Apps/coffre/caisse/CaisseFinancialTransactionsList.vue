@@ -131,9 +131,9 @@
               <th scope="col" class="tw-px-6 tw-py-3 tw-text-left tw-text-sm tw-font-semibold tw-text-gray-700 tw-uppercase">
                 Transaction Details
               </th>
-              <th scope="col" class="tw-px-6 tw-py-3 tw-text-left tw-text-sm tw-font-semibold tw-text-gray-700 tw-uppercase">
+              <!-- <th scope="col" class="tw-px-6 tw-py-3 tw-text-left tw-text-sm tw-font-semibold tw-text-gray-700 tw-uppercase">
                 Patient & Prestation
-              </th>
+              </th> -->
               <th scope="col" class="tw-px-6 tw-py-3 tw-text-left tw-text-sm tw-font-semibold tw-text-gray-700 tw-uppercase">
                 Amount & Method
               </th>
@@ -158,12 +158,12 @@
                   </div>
                 </div>
               </td>
-              <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
+              <!-- <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
                 <div class="tw-text-sm">
-                  <div class="tw-font-medium tw-text-slate-800">{{ transaction.patient?.name || 'N/A' }}</div>
-                  <div class="tw-text-slate-500">{{ transaction.ficheNavetteItem?.prestation?.name || 'N/A' }}</div>
+                  <div class="tw-font-medium tw-text-slate-800">{{ getPatientName(transaction) || 'N/A' }}</div>
+                  <div class="tw-text-slate-500">{{ getPrestationName(transaction) || 'N/A' }}</div>
                 </div>
-              </td>
+              </td> -->
               <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
                 <div class="tw-text-sm">
                   <div class="tw-font-bold tw-text-green-600">{{ formatCurrency(transaction.amount) }}</div>
@@ -172,7 +172,8 @@
               </td>
               <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
                 <div class="tw-text-sm tw-text-slate-600">
-                  {{ transaction.cashier?.name || 'N/A' }}
+                  
+                  {{ transaction.source_caisse_session?.cashier?.name  || 'N/A' }}
                 </div>
               </td>
               <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
@@ -201,14 +202,17 @@
           <div class="tw-p-5 tw-flex-grow tw-flex tw-flex-col">
             <h3 class="tw-font-bold tw-text-slate-800 tw-text-lg">{{ transaction.reference || `Transaction #${transaction.id}` }}</h3>
             <div class="tw-text-sm tw-text-slate-600 tw-mb-2">
-              <div>Patient: {{ transaction.patient?.name || 'N/A' }}</div>
-              <div>Prestation: {{ transaction.ficheNavetteItem?.prestation?.name || 'N/A' }}</div>
+              <div>Patient: {{ getPatientName(transaction) || 'N/A' }}</div>
+              <div>Prestation: {{ getPrestationName(transaction) || 'N/A' }}</div>
             </div>
             <div class="tw-text-2xl tw-font-bold tw-text-green-600 tw-mb-3">
               {{ formatCurrency(transaction.amount) }}
             </div>
             <div class="tw-text-xs tw-text-slate-500 tw-mb-2">
               {{ getPaymentMethodLabel(transaction.payment_method) }}
+            </div>
+            <div class="tw-text-xs tw-text-slate-500">
+              Cashier: {{ transaction.source_caisse_session?.cashier?.name || transaction.cashier?.name || 'N/A' }}
             </div>
             <div class="tw-text-xs tw-text-slate-500">
               {{ formatDate(transaction.created_at) }}
@@ -243,7 +247,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { debounce } from 'lodash-es'
-import { useRouter } from 'vue-router'
+import { useRouter ,useRoute } from 'vue-router'
 import axios from 'axios'
 
 // PrimeVue Components
@@ -277,6 +281,11 @@ const sessionId = computed(() => {
   return props.sessionId || route.query.session_id
 })
 
+// Get caisseId from props or route params
+const caisseId = computed(() => {
+  return props.caisseId || route.params.caisse_id
+})
+
 // Reactive state
 const transactions = ref([])
 const loading = ref(true)
@@ -291,8 +300,14 @@ const stats = ref({
 })
 const viewMode = ref('table')
 
+// Check if we should apply caisse filter from route query
+const shouldFilterByCaisse = computed(() => {
+  return route.query.caisse_filter === 'true'
+})
+
 // Filters
 const filters = ref({
+  caisse_id: caisseId.value,
   caisse_session_id: sessionId.value,
   transaction_type: '',
   status: ''
@@ -315,6 +330,14 @@ const statusOptions = [
   { label: 'Rejected', value: 'rejected' }
 ]
 
+const paymentMethodOptions = [
+  { label: 'All Methods', value: '' },
+  { label: '💵 Cash Payment', value: 'cash' },
+  { label: '💳 Credit/Debit Card', value: 'card' },
+  { label: '📄 Bank Cheque', value: 'cheque' },
+  { label: '🏦 Bank Transfer', value: 'transfer' }
+]
+
 // Methods
 const fetchTransactions = async (page = 1) => {
   loading.value = true
@@ -332,7 +355,11 @@ const fetchTransactions = async (page = 1) => {
       console.log('Filtering by session ID:', sessionId.value)
     }
 
-    console.log('Fetching coffre transactions with params:', params)
+    // Add caisse_id filter if provided and we should filter by caisse
+    if (caisseId.value && shouldFilterByCaisse.value) {
+      params.caisse_id = caisseId.value
+      console.log('Filtering by caisse ID:', caisseId.value)
+    }
 
     const response = await axios.get('/api/coffre-transactions', { params })
 
@@ -477,6 +504,44 @@ const getStatusSeverity = (status) => {
     rejected: 'danger'
   }
   return severities[status] || 'secondary'
+}
+
+const getPaymentMethodLabel = (method) => {
+  const labels = {
+    cash: '💵 Cash Payment',
+    card: '💳 Credit/Debit Card',
+    cheque: '📄 Bank Cheque',
+    transfer: '🏦 Bank Transfer',
+    bank_transfer: '🏦 Bank Transfer'
+  }
+  return labels[method] || method
+}
+
+const getPatientName = (transaction) => {
+  // Try to get patient name from various possible sources
+  if (transaction.patient?.name) {
+    return transaction.patient.name
+  }
+  if (transaction.source_caisse_session?.patient?.name) {
+    return transaction.source_caisse_session.patient.name
+  }
+  if (transaction.ficheNavetteItem?.patient?.name) {
+    return transaction.ficheNavetteItem.patient.name
+  }
+  // If no patient name found, return null
+  return null
+}
+
+const getPrestationName = (transaction) => {
+  // Try to get prestation name from various possible sources
+  if (transaction.prestation?.name) {
+    return transaction.prestation.name
+  }
+  if (transaction.ficheNavetteItem?.prestation?.name) {
+    return transaction.ficheNavetteItem.prestation.name
+  }
+  // If no prestation name found, return null
+  return null
 }
 
 // Lifecycle

@@ -624,18 +624,18 @@ onMounted(() => {
  * We only use it for deep styling of PrimeVue components that can't be reached by classes.
  */
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-none tw-text-sm;
+  @apply bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-none tw-text-sm;
 }
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply tw-transition-colors tw-duration-200;
+  @apply transition-colors tw-duration-200;
 }
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  @apply tw-bg-blue-50;
+  @apply bg-blue-50;
 }
 :deep(.p-card-header) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 </style>

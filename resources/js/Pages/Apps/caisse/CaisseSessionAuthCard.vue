@@ -220,21 +220,21 @@ onMounted(async () => {
  * that are styled using the `@apply` directive.
  */
 :deep(.p-card-header) {
-    @apply tw-p-0;
+    @apply p-0;
 }
 :deep(.p-card-content) {
-    @apply tw-p-0;
+    @apply p-0;
 }
 :deep(.p-button.p-button-sm) {
-  @apply tw-px-3 tw-py-1;
+  @apply px-3 tw-py-1;
 }
 :deep(.p-dialog .p-dialog-header) {
-  @apply tw-p-4 md:tw-p-6 tw-bg-gray-100 tw-text-gray-800 tw-rounded-t-xl tw-border-b tw-border-gray-200;
+  @apply p-4 md:tw-p-6 tw-bg-gray-100 tw-text-gray-800 tw-rounded-t-xl tw-border-b tw-border-gray-200;
 }
 :deep(.p-dialog .p-dialog-content) {
-  @apply tw-p-4 md:tw-p-6;
+  @apply p-4 md:tw-p-6;
 }
 :deep(.p-dialog .p-dialog-footer) {
-  @apply tw-p-4 md:tw-p-6 tw-bg-gray-100 tw-rounded-b-xl tw-border-t tw-border-gray-200 tw-flex tw-justify-end tw-gap-2;
+  @apply p-4 md:tw-p-6 tw-bg-gray-100 tw-rounded-b-xl tw-border-t tw-border-gray-200 tw-flex tw-justify-end tw-gap-2;
 }
 </style>

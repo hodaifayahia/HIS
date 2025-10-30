@@ -32,6 +32,7 @@ class FinancialTransaction extends Model
         'status',
         'is_bank_transaction',
         'bank_id_account',
+        'caisse_session_id',
     ];
 
     protected $casts = [

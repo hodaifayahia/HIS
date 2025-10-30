@@ -4,21 +4,31 @@
     <ConfirmDialog />
 
     <!-- Header -->
-    <Card class="tw-mb-8 tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-text-white tw-shadow-xl">
+    <Card class="tw-mb-8 tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-text-white tw-shadow-xl tw-border-0">
       <template #content>
-        <div class="tw-flex tw-justify-between tw-items-center">
-          <div>
-            <h1 class="tw-text-3xl tw-font-bold tw-mb-2">
-              <i class="pi pi-shopping-cart tw-mr-3"></i>
-              Service Demand Management
-            </h1>
-            <p class="tw-text-blue-100 tw-text-lg">
-              Manage purchasing demands for services
-            </p>
+        <div class="tw-flex tw-flex-col md:tw-flex-row tw-justify-between tw-items-start md:tw-items-center tw-gap-4">
+          <div class="tw-flex tw-items-start tw-gap-3 tw-flex-1">
+            <Button
+              v-if="serviceId"
+              @click="backToServices"
+              icon="pi pi-arrow-left"
+              class="p-button-text p-button-rounded tw-text-white hover:tw-bg-white/20 tw-mt-1"
+              v-tooltip.bottom="'Back to Services'"
+              aria-label="Back to Services"
+            />
+            <div>
+              <h1 class="tw-text-2xl md:tw-text-3xl tw-font-bold tw-mb-2 tw-flex tw-items-center tw-flex-wrap tw-gap-2">
+                <i class="pi pi-shopping-cart"></i>
+                <span>{{ selectedServiceName ? `${selectedServiceName} - Demands` : 'Service Demand Management' }}</span>
+              </h1>
+              <p class="tw-text-blue-100 tw-text-sm md:tw-text-base">
+                {{ selectedServiceName ? `Manage demands for ${selectedServiceName}` : 'Manage purchasing demands for services' }}
+              </p>
+            </div>
           </div>
-          <div class="tw-text-right">
-            <div class="tw-text-2xl tw-font-bold">{{ stats.total_demands || 0 }}</div>
-            <div class="tw-text-blue-100">Total Demands</div>
+          <div class="tw-text-left md:tw-text-right tw-bg-white/10 tw-rounded-lg tw-px-6 tw-py-3 tw-backdrop-blur-sm">
+            <div class="tw-text-3xl tw-font-bold tw-mb-1">{{ stats.total_demands || 0 }}</div>
+            <div class="tw-text-blue-100 tw-text-sm tw-font-medium tw-uppercase tw-tracking-wide">Total Demands</div>
           </div>
         </div>
       </template>
@@ -43,58 +53,58 @@
     </div>
 
     <!-- Stats Cards -->
-    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-6 tw-mb-8">
-      <Card class="tw-shadow-lg">
+    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-4 md:tw-gap-6 tw-mb-8">
+      <Card class="tw-shadow-lg tw-border-0 tw-overflow-hidden hover:tw-shadow-xl tw-transition-shadow tw-duration-300">
         <template #content>
-          <div class="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div class="tw-text-2xl tw-font-bold tw-text-gray-900">{{ stats.draft_demands || 0 }}</div>
-              <div class="tw-text-sm tw-text-gray-600">Draft Demands</div>
+          <div class="tw-flex tw-items-center tw-justify-between tw-p-2">
+            <div class="tw-flex-1">
+              <div class="tw-text-3xl tw-font-extrabold tw-text-gray-900 tw-mb-1">{{ stats.draft_demands || 0 }}</div>
+              <div class="tw-text-xs tw-font-medium tw-text-gray-600 tw-uppercase tw-tracking-wide">Draft Demands</div>
             </div>
-            <div class="tw-w-12 tw-h-12 tw-bg-yellow-100 tw-rounded-full tw-flex tw-items-center tw-justify-center">
-              <i class="pi pi-file-edit tw-text-yellow-600 tw-text-xl"></i>
+            <div class="tw-w-14 tw-h-14 tw-bg-gradient-to-br tw-from-yellow-400 tw-to-yellow-600 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+              <i class="pi pi-file-edit tw-text-white tw-text-2xl"></i>
             </div>
           </div>
         </template>
       </Card>
 
-      <Card class="tw-shadow-lg">
+      <Card class="tw-shadow-lg tw-border-0 tw-overflow-hidden hover:tw-shadow-xl tw-transition-shadow tw-duration-300">
         <template #content>
-          <div class="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div class="tw-text-2xl tw-font-bold tw-text-gray-900">{{ stats.sent_demands || 0 }}</div>
-              <div class="tw-text-sm tw-text-gray-600">Sent Demands</div>
+          <div class="tw-flex tw-items-center tw-justify-between tw-p-2">
+            <div class="tw-flex-1">
+              <div class="tw-text-3xl tw-font-extrabold tw-text-gray-900 tw-mb-1">{{ stats.sent_demands || 0 }}</div>
+              <div class="tw-text-xs tw-font-medium tw-text-gray-600 tw-uppercase tw-tracking-wide">Sent Demands</div>
             </div>
-            <div class="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-full tw-flex tw-items-center tw-justify-center">
-              <i class="pi pi-send tw-text-blue-600 tw-text-xl"></i>
+            <div class="tw-w-14 tw-h-14 tw-bg-gradient-to-br tw-from-blue-400 tw-to-blue-600 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+              <i class="pi pi-send tw-text-white tw-text-2xl"></i>
             </div>
           </div>
         </template>
       </Card>
 
-      <Card class="tw-shadow-lg">
+      <Card class="tw-shadow-lg tw-border-0 tw-overflow-hidden hover:tw-shadow-xl tw-transition-shadow tw-duration-300">
         <template #content>
-          <div class="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div class="tw-text-2xl tw-font-bold tw-text-gray-900">{{ stats.approved_demands || 0 }}</div>
-              <div class="tw-text-sm tw-text-gray-600">Approved Demands</div>
+          <div class="tw-flex tw-items-center tw-justify-between tw-p-2">
+            <div class="tw-flex-1">
+              <div class="tw-text-3xl tw-font-extrabold tw-text-gray-900 tw-mb-1">{{ stats.approved_demands || 0 }}</div>
+              <div class="tw-text-xs tw-font-medium tw-text-gray-600 tw-uppercase tw-tracking-wide">Approved Demands</div>
             </div>
-            <div class="tw-w-12 tw-h-12 tw-bg-green-100 tw-rounded-full tw-flex tw-items-center tw-justify-center">
-              <i class="pi pi-check-circle tw-text-green-600 tw-text-xl"></i>
+            <div class="tw-w-14 tw-h-14 tw-bg-gradient-to-br tw-from-green-400 tw-to-green-600 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+              <i class="pi pi-check-circle tw-text-white tw-text-2xl"></i>
             </div>
           </div>
         </template>
       </Card>
 
-      <Card class="tw-shadow-lg">
+      <Card class="tw-shadow-lg tw-border-0 tw-overflow-hidden hover:tw-shadow-xl tw-transition-shadow tw-duration-300">
         <template #content>
-          <div class="tw-flex tw-items-center tw-justify-between">
-            <div>
-              <div class="tw-text-2xl tw-font-bold tw-text-gray-900">{{ stats.total_items || 0 }}</div>
-              <div class="tw-text-sm tw-text-gray-600">Total Items</div>
+          <div class="tw-flex tw-items-center tw-justify-between tw-p-2">
+            <div class="tw-flex-1">
+              <div class="tw-text-3xl tw-font-extrabold tw-text-gray-900 tw-mb-1">{{ stats.total_items || 0 }}</div>
+              <div class="tw-text-xs tw-font-medium tw-text-gray-600 tw-uppercase tw-tracking-wide">Total Items</div>
             </div>
-            <div class="tw-w-12 tw-h-12 tw-bg-purple-100 tw-rounded-full tw-flex tw-items-center tw-justify-center">
-              <i class="pi pi-box tw-text-purple-600 tw-text-xl"></i>
+            <div class="tw-w-14 tw-h-14 tw-bg-gradient-to-br tw-from-purple-400 tw-to-purple-600 tw-rounded-2xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+              <i class="pi pi-box tw-text-white tw-text-2xl"></i>
             </div>
           </div>
         </template>
@@ -155,8 +165,13 @@
               optionValue="id"
               placeholder="All Services"
               class="tw-w-full"
+              :disabled="!!serviceId"
               @change="loadDemands"
             />
+            <small v-if="serviceId" class="tw-text-gray-500 tw-mt-1">
+              <i class="pi pi-info-circle tw-mr-1"></i>
+              Filtering by specific service
+            </small>
           </div>
 
           <div class="tw-flex tw-flex-col tw-justify-end">
@@ -707,7 +722,9 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
@@ -727,532 +744,547 @@ import TabPanel from 'primevue/tabpanel';
 import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 
-export default {
-  name: 'ServiceDemandManagement',
-  components: {
-    DataTable,
-    Column,
-    Dialog,
-    Button,
-    InputText,
-    InputNumber,
-    Dropdown,
-    Calendar,
-    Textarea,
-    Tag,
-    Card,
-    TabView,
-    TabPanel,
-    Toast,
-    ConfirmDialog
-  },
-  data() {
-    return {
-      activeTab: 'my_demands',
-      activeTabIndex: 0,
-      demands: [],
-      services: [],
-      allServices: [], // Store all services
-      userSpecializationServices: [], // Store services for user's specialization
-      availableProducts: [],
-      stats: {},
-      currentUser: null,
-      loading: false,
-      loadingServices: false,
-      loadingProducts: false,
-      creatingDraft: false,
-      savingDraft: false,
-      sendingDraft: false,
-      addingItem: false,
-
-      showEditDialog: false,
-      showAddProductDialog: false,
-      showDetailsDialog: false,
-      showCreateDialog: false,
-
-      selectedDemand: null,
-      newDemand: {
-        service_id: null,
-        expected_date: null,
-        notes: ''
-      },
-      filters: {
-        global: { value: null, matchMode: 'contains' }
-      },
-      statusFilter: null,
-      serviceFilter: null,
-      statusOptions: [
-        { label: 'All Status', value: null },
-        { label: 'Draft', value: 'draft' },
-        { label: 'Sent', value: 'sent' },
-        { label: 'Approved', value: 'approved' },
-        { label: 'Rejected', value: 'rejected' },
-        { label: 'Completed', value: 'completed' }
-      ],
-      newItem: {
-        product_id: null,
-        quantity: 1,
-        unit_price: null,
-        notes: ''
-      },
-
-      minDate: new Date()
-    };
-  },
-  mounted() {
-    this.toast = useToast();
-    this.confirm = useConfirm();
-    this.loadInitialData();
-  },
-  computed: {
-    filteredDemands() {
-      return this.demands;
-    }
-  },
-  methods: {
-    async loadInitialData() {
-      this.loading = true;
-      try {
-        await Promise.all([
-          this.loadCurrentUser(),
-          this.loadDemands(),
-          this.loadServices(),
-          this.loadStats(),
-          this.loadProducts()
-        ]);
-      } catch (error) {
-        console.error('Failed to load initial data:', error);
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load initial data',
-          life: 3000
-        });
-      } finally {
-        this.loading = false;
-      }
-    },
-
-    async loadCurrentUser() {
-      try {
-        const response = await axios.get('/api/loginuser');
-        this.currentUser = response.data.data;
-      } catch (error) {
-        console.error('Failed to load current user:', error);
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load user information',
-          life: 3000
-        });
-      }
-    },
-
-    async loadDemands() {
-      try {
-        const params = {};
-        if (this.statusFilter) params.status = this.statusFilter;
-        if (this.serviceFilter) params.service_id = this.serviceFilter;
-        if (this.filters.global.value) params.search = this.filters.global.value;
-
-        const response = await axios.get('/api/service-demands', { params });
-        this.demands = response.data.data.data || [];
-      } catch (error) {
-        console.error('Failed to load demands:', error);
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load demands',
-          life: 3000
-        });
-      }
-    },
-
-    async loadServices() {
-      this.loadingServices = true;
-      try {
-        const response = await axios.get('/api/service-demands/meta/services');
-        this.allServices = response.data.data || [];
-        
-        // Filter services based on user's specialization
-        if (this.currentUser && this.currentUser.specialization_id) {
-          // Get services that belong to user's specialization
-          const specializationResponse = await axios.get(`/api/specializations`);
-          const specializations = specializationResponse.data.data || [];
-          
-          // Find user's specialization
-          const userSpecialization = specializations.find(spec => spec.id === this.currentUser.specialization_id);
-          
-          if (userSpecialization && userSpecialization.service_id) {
-            // Filter services to show only the user's specialization service and its related services
-            this.userSpecializationServices = this.allServices.filter(service => 
-              service.id === userSpecialization.service_id
-            );
-            
-            // Set services to user's specialization services for dropdown
-            this.services = this.userSpecializationServices;
-          } else {
-            // If no specialization service found, show all services
-            this.services = this.allServices;
-          }
-        } else {
-          // If no user specialization, show all services
-          this.services = this.allServices;
-        }
-      } catch (error) {
-        console.error('Failed to load services:', error);
-        // Fallback to all services
-        this.services = this.allServices;
-      } finally {
-        this.loadingServices = false;
-      }
-    },
-
-    async loadStats() {
-      try {
-        const response = await axios.get('/api/service-demands/meta/stats');
-        this.stats = response.data.data || {};
-      } catch (error) {
-        console.error('Failed to load stats:', error);
-      }
-    },
-
-    async loadProducts() {
-      this.loadingProducts = true;
-      try {
-        const response = await axios.get('/api/service-demands/meta/products');
-        this.availableProducts = response.data.data || [];
-      } catch (error) {
-        console.error('Failed to load products:', error);
-      } finally {
-        this.loadingProducts = false;
-      }
-    },
-
-    onTabChange(event) {
-      this.activeTab = event.index === 0 ? 'my_demands' : 'all_demands';
-      this.loadDemands();
-    },
-
-    goToCreatePage() {
-      // Open create dialog instead of navigating
-      this.resetNewDemand();
-      this.showCreateDialog = true;
-    },
-
-    async createDemandAndRedirect() {
-      this.creatingDraft = true;
-      try {
-        const response = await axios.post('/api/service-demands', {
-          service_id: this.newDemand.service_id,
-          expected_date: this.newDemand.expected_date,
-          notes: this.newDemand.notes
-        });
-        
-        const newDemand = response.data.data;
-        
-        this.toast.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Demand created successfully! Redirecting to add products...',
-          life: 3000
-        });
-        
-        this.closeCreateDialog();
-        
-        // Navigate to edit mode with the new demand
-        this.$router.push({
-          path: `/stock/service-demands/edit/${newDemand.id}`,
-          query: { mode: 'edit', skipBasicInfo: 'true' }
-        });
-        
-      } catch (error) {
-        console.error('Error creating demand:', error);
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to create demand',
-          life: 3000
-        });
-      } finally {
-        this.creatingDraft = false;
-      }
-    },
-
-    closeCreateDialog() {
-      this.showCreateDialog = false;
-      this.resetNewDemand();
-    },
-
-    resetNewDemand() {
-      this.newDemand = {
-        service_id: null,
-        expected_date: null,
-        notes: ''
-      };
-    },
-
-    editDemand(demand) {
-      // Navigate to ServiceDemandCreate page in edit mode
-      this.$router.push({
-        path: `/stock/service-demands/edit/${demand.id}`,
-        query: { mode: 'edit' }
-      });
-    },
-
-    async saveDraft() {
-      this.savingDraft = true;
-      try {
-        await axios.put(`/api/service-demands/${this.selectedDemand.id}`, {
-          service_id: this.selectedDemand.service_id,
-          expected_date: this.selectedDemand.expected_date,
-          notes: this.selectedDemand.notes
-        });
-        this.toast.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Demand updated successfully',
-          life: 3000
-        });
-        this.closeEditDialog();
-        this.loadDemands();
-      } catch (error) {
-        console.error('Error saving demand:', error);
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to save demand',
-          life: 3000
-        });
-      } finally {
-        this.savingDraft = false;
-      }
-    },
-
-    async sendDemand(demand) {
-      this.confirm.require({
-        message: `Are you sure you want to send demand "${demand.demand_code}"? Once sent, you cannot edit it anymore.`,
-        header: 'Send Demand',
-        icon: 'pi pi-exclamation-triangle',
-        rejectClass: 'p-button-text',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-          try {
-            const response = await axios.post(`/api/service-demands/${demand.id}/send`);
-            
-            // Update the status in the local data immediately
-            const demandIndex = this.demands.findIndex(d => d.id === demand.id);
-            if (demandIndex !== -1) {
-              this.demands[demandIndex].status = 'sent';
-              this.demands[demandIndex] = { ...this.demands[demandIndex], status: 'sent' };
-            }
-            
-            // If this demand is currently being viewed/edited, update it too
-            if (this.selectedDemand && this.selectedDemand.id === demand.id) {
-              this.selectedDemand.status = 'sent';
-            }
-            
-            this.toast.add({
-              severity: 'success',
-              summary: 'Success',
-              detail: 'Demand sent successfully. Status changed to "Sent".',
-              life: 3000
-            });
-            
-            // Close edit dialog if it's open for this demand
-            if (this.showEditDialog && this.selectedDemand && this.selectedDemand.id === demand.id) {
-              this.showEditDialog = false;
-            }
-            
-            // Reload data to ensure consistency
-            this.loadDemands();
-            this.loadStats();
-            
-          } catch (error) {
-            console.error('Error sending demand:', error);
-            this.toast.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: error.response?.data?.message || 'Failed to send demand',
-              life: 3000
-            });
-          }
-        }
-      });
-    },
-
-    confirmSendDraft() {
-      this.sendDemand(this.selectedDemand);
-    },
-
-    async addProductToDemand() {
-      this.addingItem = true;
-      try {
-        const response = await axios.post(`/api/service-demands/${this.selectedDemand.id}/items`, this.newItem);
-        this.selectedDemand.items.push(response.data.data);
-        this.toast.add({
-          severity: 'success',
-          summary: 'Success',
-          detail: 'Item added successfully',
-          life: 3000
-        });
-        this.closeAddProductDialog();
-        this.resetNewItem();
-      } catch (error) {
-        console.error('Error adding item:', error);
-        this.toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: error.response?.data?.message || 'Failed to add item',
-          life: 3000
-        });
-      } finally {
-        this.addingItem = false;
-      }
-    },
-
-    async removeItem(item) {
-      this.confirm.require({
-        message: `Are you sure you want to remove "${item.product?.name}" from this demand?`,
-        header: 'Remove Item',
-        icon: 'pi pi-exclamation-triangle',
-        rejectClass: 'p-button-text',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-          try {
-            await axios.delete(`/api/service-demands/${this.selectedDemand.id}/items/${item.id}`);
-            const index = this.selectedDemand.items.findIndex(i => i.id === item.id);
-            if (index !== -1) {
-              this.selectedDemand.items.splice(index, 1);
-            }
-            this.toast.add({
-              severity: 'success',
-              summary: 'Success',
-              detail: 'Item removed successfully',
-              life: 3000
-            });
-          } catch (error) {
-            console.error('Error removing item:', error);
-            this.toast.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to remove item',
-              life: 3000
-            });
-          }
-        }
-      });
-    },
-
-    async deleteDemand(demand) {
-      this.confirm.require({
-        message: `Are you sure you want to delete demand "${demand.demand_code}"? This action cannot be undone.`,
-        header: 'Delete Demand',
-        icon: 'pi pi-exclamation-triangle',
-        rejectClass: 'p-button-text',
-        acceptClass: 'p-button-danger',
-        accept: async () => {
-          try {
-            await axios.delete(`/api/service-demands/${demand.id}`);
-            this.toast.add({
-              severity: 'success',
-              summary: 'Success',
-              detail: 'Demand deleted successfully',
-              life: 3000
-            });
-            this.loadDemands();
-            this.loadStats();
-          } catch (error) {
-            console.error('Error deleting demand:', error);
-            this.toast.add({
-              severity: 'error',
-              summary: 'Error',
-              detail: 'Failed to delete demand',
-              life: 3000
-            });
-          }
-        }
-      });
-    },
-
-    viewDemand(demand) {
-      // Navigate to ServiceDemandCreate page in view mode
-      this.$router.push({
-        path: `/stock/service-demands/view/${demand.id}`,
-        query: { mode: 'view' }
-      });
-    },
-
-    editDemandFromDetails() {
-      // This method is no longer needed since we use navigation
-      // but keeping for backward compatibility
-      this.showDetailsDialog = false;
-      this.showEditDialog = true;
-    },
-
-    clearFilters() {
-      this.filters.global.value = null;
-      this.statusFilter = null;
-      this.serviceFilter = null;
-      this.loadDemands();
-    },
-
-    closeEditDialog() {
-      this.showEditDialog = false;
-      this.selectedDemand = null;
-    },
-
-    closeAddProductDialog() {
-      this.showAddProductDialog = false;
-      this.resetNewItem();
-    },
-
-    resetNewItem() {
-      this.newItem = {
-        product_id: null,
-        quantity: 1,
-        unit_price: null,
-        notes: ''
-      };
-    },
-
-    getStatusSeverity(status) {
-      const severities = {
-        draft: 'warning',
-        sent: 'info',
-        approved: 'success',
-        rejected: 'danger',
-        completed: 'success',
-        pending: 'warning'
-      };
-      return severities[status] || 'info';
-    },
-
-    // Helper method to check if a demand can be edited
-    canEditDemand(demand) {
-      return demand && demand.status === 'draft';
-    },
-
-    // Helper method to check if a demand can be sent
-    canSendDemand(demand) {
-      return demand && demand.status === 'draft';
-    },
-
-    // Helper method to check if a demand can be deleted
-    canDeleteDemand(demand) {
-      return demand && demand.status === 'draft';
-    },
-
-    formatDate(date) {
-      if (!date) return 'Not set';
-      return new Date(date).toLocaleDateString();
-    },
-
-    formatDateTime(date) {
-      if (!date) return 'Not set';
-      return new Date(date).toLocaleString();
-    }
+// Props
+const props = defineProps({
+  serviceId: {
+    type: [String, Number],
+    default: null
   }
+});
+
+// Composables
+const router = useRouter();
+const toast = useToast();
+const confirm = useConfirm();
+
+// State
+const activeTab = ref('my_demands');
+const activeTabIndex = ref(0);
+const demands = ref([]);
+const services = ref([]);
+const allServices = ref([]);
+const userSpecializationServices = ref([]);
+const availableProducts = ref([]);
+const stats = ref({});
+const currentUser = ref(null);
+const loading = ref(false);
+const loadingServices = ref(false);
+const loadingProducts = ref(false);
+const creatingDraft = ref(false);
+const savingDraft = ref(false);
+const sendingDraft = ref(false);
+const addingItem = ref(false);
+
+const showEditDialog = ref(false);
+const showAddProductDialog = ref(false);
+const showDetailsDialog = ref(false);
+const showCreateDialog = ref(false);
+
+const selectedDemand = ref(null);
+const selectedServiceName = ref(null);
+const newDemand = ref({
+  service_id: null,
+  expected_date: null,
+  notes: ''
+});
+const filters = ref({
+  global: { value: null, matchMode: 'contains' }
+});
+const statusFilter = ref(null);
+const serviceFilter = ref(null);
+const statusOptions = ref([
+  { label: 'All Status', value: null },
+  { label: 'Draft', value: 'draft' },
+  { label: 'Sent', value: 'sent' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Rejected', value: 'rejected' },
+  { label: 'Completed', value: 'completed' }
+]);
+const newItem = ref({
+  product_id: null,
+  quantity: 1,
+  unit_price: null,
+  notes: ''
+});
+
+const minDate = ref(new Date());
+
+// Computed
+const filteredDemands = computed(() => demands.value);
+
+// Lifecycle
+onMounted(() => {
+  // If serviceId is provided, set it as the filter
+  if (props.serviceId) {
+    serviceFilter.value = parseInt(props.serviceId);
+  }
+  loadInitialData();
+});
+
+// Methods
+const loadInitialData = async () => {
+  loading.value = true;
+  try {
+    await Promise.all([
+      loadCurrentUser(),
+      loadDemands(),
+      loadServices(),
+      loadStats(),
+      loadProducts()
+    ]);
+  } catch (error) {
+    console.error('Failed to load initial data:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load initial data',
+      life: 3000
+    });
+  } finally {
+    loading.value = false;
+  }
+};
+
+const loadCurrentUser = async () => {
+  try {
+    const response = await axios.get('/api/loginuser');
+    currentUser.value = response.data.data;
+  } catch (error) {
+    console.error('Failed to load current user:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load user information',
+      life: 3000
+    });
+  }
+};
+
+const loadDemands = async () => {
+  try {
+    const params = {};
+    if (statusFilter.value) params.status = statusFilter.value;
+    if (serviceFilter.value) params.service_id = serviceFilter.value;
+    if (filters.value.global.value) params.search = filters.value.global.value;
+
+    const response = await axios.get('/api/service-demands', { params });
+    demands.value = response.data.data.data || [];
+  } catch (error) {
+    console.error('Failed to load demands:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load demands',
+      life: 3000
+    });
+  }
+};
+
+const loadServices = async () => {
+  loadingServices.value = true;
+  try {
+    const response = await axios.get('/api/service-demands/meta/services');
+    allServices.value = response.data.data || [];
+    
+    // If serviceId prop is provided, find and set the service name
+    if (props.serviceId) {
+      const selectedService = allServices.value.find(s => s.id == props.serviceId);
+      if (selectedService) {
+        selectedServiceName.value = selectedService.name;
+        // Also set it in newDemand for pre-selection when creating new demands
+        newDemand.value.service_id = parseInt(props.serviceId);
+      }
+    }
+    
+    // Filter services based on user's specialization
+    if (currentUser.value && currentUser.value.specialization_id) {
+      // Get services that belong to user's specialization
+      const specializationResponse = await axios.get(`/api/specializations`);
+      const specializations = specializationResponse.data.data || [];
+      
+      // Find user's specialization
+      const userSpecialization = specializations.find(spec => spec.id === currentUser.value.specialization_id);
+      
+      if (userSpecialization && userSpecialization.service_id) {
+        // Filter services to show only the user's specialization service and its related services
+        userSpecializationServices.value = allServices.value.filter(service => 
+          service.id === userSpecialization.service_id
+        );
+        
+        // Set services to user's specialization services for dropdown
+        services.value = userSpecializationServices.value;
+      } else {
+        // If no specialization service found, show all services
+        services.value = allServices.value;
+      }
+    } else {
+      // If no user specialization, show all services
+      services.value = allServices.value;
+    }
+  } catch (error) {
+    console.error('Failed to load services:', error);
+    // Fallback to all services
+    services.value = allServices.value;
+  } finally {
+    loadingServices.value = false;
+  }
+};
+
+const loadStats = async () => {
+  try {
+    const response = await axios.get('/api/service-demands/meta/stats');
+    stats.value = response.data.data || {};
+  } catch (error) {
+    console.error('Failed to load stats:', error);
+  }
+};
+
+const loadProducts = async () => {
+  loadingProducts.value = true;
+  try {
+    const response = await axios.get('/api/service-demands/meta/products');
+    availableProducts.value = response.data.data || [];
+  } catch (error) {
+    console.error('Failed to load products:', error);
+  } finally {
+    loadingProducts.value = false;
+  }
+};
+
+const onTabChange = (event) => {
+  activeTab.value = event.index === 0 ? 'my_demands' : 'all_demands';
+  loadDemands();
+};
+
+const goToCreatePage = () => {
+  // Open create dialog instead of navigating
+  resetNewDemand();
+  showCreateDialog.value = true;
+};
+
+const createDemandAndRedirect = async () => {
+  creatingDraft.value = true;
+  try {
+    const response = await axios.post('/api/service-demands', {
+      service_id: newDemand.value.service_id,
+      expected_date: newDemand.value.expected_date,
+      notes: newDemand.value.notes
+    });
+    
+    const newDemandData = response.data.data;
+    
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Demand created successfully! Redirecting to add products...',
+      life: 3000
+    });
+    
+    closeCreateDialog();
+    
+    // Navigate to edit mode with the new demand
+    router.push({
+      path: `/stock/service-demands/edit/${newDemandData.id}`,
+      query: { mode: 'edit', skipBasicInfo: 'true' }
+    });
+    
+  } catch (error) {
+    console.error('Error creating demand:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to create demand',
+      life: 3000
+    });
+  } finally {
+    creatingDraft.value = false;
+  }
+};
+
+const closeCreateDialog = () => {
+  showCreateDialog.value = false;
+  resetNewDemand();
+};
+
+const resetNewDemand = () => {
+  newDemand.value = {
+    service_id: props.serviceId ? parseInt(props.serviceId) : null,
+    expected_date: null,
+    notes: ''
+  };
+};
+
+const editDemand = (demand) => {
+  // Navigate to ServiceDemandCreate page in edit mode
+  router.push({
+    path: `/stock/service-demands/edit/${demand.id}`,
+    query: { mode: 'edit' }
+  });
+};
+
+const saveDraft = async () => {
+  savingDraft.value = true;
+  try {
+    await axios.put(`/api/service-demands/${selectedDemand.value.id}`, {
+      service_id: selectedDemand.value.service_id,
+      expected_date: selectedDemand.value.expected_date,
+      notes: selectedDemand.value.notes
+    });
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Demand updated successfully',
+      life: 3000
+    });
+    closeEditDialog();
+    loadDemands();
+  } catch (error) {
+    console.error('Error saving demand:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to save demand',
+      life: 3000
+    });
+  } finally {
+    savingDraft.value = false;
+  }
+};
+
+const sendDemand = async (demand) => {
+  confirm.require({
+    message: `Are you sure you want to send demand "${demand.demand_code}"? Once sent, you cannot edit it anymore.`,
+    header: 'Send Demand',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-text',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        const response = await axios.post(`/api/service-demands/${demand.id}/send`);
+        
+        // Update the status in the local data immediately
+        const demandIndex = demands.value.findIndex(d => d.id === demand.id);
+        if (demandIndex !== -1) {
+          demands.value[demandIndex].status = 'sent';
+          demands.value[demandIndex] = { ...demands.value[demandIndex], status: 'sent' };
+        }
+        
+        // If this demand is currently being viewed/edited, update it too
+        if (selectedDemand.value && selectedDemand.value.id === demand.id) {
+          selectedDemand.value.status = 'sent';
+        }
+        
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Demand sent successfully. Status changed to "Sent".',
+          life: 3000
+        });
+        
+        // Close edit dialog if it's open for this demand
+        if (showEditDialog.value && selectedDemand.value && selectedDemand.value.id === demand.id) {
+          showEditDialog.value = false;
+        }
+        
+        // Reload data to ensure consistency
+        loadDemands();
+        loadStats();
+        
+      } catch (error) {
+        console.error('Error sending demand:', error);
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: error.response?.data?.message || 'Failed to send demand',
+          life: 3000
+        });
+      }
+    }
+  });
+};
+
+const confirmSendDraft = () => {
+  sendDemand(selectedDemand.value);
+};
+
+const addProductToDemand = async () => {
+  addingItem.value = true;
+  try {
+    const response = await axios.post(`/api/service-demands/${selectedDemand.value.id}/items`, newItem.value);
+    selectedDemand.value.items.push(response.data.data);
+    toast.add({
+      severity: 'success',
+      summary: 'Success',
+      detail: 'Item added successfully',
+      life: 3000
+    });
+    closeAddProductDialog();
+    resetNewItem();
+  } catch (error) {
+    console.error('Error adding item:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to add item',
+      life: 3000
+    });
+  } finally {
+    addingItem.value = false;
+  }
+};
+
+const removeItem = async (item) => {
+  confirm.require({
+    message: `Are you sure you want to remove "${item.product?.name}" from this demand?`,
+    header: 'Remove Item',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-text',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/service-demands/${selectedDemand.value.id}/items/${item.id}`);
+        const index = selectedDemand.value.items.findIndex(i => i.id === item.id);
+        if (index !== -1) {
+          selectedDemand.value.items.splice(index, 1);
+        }
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Item removed successfully',
+          life: 3000
+        });
+      } catch (error) {
+        console.error('Error removing item:', error);
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to remove item',
+          life: 3000
+        });
+      }
+    }
+  });
+};
+
+const deleteDemand = async (demand) => {
+  confirm.require({
+    message: `Are you sure you want to delete demand "${demand.demand_code}"? This action cannot be undone.`,
+    header: 'Delete Demand',
+    icon: 'pi pi-exclamation-triangle',
+    rejectClass: 'p-button-text',
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/service-demands/${demand.id}`);
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: 'Demand deleted successfully',
+          life: 3000
+        });
+        loadDemands();
+        loadStats();
+      } catch (error) {
+        console.error('Error deleting demand:', error);
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to delete demand',
+          life: 3000
+        });
+      }
+    }
+  });
+};
+
+const viewDemand = (demand) => {
+  // Navigate to ServiceDemandCreate page in view mode
+  router.push({
+    path: `/stock/service-demands/view/${demand.id}`,
+    query: { mode: 'view' }
+  });
+};
+
+const editDemandFromDetails = () => {
+  // This method is no longer needed since we use navigation
+  // but keeping for backward compatibility
+  showDetailsDialog.value = false;
+  showEditDialog.value = true;
+};
+
+const backToServices = () => {
+  router.push({ name: 'pharmacy.services' });
+};
+
+const clearFilters = () => {
+  filters.value.global.value = null;
+  statusFilter.value = null;
+  // Don't clear serviceFilter if serviceId prop is set
+  if (!props.serviceId) {
+    serviceFilter.value = null;
+  }
+  loadDemands();
+};
+
+const closeEditDialog = () => {
+  showEditDialog.value = false;
+  selectedDemand.value = null;
+};
+
+const closeAddProductDialog = () => {
+  showAddProductDialog.value = false;
+  resetNewItem();
+};
+
+const editItem = (item) => {
+  // TODO: Implement edit item functionality
+  console.log('Edit item:', item);
+};
+
+const resetNewItem = () => {
+  newItem.value = {
+    product_id: null,
+    quantity: 1,
+    unit_price: null,
+    notes: ''
+  };
+};
+
+const getStatusSeverity = (status) => {
+  const severities = {
+    draft: 'warning',
+    sent: 'info',
+    approved: 'success',
+    rejected: 'danger',
+    completed: 'success',
+    pending: 'warning'
+  };
+  return severities[status] || 'info';
+};
+
+// Helper method to check if a demand can be edited
+const canEditDemand = (demand) => {
+  return demand && demand.status === 'draft';
+};
+
+// Helper method to check if a demand can be sent
+const canSendDemand = (demand) => {
+  return demand && demand.status === 'draft';
+};
+
+// Helper method to check if a demand can be deleted
+const canDeleteDemand = (demand) => {
+  return demand && demand.status === 'draft';
+};
+
+const formatDate = (date) => {
+  if (!date) return 'Not set';
+  return new Date(date).toLocaleDateString();
+};
+
+const formatDateTime = (date) => {
+  if (!date) return 'Not set';
+  return new Date(date).toLocaleString();
 };
 </script>
 

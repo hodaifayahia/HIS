@@ -34,6 +34,7 @@ class CoffreTransactionController extends Controller
         try {
             $perPage = $request->get('per_page', 15);
             $coffreId = $request->get('coffre_id'); // Get coffre_id filter
+            
             $search = $request->get('search'); // Get search parameter
             
             // Validate and convert caisse_session_id parameter
@@ -45,6 +46,13 @@ class CoffreTransactionController extends Controller
             
             // Pass filters to service
             $result = $this->service->getAllPaginated($perPage, $coffreId, $caisseSessionId, $search);
+            
+            // Eager load additional relationships needed for display
+            $result->getCollection()->each(function ($transaction) {
+                if ($transaction->sourceCaisseSession) {
+                    $transaction->sourceCaisseSession->load('cashier');
+                }
+            });
             
             return response()->json([
                 'success' => true,

@@ -74,14 +74,8 @@ class CaisseService
     public function delete(Caisse $caisse): void
     {
         DB::transaction(function () use ($caisse) {
-            $caisse->delete();
-            $store = Cache::getStore();
-            if (method_exists($store, 'tags')) {
-                Cache::tags(['caisses'])->flush();
-            } else {
-                Cache::forget('caisses_all');
-                Cache::forget('caisses_services_for_select');
-            }
+        
+          
         });
     }
 

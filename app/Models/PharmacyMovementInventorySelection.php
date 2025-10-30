@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class PharmacyMovementInventorySelection extends Model
 {
     protected $fillable = [
+        'pharmacy_stock_movement_item_id',
         'pharmacy_movement_item_id',
+        'pharmacy_inventory_id',
         'inventory_id',
         'selected_quantity',
         'batch_number',
@@ -40,12 +42,17 @@ class PharmacyMovementInventorySelection extends Model
     // Relationships
     public function pharmacyMovementItem(): BelongsTo
     {
-        return $this->belongsTo(PharmacyMovementItem::class);
+        return $this->belongsTo(PharmacyMovementItem::class, 'pharmacy_stock_movement_item_id');
     }
 
     public function inventory(): BelongsTo
     {
         return $this->belongsTo(Inventory::class);
+    }
+
+    public function pharmacyInventory(): BelongsTo
+    {
+        return $this->belongsTo(PharmacyInventory::class, 'pharmacy_inventory_id');
     }
 
     // Pharmacy-specific methods

@@ -1819,7 +1819,17 @@ const onApprovalModalClose = () => {
 onMounted(async () => {
   await loadItems()
   await load()
+  // Set global payment amount to total outstanding by default
+  globalPayment.amount = totalOutstanding.value
 })
+
+// Watch for changes in total outstanding and update global payment amount
+watch(totalOutstanding, (newTotal) => {
+  // Only update if global payment amount is null or not being edited
+  if (globalPayment.amount === null) {
+    globalPayment.amount = newTotal
+  }
+}, { immediate: true })
 </script>
 <template>
   <div class="tw-bg-gray-100 tw-min-h-screen tw-p-6 tw-text-gray-900">

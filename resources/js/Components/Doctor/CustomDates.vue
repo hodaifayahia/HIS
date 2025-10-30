@@ -457,31 +457,31 @@ watch(
 <style scoped>
 /* Custom PrimeVue component overrides */
 :deep(.p-card) {
-  @apply tw-transition-all tw-duration-300 hover:tw-shadow-xl;
+  @apply transition-all tw-duration-300 hover:tw-shadow-xl;
 }
 
 :deep(.p-card-header) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-inputnumber-input) {
-  @apply tw-bg-white;
+  @apply bg-white;
 }
 
 :deep(.p-calendar-w-btn .p-inputtext) {
-  @apply tw-pr-12;
+  @apply pr-12;
 }
 
 :deep(.p-calendar .p-button) {
-  @apply tw-bg-blue-500 tw-border-blue-500 hover:tw-bg-blue-600;
+  @apply bg-blue-500 tw-border-blue-500 hover:tw-bg-blue-600;
 }
 
 :deep(.p-button.p-button-outlined.p-button-danger) {
-  @apply tw-border-red-500 tw-text-red-500 hover:tw-bg-red-500 hover:tw-text-white;
+  @apply border-red-500 tw-text-red-500 hover:tw-bg-red-500 hover:tw-text-white;
 }
 
 /* Animation classes */
@@ -502,14 +502,14 @@ watch(
 }
 
 ::-webkit-scrollbar-track {
-  @apply tw-bg-gray-100;
+  @apply bg-gray-100;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply tw-bg-gray-400 tw-rounded-full;
+  @apply bg-gray-400 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply tw-bg-gray-500;
+  @apply bg-gray-500;
 }
 </style>

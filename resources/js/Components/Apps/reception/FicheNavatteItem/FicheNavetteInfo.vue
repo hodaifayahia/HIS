@@ -307,14 +307,14 @@ const downloadFile = (file) => {
 <style scoped>
 /* PrimeVue overrides */
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-tag) {
-  @apply tw-rounded-full;
+  @apply rounded-full;
 }
 
 :deep(.p-button-text) {
-  @apply tw-text-sm;
+  @apply text-sm;
 }
 </style>

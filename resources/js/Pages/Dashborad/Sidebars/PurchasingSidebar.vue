@@ -46,6 +46,7 @@ const hasPermission = (requiredRoles) => {
     <BaseSidebar :user="authStore.user" :app-name="appDetails.name" :app-icon="appDetails.icon"
         :app-color="appDetails.color" :back-route="appDetails.backRoute">
         <template #navigation>
+
             <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isSupplierManagementOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleSupplierManagement">
                     <i class="nav-icon fas fa-truck"></i>
@@ -63,7 +64,18 @@ const hasPermission = (requiredRoles) => {
                     </li>
                 </ul>
             </li>
-            
+            <li class="nav-item">
+                <router-link to="/admin/products" active-class="active" class="nav-link">
+                    <i class="nav-icon fas fa-box"></i>
+                    <p>Stock Products</p>
+                </router-link>
+            </li>
+            <li class="nav-item">
+                <router-link to="/purchasing/products" active-class="active" class="nav-link">
+                    <i class="nav-icon fas fa-shopping-bag"></i>
+                    <p>All Products (Stock & Pharmacy)</p>
+                </router-link>
+            </li>
             <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isOrderingProductsOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleOrderingProducts">
                     <i class="nav-icon fas fa-truck"></i>

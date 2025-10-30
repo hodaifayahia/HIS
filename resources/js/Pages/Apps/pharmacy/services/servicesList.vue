@@ -148,7 +148,7 @@
               </div>
             </template>
           </Column>
-          <Column header="Actions" style="min-width: 200px">
+          <Column header="Actions" style="min-width: 250px">
             <template #body="slotProps">
               <div class="tw-flex tw-gap-2">
                 <Button
@@ -168,6 +168,12 @@
                   class="p-button-primary p-button-sm tw-rounded-lg"
                   @click="openStockManagement(slotProps.data)"
                   v-tooltip.top="'Stock Management'"
+                />
+                <Button
+                  icon="pi pi-shopping-cart"
+                  class="p-button-warning p-button-sm tw-rounded-lg"
+                  @click="viewServiceOrders(slotProps.data)"
+                  v-tooltip.top="'Service Orders'"
                 />
               </div>
             </template>
@@ -299,7 +305,7 @@
 
 <script>
 import axios from 'axios';
-import AddStockageModal from '../../../../Components/Apps/stock/AddStockageModal.vue';
+import AddStockageModal from '../../../../Components/Apps/pharmacy/AddStockageModal.vue';
 
 // PrimeVue Components
 import Card from 'primevue/card';
@@ -441,6 +447,10 @@ export default {
 
     openStockManagement(service) {
       this.$router.push({ name: 'pharmacy.services.management', params: { id: service.id } });
+    },
+
+       viewServiceOrders(service) {
+      this.$router.push({ name: 'stock.services.orders', params: { id: service.id } });
     },
 
     backToServices() {

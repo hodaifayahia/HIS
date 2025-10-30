@@ -30,6 +30,7 @@
               <div class="tw-text-2xl tw-font-bold">{{ total }}</div>
               <div class="tw-text-sm tw-text-blue-100">Total Products</div>
             </div>
+          
             <Button
               label="Add New Product"
               icon="pi pi-plus"
@@ -955,6 +956,8 @@
         </div>
       </form>
     </Dialog>
+
+  
   </div>
 </template>
 
@@ -977,6 +980,9 @@ import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
 import Checkbox from 'primevue/checkbox';
 
+// Custom Components
+import InventoryAuditProductDialog from '@/components/InventoryAuditProductDialog.vue';
+
 export default {
   name: 'ProductList',
   components: {
@@ -991,7 +997,8 @@ export default {
     Tag,
     Toast,
     ConfirmDialog,
-    Checkbox
+    Checkbox,
+    InventoryAuditProductDialog
   },
   data() {
     return {
@@ -1001,6 +1008,7 @@ export default {
       selectedProducts: [],
       showAddProductModal: false,
       showEditProductModal: false,
+      showInventoryAuditProductModal: false,
       activeTab: 'all', // 'all', 'medication', 'supplies'
       alertFilters: [], // Array of selected alert types: 'low_stock', 'critical_stock', 'expiring', 'expired'
       editingProduct: null,
@@ -1516,6 +1524,16 @@ export default {
     formatNumber(num) {
       return new Intl.NumberFormat().format(num);
     },
+    handleAuditCompleted(data) {
+      // Refresh product list after audit is completed
+      this.fetchProducts(this.currentPage);
+      this.toast.add({
+        severity: 'success',
+        summary: 'Audit Completed',
+        detail: 'Inventory has been updated with audit results',
+        life: 5000
+      });
+    }
   }
 }
 </script>

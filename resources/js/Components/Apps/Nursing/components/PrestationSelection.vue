@@ -434,9 +434,6 @@ onMounted(() => {
                     <span class="tw-text-xs tw-bg-gray-100 tw-px-2 tw-py-1 tw-rounded tw-text-gray-600">{{ option.internal_code }}</span>
                   </div>
                 </div>
-                <div class="tw-text-right">
-                  <span class="tw-text-lg tw-font-bold tw-text-blue-600">{{ formatCurrency(option.price ?? option.price_with_vat_and_consumables_variant ?? option.public_price ?? option) }}</span>
-                </div>
               </div>
             </template>
           </Dropdown>
@@ -499,9 +496,6 @@ onMounted(() => {
                     
                     <div class="tw-flex tw-items-center tw-justify-between tw-pt-2 tw-border-t tw-border-orange-100">
                       <span class="tw-text-xs tw-text-gray-500">Code: {{ dep.internal_code }}</span>
-                        <span class="tw-text-lg tw-font-bold tw-text-orange-600 tw-bg-orange-100 tw-px-3 tw-py-1 tw-rounded-full">
-                        {{ formatCurrency(dep.price ?? dep.public_price ?? dep.price_with_vat_and_consumables_variant ?? dep) }}
-                      </span>
                     </div>
                   </div>
                 </label>
@@ -572,9 +566,6 @@ onMounted(() => {
                   <span class="tw-text-xs tw-text-gray-500 tw-bg-blue-50 tw-px-2 tw-py-1 tw-rounded">
                     {{ item.internal_code || 'N/A' }}
                   </span>
-                  <span class="tw-text-xl tw-font-bold tw-text-blue-600 tw-bg-blue-100 tw-px-3 tw-py-1 tw-rounded-full">
-                    {{ formatCurrency(item.price ?? item.public_price ?? item.price_with_vat_and_consumables_variant ?? item) }}
-                  </span>
                 </div>
               </div>
             </div>
@@ -589,12 +580,6 @@ onMounted(() => {
               <div class="tw-text-center">
                 <div class="tw-text-lg tw-font-bold tw-text-blue-600">{{ allSelectedItems.length }}</div>
                 <div class="tw-text-xs tw-text-gray-500">Prestations</div>
-              </div>
-              <div class="tw-text-center">
-                <div class="tw-text-lg tw-font-bold tw-text-blue-600">
-                  {{ formatCurrency(allSelectedItems.reduce((total, item) => total + resolvePrice(item.price ?? item.public_price ?? item.price_with_vat_and_consumables_variant ?? item), 0)) }}
-                </div>
-                <div class="tw-text-xs tw-text-gray-500">Total Estimate</div>
               </div>
             </div>
 

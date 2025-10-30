@@ -456,54 +456,54 @@ onMounted(() => {
 :deep(.p-dropdown),
 :deep(.p-inputnumber-input),
 :deep(.p-inputtextarea) {
-  @apply tw-rounded-xl tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
+  @apply rounded-xl tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
 }
 
 :deep(.p-dropdown:not(.p-disabled):hover),
 :deep(.p-inputnumber-input:hover),
 :deep(.p-inputtextarea:hover) {
-  @apply tw-border-emerald-500;
+  @apply border-emerald-500;
 }
 
 :deep(.p-dropdown:not(.p-disabled).p-focus),
 :deep(.p-inputnumber-input:focus),
 :deep(.p-inputtextarea:focus) {
-  @apply tw-border-emerald-500 tw-shadow-md tw-shadow-emerald-500/25;
+  @apply border-emerald-500 tw-shadow-md tw-shadow-emerald-500/25;
 }
 
 :deep(.p-invalid) {
-  @apply tw-border-red-500;
+  @apply border-red-500;
 }
 
 :deep(.p-invalid:focus) {
-  @apply tw-shadow-md tw-shadow-red-500/25;
+  @apply shadow-md tw-shadow-red-500/25;
 }
 
 :deep(.p-button) {
-  @apply tw-rounded-lg tw-font-medium tw-transition-all tw-duration-200;
+  @apply rounded-lg tw-font-medium tw-transition-all tw-duration-200;
 }
 
 :deep(.p-button:hover) {
-  @apply tw-scale-105;
+  @apply scale-105;
 }
 
 :deep(.p-button:disabled) {
-  @apply tw-scale-100 tw-cursor-not-allowed tw-opacity-50;
+  @apply scale-100 tw-cursor-not-allowed tw-opacity-50;
 }
 
 :deep(.p-inputgroup-addon) {
-  @apply tw-bg-gray-100 tw-border-gray-300 tw-text-emerald-500 tw-font-semibold tw-rounded-r-lg;
+  @apply bg-gray-100 tw-border-gray-300 tw-text-emerald-500 tw-font-semibold tw-rounded-r-lg;
 }
 
 :deep(.p-dropdown-panel) {
-  @apply tw-rounded-xl tw-border-none tw-shadow-2xl;
+  @apply rounded-xl tw-border-none tw-shadow-2xl;
 }
 
 :deep(.p-dropdown-item) {
-  @apply tw-rounded-md tw-mx-2 tw-my-0.5 tw-transition-all tw-duration-200;
+  @apply rounded-md tw-mx-2 tw-my-0.5 tw-transition-all tw-duration-200;
 }
 
 :deep(.p-dropdown-item:hover) {
-  @apply tw-bg-gray-100 tw-translate-x-0.5;
+  @apply bg-gray-100 tw-translate-x-0.5;
 }
 </style>

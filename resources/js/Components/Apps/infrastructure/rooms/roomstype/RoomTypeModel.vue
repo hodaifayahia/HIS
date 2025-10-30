@@ -23,8 +23,7 @@ const form = ref({
     name: '',
     description: '',
     image_url: '',
-    room_type: '', // Default to false (Normal Room)
-    service_id: null, // Change to single service ID, default to null
+    service_id: null, // Single service ID
 });
 
 const selectedFile = ref(null);
@@ -49,8 +48,6 @@ watch(() => props.showModal, (newVal) => {
                 service_id: props.roomTypeData.services && props.roomTypeData.services.length > 0
                               ? props.roomTypeData.services[0].id
                               : null,
-                // Convert room_type to a boolean for the select dropdown
-                room_type: !!props.roomTypeData.room_type
             };
             imagePreview.value = props.roomTypeData.image_url || null;
         } else {
@@ -60,8 +57,7 @@ watch(() => props.showModal, (newVal) => {
                 name: '',
                 description: '',
                 image_url: '',
-                room_type: '', // Reset to default (Normal Room)
-                service_id: null, // Reset to null for single selection
+                service_id: null,
             };
             imagePreview.value = null;
         }
@@ -123,16 +119,10 @@ const saveRoomType = async () => {
 
         formData.append('name', form.value.name);
         formData.append('description', form.value.description);
-        formData.append('room_type', form.value.room_type);
 
         // Append only the single selected service ID if it exists
         if (form.value.service_id) {
             formData.append('service_id', form.value.service_id);
-        } else {
-             // If no service is selected, ensure the backend doesn't try to associate an old one
-             // You might need to check your backend's behavior if service_id can be null.
-             // For example, if it's an optional field, just don't append it.
-             // If it's required and can be unselected, you might send an explicit null/empty string.
         }
 
 
@@ -202,20 +192,6 @@ const closeModal = () => {
                         <label for="description">Description</label>
                         <textarea id="description" v-model="form.description" :class="{ 'is-invalid': errors.description }"></textarea>
                         <div v-if="errors.description" class="invalid-feedback">{{ errors.description[0] }}</div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="room_type_category">Room Category<span class="required">*</span></label>
-                        <select
-                            id="room_type_category"
-                            v-model="form.room_type"
-                            :class="{ 'is-invalid': errors.room_type }"
-                            required
-                        >
-                            <option :value="'Normal'">Normal Room</option>
-                            <option :value="'WaitingRoom'">Waiting Room</option>
-                        </select>
-                        <div v-if="errors.room_type" class="invalid-feedback">{{ errors.room_type[0] }}</div>
                     </div>
 
                     <div class="form-group">
@@ -390,11 +366,6 @@ const closeModal = () => {
     color: #ef4444;
     font-size: 0.85rem;
     margin-top: 0.5rem;
-}
-
-/* single-select specific styles (removed multi-select height) */
-.single-select {
-    /* No specific min-height needed, standard select height is fine */
 }
 
 .hint {

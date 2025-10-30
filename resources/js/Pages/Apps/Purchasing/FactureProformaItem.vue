@@ -1368,11 +1368,11 @@ onMounted(() => {
 <style scoped>
 /* DataTable enhancements */
 :deep(.p-datatable) {
-  @apply tw-border-0 tw-rounded-lg;
+  @apply border-0 tw-rounded-lg;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1380,30 +1380,30 @@ onMounted(() => {
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr.p-highlight) {
-  @apply tw-bg-emerald-100;
+  @apply bg-emerald-100;
 }
 
 /* Card styling */
 :deep(.p-card) {
-  @apply tw-rounded-xl;
+  @apply rounded-xl;
 }
 
 :deep(.p-card-title) {
-  @apply tw-text-xl tw-font-bold tw-text-gray-800;
+  @apply text-xl tw-font-bold tw-text-gray-800;
 }
 
 /* Dialog */
 :deep(.p-dialog-header) {
-  @apply tw-bg-gradient-to-r tw-from-emerald-600 tw-to-teal-700 tw-text-white;
+  @apply bg-gradient-to-r tw-from-emerald-600 tw-to-teal-700 tw-text-white;
 }
 
 :deep(.p-dialog-header .p-dialog-title) {
-  @apply tw-text-white tw-font-bold;
+  @apply text-white tw-font-bold;
 }
 
 /* FileUpload */
 :deep(.p-fileupload) {
-  @apply tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg hover:tw-border-emerald-400 hover:tw-bg-emerald-50 tw-transition-all;
+  @apply border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg hover:tw-border-emerald-400 hover:tw-bg-emerald-50 tw-transition-all;
 }
 
 /* Animations */
@@ -1424,30 +1424,30 @@ onMounted(() => {
 
 /* Indigo-themed Category Dropdown */
 :deep(.category-dropdown) {
-  @apply tw-border-indigo-300 tw-rounded-md;
+  @apply border-indigo-300 tw-rounded-md;
 }
 
 :deep(.category-dropdown .p-dropdown-label) {
-  @apply tw-text-gray-700;
+  @apply text-gray-700;
 }
 
 :deep(.category-dropdown:not(.p-disabled).p-focus) {
-  @apply tw-border-indigo-500 tw-ring-2 tw-ring-indigo-200;
+  @apply border-indigo-500 tw-ring-2 tw-ring-indigo-200;
 }
 
 :deep(.category-dropdown .p-dropdown-trigger) {
-  @apply tw-text-indigo-600;
+  @apply text-indigo-600;
 }
 
 :deep(.category-dropdown .p-dropdown-panel) {
-  @apply tw-border-indigo-200 tw-shadow-lg;
+  @apply border-indigo-200 tw-shadow-lg;
 }
 
 :deep(.category-dropdown .p-dropdown-item) {
-  @apply tw-text-gray-700 hover:tw-bg-indigo-50 hover:tw-text-indigo-900;
+  @apply text-gray-700 hover:tw-bg-indigo-50 hover:tw-text-indigo-900;
 }
 
 :deep(.category-dropdown .p-dropdown-item.p-highlight) {
-  @apply tw-bg-indigo-100 tw-text-indigo-900;
+  @apply bg-indigo-100 tw-text-indigo-900;
 }
 </style>

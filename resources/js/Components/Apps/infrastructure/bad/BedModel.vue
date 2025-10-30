@@ -47,12 +47,7 @@ const isEditing = ref(false)
 const filteredRooms = computed(() => {
     let list = props.rooms
 
-    // ➊-a  remove waiting rooms
-    list = list.filter(
-        r => r.room_type?.room_type?.toLowerCase() !== 'waitingroom'
-    )
-
-    // ➊-b  optional service filter
+    // Apply service filter if selected
     if (selectedService.value) {
         list = list.filter(r => r.service?.id == selectedService.value)
     }
@@ -254,14 +249,13 @@ watch(() => props.bedData, (newBedData) => {
       >
           <option value="">Select a room</option>
 
-          <!-- ➊-c  the list now never contains Waiting-Rooms             -->
-          <!-- ➋   show the human-readable name instead of room_type code -->
+      <!-- Room type name displayed in dropdown -->
           <option
               v-for="room in filteredRooms"
               :key="room.id"
               :value="room.id"
           >
-              Room {{ room.room_number }} – {{ room.room_type.name }}
+              Room {{ room.room_number }} – {{ room.room_type?.name || 'Unknown Type' }}
           </option>
       </select>
 

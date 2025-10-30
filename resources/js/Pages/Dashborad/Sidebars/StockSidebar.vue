@@ -30,13 +30,8 @@ const hasPermission = (requiredRoles) => {
 </script>
 
 <template>
-    <BaseSidebar
-        :user="authStore.user"
-        :app-name="appDetails.name"
-        :app-icon="appDetails.icon"
-        :app-color="appDetails.color"
-        :back-route="appDetails.backRoute"
-    >
+    <BaseSidebar :user="authStore.user" :app-name="appDetails.name" :app-icon="appDetails.icon"
+        :app-color="appDetails.color" :back-route="appDetails.backRoute">
         <template #navigation>
             <!-- Stock Dashboard Link -->
             <li class="nav-item">
@@ -68,6 +63,13 @@ const hasPermission = (requiredRoles) => {
                         </router-link>
                     </li>
                     <li class="nav-item">
+                        <router-link to="/stock/product-reserves" active-class="active" class="nav-link">
+                            <i class="fas fa-bookmark nav-icon"></i>
+                            <p>Reservations</p>
+                        </router-link>
+                    </li>
+
+                    <li class="nav-item">
                         <router-link to="/stock/stockages" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
                             <p>Stockages</p>
@@ -85,7 +87,7 @@ const hasPermission = (requiredRoles) => {
                             <p>Approbations</p>
                         </router-link>
                     </li>
-                 
+
                 </ul>
             </li>
 
@@ -119,7 +121,7 @@ const hasPermission = (requiredRoles) => {
                     </li>
                 </ul>
             </li>
-            
+
             <!-- Reports Section -->
             <!-- <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isReportsOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleReports">

@@ -1463,11 +1463,11 @@ onMounted(async () => {
 <style scoped>
 /* DataTable enhancements */
 :deep(.p-datatable) {
-  @apply tw-border-0 tw-rounded-lg;
+  @apply border-0 tw-rounded-lg;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1476,30 +1476,30 @@ onMounted(async () => {
 
 /* Card styling */
 :deep(.p-card) {
-  @apply tw-rounded-xl;
+  @apply rounded-xl;
 }
 
 :deep(.p-card-title) {
-  @apply tw-text-xl tw-font-bold tw-text-gray-800;
+  @apply text-xl tw-font-bold tw-text-gray-800;
 }
 
 /* Dialog */
 :deep(.p-dialog-header) {
-  @apply tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-text-white;
+  @apply bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-text-white;
 }
 
 :deep(.p-dialog-header .p-dialog-title) {
-  @apply tw-text-white tw-font-bold;
+  @apply text-white tw-font-bold;
 }
 
 /* Calendar */
 :deep(.p-calendar) {
-  @apply tw-w-full;
+  @apply w-full;
 }
 
 /* FileUpload */
 :deep(.p-fileupload) {
-  @apply tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg hover:tw-border-blue-400 hover:tw-bg-blue-50 tw-transition-all;
+  @apply border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg hover:tw-border-blue-400 hover:tw-bg-blue-50 tw-transition-all;
 }
 
 /* Animations */

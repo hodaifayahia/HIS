@@ -552,10 +552,10 @@ onMounted(() => {
 }
 
 :deep(.p-inputnumber-input) {
-  @apply tw-text-sm;
+  @apply text-sm;
 }
 
 :deep(.p-dropdown-label) {
-  @apply tw-text-sm;
+  @apply text-sm;
 }
 </style>

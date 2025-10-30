@@ -113,16 +113,21 @@ export const caisseService = {
     async delete(id) {
         try {
             const response = await axios.delete(`/api/caisses/${id}`);
+            // Backend returns { success: true, message: "..." } with status 200
+            const responseData = response.data || {};
+            
+            console.log(`Delete caisse ${id} response:`, responseData);
+            
             return {
-                success: true,
-                data: response.data.data || response.data,
-                message: response.data.message || 'Cash register deleted successfully.'
+                success: responseData.success !== false, // Treat as success if success is true or not explicitly false
+                data: responseData.data || {},
+                message: responseData.message || 'Cash register deleted successfully.'
             };
         } catch (error) {
             console.error(`Error deleting caisse ${id}:`, error);
             return {
                 success: false,
-                message: error.response?.data?.message || 'Failed to delete cash register. Please try again.',
+                message: error.response?.data?.message || error.message || 'Failed to delete cash register. Please try again.',
                 error
             };
         }

@@ -176,7 +176,7 @@ const handleShowAllConventions = () => {
             </div>
 
             <!-- Center Section: Stats and Info -->
-            <div class="tw-flex tw-items-center tw-gap-6 tw-flex-1 tw-justify-center tw-px-4" v-if="fiche">
+            <div class="tw-flex tw-items-center" v-if="fiche">
               
               <!-- Status -->
               <div class="tw-flex tw-flex-col tw-items-center tw-gap-1">
@@ -188,32 +188,7 @@ const handleShowAllConventions = () => {
                 />
               </div>
 
-              <!-- Services Count -->
-              <!-- <div class="tw-flex tw-flex-col tw-items-center tw-gap-1 tw-bg-blue-50 tw-rounded-lg tw-px-4 tw-py-2">
-                <span class="tw-text-xs tw-text-blue-600 tw-font-medium tw-uppercase tw-tracking-wide">Services</span>
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="pi pi-list tw-text-blue-600"></i>
-                  <span class="tw-text-lg tw-font-bold tw-text-blue-800">{{ itemsCount }}</span>
-                </div>
-              </div> -->
-
-              <!-- Total Amount -->
-              <div class="tw-flex tw-flex-col tw-items-center tw-gap-1 tw-bg-green-50 tw-rounded-lg tw-px-4 tw-py-2">
-                <span class="tw-text-xs tw-text-green-600 tw-font-medium tw-uppercase tw-tracking-wide">Total</span>
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="pi pi-dollar tw-text-green-600"></i>
-                  <span class="tw-text-lg tw-font-bold tw-text-green-800">{{ formatCurrency(totalAmount) }}</span>
-                </div>
-              </div>
-
-              <!-- Patient Balance -->
-              <div class="tw-flex tw-flex-col tw-items-center tw-gap-1 tw-bg-purple-50 tw-rounded-lg tw-px-4 tw-py-2">
-                <span class="tw-text-xs tw-text-purple-600 tw-font-medium tw-uppercase tw-tracking-wide">Balance</span>
-                <div class="tw-flex tw-items-center tw-gap-2">
-                  <i class="pi pi-balance-scale tw-text-purple-600"></i>
-                  <span class="tw-text-lg tw-font-bold tw-text-purple-800">{{ formatCurrency(fiche.patient_balance) }}</span>
-                </div>
-              </div>
+              
 
               <!-- Convention Companies (Compact) -->
               <div v-if="hasConventions" class="tw-flex tw-flex-col tw-items-center tw-gap-1">
@@ -267,48 +242,48 @@ const handleShowAllConventions = () => {
 <style scoped>
 /* PrimeVue overrides */
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-tag) {
-  @apply tw-rounded-full tw-shadow-sm;
+  @apply rounded-full tw-shadow-sm;
 }
 
 :deep(.p-button) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 :deep(.p-button-text:hover) {
-  @apply tw-transform tw-scale-105;
+  @apply transform tw-scale-105;
 }
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .tw-flex-1 {
-    @apply tw-gap-4;
+    @apply gap-4;
   }
   
   .tw-px-4 {
-    @apply tw-px-2;
+    @apply px-2;
   }
 }
 
 @media (max-width: 768px) {
   /* Stack vertically on mobile */
   .tw-justify-between {
-    @apply tw-flex-col tw-items-start tw-gap-4;
+    @apply flex-col tw-items-start tw-gap-4;
   }
   
   .tw-justify-center {
-    @apply tw-justify-start tw-flex-wrap;
+    @apply justify-start tw-flex-wrap;
   }
   
   .tw-flex-shrink-0:last-child {
-    @apply tw-w-full;
+    @apply w-full;
   }
   
   .tw-flex-shrink-0:last-child .p-button {
-    @apply tw-w-full tw-justify-center;
+    @apply w-full tw-justify-center;
   }
 }
 </style>

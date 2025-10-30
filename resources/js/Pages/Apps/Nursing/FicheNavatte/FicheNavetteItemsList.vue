@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 
 // Components
-import FicheNavetteHeader from '../../../../Components/Apps/reception/FicheNavatteItem/FicheNavetteHeader.vue'
+import FicheNavetteHeader from '../../../../Components/Apps/Nursing/FicheNavatteItem/FicheNavetteHeader.vue'
 import FicheNavetteInfo from '../../../../Components/Apps/reception/FicheNavatteItem/FicheNavetteInfo.vue'
 import FicheNavetteItemsSection from '../../../../Components/Apps/Nursing/FicheNavatteItem/FicheNavetteItemsSection.vue'
 import LoadingSpinner from '../../../../Components/Common/LoadingSpinner.vue'

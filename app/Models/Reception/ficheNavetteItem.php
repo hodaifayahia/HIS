@@ -78,6 +78,19 @@ class ficheNavetteItem extends Model
     }
 
     /**
+     * Get reception records for this item's package (if it is a package)
+     * Shows which doctors are assigned to each prestation in the package
+     */
+    public function packageReceptionRecords()
+    {
+        return $this->hasMany(
+            \App\Models\CONFIGURATION\PrestationPackageReception::class,
+            'package_id',
+            'package_id'
+        )->with(['prestation', 'doctor.user']);
+    }
+
+    /**
      * Get the convention associated with this item
      */
     public function convention()

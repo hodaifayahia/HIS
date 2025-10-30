@@ -703,19 +703,19 @@ onMounted(async () => {
 <style scoped>
 /* PrimeVue Overrides */
 :deep(.p-card-header) {
-    @apply tw-p-0;
+    @apply p-0;
 }
 :deep(.p-card-content) {
-    @apply tw-p-0;
+    @apply p-0;
 }
 :deep(.p-datatable-thead tr th) {
-    @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
+    @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
 }
 :deep(.p-datatable-tbody tr td) {
-    @apply tw-text-gray-800;
+    @apply text-gray-800;
 }
 :deep(.p-datatable-tbody tr:hover) {
-    @apply tw-bg-blue-50;
+    @apply bg-blue-50;
 }
 :deep(.p-dropdown-panel) {
   width: auto;

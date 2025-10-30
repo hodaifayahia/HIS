@@ -20,7 +20,17 @@ class CoffreTransactionService
 {
     public function getAllPaginated(int $perPage = 15, $coffreId = null, $caisseSessionId = null, $search = null): LengthAwarePaginator
     {
-    $query = CoffreTransaction::with(['coffre', 'user', 'destinationCoffre', 'approvalRequest']);
+    $query = CoffreTransaction::with([
+        'coffre', 
+        'user', 
+        'destinationCoffre', 
+        'approvalRequest',
+        'sourceCaisseSession',
+        'sourceCaisseSession.cashier',
+        'destinationBanque',
+        'patient',
+        'prestation'
+    ]);
         
         // Filter by coffre_id if provided
         if ($coffreId !== null) {

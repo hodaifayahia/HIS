@@ -39,26 +39,27 @@ class ficheNavetteController extends Controller
     {
         $query = FicheNavette::with([
             'creator:id,name',
-            'patient:id,Firstname,Lastname,balance',
+            'patient:id,Firstname,Lastname,balance,is_faithful',
             // Request underlying DB columns used by the accessor instead of the accessor name
-            'items.prestation:id,name,internal_code,public_price,consumables_cost,vat_rate,tva_const_prestation,specialization_id',
+            'patient.user:id,name',
+            'items.prestation.service:id,name',
             'items.prestation.specialization:id,name',
             'items.prestation.doctor:id,name',
-            'items.dependencies:id,dependency_type,notes,payment_status,dependent_prestation_id,is_package',
-            'items.dependencies.dependencyPrestation:id,name,internal_code,public_price,consumables_cost,vat_rate,tva_const_prestation',
+            'items.doctor:id,name',
             'items.dependencies.dependencyPrestation.doctor:id,name',
         ])
-            ->select([
-                'id', 'patient_id', 'creator_id', 'status', 'fiche_date',
-                'total_amount', 'created_at', 'updated_at',
-            ]);
+            ->when($request->user(), function ($q) use ($request) {
+                // Apply user-based filtering if needed
+                return $q;
+            });
 
         if ($request->has('search') && $request->search) {
-            $searchTerm = '%'.$request->search.'%';
+            $searchTerm = $request->search;
             $query->where(function ($q) use ($searchTerm) {
-                $q->where('reference', 'like', $searchTerm)
-                    ->orWhereHas('patient', fn ($q) => $q->where('Firstname', 'like', $searchTerm)
-                        ->orWhere('Lastname', 'like', $searchTerm));
+                $q->whereHas('patient', function ($patientQuery) use ($searchTerm) {
+                    $patientQuery->where('Firstname', 'like', "%{$searchTerm}%")
+                        ->orWhere('Lastname', 'like', "%{$searchTerm}%");
+                })->orWhere('reference', 'like', "%{$searchTerm}%");
             });
         }
 
@@ -67,7 +68,7 @@ class ficheNavetteController extends Controller
         }
 
         if ($request->has('date') && $request->date) {
-            $query->whereDate('created_at', $request->date);
+            $query->whereDate('fiche_date', $request->date);
         }
 
         $ficheNavettes = $query->orderBy('created_at', 'desc')->paginate(15);
@@ -634,6 +635,68 @@ class ficheNavetteController extends Controller
     public function removePrestation($ficheNavetteId, $itemId)
     {
         dd($ficheNavetteId, $itemId);
+    }
+
+    /**
+     * Toggle patient's faithful status
+     * Returns full fiche with updated patient data in FicheNavetteResource format
+     */
+    public function togglePatientFaithful(Request $request, $ficheNavetteId)
+    {
+        try {
+            // Load fiche with patient and all required relations
+            $fiche = FicheNavette::with([
+                'creator:id,name',
+                'patient:id,Firstname,Lastname,balance,is_faithful',
+                'items.prestation',
+                'items.doctor',
+                'items.dependencies.dependencyPrestation'
+            ])->findOrFail($ficheNavetteId);
+
+            $patient = $fiche->patient;
+
+            if (!$patient) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Patient not found',
+                ], 404);
+            }
+
+            // Toggle the is_faithful status
+            $patient->is_faithful = !$patient->is_faithful;
+            $patient->save();
+
+            // Reload the fiche to get fresh data with updated patient
+            $fiche = $fiche->fresh();
+            $fiche->load([
+                'creator:id,name',
+                'patient:id,Firstname,Lastname,balance,is_faithful',
+                'items.prestation',
+                'items.doctor',
+                'items.dependencies.dependencyPrestation'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => $patient->is_faithful 
+                    ? 'Patient marked as faithful' 
+                    : 'Patient marked as unfaithful',
+                'data' => new FicheNavetteResource($fiche),
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to toggle patient faithful status', [
+                'error' => $e->getMessage(),
+                'fiche_id' => $ficheNavetteId,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update patient status',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
 
 public function getPrestationsBySpecialization($specializationId): JsonResponse

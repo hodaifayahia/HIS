@@ -14,6 +14,7 @@ const stockRoutes = [
         name: 'stock.dashboard',
         component: () => import('../Pages/Apps/stock/StockDashboard.vue'),
       },
+      // Product list is managed via Purchasing module
       {
         path: 'productList',
         name: 'stock.productList',
@@ -30,6 +31,7 @@ const stockRoutes = [
         name: 'stock.stockages',
         component: () => import('../Pages/Apps/stock/stockages/stockageList.vue'),
       },
+     
       {
         path: 'stockages/:id',
         name: 'stock.stockages.detail',
@@ -117,6 +119,22 @@ const stockRoutes = [
         name: 'stock.movements.view',
         component: () => import('../Pages/Apps/stock/StockMovementView.vue'),
         props: (route) => ({ movementId: route.params.id }),
+      },
+       {
+        path: 'reservations',
+        name: 'stock.reservations',
+        component: () => import('../Pages/Apps/pharmacy/Reservations/stockageReservations.vue'),
+      },
+      {
+        path: 'product-reserves',
+        name: 'stock.product-reserves',
+        component: () => import('../Pages/Apps/stock/ProductReserve/ReserveList.vue'),
+      },
+      {
+        path: 'product-reserves/:reserveId/products',
+        name: 'stock.product-reserves.products',
+        component: () => import('../Pages/Apps/stock/ProductReserve/ReserveProducts.vue'),
+        props: (route) => ({ reserveId: route.params.reserveId })
       },
     ],
   },

@@ -949,42 +949,42 @@ onMounted(async () => {
 <style scoped>
 /* Previous styles remain the same */
 :deep(.medical-table .p-datatable-header) {
-  @apply tw-bg-slate-50 tw-border-b tw-border-slate-200;
+  @apply bg-slate-50 tw-border-b tw-border-slate-200;
 }
 
 :deep(.medical-table .p-datatable-thead > tr > th) {
-  @apply tw-bg-slate-50 tw-text-slate-700 tw-font-medium tw-text-sm tw-border-b tw-border-slate-200;
+  @apply bg-slate-50 tw-text-slate-700 tw-font-medium tw-text-sm tw-border-b tw-border-slate-200;
 }
 
 :deep(.medical-table .p-datatable-tbody > tr) {
-  @apply tw-border-b tw-border-slate-100 hover:tw-bg-blue-50/30 tw-transition-colors;
+  @apply border-b tw-border-slate-100 hover:tw-bg-blue-50/30 tw-transition-colors;
 }
 
 :deep(.medical-table .p-datatable-tbody > tr.p-highlight) {
-  @apply tw-bg-blue-50;
+  @apply bg-blue-50;
 }
 
 :deep(.p-button-sm) {
-  @apply tw-text-sm tw-py-1.5 tw-px-2.5;
+  @apply text-sm tw-py-1.5 tw-px-2.5;
 }
 
 :deep(.p-tag) {
-  @apply tw-font-medium;
+  @apply font-medium;
 }
 
 :deep(.p-radiobutton .p-radiobutton-box) {
-  @apply tw-border-slate-300;
+  @apply border-slate-300;
 }
 
 :deep(.p-radiobutton.p-radiobutton-checked .p-radiobutton-box) {
-  @apply tw-border-blue-500 tw-bg-blue-500;
+  @apply border-blue-500 tw-bg-blue-500;
 }
 
 :deep(.p-splitbutton .p-splitbutton-defaultbutton) {
-  @apply tw-rounded-r-none;
+  @apply rounded-r-none;
 }
 
 :deep(.p-splitbutton .p-splitbutton-menubutton) {
-  @apply tw-rounded-l-none tw-px-2;
+  @apply rounded-l-none tw-px-2;
 }
 </style>

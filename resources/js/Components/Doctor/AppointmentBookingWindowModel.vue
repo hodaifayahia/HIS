@@ -509,83 +509,83 @@ defineExpose({
 <style scoped>
 /* Custom PrimeVue component overrides */
 :deep(.p-card) {
-  @apply tw-transition-all tw-duration-300;
+  @apply transition-all tw-duration-300;
 }
 
 :deep(.p-card-header) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-dropdown) {
-  @apply tw-w-full;
+  @apply w-full;
 }
 
 :deep(.p-dropdown .p-dropdown-trigger) {
-  @apply tw-text-gray-500;
+  @apply text-gray-500;
 }
 
 :deep(.p-dropdown .p-dropdown-label) {
-  @apply tw-text-gray-700;
+  @apply text-gray-700;
 }
 
 :deep(.p-dropdown:not(.p-disabled):hover) {
-  @apply tw-border-blue-400;
+  @apply border-blue-400;
 }
 
 :deep(.p-dropdown:not(.p-disabled).p-focus) {
-  @apply tw-border-blue-500 tw-ring-2 tw-ring-blue-200;
+  @apply border-blue-500 tw-ring-2 tw-ring-blue-200;
 }
 
 :deep(.p-button) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 :deep(.p-button.p-button-outlined.p-button-success) {
-  @apply tw-border-green-500 tw-text-green-600 hover:tw-bg-green-500 hover:tw-text-white;
+  @apply border-green-500 tw-text-green-600 hover:tw-bg-green-500 hover:tw-text-white;
 }
 
 :deep(.p-button.p-button-outlined.p-button-danger) {
-  @apply tw-border-red-500 tw-text-red-600 hover:tw-bg-red-500 hover:tw-text-white;
+  @apply border-red-500 tw-text-red-600 hover:tw-bg-red-500 hover:tw-text-white;
 }
 
 :deep(.p-button.p-button-sm) {
-  @apply tw-px-3 tw-py-1 tw-text-sm;
+  @apply px-3 tw-py-1 tw-text-sm;
 }
 
 :deep(.p-badge) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 :deep(.p-badge.p-badge-success) {
-  @apply tw-bg-green-500 tw-text-white;
+  @apply bg-green-500 tw-text-white;
 }
 
 :deep(.p-badge.p-badge-info) {
-  @apply tw-bg-blue-500 tw-text-white;
+  @apply bg-blue-500 tw-text-white;
 }
 
 :deep(.p-chip) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 :deep(.p-chip .p-chip-remove-icon) {
-  @apply tw-text-gray-500 hover:tw-text-red-500;
+  @apply text-gray-500 hover:tw-text-red-500;
 }
 
 :deep(.p-message) {
-  @apply tw-rounded-lg tw-border-l-4;
+  @apply rounded-lg tw-border-l-4;
 }
 
 :deep(.p-message.p-message-error) {
-  @apply tw-bg-red-50 tw-border-red-500 tw-text-red-700;
+  @apply bg-red-50 tw-border-red-500 tw-text-red-700;
 }
 
 :deep(.p-message.p-message-info) {
-  @apply tw-bg-blue-50 tw-border-blue-500 tw-text-blue-700;
+  @apply bg-blue-50 tw-border-blue-500 tw-text-blue-700;
 }
 
 /* Custom animations */
@@ -599,34 +599,34 @@ defineExpose({
 }
 
 ::-webkit-scrollbar-track {
-  @apply tw-bg-gray-100 tw-rounded-full;
+  @apply bg-gray-100 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply tw-bg-gray-400 tw-rounded-full;
+  @apply bg-gray-400 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply tw-bg-gray-500;
+  @apply bg-gray-500;
 }
 
 /* Focus styles for accessibility */
 button:focus {
-  @apply tw-outline-none tw-ring-2 tw-ring-blue-500 tw-ring-offset-2;
+  @apply outline-none tw-ring-2 tw-ring-blue-500 tw-ring-offset-2;
 }
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
   :deep(.tw-grid-cols-1.sm\:tw-grid-cols-2.lg\:tw-grid-cols-3) {
-    @apply tw-grid-cols-1;
+    @apply grid-cols-1;
   }
   
   :deep(.tw-flex-col.sm\:tw-flex-row) {
-    @apply tw-flex-col;
+    @apply flex-col;
   }
   
   :deep(.tw-space-y-3.sm\:tw-space-y-0) {
-    @apply tw-space-y-3;
+    @apply space-y-3;
   }
 }
 

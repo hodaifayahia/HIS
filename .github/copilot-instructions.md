@@ -1,284 +1,563 @@
-<laravel-boost-guidelines>
-=== foundation rules ===
+# AI Agent Instructions for HIS (Hospital Information System)
 
-# Laravel Boost Guidelines
+> Comprehensive guidelines for coding agents to be immediately productive in this Laravel 11 + Vue 3 medical application.
 
-The Laravel Boost guidelines are specifically curated by Laravel maintainers for this application. These guidelines should be followed closely to enhance the user's satisfaction building Laravel applications.
+## 🏥 Project Overview
 
-## Foundational Context
-This application is a Laravel application and its main Laravel ecosystems package & versions are below. You are an expert with them all. Ensure you abide by these specific packages & versions.
+**HIS** is a comprehensive Hospital Information System managing patient care workflows:
+- **Patient management** - medical records, history, allergies, chronic diseases
+- **Appointment scheduling** - doctor availability, modality slots, patient booking
+- **Clinical workflows** - consultations (fiches navette), prescriptions, procedures
+- **Medical transactions** - prestations (services), packages, dynamic pricing
+- **B2B operations** - conventions (insurance/org contracts), avenants, invoicing
+- **Inventory & logistics** - medications, supplies, stock management, purchase orders
+- **Financial** - payments, fund transfers, cash management, approval workflows
 
-- php - 8.3.25
-- laravel/fortify (FORTIFY) - v1
-- laravel/framework (LARAVEL) - v11
-- laravel/octane (OCTANE) - v2
-- laravel/prompts (PROMPTS) - v0
-- laravel/reverb (REVERB) - v1
-- laravel/mcp (MCP) - v0
-- laravel/pint (PINT) - v1
-- laravel/sail (SAIL) - v1
-- laravel/telescope (TELESCOPE) - v5
-- phpunit/phpunit (PHPUNIT) - v11
-- vue (VUE) - v3
-- laravel-echo (ECHO) - v2
-- tailwindcss (TAILWINDCSS) - v4
+**Tech Stack**: PHP 8.2+ | Laravel 11 | Vue 3 | Tailwind CSS 4 | PrimeVue | Vite | MySQL
 
+---
 
-## Conventions
-- You must follow all existing code conventions used in this application. When creating or editing a file, check sibling files for the correct structure, approach, naming.
-- Use descriptive names for variables and methods. For example, `isRegisteredForDiscounts`, not `discount()`.
-- Check for existing components to reuse before writing a new one.
+## 🏗️ Architecture: Service-Oriented Design
 
-## Verification Scripts
-- Do not create verification scripts or tinker when tests cover that functionality and prove it works. Unit and feature tests are more important.
+**ALL business logic lives in `/app/Services/`** - Controllers are thin request/response handlers.
 
-## Application Structure & Architecture
-- Stick to existing directory structure - don't create new base folders without approval.
-- Do not change the application's dependencies without approval.
+Key service structure by domain:
+- `ReceptionService` - consultation records (fiches), items, pricing, auto-package conversion
+- `ConventionPricingService` - dynamic pricing per insurance/org contract
+- `AvenantService` - convention amendments (add services, modify pricing)
+- `PrestationValidationService` - validate medical service eligibility
+- `BonReceptionService`, `StockMovementApprovalService` - inventory workflows
 
-## Frontend Bundling
-- If the user doesn't see a frontend change reflected in the UI, it could mean they need to run `npm run build`, `npm run dev`, or `composer run dev`. Ask them.
+**Pattern**: Service methods receive validated data → perform DB operations in transactions → log results → return fresh model with eagerly-loaded relationships
 
-## Replies
-- Be concise in your explanations - focus on what's important rather than explaining obvious details.
-
-## Documentation Files
-- You must only create documentation files if explicitly requested by the user.
-
-
-=== boost rules ===
-
-## Laravel Boost
-- Laravel Boost is an MCP server that comes with powerful tools designed specifically for this application. Use them.
-
-## Artisan
-- Use the `list-artisan-commands` tool when you need to call an Artisan command to double check the available parameters.
-
-## URLs
-- Whenever you share a project URL with the user you should use the `get-absolute-url` tool to ensure you're using the correct scheme, domain / IP, and port.
-
-## Tinker / Debugging
-- You should use the `tinker` tool when you need to execute PHP to debug code or query Eloquent models directly.
-- Use the `database-query` tool when you only need to read from the database.
-
-## Reading Browser Logs With the `browser-logs` Tool
-- You can read browser logs, errors, and exceptions using the `browser-logs` tool from Boost.
-- Only recent browser logs will be useful - ignore old logs.
-
-## Searching Documentation (Critically Important)
-- Boost comes with a powerful `search-docs` tool you should use before any other approaches. This tool automatically passes a list of installed packages and their versions to the remote Boost API, so it returns only version-specific documentation specific for the user's circumstance. You should pass an array of packages to filter on if you know you need docs for particular packages.
-- The 'search-docs' tool is perfect for all Laravel related packages, including Laravel, Inertia, Livewire, Filament, Tailwind, Pest, Nova, Nightwatch, etc.
-- You must use this tool to search for Laravel-ecosystem documentation before falling back to other approaches.
-- Search the documentation before making code changes to ensure we are taking the correct approach.
-- Use multiple, broad, simple, topic based queries to start. For example: `['rate limiting', 'routing rate limiting', 'routing']`.
-- Do not add package names to queries - package information is already shared. For example, use `test resource table`, not `filament 4 test resource table`.
-
-### Available Search Syntax
-- You can and should pass multiple queries at once. The most relevant results will be returned first.
-
-1. Simple Word Searches with auto-stemming - query=authentication - finds 'authenticate' and 'auth'
-2. Multiple Words (AND Logic) - query=rate limit - finds knowledge containing both "rate" AND "limit"
-3. Quoted Phrases (Exact Position) - query="infinite scroll" - Words must be adjacent and in that order
-4. Mixed Queries - query=middleware "rate limit" - "middleware" AND exact phrase "rate limit"
-5. Multiple Queries - queries=["authentication", "middleware"] - ANY of these terms
-
-
-=== php rules ===
-
-## PHP
-
-- Always use curly braces for control structures, even if it has one line.
-
-### Constructors
-- Use PHP 8 constructor property promotion in `__construct()`.
-    - <code-snippet>public function __construct(public GitHub $github) { }</code-snippet>
-- Do not allow empty `__construct()` methods with zero parameters.
-
-### Type Declarations
-- Always use explicit return type declarations for methods and functions.
-- Use appropriate PHP type hints for method parameters.
-
-<code-snippet name="Explicit Return Types and Method Params" lang="php">
-protected function isAccessible(User $user, ?string $path = null): bool
+```php
+public function createFicheNavette(array $data): ficheNavette
 {
-    ...
+    DB::beginTransaction();
+    try {
+        $fiche = ficheNavette::create([
+            'patient_id' => $data['patient_id'],
+            'creator_id' => Auth::id(),
+        ]);
+        DB::commit();
+        // Return fresh model with relationships to prevent N+1
+        return $fiche->fresh(['items.prestation', 'items.package', 'patient']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        \Log::error('FicheNavette creation failed:', ['error' => $e->getMessage()]);
+        throw $e;
+    }
 }
-</code-snippet>
+```
 
-## Comments
-- Prefer PHPDoc blocks over comments. Never use comments within the code itself unless there is something _very_ complex going on.
+---
 
-## PHPDoc Blocks
-- Add useful array shape type definitions for arrays when appropriate.
+## 🎯 Critical Feature: Automatic Package Conversion (Refactored with Actions & Observers)
 
-## Enums
-- Typically, keys in an Enum should be TitleCase. For example: `FavoritePerson`, `BestLake`, `Monthly`.
+This is a core differentiator - when 2+ prestation items are added to a fiche navette:
 
+### How It Works (Clean Architecture)
 
-=== laravel/core rules ===
+```
+1. Item Created
+   ↓
+2. FicheNavetteItemObserver → Dispatch Async Job
+   ↓
+3. CheckAndConvertFichePackageJob (Queued)
+   ├─ PreparePackageConversionData (Action)
+   │  └─ DetectMatchingPackage (Action)
+   ├─ If should_convert = true
+   └─ ExecutePackageConversion (Action)
+      └─ PrestationsConvertedToPackage (Event)
+         └─ Listeners (audit log, notifications, etc.)
+```
 
-## Do Things the Laravel Way
+### Key Components
 
-- Use `php artisan make:` commands to create new files (i.e. migrations, controllers, models, etc.). You can list available Artisan commands using the `list-artisan-commands` tool.
-- If you're creating a generic PHP class, use `artisan make:class`.
-- Pass `--no-interaction` to all Artisan commands to ensure they work without user input. You should also pass the correct `--options` to ensure correct behavior.
+**Actions** (Single Responsibility):
+- `DetectMatchingPackage::execute(array $prestationIds)` - Find best matching package
+- `PreparePackageConversionData::execute(...)` - Analyze fiche, decide if conversion needed
+- `ExecutePackageConversion::execute(...)` - Remove old items, create package item, fire event
 
-### Database
-- Always use proper Eloquent relationship methods with return type hints. Prefer relationship methods over raw queries or manual joins.
-- Use Eloquent models and relationships before suggesting raw database queries
-- Avoid `DB::`; prefer `Model::query()`. Generate code that leverages Laravel's ORM capabilities rather than bypassing them.
-- Generate code that prevents N+1 query problems by using eager loading.
-- Use Laravel's query builder for very complex database operations.
+**Observers & Jobs**:
+- `FicheNavetteItemObserver` - Listens to item creation, dispatches async job
+- `CheckAndConvertFichePackageJob` - Queued job that calls Actions and fires Events
+- `PackageAutoConversionChecked`, `PrestationsConvertedToPackage` - Domain Events
 
-### Model Creation
-- When creating new models, create useful factories and seeders for them too. Ask the user if they need any other things, using `list-artisan-commands` to check the available options to `php artisan make:model`.
+**Facade**:
+- `PackageConversionFacade` - Clean public API wrapping all Actions
 
-### APIs & Eloquent Resources
-- For APIs, default to using Eloquent API Resources and API versioning unless existing API routes do not, then you should follow existing application convention.
+### Key Benefits
+✅ **Separation of Concerns** - Each Action has one job  
+✅ **Testable** - Mock Actions individually  
+✅ **Async** - Doesn't block HTTP response  
+✅ **Observable** - Events allow listeners for audit/notifications  
+✅ **Maintainable** - Clear flow, easy to modify logic  
 
-### Controllers & Validation
-- Always create Form Request classes for validation rather than inline validation in controllers. Include both validation rules and custom error messages.
-- Check sibling Form Requests to see if the application uses array or string based validation rules.
+### Important
+- Only **standard prestations** are checked (convention & dependency items are preserved)
+- Detects both exact and subset matches, prefers exact
+- Handles cascading: replacing smaller package with larger package
 
-### Queues
-- Use queued jobs for time-consuming operations with the `ShouldQueue` interface.
+See: `AUTOMATIC_PACKAGE_CONVERSION.md` for full documentation
 
-### Authentication & Authorization
-- Use Laravel's built-in authentication and authorization features (gates, policies, Sanctum, etc.).
+---
 
-### URL Generation
-- When generating links to other pages, prefer named routes and the `route()` function.
+## 📂 Project Structure (Updated with Actions & Observers)
 
-### Configuration
-- Use environment variables only in configuration files - never use the `env()` function directly outside of config files. Always use `config('app.name')`, not `env('APP_NAME')`.
+```
+app/
+├── Services/              # Business logic wrappers (high-level API)
+│   ├── Reception/         # Consultations, fiches
+│   │   ├── ReceptionService.php           # Main service
+│   │   └── PackageConversionFacade.php    # Clean API for Actions
+│   ├── B2B/               # Conventions, avenants
+│   └── [Domain]/          
+├── Actions/               # ⭐ SINGLE RESPONSIBILITY (NEW)
+│   ├── Reception/
+│   │   ├── DetectMatchingPackage.php      # Find package match
+│   │   ├── PreparePackageConversionData.php  # Analyze conversion
+│   │   └── ExecutePackageConversion.php   # Execute conversion
+│   └── [Domain]/
+├── Observers/             # ⭐ MODEL LIFECYCLE HOOKS (NEW)
+│   ├── Reception/
+│   │   └── FicheNavetteItemObserver.php   # Listen to item events
+│   └── [Domain]/
+├── Jobs/                  # ⭐ QUEUED JOBS (NEW)
+│   ├── Reception/
+│   │   └── CheckAndConvertFichePackageJob.php  # Async conversion
+│   └── [Domain]/
+├── Events/                # ⭐ DOMAIN EVENTS (NEW)
+│   ├── Reception/
+│   │   ├── PackageAutoConversionChecked.php
+│   │   └── PrestationsConvertedToPackage.php
+│   └── [Domain]/
+├── Models/                # Eloquent (Patient, Doctor, Prestation, etc)
+├── Http/
+│   ├── Controllers/       # Thin - delegate to Services
+│   ├── Requests/          # Form validation
+│   └── Resources/         # API response transformers
+└── Enums/                 # Status enums
 
-### Testing
-- When creating models for tests, use the factories for the models. Check if the factory has custom states that can be used before manually setting up the model.
-- Faker: Use methods such as `$this->faker->word()` or `fake()->randomDigit()`. Follow existing conventions whether to use `$this->faker` or `fake()`.
-- When creating tests, make use of `php artisan make:test [options] <name>` to create a feature test, and pass `--unit` to create a unit test. Most tests should be feature tests.
+database/
+├── migrations/            
+└── seeders/               
 
-### Vite Error
-- If you receive an "Illuminate\Foundation\ViteException: Unable to locate file in Vite manifest" error, you can run `npm run build` or ask the user to run `npm run dev` or `composer run dev`.
+resources/
+├── js/
+│   ├── Components/        # Vue components
+│   ├── services/          # API clients
+│   └── app.js             
+└── css/                   
 
+tests/
+├── Feature/               
+└── Unit/                  
+```
 
-=== laravel/v11 rules ===
+**Key Pattern Changes**:
+- ✅ Complex business logic → **Actions** (testable, reusable)
+- ✅ Model events → **Observers** (clean separation)
+- ✅ Long-running tasks → **Jobs** (async, retryable)
+- ✅ Side effects → **Events** (listeners decoupled)
 
-## Laravel 11
+---
 
-- Use the `search-docs` tool to get version specific documentation.
-- Laravel 11 brought a new streamlined file structure which this project now uses.
+## 💾 Key Models & Data Relationships
 
-### Laravel 11 Structure
-- No middleware files in `app/Http/Middleware/`.
-- `bootstrap/app.php` is the file to register middleware, exceptions, and routing files.
-- `bootstrap/providers.php` contains application specific service providers.
-- **No app\Console\Kernel.php** - use `bootstrap/app.php` or `routes/console.php` for console configuration.
-- **Commands auto-register** - files in `app/Console/Commands/` are automatically available and do not require manual registration.
+**Medical Core**:
+- `Patient` - person record with medical history, contacts
+- `Doctor` - physician with specializations, schedules, availability
+- `Prestation` - medical service (e.g., "ECG", "Blood Work") with pricing
+- `PrestationPackage` - bundle of prestations (e.g., "Cardiology" = ECG + labs)
+- `ficheNavette` - consultation/visit with items (prestations/packages/custom)
+- `Appointment` - scheduled doctor-patient meeting
 
-### Database
-- When modifying a column, the migration must include all of the attributes that were previously defined on the column. Otherwise, they will be dropped and lost.
-- Laravel 11 allows limiting eagerly loaded records natively, without external packages: `$query->latest()->limit(10);`.
+**B2B/Financial**:
+- `Convention` - insurance/org pricing agreement with special rates
+- `Avenant` - amendment to convention (add coverage, modify pricing)
+- `Facture` - invoice to convention
+- `BonCommend` - purchase order to supplier
 
-### Models
-- Casts can and likely should be set in a `casts()` method on a model rather than the `$casts` property. Follow existing conventions from other models.
+**Inventory**:
+- `Medication`, `Product` - pharmacy/supply items
+- `Stock` - current inventory levels
+- `BonReception` - goods receipt from supplier
 
-### New Artisan Commands
-- List Artisan commands using Boost's MCP tool, if available. New commands available in Laravel 11:
-    - `php artisan make:enum`
-    - `php artisan make:class`
-    - `php artisan make:interface`
+**Relationships example**:
+```php
+// Fiche has many items (prestations, packages, dependencies)
+FicheNavette::with('items.prestation', 'items.package');
 
+// Package has many prestations (many-to-many)
+PrestationPackage::with('prestations');
 
-=== pint/core rules ===
+// Convention has pricing rules
+Convention::with('prestations'); // Special pricing for this org
+```
 
-## Laravel Pint Code Formatter
+---
 
-- You must run `vendor/bin/pint --dirty` before finalizing changes to ensure your code matches the project's expected style.
-- Do not run `vendor/bin/pint --test`, simply run `vendor/bin/pint` to fix any formatting issues.
+## 🔌 API & Frontend Patterns
 
+### Controller → Resource Pattern
+Controllers return **Eloquent API Resources** for clean JSON responses:
 
-=== phpunit/core rules ===
+```php
+// app/Http/Controllers/Reception/FicheNavetteController.php
+use App\Http\Resources\Reception\FicheNavetteResource;
 
-## PHPUnit Core
+public function store(StoreFicheNavetteRequest $request): JsonResponse
+{
+    $fiche = $this->receptionService->createFicheNavette($request->validated());
+    return response()->json(['data' => new FicheNavetteResource($fiche)]);
+}
 
-- This application uses PHPUnit for testing. All tests must be written as PHPUnit classes. Use `php artisan make:test --phpunit <name>` to create a new test.
-- If you see a test using "Pest", convert it to PHPUnit.
-- Every time a test has been updated, run that singular test.
-- When the tests relating to your feature are passing, ask the user if they would like to also run the entire test suite to make sure everything is still passing.
-- Tests should test all of the happy paths, failure paths, and weird paths.
-- You must not remove any tests or test files from the tests directory without approval. These are not temporary or helper files, these are core to the application.
+// app/Http/Resources/Reception/FicheNavetteResource.php
+public function toArray(Request $request): array
+{
+    return [
+        'id' => $this->id,
+        'items' => FicheNavetteItemResource::collection($this->items),
+        'total' => $this->total_amount,
+        'patient' => new PatientResource($this->patient),
+    ];
+}
+```
+
+### Vue 3 + Service Layer Pattern
+Components NEVER call axios directly - use service layer:
+
+```js
+// resources/js/services/Reception/ficheNavetteService.js
+export default {
+    async getFicheNavette(id) {
+        const response = await axios.get(`/api/reception/fiche-navette/${id}`);
+        return response.data.data; // Resource data
+    },
+
+    async addItemsToFicheNavette(ficheId, items) {
+        const response = await axios.post(
+            `/api/reception/fiche-navette/${ficheId}/items`,
+            { items }
+        );
+        return response.data; // Includes conversion_data if auto-converted
+    }
+}
+
+// Vue component
+import ficheNavetteService from '@/services/Reception/ficheNavetteService'
+
+export default {
+    methods: {
+        async loadFiche() {
+            this.fiche = await ficheNavetteService.getFicheNavette(this.ficheId);
+            this.items = this.fiche.items;
+        }
+    }
+}
+```
+
+---
+
+## 🧪 Testing Requirements
+
+### Test Setup
+- Uses **PHPUnit 11** (NOT Pest)
+- Feature tests use `RefreshDatabase` trait (fresh DB per test)
+- Test database: SQLite configured in `phpunit.xml`
+
+### Writing Tests
+```php
+// tests/Feature/Reception/FicheNavetteTest.php
+class FicheNavetteTest extends TestCase
+{
+    use RefreshDatabase; // Fresh DB for each test
+
+    public function test_can_create_fiche_with_prestations(): void
+    {
+        $patient = Patient::factory()->create();
+        $prestations = Prestation::factory()->count(2)->create();
+
+        $response = $this->postJson('/api/reception/fiche-navette', [
+            'patient_id' => $patient->id,
+            'prestations' => $prestations->pluck('id')->toArray(),
+        ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('fiche_navettes', ['patient_id' => $patient->id]);
+    }
+}
+```
 
 ### Running Tests
-- Run the minimal number of tests, using an appropriate filter, before finalizing.
-- To run all tests: `php artisan test`.
-- To run all tests in a file: `php artisan test tests/Feature/ExampleTest.php`.
-- To filter on a particular test name: `php artisan test --filter=testName` (recommended after making a change to a related file).
+```bash
+php artisan test                              # All tests
+php artisan test tests/Feature/Reception/     # Directory
+php artisan test --filter=testName            # Single test
+```
 
+**Key Rule**: Every code change MUST have a test. Run tests before committing.
 
-=== tailwindcss/core rules ===
+---
 
-## Tailwind Core
+## 🛠️ Development Workflows
 
-- Use Tailwind CSS classes to style HTML, check and use existing tailwind conventions within the project before writing your own.
-- Offer to extract repeated patterns into components that match the project's conventions (i.e. Blade, JSX, Vue, etc..)
-- Think through class placement, order, priority, and defaults - remove redundant classes, add classes to parent or child carefully to limit repetition, group elements logically
-- You can use the `search-docs` tool to get exact examples from the official documentation when needed.
+### Start Development
+```bash
+composer run dev
+# Concurrently starts:
+#   php artisan serve         (HTTP server)
+#   npm run dev               (Vite hot reload)
+#   php artisan queue:work    (Job processor)
+#   php artisan reverb:start  (WebSocket server)
+```
 
-### Spacing
-- When listing items, use gap utilities for spacing, don't use margins.
+### Code Quality
+```bash
+php artisan pint --dirty      # Format changed files (REQUIRED)
+php artisan phpstan           # Static analysis
+php artisan test              # Run full suite
+```
 
-    <code-snippet name="Valid Flex Gap Spacing Example" lang="html">
-        <div class="flex gap-8">
-            <div>Superior</div>
-            <div>Michigan</div>
-            <div>Erie</div>
-        </div>
-    </code-snippet>
+### Database Work
+```bash
+php artisan make:migration create_table_name --create=table_name
+php artisan migrate           # Apply pending
+php artisan migrate:fresh     # Reset + reseed
+php artisan tinker            # Interactive shell
+```
 
+---
 
-### Dark Mode
-- If existing pages and components support dark mode, new pages and components must support dark mode in a similar way, typically using `dark:`.
+## 📋 Implementation Examples
 
+### Adding a New Prestation (Medical Service)
 
-=== tailwindcss/v4 rules ===
+```php
+// 1. Service (business logic)
+// app/Services/CONFIGURATION/PrestationService.php
+public function createPrestation(array $data): Prestation
+{
+    return Prestation::create([
+        'name' => $data['name'],
+        'internal_code' => $data['code'],
+        'price_with_vat_and_consumables_variant' => $data['price'],
+        'is_active' => true,
+    ]);
+}
 
-## Tailwind 4
+// 2. Validation
+// app/Http/Requests/StorePrestationRequest.php
+public function rules(): array
+{
+    return [
+        'name' => 'required|string|unique:prestations',
+        'code' => 'required|string|unique:prestations,internal_code',
+        'price' => 'required|numeric|gt:0',
+    ];
+}
 
-- Always use Tailwind CSS v4 - do not use the deprecated utilities.
-- `corePlugins` is not supported in Tailwind v4.
-- In Tailwind v4, you import Tailwind using a regular CSS `@import` statement, not using the `@tailwind` directives used in v3:
+// 3. Test
+// tests/Feature/CONFIGURATION/PrestationTest.php
+public function test_can_create_prestation(): void
+{
+    $response = $this->postJson('/api/prestations', [
+        'name' => 'ECG',
+        'code' => 'ECG-001',
+        'price' => 500,
+    ]);
+    $response->assertStatus(201);
+}
+```
 
-<code-snippet name="Tailwind v4 Import Tailwind Diff" lang="diff">
-   - @tailwind base;
-   - @tailwind components;
-   - @tailwind utilities;
-   + @import "tailwindcss";
-</code-snippet>
+---
 
+## 🚨 Common Gotchas (Updated)
 
-### Replaced Utilities
-- Tailwind v4 removed deprecated utilities. Do not use the deprecated option - use the replacement.
-- Opacity values are still numeric.
+1. **Package Conversion Flow** (Refactored)
+   - Item created → `FicheNavetteItemObserver::created()` fires
+   - Observer dispatches `CheckAndConvertFichePackageJob` (async)
+   - Job calls `PreparePackageConversionData` → `DetectMatchingPackage`
+   - If match found, calls `ExecutePackageConversion` → fires `PrestationsConvertedToPackage` event
+   - Log: `grep "Executed package conversion" storage/logs/laravel.log`
 
-| Deprecated |	Replacement |
-|------------+--------------|
-| bg-opacity-* | bg-black/* |
-| text-opacity-* | text-black/* |
-| border-opacity-* | border-black/* |
-| divide-opacity-* | divide-black/* |
-| ring-opacity-* | ring-black/* |
-| placeholder-opacity-* | placeholder-black/* |
-| flex-shrink-* | shrink-* |
-| flex-grow-* | grow-* |
-| overflow-ellipsis | text-ellipsis |
-| decoration-slice | box-decoration-slice |
-| decoration-clone | box-decoration-clone |
+2. **Testing Actions**
+   ```php
+   // Test DetectMatchingPackage action directly
+   $detector = new DetectMatchingPackage();
+   $package = $detector->execute([5, 87, 88]);
+   $this->assertNotNull($package);
+   ```
 
+3. **Adding Event Listeners**
+   ```php
+   // app/Listeners/Reception/LogPackageConversion.php
+   public function handle(PrestationsConvertedToPackage $event): void
+   {
+       Log::info('Package converted', [
+           'fiche_id' => $event->fiche->id,
+           'new_package' => $event->newPackage->name,
+       ]);
+   }
+   
+   // Register in EventServiceProvider
+   protected $listen = [
+       PrestationsConvertedToPackage::class => [
+           LogPackageConversion::class,
+       ],
+   ];
+   ```
 
-=== tests rules ===
+4. **Observer Gotchas**
+   - Observers run during model save/delete
+   - Avoid infinite loops (don't modify the model in observer)
+   - Use `wasChanged()` to check specific columns
 
-## Test Enforcement
+5. **Job Processing**
+   - Jobs require queue worker: `php artisan queue:work`
+   - Dev env: `composer run dev` starts worker automatically
+   - Check failed jobs: `php artisan queue:failed`
 
-- Every change must be programmatically tested. Write a new test or update an existing test, then run the affected tests to make sure they pass.
-- Run the minimum number of tests needed to ensure code quality and speed. Use `php artisan test` with a specific filename or filter.
-</laravel-boost-guidelines>
+6. **N+1 Query Prevention**
+   - Use `fresh(['relationship1', 'relationship2'])` after saves
+   - Use `with()` in queries
+
+7. **Vue Changes Not Showing**
+   - Run `npm run dev` (Vite watch mode)
+   - Or `npm run build` then refresh
+
+8. **Pint Formatting**
+   - Run `php artisan pint --dirty` before finalizing
+
+---
+
+## 📚 Key Terminology
+
+| Term | Definition |
+|------|-----------|
+| **Fiche Navette** | Consultation record/visit |
+| **Prestation** | Medical service (ECG, labs) |
+| **Package** | Bundle of prestations |
+| **Convention** | Insurance contract |
+| **Bon Commend** | Purchase order |
+| **Caisse** | Cash account |
+| **Modality** | Department/clinic |
+
+---
+
+## ✅ Pre-Commit Checklist (Updated)
+
+- [ ] Action has single responsibility
+- [ ] Observer only listens to model events (no heavy logic)
+- [ ] Job wraps async work with retry logic
+- [ ] Events fired at end of successful operations
+- [ ] Listeners registered in EventServiceProvider
+- [ ] Controller returns Resource-transformed response
+- [ ] Test covers happy + edge cases
+- [ ] Code formatted: `php artisan pint --dirty`
+- [ ] Tests passing: `php artisan test`
+- [ ] No N+1 queries
+- [ ] Logging added (use structured arrays)
+
+## 🎯 When to Use What
+
+| Scenario | Use |
+|----------|-----|
+| Complex business logic | **Action** class |
+| Model lifecycle hook | **Observer** |
+| Long-running task | **Job** (queued) |
+| Side effects after success | **Event** + **Listeners** |
+| API response transform | **Resource** class |
+| Request validation | **FormRequest** class |
+| Thin HTTP adapter | **Controller** |
+
+---
+
+## 📖 Related Documentation
+
+- `AUTOMATIC_PACKAGE_CONVERSION.md` - package detection internals
+- `SOLUTION_ARCHITECTURE.md` - system data flows
+- `PRESTATION_DEPENDENCIES_GUIDE.md` - dependency resolution
+
+---
+
+## 🔗 Key Files (Refactored)
+
+**Package Conversion** (New Architecture):
+- `app/Actions/Reception/DetectMatchingPackage.php` - Find package match
+- `app/Actions/Reception/PreparePackageConversionData.php` - Analyze conversion
+- `app/Actions/Reception/ExecutePackageConversion.php` - Execute conversion
+- `app/Observers/Reception/FicheNavetteItemObserver.php` - Listen to events
+- `app/Jobs/Reception/CheckAndConvertFichePackageJob.php` - Async job
+- `app/Events/Reception/PrestationsConvertedToPackage.php` - Domain event
+- `app/Services/Reception/PackageConversionFacade.php` - Clean API
+
+**Core Services**:
+- `app/Services/Reception/ReceptionService.php` - consultation logic
+- `resources/js/services/Reception/ficheNavetteService.js` - frontend API client
+- `app/Http/Resources/Reception/FicheNavetteResource.php` - API transformer
+- `tests/Feature/Reception/` - integration tests
+
+---
+
+# Laravel Boost Guidelines (Inherited)
+
+The Laravel Boost guidelines are specifically curated by Laravel maintainers. These must be followed:
+
+## Foundational Context
+- php: 8.2+
+- laravel/framework: v11
+- phpunit/phpunit: v11
+- vue: v3
+- tailwindcss: v4
+
+## Conventions
+- Follow existing code patterns - check sibling files before creating new
+- Use descriptive names (`isRegisteredForDiscounts`, not `discount()`)
+- Reuse existing components before writing new ones
+
+## Application Structure & Architecture
+- Stick to existing directory structure
+- Do not change dependencies without approval
+
+## Frontend Bundling
+- If frontend changes don't show: run `npm run build`, `npm run dev`, or `composer run dev`
+
+## Laravel Patterns
+- Use `php artisan make:` commands to scaffold
+- Always use explicit return type declarations
+- Use PHPDoc blocks over comments
+- Constructor property promotion: `public function __construct(public UserService $service) {}`
+
+### Database
+- Use proper Eloquent relationships with return types
+- Avoid `DB::`; prefer `Model::query()`
+- Prevent N+1 with eager loading
+- Migrations include all column attributes (never lose data during modification)
+
+### Controllers & Validation
+- Create Form Request classes for validation (not inline)
+- Return JSON with Eloquent Resources
+
+### Authentication & Authorization
+- Use Laravel's built-in features (gates, policies, Sanctum)
+
+### Configuration
+- Use environment variables only in config files - never `env()` outside of config
+
+### Testing
+- Use factories for test models (check for custom states)
+- Most tests should be Feature tests (use `RefreshDatabase`)
+- Run single tests after changes: `php artisan test --filter=testName`
+
+### Code Formatting
+- Run `vendor/bin/pint --dirty` before finalizing changes
+- Do not use `--test`, just run `pint` to fix
+
+### Vite Error
+- If "Unable to locate file in Vite manifest" error: run `npm run build` or `npm run dev`
+
+---
+
+**Branch**: TestProducation | **Updated**: October 2025

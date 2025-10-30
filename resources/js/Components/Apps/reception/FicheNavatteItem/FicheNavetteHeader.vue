@@ -274,48 +274,48 @@ const handleShowAllConventions = () => {
 <style scoped>
 /* PrimeVue overrides */
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-tag) {
-  @apply tw-rounded-full tw-shadow-sm;
+  @apply rounded-full tw-shadow-sm;
 }
 
 :deep(.p-button) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 :deep(.p-button-text:hover) {
-  @apply tw-transform tw-scale-105;
+  @apply transform tw-scale-105;
 }
 
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .tw-flex-1 {
-    @apply tw-gap-4;
+    @apply gap-4;
   }
   
   .tw-px-4 {
-    @apply tw-px-2;
+    @apply px-2;
   }
 }
 
 @media (max-width: 768px) {
   /* Stack vertically on mobile */
   .tw-justify-between {
-    @apply tw-flex-col tw-items-start tw-gap-4;
+    @apply flex-col tw-items-start tw-gap-4;
   }
   
   .tw-justify-center {
-    @apply tw-justify-start tw-flex-wrap;
+    @apply justify-start tw-flex-wrap;
   }
   
   .tw-flex-shrink-0:last-child {
-    @apply tw-w-full;
+    @apply w-full;
   }
   
   .tw-flex-shrink-0:last-child .p-button {
-    @apply tw-w-full tw-justify-center;
+    @apply w-full tw-justify-center;
   }
 }
 </style>

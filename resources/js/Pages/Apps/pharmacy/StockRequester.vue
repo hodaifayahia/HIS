@@ -1,6 +1,7 @@
 <template>
   <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-blue-50 tw-via-indigo-50 tw-to-purple-50 tw-p-6">
     <Toast position="top-right" />
+    <ConfirmDialog />
 
     <!-- Header -->
     <StockHeader 
@@ -32,6 +33,7 @@
     <NewRequestDialog 
       v-model:visible="showNewRequestDialog"
       :services="services"
+      :user-services="userServices"
       :loading-services="loadingServices"
       :creating-draft="creatingDraft"
       @create-draft="createDraft"
@@ -47,18 +49,20 @@ import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
 import axios from 'axios';
 import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import Card from 'primevue/card';
 
 // Components
-import StockHeader from '../../../Components/Apps/stock/StockHeader.vue';
-import StockStatsCards from '../../../Components/Apps/stock/StockStatsCards.vue';
-import StockRequestsTable from '../../../Components/Apps/stock/StockRequestsTable.vue';
-import NewRequestDialog from '../../../Components/Apps/stock/NewRequestDialog.vue';
+import StockHeader from '../../../Components/Apps/pharmacy/StockHeader.vue';
+import StockStatsCards from '../../../Components/Apps/pharmacy/StockStatsCards.vue';
+import StockRequestsTable from '../../../Components/Apps/pharmacy/StockRequestsTable.vue';
+import NewRequestDialog from '../../../Components/Apps/pharmacy/NewRequestDialog.vue';
 
 export default {
   name: 'StockRequester',
   components: {
     Toast,
+    ConfirmDialog,
     Card,
     StockHeader,
     StockStatsCards,
@@ -78,6 +82,7 @@ export default {
     
     const movements = ref([]);
     const services = ref([]);
+    const userServices = ref([]);
     const stats = ref({});
     
     const filters = reactive({
@@ -115,7 +120,8 @@ export default {
 
     const loadMovements = async () => {
       try {
-        const response = await axios.get(`/api/pharmacy/stock-movements?type=request&status=pending`);
+        // Load movements for all user's services as requester
+        const response = await axios.get(`/api/pharmacy/stock-movements?role=requester`);
         movements.value = Array.isArray(response.data) ? response.data : (response.data.data?.data || response.data.data || []);
       } catch (error) {
         console.error('Failed to load movements:', error);
@@ -130,10 +136,27 @@ export default {
     const loadServices = async () => {
       loadingServices.value = true;
       try {
-        const response = await axios.get('/api/services?per_page=1000');
-        services.value = response.data.data || [];
+        const [servicesResponse, userResponse] = await Promise.all([
+          axios.get('/api/services?per_page=1000'),
+          axios.get('/api/user-info')
+        ]);
+
+        const allServices = servicesResponse.data.data || [];
+        const userServiceIds = userResponse.data?.service_ids || [];
+        
+        // User's services - the ones they can request FROM
+        userServices.value = allServices.filter(service => userServiceIds.includes(service.id));
+        
+        // Available services to request from - all services (user can select any)
+        services.value = allServices;
+        
       } catch (error) {
         console.error('Failed to load services:', error);
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load services'
+        });
       } finally {
         loadingServices.value = false;
       }
@@ -275,6 +298,7 @@ export default {
       showNewRequestDialog,
       movements,
       services,
+      userServices,
       stats,
       filters,
       newRequest,

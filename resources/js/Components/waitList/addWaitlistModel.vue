@@ -289,72 +289,72 @@ onMounted(async () => {
 <style scoped>
 /* PrimeVue Dialog Customizations */
 :deep(.p-dialog) {
-  @apply tw-font-sans;
+  @apply font-sans;
 }
 
 :deep(.p-dialog-header) {
-  @apply tw-bg-gradient-to-r tw-from-blue-600 tw-to-blue-700 tw-text-white;
+  @apply bg-gradient-to-r tw-from-blue-600 tw-to-blue-700 tw-text-white;
 }
 
 :deep(.p-dialog-title) {
-  @apply tw-font-bold tw-text-lg;
+  @apply font-bold tw-text-lg;
 }
 
 :deep(.p-dialog-header-icon) {
-  @apply tw-text-white hover:tw-bg-blue-800;
+  @apply text-white hover:tw-bg-blue-800;
 }
 
 :deep(.p-dialog-content) {
-  @apply tw-p-6;
+  @apply p-6;
 }
 
 /* Form Input Styling */
 :deep(.p-dropdown) {
-  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
 }
 
 :deep(.p-dropdown:not(.p-disabled):hover) {
-  @apply tw-border-blue-400;
+  @apply border-blue-400;
 }
 
 :deep(.p-textarea) {
-  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
 }
 
 :deep(.p-textarea:hover) {
-  @apply tw-border-blue-400;
+  @apply border-blue-400;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
-  @apply tw-bg-blue-600 tw-border-blue-600;
+  @apply bg-blue-600 tw-border-blue-600;
 }
 
 /* Button Styling */
 :deep(.p-button.p-button-primary) {
-  @apply tw-bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600 hover:tw-border-blue-700;
+  @apply bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600 hover:tw-border-blue-700;
 }
 
 :deep(.p-button.p-button-secondary) {
-  @apply tw-text-gray-600 tw-border-gray-300 hover:tw-bg-gray-50;
+  @apply text-gray-600 tw-border-gray-300 hover:tw-bg-gray-50;
 }
 
 /* Error States */
 :deep(.p-invalid) {
-  @apply tw-border-red-500 focus:tw-border-red-500 focus:tw-ring-red-200;
+  @apply border-red-500 focus:tw-border-red-500 focus:tw-ring-red-200;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   :deep(.p-dialog) {
-    @apply tw-m-4;
+    @apply m-4;
   }
   
   :deep(.p-dialog-content) {
-    @apply tw-p-4;
+    @apply p-4;
   }
 }
 </style>

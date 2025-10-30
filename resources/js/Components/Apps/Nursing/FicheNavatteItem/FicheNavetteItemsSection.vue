@@ -393,12 +393,6 @@ const handleNursingItemsCreation = async () => {
               severity="info"
               class="!tw-bg-blue-100 !tw-text-blue-800 tw-font-medium"
             />
-            
-            <Chip 
-              :label="formatCurrency(totalAmount)"
-              severity="success"
-              class="!tw-bg-green-100 !tw-text-green-800 tw-font-bold tw-text-base"
-            />
           </div>
         </div>
       </template>
@@ -448,10 +442,6 @@ const handleNursingItemsCreation = async () => {
               @click="$emit('toggle-create-form')"
             />
             <p class="tw-text-xs tw-text-gray-500 tw-mt-1">Medical procedures and nursing products</p>
-          </div>
-          <div class="tw-flex tw-items-center tw-justify-center sm:tw-justify-end tw-gap-2 tw-mt-4 sm:tw-mt-0 tw-w-full sm:tw-w-auto">
-            <span class="tw-text-lg tw-font-semibold tw-text-gray-600">Total:</span>
-            <span class="tw-text-2xl tw-font-bold tw-text-green-600">{{ formatCurrency(totalAmount) }}</span>
           </div>
         </div>
       </template>

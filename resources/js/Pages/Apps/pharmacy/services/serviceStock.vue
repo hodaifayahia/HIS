@@ -648,7 +648,10 @@ export default {
 
       // Filter by stockage
       if (this.stockageFilter) {
-        filtered = filtered.filter(item => item.stockage_id == this.stockageFilter);
+        filtered = filtered.filter(item => {
+          const stockageId = item.stockage_id || item.pharmacy_stockage_id;
+          return stockageId == this.stockageFilter;
+        });
       }
 
       // Filter by category
@@ -685,7 +688,15 @@ export default {
     },
 
     viewStockageStock(stockage) {
-      this.$router.push({ name: 'stock.stockages.stock', params: { id: stockage.id } });
+      if (!stockage || !stockage.id) {
+        console.error('Invalid stockage:', stockage);
+        this.submitError = 'Unable to view stockage details';
+        setTimeout(() => {
+          this.submitError = null;
+        }, 3000);
+        return;
+      }
+      this.$router.push({ name: 'pharmacy.stockages.stock', params: { id: stockage.id } });
     },
 
     viewProductDetails(product) {
@@ -702,12 +713,18 @@ export default {
     },
 
     getStockageProductCount(stockageId) {
-      return this.filteredProducts.filter(item => item.stockage_id === stockageId).length;
+      return this.filteredProducts.filter(item => {
+        const itemStockageId = item.stockage_id || item.pharmacy_stockage_id;
+        return itemStockageId === stockageId;
+      }).length;
     },
 
     getStockageTotalQuantity(stockageId) {
       return this.filteredProducts
-        .filter(item => item.stockage_id === stockageId)
+        .filter(item => {
+          const itemStockageId = item.stockage_id || item.pharmacy_stockage_id;
+          return itemStockageId === stockageId;
+        })
         .reduce((sum, item) => {
           // Parse quantity safely, handling strings with commas or other formatting
           let quantity = 0;

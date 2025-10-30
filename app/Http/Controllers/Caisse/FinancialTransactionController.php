@@ -44,6 +44,7 @@ class FinancialTransactionController extends Controller
             'date_from',
             'date_to',
             'fiche_navette_id',
+            'caisse_id',
         ]);
 
         try {
@@ -108,6 +109,11 @@ class FinancialTransactionController extends Controller
             $data = $request->validated();
             if (empty($data['cashier_id'])) {
                 $data['cashier_id'] = Auth::id();
+            }
+            
+            // Ensure caisse_session_id is set if provided in the request
+            if ($request->has('caisse_session_id') && !isset($data['caisse_session_id'])) {
+                $data['caisse_session_id'] = $request->input('caisse_session_id');
             }
 
             $result = $this->service->processPaymentTransaction($data);
@@ -673,7 +679,6 @@ class FinancialTransactionController extends Controller
     public function getBySession(Request $request): JsonResponse
     {
         $sessionId = $request->integer('session_id');
-
         if (! $sessionId) {
             return response()->json([
                 'success' => false,
@@ -682,12 +687,62 @@ class FinancialTransactionController extends Controller
         }
 
         try {
-            $session = \App\Models\Coffre\CaisseSession::findOrFail($sessionId);
+            $session = \App\Models\Caisse\CaisseSession::find($sessionId);
+            
+            if (!$session) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Session not found',
+                    'data' => [
+                        'session_id' => $sessionId,
+                        'payment_methods' => [],
+                    ],
+                ], 404);
+            }
+            
 
             // Get all payment transactions for this session's cashier within the session date range
-            $totalAmount = FinancialTransaction::where('caisse_session_id', $sessionId)
-                ->where('transaction_type', 'payment')
-                ->sum('amount');
+            $transactions = \App\Models\Caisse\FinancialTransaction::where('caisse_session_id', $sessionId)
+                ->get();
+                
+            $totalAmount = $transactions->sum('amount');
+            
+            // Log for debugging
+            \Illuminate\Support\Facades\Log::info("Session ID: {$sessionId}, Found transactions: " . $transactions->count());
+            
+            // Map payment methods from database to frontend expected values
+            $paymentMethodMap = [
+                'cash' => 'cash',
+                'card' => 'card',
+                'cheque' => 'check', // Map 'cheque' to 'check'
+                'transfer' => 'transfer',
+                'bank_transfer' => 'transfer', // Map 'bank_transfer' to 'transfer'
+                'insurance' => 'insurance',
+                'other' => 'other'
+            ];
+            
+            // Group transactions by payment method with mapping
+            $paymentBreakdown = $transactions->groupBy(function ($transaction) use ($paymentMethodMap) {
+                $method = $transaction->payment_method;
+                return $paymentMethodMap[$method] ?? $method;
+            })->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'total' => $group->sum('amount'),
+                ];
+            });
+            
+            // Ensure all payment methods are represented, even if zero
+            $allPaymentMethods = ['cash', 'card', 'check', 'transfer', 'insurance'];
+            $paymentMethodBreakdown = collect($allPaymentMethods)->mapWithKeys(function ($method) use ($paymentBreakdown) {
+                return [$method => $paymentBreakdown->get($method, ['count' => 0, 'total' => 0])];
+            });
+            
+            // Ensure all payment methods are represented, even if zero
+            $allPaymentMethods = ['cash', 'card', 'check', 'transfer', 'insurance'];
+            $paymentMethodBreakdown = collect($allPaymentMethods)->mapWithKeys(function ($method) use ($paymentBreakdown) {
+                return [$method => $paymentBreakdown->get($method, ['count' => 0, 'total' => 0])];
+            });
 
             return response()->json([
                 'success' => true,
@@ -695,8 +750,9 @@ class FinancialTransactionController extends Controller
                     'total_amount' => $totalAmount,
                     'session_id' => $sessionId,
                     'cashier_id' => $session->user_id,
-                    'date_from' => $session->ouverture_at->toDateString(),
+                    'date_from' => $session->ouverture_at ? $session->ouverture_at->toDateString() : null,
                     'date_to' => ($session->cloture_at ?? now())->toDateString(),
+                    'payment_methods' => $paymentMethodBreakdown,
                 ],
             ]);
         } catch (\Exception $e) {

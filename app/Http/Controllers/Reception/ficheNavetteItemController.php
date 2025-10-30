@@ -21,6 +21,7 @@ use App\Models\Reception\ficheNavetteItem;
 use App\Services\Reception\ConventionPricingService;
 use App\Services\Reception\FileUploadService;
 use App\Services\Reception\ReceptionService;
+use App\Services\Reception\PackageConversionFacade;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -34,18 +35,23 @@ class ficheNavetteItemController extends Controller
 
     protected $fileUploadService;
 
+    protected $packageConversionFacade;
+
     public function __construct(
         ReceptionService $receptionService,
         ConventionPricingService $conventionPricingService,
-        FileUploadService $fileUploadService
+        FileUploadService $fileUploadService,
+        PackageConversionFacade $packageConversionFacade
     ) {
         $this->receptionService = $receptionService;
         $this->conventionPricingService = $conventionPricingService;
         $this->fileUploadService = $fileUploadService;
+        $this->packageConversionFacade = $packageConversionFacade;
     }
 
     /**
      * Store items to an existing fiche navette
+     * Includes auto-conversion logic when adding items that match a package
      */
     public function store(StoreFicheNavetteItemsRequest $request, $ficheNavetteId): JsonResponse
     {
@@ -62,7 +68,79 @@ class ficheNavetteItemController extends Controller
 
         try {
             $ficheNavette = ficheNavette::findOrFail($ficheNavetteId);
-            $updatedFiche = $this->receptionService->addItemsToFicheNavette($ficheNavette, $request->validated());
+            
+            // Get existing prestation IDs before adding new items
+            $existingPrestationIds = $ficheNavette->items()
+                ->whereNotNull('prestation_id')
+                ->pluck('prestation_id')
+                ->toArray();
+
+            // Extract new prestation IDs from request
+            $newPrestationIds = [];
+            if (isset($request->validated()['prestations'])) {
+                foreach ($request->validated()['prestations'] as $prestationData) {
+                    if (isset($prestationData['prestation_id'])) {
+                        $newPrestationIds[] = $prestationData['prestation_id'];
+                    } elseif (isset($prestationData['id'])) {
+                        $newPrestationIds[] = $prestationData['id'];
+                    }
+                }
+            }
+
+            \Log::info('Adding items with auto-conversion check:', [
+                'fiche_id' => $ficheNavetteId,
+                'existing_prestations' => $existingPrestationIds,
+                'new_prestations' => $newPrestationIds,
+            ]);
+
+            // IMPORTANT: Check FIRST if we should auto-convert (BEFORE adding items)
+            $conversionCheck = $this->receptionService->checkAndPreparePackageConversion(
+                $ficheNavetteId,
+                $newPrestationIds,
+                $existingPrestationIds
+            );
+
+            $conversionData = [
+                'should_convert' => false,
+                'converted' => false,
+                'package_id' => null,
+                'package_name' => null,
+                'message' => 'No auto-conversion triggered',
+            ];
+
+            // Decide: Convert OR Add normally
+            if ($conversionCheck['should_convert']) {
+                \Log::info('✅ Auto-conversion triggered' . ($conversionCheck['is_cascading'] ?? false ? ' (CASCADING)' : '') . ' - removing old items and creating package:', $conversionCheck);
+                
+                // Get IDs of items to remove
+                $itemIds = array_map(function ($item) {
+                    return $item['id'];
+                }, $conversionCheck['items_to_remove']);
+
+                // Perform auto-conversion (this removes old items and creates package)
+                // DO NOT add new items - they're part of the package now
+                $updatedFiche = $this->receptionService->autoConvertToPackageOnAddItem(
+                    $ficheNavetteId,
+                    $conversionCheck['package_id'],
+                    $itemIds,
+                    $newPrestationIds
+                );
+
+                $conversionData = [
+                    'should_convert' => true,
+                    'converted' => true,
+                    'package_id' => $conversionCheck['package_id'],
+                    'package_name' => $conversionCheck['package_name'],
+                    'is_cascading' => $conversionCheck['is_cascading'] ?? false,
+                    'message' => ($conversionCheck['is_cascading'] ?? false)
+                        ? 'Cascading auto-conversion: Replaced previous package with ' . $conversionCheck['package_name']
+                        : 'Auto-converted to package: ' . $conversionCheck['package_name'],
+                ];
+            } else {
+                // No conversion - add items normally
+                \Log::info('No auto-conversion - adding items normally');
+                $updatedFiche = $this->receptionService->addItemsToFicheNavette($ficheNavette, $request->validated());
+            }
 
             // Optimize relationship loading
             $updatedFiche->loadMissing([
@@ -76,24 +154,31 @@ class ficheNavetteItemController extends Controller
                 },
                 'items.dependencies.dependencyPrestation:id,name,internal_code,public_price',
                 'items.convention:id,name,contract_name',
+                'items.packageReceptionRecords.doctor.user',
+                'items.packageReceptionRecords.prestation',
                 'patient:id,first_name,last_name',
                 'creator:id,name',
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Items added to Fiche Navette successfully',
+                'message' => $conversionData['converted'] ? 'Items added and auto-converted to package' : 'Items added to Fiche Navette successfully',
                 'data' => new FicheNavetteResource($updatedFiche),
+                'conversion' => $conversionData,
             ], 201);
         } catch (\Exception $e) {
+            \Log::error('Error adding items to fiche navette:', [
+                'fiche_id' => $ficheNavetteId,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to add items to Fiche Navette',
                 'error' => $e->getMessage(),
-                'debug' => [
-                    'line' => $e->getLine(),
-                    'file' => $e->getFile(),
-                ],
             ], 500);
         }
     }
@@ -291,17 +376,19 @@ class ficheNavetteItemController extends Controller
             $ficheNavette = ficheNavette::with([
                 'items.prestation.service',
                 'items.prestation.specialization',
-                'items.prestation.doctor',
+                'items.prestation.doctor.user',
                 'items.package.items.prestation.service',
                 'items.package.items.prestation.specialization',
-                'items.package.items.prestation.doctor',
+                'items.package.items.prestation.doctor.user',
+                'items.packageReceptionRecords.doctor.user',
+                'items.packageReceptionRecords.prestation',
                 'items.dependencies.dependencyPrestation.service',
                 'items.dependencies.dependencyPrestation.specialization',
-                'items.dependencies.dependencyPrestation.doctor',
+                'items.dependencies.dependencyPrestation.doctor.user',
                 'items.nursingConsumptions.product',
                 'items.nursingConsumptions.pharmacy',
                 'items.convention.organisme',
-                'items.doctor',
+                'items.doctor.user',
                 'items.insuredPatient',
                 'patient',
                 'creator',
@@ -816,5 +903,231 @@ class ficheNavetteItemController extends Controller
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Convert multiple prestation items to a package
+     * Removes existing prestation items and creates a package item instead
+     */
+    public function convertToPackage(Request $request, $ficheNavetteId): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'prestation_ids' => 'required|array|min:1',
+                'prestation_ids.*' => 'integer',
+                'package_id' => 'required|integer|exists:prestation_packages,id',
+            ]);
+
+            \Log::info('Convert to package request:', [
+                'fiche_id' => $ficheNavetteId,
+                'prestation_ids' => $validated['prestation_ids'],
+                'package_id' => $validated['package_id'],
+            ]);
+
+            $ficheNavette = ficheNavette::findOrFail($ficheNavetteId);
+            $updatedFiche = $this->receptionService->convertPrestationsToPackage(
+                $ficheNavetteId,
+                $validated['prestation_ids'],
+                $validated['package_id']
+            );
+
+            // Load relationships for response
+            $updatedFiche->loadMissing([
+                'items' => function ($query) {
+                    $query->select(['id', 'fiche_navette_id', 'prestation_id', 'package_id', 'payment_status', 'status', 'final_price', 'base_price']);
+                },
+                'items.prestation:id,name,internal_code,public_price,default_payment_type',
+                'items.package:id,name,description,price',
+                'items.dependencies' => function ($query) {
+                    $query->select(['id', 'parent_item_id', 'dependent_prestation_id', 'custom_name']);
+                },
+                'items.dependencies.dependencyPrestation:id,name,internal_code,public_price',
+                'items.convention:id,name,contract_name',
+                'patient:id,first_name,last_name',
+                'creator:id,name',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Successfully converted prestations to package',
+                'data' => new FicheNavetteResource($updatedFiche),
+            ], 200);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Error converting prestations to package:', [
+                'fiche_id' => $ficheNavetteId,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to convert prestations to package',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Create package with strict doctor validation
+     * Supports two modes: "create_package" (explicit package) or "add_separate" (no merge)
+     * 
+     * POST /api/reception/fiche-navette/{ficheNavetteId}/create-package
+     */
+    public function createPackageWithDoctorValidation(Request $request, $ficheNavetteId): JsonResponse
+    {
+        try {
+            $validated = $request->validate([
+                'mode' => 'required|in:create_package,add_separate',
+                'prestation_ids' => 'required|array|min:1',
+                'prestation_ids.*' => 'integer|exists:prestations,id',
+                'package_id' => 'nullable|integer|exists:prestation_packages,id',
+                'doctor_id' => 'nullable|integer|exists:doctors,id',
+                'package_name' => 'nullable|string|max:255',
+                'package_description' => 'nullable|string|max:1000',
+            ]);
+
+            \Log::info('Package creation request:', [
+                'fiche_id' => $ficheNavetteId,
+                'mode' => $validated['mode'],
+                'prestation_count' => count($validated['prestation_ids']),
+                'has_explicit_doctor' => !empty($validated['doctor_id']),
+            ]);
+
+            // Check if fiche exists
+            $ficheNavette = ficheNavette::findOrFail($ficheNavetteId);
+
+            // Pre-check: Detect multi-doctor scenario
+            $itemsForPrestations = ficheNavetteItem::where('fiche_navette_id', $ficheNavetteId)
+                ->whereIn('prestation_id', $validated['prestation_ids'])
+                ->get();
+            
+            $doctorIds = $itemsForPrestations->pluck('doctor_id')->filter()->unique()->toArray();
+            $isMultiDoctor = count($doctorIds) > 1;
+
+            // If multi-doctor detected and not in add_separate mode, auto-switch
+            if ($isMultiDoctor && $validated['mode'] === 'create_package' && empty($validated['doctor_id'])) {
+                \Log::info('Multi-doctor detected in package creation, auto-switching to add_separate mode', [
+                    'fiche_id' => $ficheNavetteId,
+                    'doctor_ids' => $doctorIds,
+                ]);
+
+                $validated['mode'] = 'add_separate';
+            }
+
+            if ($validated['mode'] === 'add_separate') {
+                // Add prestations as separate items WITHOUT package conversion
+                $result = $this->receptionService->addSeparatePrestations(
+                    $ficheNavetteId,
+                    $validated['prestation_ids']
+                );
+
+                $result->loadMissing($this->getDefaultRelationships());
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Added ' . count($validated['prestation_ids']) . ' items as separate prestations',
+                    'mode' => 'add_separate',
+                    'data' => new FicheNavetteResource($result),
+                ], 200);
+
+            } else {
+                // Mode: create_package - Explicit package creation with doctor validation
+                if (!empty($validated['package_id'])) {
+                    // Use existing package
+                    $result = $this->receptionService->convertPrestationsToPackage(
+                        $ficheNavetteId,
+                        $validated['prestation_ids'],
+                        $validated['package_id'],
+                        $validated['doctor_id'] ?? null
+                    );
+                } else {
+                    // Create new custom package
+                    $result = $this->receptionService->createCustomPackageFromPrestations(
+                        $ficheNavetteId,
+                        $validated['prestation_ids'],
+                        $validated['doctor_id'] ?? null,
+                        $validated['package_name'] ?? null,
+                        $validated['package_description'] ?? null
+                    );
+                }
+
+                $result->loadMissing($this->getDefaultRelationships());
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Package created successfully',
+                    'mode' => 'create_package',
+                    'data' => new FicheNavetteResource($result),
+                ], 200);
+            }
+
+        } catch (\App\Exceptions\MultiDoctorException $e) {
+            \Log::warning('Multi-doctor scenario detected, items added as separate prestations:', [
+                'fiche_id' => $ficheNavetteId,
+                'conflicting_doctors' => $e->conflictingDoctorIds,
+            ]);
+
+            // This exception will rarely be thrown now since we handle multi-doctor gracefully
+            // But keeping it for explicit override scenarios
+            return response()->json([
+                'success' => true,
+                'message' => 'Items contain multiple doctors - added as separate prestations',
+                'mode' => 'add_separate',
+                'info' => 'Multi-doctor scenario auto-converted to separate items',
+                'conflicting_doctor_ids' => $e->conflictingDoctorIds,
+            ], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation error',
+                'errors' => $e->errors(),
+            ], 422);
+
+        } catch (\Exception $e) {
+            \Log::error('Error creating package with doctor validation:', [
+                'fiche_id' => $ficheNavetteId,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create package',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Helper: Get default relationships to load for fiche responses
+     */
+    private function getDefaultRelationships()
+    {
+        return [
+            'items' => function ($query) {
+                $query->select([
+                    'id', 'fiche_navette_id', 'prestation_id', 'package_id',
+                    'payment_status', 'status', 'final_price', 'base_price', 'doctor_id'
+                ]);
+            },
+            'items.prestation:id,name,internal_code,public_price,default_payment_type',
+            'items.package:id,name,description,price',
+            'items.dependencies' => function ($query) {
+                $query->select(['id', 'parent_item_id', 'dependent_prestation_id', 'custom_name']);
+            },
+            'items.dependencies.dependencyPrestation:id,name,internal_code,public_price',
+            'items.convention:id,name,contract_name',
+            'patient:id,first_name,last_name',
+            'creator:id,name',
+        ];
     }
 }

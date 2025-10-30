@@ -103,27 +103,38 @@ class PharmacyStockMovementController extends Controller
             });
         }
 
-        // Filter by service (for user's service)
+        // Filter by service (for user's ALL services)
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Get ALL service IDs user is assigned to
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if ($userService) {
+        if (!empty($userServiceIds)) {
             if ($request->has('role')) {
                 if ($request->role === 'requester') {
-                    $query->where('requesting_service_id', $userService->id);
+                    // Show movements where user's services are requesting
+                    $query->whereIn('requesting_service_id', $userServiceIds);
                 } elseif ($request->role === 'provider') {
-                    $query->where('providing_service_id', $userService->id);
+                    // Show movements where user's services are providing
+                    $query->whereIn('providing_service_id', $userServiceIds);
                 } else {
-                    // default to both
-                    $query->where(function ($q) use ($userService) {
-                        $q->where('requesting_service_id', $userService->id)
-                            ->orWhere('providing_service_id', $userService->id);
+                    // default to both - show all movements for user's services
+                    $query->where(function ($q) use ($userServiceIds) {
+                        $q->whereIn('requesting_service_id', $userServiceIds)
+                            ->orWhereIn('providing_service_id', $userServiceIds);
                     });
                 }
             } else {
-                $query->where(function ($q) use ($userService) {
-                    $q->where('requesting_service_id', $userService->id)
-                        ->orWhere('providing_service_id', $userService->id);
+                // Show all movements for user's services (both requesting and providing)
+                $query->where(function ($q) use ($userServiceIds) {
+                    $q->whereIn('requesting_service_id', $userServiceIds)
+                        ->orWhereIn('providing_service_id', $userServiceIds);
                 });
             }
         }
@@ -161,9 +172,17 @@ class PharmacyStockMovementController extends Controller
     public function getDrafts()
     {
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Get ALL service IDs user is assigned to
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if (! $userService) {
+        if (empty($userServiceIds)) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -177,7 +196,7 @@ class PharmacyStockMovementController extends Controller
             'requestingService',
             'requestingUser',
         ])
-            ->where('requesting_service_id', $userService->id)
+            ->whereIn('requesting_service_id', $userServiceIds)
             ->where('status', 'draft')
             ->where('requesting_user_id', $user->id)
             ->orderBy('updated_at', 'desc')
@@ -211,9 +230,17 @@ class PharmacyStockMovementController extends Controller
     public function getPendingApprovals(Request $request)
     {
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Get ALL service IDs user is assigned to
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if (! $userService) {
+        if (empty($userServiceIds)) {
             return response()->json(['error' => 'User not assigned to any service'], 403);
         }
 
@@ -226,7 +253,7 @@ class PharmacyStockMovementController extends Controller
             'requestingService',
             'requestingUser',
         ])
-            ->where('providing_service_id', $userService->id)
+            ->whereIn('providing_service_id', $userServiceIds)
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc');
 
@@ -261,6 +288,7 @@ class PharmacyStockMovementController extends Controller
     public function createDraft(Request $request)
     {
         $request->validate([
+            'requesting_service_id' => 'required|exists:services,id',
             'providing_service_id' => 'required|exists:services,id',
             'request_reason' => 'nullable|string|max:500',
             'expected_delivery_date' => 'nullable|date|after:today',
@@ -269,14 +297,27 @@ class PharmacyStockMovementController extends Controller
         ]);
 
         $user = Auth::user();
-        $userService = $this->getUserService();
+        
+        // Verify user has access to the requesting service
+        $userServiceIds = $user->activeSpecializations()
+            ->with('specialization.service')
+            ->get()
+            ->pluck('specialization.service.id')
+            ->filter()
+            ->unique()
+            ->toArray();
 
-        if (! $userService) {
-            return response()->json(['error' => 'User not assigned to any service'], 403);
+        if (!in_array($request->requesting_service_id, $userServiceIds)) {
+            return response()->json(['error' => 'You do not have access to the selected requesting service'], 403);
+        }
+        
+        // Prevent requesting from same service
+        if ($request->requesting_service_id === $request->providing_service_id) {
+            return response()->json(['error' => 'Cannot request from your own service'], 422);
         }
 
-        // Check if user has any draft for this service
-        $existingMovement = PharmacyMovement::where('requesting_service_id', $userService->id)
+        // Check if user has any draft for this service combination
+        $existingMovement = PharmacyMovement::where('requesting_service_id', $request->requesting_service_id)
             ->where('providing_service_id', $request->providing_service_id)
             ->where('requesting_user_id', $user->id)
             ->latest()
@@ -314,7 +355,7 @@ class PharmacyStockMovementController extends Controller
 
         $movement = PharmacyMovement::create([
             'movement_number' => $this->generateMovementNumber(),
-            'requesting_service_id' => $userService->id,
+            'requesting_service_id' => $request->requesting_service_id,
             'providing_service_id' => $request->providing_service_id,
             'requesting_user_id' => $user->id,
             'status' => 'draft',
@@ -346,7 +387,7 @@ class PharmacyStockMovementController extends Controller
     public function addItem(Request $request, $movementId)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'required|exists:pharmacy_products,id',
             'requested_quantity' => 'required|numeric|min:0.01',
             'quantity_by_box' => 'boolean',
             'notes' => 'nullable|string|max:255',
@@ -373,23 +414,13 @@ class PharmacyStockMovementController extends Controller
                 'administration_route' => $request->administration_route,
             ]);
 
-            $data = $existingItem->load([
-                'product' => function ($query) {
-                    $query->with(['inventories' => function ($inventoryQuery) {
-                        $inventoryQuery->select('product_id', 'unit');
-                    }]);
-                },
-            ]);
+            $data = $existingItem->load('pharmacyProduct');
 
-            // Add unit information and pharmacy-specific data to product
-            if ($data->product && $data->product->inventories) {
-                $units = $data->product->inventories->pluck('unit')->filter()->unique();
-                $data->product->unit = $units->first() ?? 'units';
-            }
-
-            if ($data->product) {
-                $data->product->is_controlled = ! empty($data->product->controlled_substance_level);
-                $data->product->requires_cold_storage = $data->product->storage_temperature_min < 8;
+            // Add pharmacy-specific data to product
+            if ($data->pharmacyProduct) {
+                $data->pharmacyProduct->is_controlled = $data->pharmacyProduct->is_controlled_substance ?? false;
+                $data->pharmacyProduct->requires_cold_storage = false; // Set based on your logic
+                $data->product = $data->pharmacyProduct; // Alias for frontend compatibility
             }
 
             return response()->json([
@@ -408,23 +439,13 @@ class PharmacyStockMovementController extends Controller
             'administration_route' => $request->administration_route,
         ]);
 
-        $data = $item->load([
-            'product' => function ($query) {
-                $query->with(['inventories' => function ($inventoryQuery) {
-                    $inventoryQuery->select('product_id', 'unit');
-                }]);
-            },
-        ]);
+        $data = $item->load('pharmacyProduct');
 
-        // Add unit information and pharmacy-specific data to product
-        if ($data->product && $data->product->inventories) {
-            $units = $data->product->inventories->pluck('unit')->filter()->unique();
-            $data->product->unit = $units->first() ?? 'units';
-        }
-
-        if ($data->product) {
-            $data->product->is_controlled = ! empty($data->product->controlled_substance_level);
-            $data->product->requires_cold_storage = $data->product->storage_temperature_min < 8;
+        // Add pharmacy-specific data to product
+        if ($data->pharmacyProduct) {
+            $data->pharmacyProduct->is_controlled = $data->pharmacyProduct->is_controlled_substance ?? false;
+            $data->pharmacyProduct->requires_cold_storage = false; // Set based on your logic
+            $data->product = $data->pharmacyProduct; // Alias for frontend compatibility
         }
 
         return response()->json([
@@ -440,7 +461,7 @@ class PharmacyStockMovementController extends Controller
     public function updateItem(Request $request, $movementId, $itemId)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'required|exists:pharmacy_products,id',
             'requested_quantity' => 'required|numeric|min:0.01',
             'quantity_by_box' => 'boolean',
             'notes' => 'nullable|string|max:255',
@@ -668,128 +689,103 @@ class PharmacyStockMovementController extends Controller
             }
 
             // Get products with different stock levels (pharmacy-specific)
-            $criticalLowStock = DB::table('inventories')
-                ->join('products', 'inventories.product_id', '=', 'products.id')
-                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+            $criticalLowStock = DB::table('pharmacy_inventories')
+                ->join('pharmacy_products', 'pharmacy_inventories.pharmacy_product_id', '=', 'pharmacy_products.id')
+                ->join('pharmacy_stockages', 'pharmacy_inventories.pharmacy_stockage_id', '=', 'pharmacy_stockages.id')
                 ->where('pharmacy_stockages.service_id', $providing_service_id)
-                ->whereRaw('CASE 
-                WHEN products.quantity_by_box = true AND products.boite_de > 0 
-                THEN inventories.total_units / products.boite_de <= 5 
-                ELSE inventories.total_units <= 5 
-                END')
-                ->whereRaw('inventories.total_units > 0')
+                ->whereRaw('pharmacy_inventories.quantity <= 5')
+                ->whereRaw('pharmacy_inventories.quantity > 0')
                 ->select(
-                    'products.*',
-                    'inventories.quantity as current_stock',
-                    'inventories.total_units',
-                    'inventories.expiry_date',
-                    'inventories.batch_number',
+                    'pharmacy_products.*',
+                    'pharmacy_inventories.quantity as current_stock',
+                    'pharmacy_inventories.expiry_date',
+                    'pharmacy_inventories.batch_number',
                     'pharmacy_stockages.name as storage_name',
                     'pharmacy_stockages.temperature_controlled',
                     'pharmacy_stockages.security_level',
-                    'products.category as category_name',
-                    'products.controlled_substance_level',
-                    'products.requires_prescription',
-                    DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
+                    DB::raw('DATEDIFF(pharmacy_inventories.expiry_date, CURDATE()) as days_until_expiry')
                 )
-                ->orderBy('inventories.total_units', 'asc')
+                ->orderBy('pharmacy_inventories.quantity', 'asc')
                 ->get();
 
-            $lowStock = DB::table('inventories')
-                ->join('products', 'inventories.product_id', '=', 'products.id')
-                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+            $lowStock = DB::table('pharmacy_inventories')
+                ->join('pharmacy_products', 'pharmacy_inventories.pharmacy_product_id', '=', 'pharmacy_products.id')
+                ->join('pharmacy_stockages', 'pharmacy_inventories.pharmacy_stockage_id', '=', 'pharmacy_stockages.id')
                 ->where('pharmacy_stockages.service_id', $providing_service_id)
-                ->whereRaw('CASE 
-                WHEN products.quantity_by_box = true AND products.boite_de > 0 
-                THEN inventories.total_units / products.boite_de <= 10 AND inventories.total_units / products.boite_de > 5
-                ELSE inventories.total_units <= 10 AND inventories.total_units > 5
-                END')
+                ->whereRaw('pharmacy_inventories.quantity <= 10 AND pharmacy_inventories.quantity > 5')
                 ->select(
-                    'products.*',
-                    'inventories.quantity as current_stock',
-                    'inventories.total_units',
-                    'inventories.expiry_date',
-                    'inventories.batch_number',
+                    'pharmacy_products.*',
+                    'pharmacy_inventories.quantity as current_stock',
+                    'pharmacy_inventories.expiry_date',
+                    'pharmacy_inventories.batch_number',
                     'pharmacy_stockages.name as storage_name',
                     'pharmacy_stockages.temperature_controlled',
                     'pharmacy_stockages.security_level',
-                    'products.category as category_name',
-                    'products.controlled_substance_level',
-                    'products.requires_prescription',
-                    DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
+                    DB::raw('DATEDIFF(pharmacy_inventories.expiry_date, CURDATE()) as days_until_expiry')
                 )
-                ->orderBy('inventories.total_units', 'asc')
+                ->orderBy('pharmacy_inventories.quantity', 'asc')
                 ->get();
 
             // Get products expiring soon (within 30 days) - critical for pharmacy
-            $expiringSoon = DB::table('inventories')
-                ->join('products', 'inventories.product_id', '=', 'products.id')
-                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+            $expiringSoon = DB::table('pharmacy_inventories')
+                ->join('pharmacy_products', 'pharmacy_inventories.pharmacy_product_id', '=', 'pharmacy_products.id')
+                ->join('pharmacy_stockages', 'pharmacy_inventories.pharmacy_stockage_id', '=', 'pharmacy_stockages.id')
                 ->where('pharmacy_stockages.service_id', $providing_service_id)
-                ->whereNotNull('inventories.expiry_date')
-                ->whereRaw('DATEDIFF(inventories.expiry_date, CURDATE()) <= 30')
-                ->whereRaw('DATEDIFF(inventories.expiry_date, CURDATE()) > 0')
+                ->whereNotNull('pharmacy_inventories.expiry_date')
+                ->whereRaw('DATEDIFF(pharmacy_inventories.expiry_date, CURDATE()) <= 30')
+                ->whereRaw('DATEDIFF(pharmacy_inventories.expiry_date, CURDATE()) > 0')
                 ->select(
-                    'products.*',
-                    'inventories.quantity as current_stock',
-                    'inventories.total_units',
-                    'inventories.expiry_date',
-                    'inventories.batch_number',
+                    'pharmacy_products.*',
+                    'pharmacy_inventories.quantity as current_stock',
+                    'pharmacy_inventories.expiry_date',
+                    'pharmacy_inventories.batch_number',
                     'pharmacy_stockages.name as storage_name',
                     'pharmacy_stockages.temperature_controlled',
                     'pharmacy_stockages.security_level',
-                    'products.category as category_name',
-                    'products.controlled_substance_level',
-                    'products.requires_prescription',
-                    DB::raw('DATEDIFF(inventories.expiry_date, CURDATE()) as days_until_expiry')
+                    DB::raw('DATEDIFF(pharmacy_inventories.expiry_date, CURDATE()) as days_until_expiry')
                 )
-                ->orderBy('inventories.expiry_date', 'asc')
+                ->orderBy('pharmacy_inventories.expiry_date', 'asc')
                 ->get();
 
             // Get expired products
-            $expired = DB::table('inventories')
-                ->join('products', 'inventories.product_id', '=', 'products.id')
-                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+            $expired = DB::table('pharmacy_inventories')
+                ->join('pharmacy_products', 'pharmacy_inventories.pharmacy_product_id', '=', 'pharmacy_products.id')
+                ->join('pharmacy_stockages', 'pharmacy_inventories.pharmacy_stockage_id', '=', 'pharmacy_stockages.id')
                 ->where('pharmacy_stockages.service_id', $providing_service_id)
-                ->whereNotNull('inventories.expiry_date')
-                ->whereRaw('inventories.expiry_date < CURDATE()')
-                ->whereRaw('inventories.total_units > 0')
+                ->whereNotNull('pharmacy_inventories.expiry_date')
+                ->whereRaw('pharmacy_inventories.expiry_date < CURDATE()')
+                ->whereRaw('pharmacy_inventories.quantity > 0')
                 ->select(
-                    'products.*',
-                    'inventories.quantity as current_stock',
-                    'inventories.total_units',
-                    'inventories.expiry_date',
-                    'inventories.batch_number',
+                    'pharmacy_products.*',
+                    'pharmacy_inventories.quantity as current_stock',
+                    'pharmacy_inventories.expiry_date',
+                    'pharmacy_inventories.batch_number',
                     'pharmacy_stockages.name as storage_name',
                     'pharmacy_stockages.temperature_controlled',
                     'pharmacy_stockages.security_level',
-                    'products.category as category_name',
-                    'products.controlled_substance_level',
-                    'products.requires_prescription',
-                    DB::raw('DATEDIFF(CURDATE(), inventories.expiry_date) as days_expired')
+                    DB::raw('DATEDIFF(CURDATE(), pharmacy_inventories.expiry_date) as days_expired')
                 )
-                ->orderBy('inventories.expiry_date', 'desc')
+                ->orderBy('pharmacy_inventories.expiry_date', 'desc')
                 ->get();
 
             // Get controlled substances requiring special attention
-            $controlledSubstances = DB::table('inventories')
-                ->join('products', 'inventories.product_id', '=', 'products.id')
-                ->join('pharmacy_stockages', 'inventories.stockage_id', '=', 'pharmacy_stockages.id')
+            $controlledSubstances = DB::table('pharmacy_inventories')
+                ->join('pharmacy_products', 'pharmacy_inventories.pharmacy_product_id', '=', 'pharmacy_products.id')
+                ->join('pharmacy_stockages', 'pharmacy_inventories.pharmacy_stockage_id', '=', 'pharmacy_stockages.id')
                 ->where('pharmacy_stockages.service_id', $providing_service_id)
-                ->whereNotNull('products.controlled_substance_level')
-                ->whereRaw('inventories.total_units > 0')
+                ->where('pharmacy_products.is_controlled_substance', true)
+                ->whereRaw('pharmacy_inventories.quantity > 0')
                 ->select(
-                    'products.*',
-                    'inventories.quantity as current_stock',
-                    'inventories.total_units',
-                    'inventories.expiry_date',
-                    'inventories.batch_number',
+                    'pharmacy_products.*',
+                    'pharmacy_inventories.quantity as current_stock',
+                    'pharmacy_inventories.expiry_date',
+                    'pharmacy_inventories.batch_number',
                     'pharmacy_stockages.name as storage_name',
                     'pharmacy_stockages.security_level',
-                    'products.controlled_substance_level',
-                    'products.requires_prescription'
+                    'pharmacy_products.is_controlled_substance',
+                    'pharmacy_products.requires_prescription'
                 )
-                ->orderBy('products.controlled_substance_level', 'desc')
+                ->orderBy('pharmacy_products.name', 'asc')
                 ->get();
 
             return response()->json([
@@ -947,7 +943,7 @@ class PharmacyStockMovementController extends Controller
     public function availableStock($movementId, Request $request)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'required|exists:pharmacy_products,id',
         ]);
 
         $movement = PharmacyMovement::findOrFail($movementId);
@@ -968,10 +964,10 @@ class PharmacyStockMovementController extends Controller
         $availableStock = 0;
 
         if ($providingService) {
-            // Get stock from service's pharmacy storages
-            $storages = $providingService->pharmacyStorages;
+            // Get stock from service's pharmacy stockages using pharmacy_inventories
+            $storages = $providingService->pharmacyStockages;
             foreach ($storages as $storage) {
-                $inventory = $storage->inventories()->where('product_id', $productId)->first();
+                $inventory = $storage->pharmacyInventories()->where('pharmacy_product_id', $productId)->first();
                 if ($inventory) {
                     $availableStock += $inventory->quantity;
                 }
@@ -1003,36 +999,32 @@ class PharmacyStockMovementController extends Controller
         $inventoryItems = [];
 
         if ($providingService) {
-            $storages = $providingService->pharmacyStorages;
+            $storages = $providingService->pharmacyStockages;
             foreach ($storages as $storage) {
-                $inventories = $storage->inventories()
-                    ->with('product')
-                    ->where('product_id', $productId)
+                $inventories = $storage->pharmacyInventories()
+                    ->with('pharmacyProduct')
+                    ->where('pharmacy_product_id', $productId)
                     ->where('quantity', '>', 0)
                     ->get();
 
                 foreach ($inventories as $inventory) {
                     $inventoryItems[] = [
                         'id' => $inventory->id,
-                        'barcode' => $inventory->barcode,
                         'batch_number' => $inventory->batch_number,
                         'serial_number' => $inventory->serial_number,
                         'quantity' => $inventory->quantity,
-                        'total_units' => $inventory->total_units,
-                        'unit' => $inventory->unit,
                         'expiry_date' => $inventory->expiry_date,
-                        'location' => $inventory->location,
+                        'purchase_price' => $inventory->purchase_price,
                         'storage' => [
                             'id' => $storage->id,
                             'name' => $storage->name,
                             'temperature_controlled' => $storage->temperature_controlled,
                             'security_level' => $storage->security_level,
                         ],
-                        'product' => $inventory->product,
+                        'product' => $inventory->pharmacyProduct,
                         // Pharmacy-specific flags
-                        'is_controlled' => ! empty($inventory->product->controlled_substance_level),
-                        'requires_cold_storage' => $inventory->product->storage_temperature_min < 8,
-                        'requires_prescription' => $inventory->product->requires_prescription ?? false,
+                        'is_controlled' => $inventory->pharmacyProduct->is_controlled_substance ?? false,
+                        'requires_prescription' => $inventory->pharmacyProduct->requires_prescription ?? false,
                     ];
                 }
             }
@@ -1075,27 +1067,27 @@ class PharmacyStockMovementController extends Controller
         DB::transaction(function () use ($item, $request) {
             // Clear existing selections for this item
             DB::table('pharmacy_movement_inventory_selections')
-                ->where('pharmacy_movement_item_id', $item->id)
+                ->where('pharmacy_stock_movement_item_id', $item->id)
                 ->delete();
 
             // Save new selections
             $totalSelectedQuantity = 0;
             foreach ($request->selected_inventory as $selection) {
                 // Verify the inventory item exists and has sufficient quantity
-                $inventory = DB::table('inventories')->find($selection['inventory_id']);
+                $inventory = DB::table('pharmacy_inventories')->find($selection['inventory_id']);
                 if (! $inventory) {
                     throw new \Exception('Inventory item not found: '.$selection['inventory_id']);
                 }
 
-                // Use total_units if available, otherwise fall back to quantity
-                $availableQuantity = $inventory->total_units ?? $inventory->quantity;
+                // Use quantity from pharmacy inventory
+                $availableQuantity = $inventory->quantity;
                 if ($availableQuantity < $selection['quantity']) {
-                    throw new \Exception('Insufficient inventory for item: '.$inventory->barcode.'. Available: '.$availableQuantity.', Requested: '.$selection['quantity']);
+                    throw new \Exception('Insufficient inventory for item: '.$inventory->batch_number.'. Available: '.$availableQuantity.', Requested: '.$selection['quantity']);
                 }
 
                 DB::table('pharmacy_movement_inventory_selections')->insert([
-                    'pharmacy_movement_item_id' => $item->id,
-                    'inventory_id' => $selection['inventory_id'],
+                    'pharmacy_stock_movement_item_id' => $item->id,
+                    'pharmacy_inventory_id' => $selection['inventory_id'],
                     'selected_quantity' => $selection['quantity'],
                     'created_at' => now(),
                     'updated_at' => now(),

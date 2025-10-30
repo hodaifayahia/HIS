@@ -513,15 +513,15 @@ onMounted(() => {
 <style scoped>
 /* Custom DataTable styling */
 :deep(.p-datatable) {
-  @apply tw-border-0;
+  @apply border-0;
 }
 
 :deep(.p-datatable .p-datatable-header) {
-  @apply tw-bg-gray-50 tw-border-b tw-border-gray-200;
+  @apply bg-gray-50 tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -529,39 +529,39 @@ onMounted(() => {
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
-  @apply tw-border-gray-100;
+  @apply border-gray-100;
 }
 
 /* Card styling */
 :deep(.p-card) {
-  @apply tw-rounded-xl;
+  @apply rounded-xl;
 }
 
 :deep(.p-card-content) {
-  @apply tw-p-4;
+  @apply p-4;
 }
 
 /* Button styling */
 :deep(.p-button) {
-  @apply tw-rounded-lg tw-font-medium;
+  @apply rounded-lg tw-font-medium;
 }
 
 /* Input styling */
 :deep(.p-inputtext) {
-  @apply tw-rounded-lg;
+  @apply rounded-lg;
 }
 
 /* Pagination styling */
 :deep(.pagination) {
-  @apply tw-flex tw-gap-1;
+  @apply flex tw-gap-1;
 }
 
 :deep(.page-link) {
-  @apply tw-px-3 tw-py-2 tw-rounded-lg tw-border tw-border-gray-300 hover:tw-bg-blue-50 tw-transition-colors;
+  @apply px-3 tw-py-2 tw-rounded-lg tw-border tw-border-gray-300 hover:tw-bg-blue-50 tw-transition-colors;
 }
 
 :deep(.page-item.active .page-link) {
-  @apply tw-bg-blue-600 tw-text-white tw-border-blue-600;
+  @apply bg-blue-600 tw-text-white tw-border-blue-600;
 }
 
 /* Temporary visibility overrides for PrimeVue DataTable rows (debug only) */

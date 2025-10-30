@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Stock;
+namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\Inventory;
@@ -68,12 +68,35 @@ class InventoryController extends Controller
         }
 
         // Check if product already exists with same batch, serial, and expiry details
-        $existingInventory = Inventory::where('product_id', $request->product_id)
-            ->where('stockage_id', $request->stockage_id)
-            ->where('batch_number', $request->batch_number)
-            ->where('serial_number', $request->serial_number)
-            ->whereRaw('DATE(expiry_date) = ?', [date('Y-m-d', strtotime($request->expiry_date))])
-            ->first();
+        $existingQuery = Inventory::where('product_id', $request->product_id)
+            ->where('stockage_id', $request->stockage_id);
+
+        // Handle batch_number comparison (including null/empty)
+        if (empty($request->batch_number)) {
+            $existingQuery->where(function($q) {
+                $q->whereNull('batch_number')->orWhere('batch_number', '');
+            });
+        } else {
+            $existingQuery->where('batch_number', $request->batch_number);
+        }
+
+        // Handle serial_number comparison (including null/empty)
+        if (empty($request->serial_number)) {
+            $existingQuery->where(function($q) {
+                $q->whereNull('serial_number')->orWhere('serial_number', '');
+            });
+        } else {
+            $existingQuery->where('serial_number', $request->serial_number);
+        }
+
+        // Handle expiry_date comparison (including null)
+        if (empty($request->expiry_date)) {
+            $existingQuery->whereNull('expiry_date');
+        } else {
+            $existingQuery->whereRaw('DATE(expiry_date) = ?', [date('Y-m-d', strtotime($request->expiry_date))]);
+        }
+
+        $existingInventory = $existingQuery->first();
 
         if ($existingInventory) {
             // Same product with identical details - adjust quantity
@@ -88,9 +111,11 @@ class InventoryController extends Controller
                 $quantityToAdd = $request->quantity;
             }
 
+            $newQuantity = $existingInventory->quantity + $quantityToAdd;
             $newTotalUnits = $existingInventory->total_units + $quantityToAdd;
 
             $existingInventory->update([
+                'quantity' => $newQuantity,
                 'total_units' => $newTotalUnits,
                 'updated_at' => now(),
             ]);
@@ -116,16 +141,18 @@ class InventoryController extends Controller
 
         if ($quantityByBox && $product && $product->boite_de) {
             // If quantity is by box, calculate total_units as quantity * boite_de
-            // Keep the quantity field as the number of boxes entered
+            // Keep the quantity field as the number entered
+            $data['quantity'] = $request->quantity * $product->boite_de;
             $data['total_units'] = $request->quantity * $product->boite_de;
         } else {
-            // If quantity is individual units, total_units equals quantity
+            // If quantity is individual units, both fields equal the entered quantity
+            $data['quantity'] = $request->quantity;
             $data['total_units'] = $request->quantity;
         }
 
         // Set unit based on product's forme if not provided
         if (empty($data['unit']) && $product) {
-            $data['unit'] = $product->forme;
+            $data['unit'] = $product->forme ?? 'pieces';
         }
 
         $inventory = Inventory::create($data);
@@ -192,8 +219,8 @@ class InventoryController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'quantity' => 'required|numeric',
-            'type' => 'required|in:add,remove',
-            'reason' => 'required_if:type,remove|string|max:255',
+            'adjustment_type' => 'required|in:increase,decrease',
+            'reason' => 'required_if:adjustment_type,decrease|string|max:255',
             'notes' => 'nullable|string|max:500',
         ]);
 

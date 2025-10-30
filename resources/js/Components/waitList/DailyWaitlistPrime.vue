@@ -432,30 +432,30 @@ onMounted(() => {
 <style scoped>
 /* Custom PrimeVue overrides */
 :deep(.p-datatable) {
-  @apply tw-rounded-lg tw-overflow-hidden;
+  @apply rounded-lg tw-overflow-hidden;
 }
 
 :deep(.p-datatable-header) {
-  @apply tw-bg-gray-50 tw-border-b tw-border-gray-200;
+  @apply bg-gray-50 tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-thead > tr > th) {
-  @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
+  @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-tbody > tr:hover) {
-  @apply tw-bg-blue-50;
+  @apply bg-blue-50;
 }
 
 :deep(.p-button) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 :deep(.p-card) {
-  @apply tw-border-0;
+  @apply border-0;
 }
 
 :deep(.p-toolbar) {
-  @apply tw-border-0 tw-bg-transparent;
+  @apply border-0 tw-bg-transparent;
 }
 </style>

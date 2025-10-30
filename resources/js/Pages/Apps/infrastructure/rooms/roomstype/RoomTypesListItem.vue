@@ -51,7 +51,6 @@ const hasImageUrl = computed(() => {
         </td>
         <td class="table-cell description-cell">{{ roomType.description || 'N/A' }}</td>
         <td class="table-cell description-cell">{{ roomType.service_name || 'N/A' }}</td>
-        <td class="table-cell description-cell">{{ roomType.room_type || 'N/A' }}</td>
         <td class="table-cell">{{ formattedCreatedAt }}</td>
         <td class="table-cell actions-cell">
             <div class="action-buttons">

@@ -71,11 +71,11 @@ const totalActiveFilters = computed(() => {
 
 // Static data
 const statusOptions = [
-  { label: 'Tous les statuts', value: null },
-  { label: 'En attente', value: 'pending', severity: 'warning', icon: 'pi pi-clock' },
-  { label: 'En cours', value: 'in_progress', severity: 'info', icon: 'pi pi-spin pi-spinner' },
-  { label: 'Terminé', value: 'completed', severity: 'success', icon: 'pi pi-check-circle' },
-  { label: 'Annulé', value: 'cancelled', severity: 'danger', icon: 'pi pi-times-circle' }
+  { label: 'All statuses', value: null },
+  { label: 'Pending', value: 'pending', severity: 'warning', icon: 'pi pi-clock' },
+  { label: 'In progress', value: 'in_progress', severity: 'info', icon: 'pi pi-spin pi-spinner' },
+  { label: 'Completed', value: 'completed', severity: 'success', icon: 'pi pi-check-circle' },
+  { label: 'Cancelled', value: 'cancelled', severity: 'danger', icon: 'pi pi-times-circle' }
 ]
 
 const rowsPerPageOptions = [10, 20, 50, 100]
@@ -104,17 +104,17 @@ const loadFicheNavettes = async () => {
 
     const result = await ficheNavetteService.getAll(params)
 
-    if (result.success) {
-      ficheNavettes.value = result.data
-      totalRecords.value = result.total
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: 'Erreur',
-        detail: result.message,
-        life: 3000
-      })
-    }
+      if (result.success) {
+        ficheNavettes.value = result.data
+        totalRecords.value = result.total
+      } else {
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: result.message,
+          life: 3000
+        })
+      }
   } finally {
     loading.value = false
   }
@@ -163,12 +163,12 @@ const editFiche = (fiche) => {
 
 const confirmDelete = (fiche) => {
   confirm.require({
-    message: `Êtes-vous sûr de vouloir supprimer la fiche navette #${fiche.id} pour ${fiche.patient_name} ?`,
-    header: 'Confirmation de suppression',
+    message: `Are you sure you want to delete shuttle form #${fiche.id} for ${fiche.patient_name}?`,
+    header: 'Delete confirmation',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    acceptLabel: 'Supprimer',
-    rejectLabel: 'Annuler',
+    acceptLabel: 'Delete',
+    rejectLabel: 'Cancel',
     accept: () => deleteFiche(fiche)
   })
 }
@@ -186,14 +186,14 @@ const deleteFiche = async (fiche) => {
 
       toast.add({
         severity: 'success',
-        summary: 'Succès',
-        detail: 'Fiche navette supprimée avec succès',
+        summary: 'Success',
+        detail: 'Shuttle form deleted successfully',
         life: 3000
       })
     } else {
       toast.add({
         severity: 'error',
-        summary: 'Erreur',
+        summary: 'Error',
         detail: result.message,
         life: 3000
       })
@@ -201,8 +201,8 @@ const deleteFiche = async (fiche) => {
   } catch (error) {
     toast.add({
       severity: 'error',
-      summary: 'Erreur',
-      detail: 'Erreur lors de la suppression',
+      summary: 'Error',
+      detail: 'Error while deleting',
       life: 3000
     })
   }
@@ -217,8 +217,8 @@ const onFicheSaved = (savedFiche, mode) => {
 
     toast.add({
       severity: 'success',
-      summary: 'Succès',
-      detail: 'Fiche navette créée avec succès',
+      summary: 'Success',
+      detail: 'Shuttle form created successfully',
       life: 3000
     })
 
@@ -232,8 +232,8 @@ const onFicheSaved = (savedFiche, mode) => {
 
     toast.add({
       severity: 'success',
-      summary: 'Succès',
-      detail: 'Fiche navette modifiée avec succès',
+      summary: 'Success',
+      detail: 'Shuttle form updated successfully',
       life: 3000
     })
   }
@@ -241,11 +241,11 @@ const onFicheSaved = (savedFiche, mode) => {
 
 const markAsArrived = (fiche) => {
   confirm.require({
-    message: `Confirmez-vous l'arrivée du patient pour la fiche #${fiche.id} ?`,
-    header: 'Confirmer l\'arrivée',
+    message: `Confirm arrival for shuttle form #${fiche.id}?`,
+    header: 'Confirm arrival',
     icon: 'pi pi-exclamation-triangle',
-    acceptLabel: 'Oui, marquer arrivé',
-    rejectLabel: 'Annuler',
+    acceptLabel: 'Yes, mark arrived',
+    rejectLabel: 'Cancel',
     acceptClass: 'p-button-success',
     accept: async () => {
       try {
@@ -260,15 +260,53 @@ const markAsArrived = (fiche) => {
 
           toast.add({
             severity: 'success',
-            summary: 'Succès',
-            detail: 'Statut mis à jour en "arrived"',
+            summary: 'Success',
+            detail: 'Status updated to "arrived"',
             life: 3000
           })
         } else {
-          toast.add({ severity: 'error', summary: 'Erreur', detail: res.message, life: 4000 })
+          toast.add({ severity: 'error', summary: 'Error', detail: res.message, life: 4000 })
         }
       } catch (error) {
-        toast.add({ severity: 'error', summary: 'Erreur', detail: 'Impossible de mettre à jour le statut', life: 4000 })
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to update status', life: 4000 })
+      }
+    }
+  })
+}
+
+const togglePatientFaithful = (fiche) => {
+  const isFaithful = fiche.patient?.is_faithful ?? true
+  const action = isFaithful ? 'mark as unfaithful' : 'mark as faithful'
+
+  confirm.require({
+    message: `Do you want to ${action} patient ${fiche.patient_name}?`,
+    header: 'Change faithful status',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'Yes, confirm',
+    rejectLabel: 'Cancel',
+    acceptClass: isFaithful ? 'p-button-warning' : 'p-button-success',
+    accept: async () => {
+      try {
+        const res = await ficheNavetteService.togglePatientFaithful(fiche.id)
+        if (res.success) {
+          // Update entire fiche object with returned data from FicheNavetteResource
+          const idx = ficheNavettes.value.findIndex(f => f.id === fiche.id)
+          if (idx !== -1 && res.data) {
+            // Replace entire fiche with the returned fiche from the resource
+            ficheNavettes.value[idx] = { ...ficheNavettes.value[idx], ...res.data }
+          }
+
+          toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: res.message,
+            life: 3000
+          })
+        } else {
+          toast.add({ severity: 'error', summary: 'Error', detail: res.message, life: 4000 })
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to change status', life: 4000 })
       }
     }
   })
@@ -441,7 +479,14 @@ onMounted(() => {
                   class="tw-bg-blue-100 tw-text-blue-800 tw-font-semibold tw-w-10 tw-h-10 tw-flex-shrink-0"
                   shape="circle" />
                 <div class="tw-flex tw-flex-col">
-                  <span class="tw-font-medium tw-text-gray-900">{{ data.patient_name }}</span>
+                  <div class="tw-flex tw-items-center tw-gap-2">
+                    <span class="tw-font-medium tw-text-gray-900">{{ data.patient_name }}</span>
+                    <Tag v-if="data.patient && data.patient.is_faithful === false" 
+                      value="Non-fidèle" 
+                      severity="warning" 
+                      class="tw-text-xs tw-font-semibold"
+                      icon="pi pi-exclamation-circle" />
+                  </div>
                   <small class="tw-text-gray-500">
                     ID: {{ data.patient_id }}
                   </small>
@@ -487,6 +532,16 @@ onMounted(() => {
                 <Button v-if="data.status === 'pending'" icon="pi pi-user-check"
                   class="p-button-rounded p-button-text p-button-sm !tw-text-green-600 tw-hover:!tw-bg-green-100"
                   v-tooltip.top="'Mark as Arrived'" @click.stop="markAsArrived(data)" />
+                <Button 
+                  :icon="data.patient && data.patient.is_faithful === false ? 'pi pi-check' : 'pi pi-times'"
+                  :class="[
+                    'p-button-rounded p-button-text p-button-sm',
+                    data.patient && data.patient.is_faithful === false 
+                      ? '!tw-text-green-600 tw-hover:!tw-bg-green-100' 
+                      : '!tw-text-orange-600 tw-hover:!tw-bg-orange-100'
+                  ]"
+                  v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Faithful' : 'Mark as Unfaithful'"
+                  @click.stop="togglePatientFaithful(data)" />
                 <Button icon="pi pi-list"
                   class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 tw-hover:!tw-bg-blue-100"
                   v-tooltip.top="'View Services'" @click.stop="openItemsPage(data)" />

@@ -17,28 +17,27 @@ use App\Http\Controllers\RequestTransactionApprovalController;
 Route::get('reception/fiche-navette/{id}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
 
 // Financial Transaction Routes
-Route::group(function () {
-    Route::prefix('financial-transactions')->group(function () {
-        Route::get('/', [FinancialTransactionController::class, 'index']);
-        Route::post('/', [FinancialTransactionController::class, 'store']);
-        Route::get('/{financialTransaction}', [FinancialTransactionController::class, 'show']);
-        Route::put('/{financialTransaction}', [FinancialTransactionController::class, 'update']);
-        Route::delete('/{financialTransaction}', [FinancialTransactionController::class, 'destroy']);
-        
-        // Specialized endpoints
-        Route::post('/handle-overpayment', [FinancialTransactionController::class, 'handleOverpayment']);
-        Route::post('/process-refund', [FinancialTransactionController::class, 'processRefund']);
-        Route::post('/bulk-payment', [FinancialTransactionController::class, 'bulkPayment']);
-        Route::get('/stats', [FinancialTransactionController::class, 'stats']);
-        Route::get('/refundable', [FinancialTransactionController::class, 'getRefundableTransactions']);
-        Route::get('/prestations-with-dependencies', [FinancialTransactionController::class, 'getPrestationsWithDependencies']);
-        Route::get('/patient-prestations', [FinancialTransactionController::class, 'getPatientPrestations']);
-        Route::get('/daily-summary', [FinancialTransactionController::class, 'dailySummary']);
-    });
+Route::prefix('financial-transactions')->group(function () {
+    Route::get('/by-session', [FinancialTransactionController::class, 'getBySession']);
+    Route::get('/', [FinancialTransactionController::class, 'index']);
+    Route::post('/', [FinancialTransactionController::class, 'store']);
+    Route::get('/{financialTransaction}', [FinancialTransactionController::class, 'show']);
+    Route::put('/{financialTransaction}', [FinancialTransactionController::class, 'update']);
+    Route::delete('/{financialTransaction}', [FinancialTransactionController::class, 'destroy']);
     
-    // Alternative endpoint for fiche navette transactions
-    Route::get('financial-transactions-by-fiche-navette', [FinancialTransactionController::class, 'getByFicheNavette']);
+    // Specialized endpoints
+    Route::post('/handle-overpayment', [FinancialTransactionController::class, 'handleOverpayment']);
+    Route::post('/process-refund', [FinancialTransactionController::class, 'processRefund']);
+    Route::post('/bulk-payment', [FinancialTransactionController::class, 'bulkPayment']);
+    Route::get('/stats', [FinancialTransactionController::class, 'stats']);
+    Route::get('/refundable', [FinancialTransactionController::class, 'getRefundableTransactions']);
+    Route::get('/prestations-with-dependencies', [FinancialTransactionController::class, 'getPrestationsWithDependencies']);
+    Route::get('/patient-prestations', [FinancialTransactionController::class, 'getPatientPrestations']);
+    Route::get('/daily-summary', [FinancialTransactionController::class, 'dailySummary']);
 });
+
+// Alternative endpoint for fiche navette transactions
+Route::get('financial-transactions-by-fiche-navette', [FinancialTransactionController::class, 'getByFicheNavette']);
 
 // Transaction Bank Request Routes
 Route::group(function () {

@@ -118,6 +118,6 @@ const handleMethodChange = (event) => {
   We apply Tailwind's border-red-500 to it for consistent styling.
 */
 .p-invalid {
-  @apply tw-border-red-500;
+  @apply border-red-500;
 }
 </style>

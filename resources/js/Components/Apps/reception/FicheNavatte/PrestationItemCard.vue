@@ -72,8 +72,12 @@ const confirm = useConfirm()
 const showDetailsModal = ref(false)
 const showRemiseModal = ref(false)
 const showPaymentTypeDialog = ref(false)
+const showDoctorDialog = ref(false)
 const editingItem = ref(null)
 const selectedPaymentType = ref(null)
+const showConversionDialog = ref(false)
+const matchingPackage = ref(null)
+const isConvertingToPackage = ref(false)
 
 // Payment type options match backend validation
 const paymentTypeOptions = [
@@ -439,6 +443,31 @@ const getConventionBadge = (item) => {
   }
 }
 
+// Check if current group matches a package
+const canConvertToPackage = computed(() => {
+  // Only allow conversion for prestation groups, not packages
+  if (props.group?.type === 'package') {
+    return false
+  }
+  
+  // Must have at least 2 items to match a package
+  if (groupItems.value.length < 2) {
+    return false
+  }
+  
+  // All items must be prestations (no dependencies, no packages)
+  const allPrestations = groupItems.value.every(item => item.prestation_id && !item.package_id && !item.isDependency)
+  
+  return allPrestations
+})
+
+// Get the prestation IDs from the current group
+const groupPrestationIds = computed(() => {
+  return groupItems.value
+    .filter(item => item.prestation_id)
+    .map(item => item.prestation_id)
+})
+
 const updateItemStatus = async (item, newStatus) => {
   console.log('Updating item status:', item.id, newStatus)
   emit('item-updated', { itemId: item.id, status: newStatus })
@@ -450,6 +479,100 @@ const openDetails = () => {
 
 const openRemiseModal = () => {
   showRemiseModal.value = true
+}
+
+const checkForPackageConversion = async () => {
+  if (!canConvertToPackage.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Cannot Convert',
+      detail: 'Group cannot be converted to a package',
+      life: 3000
+    })
+    return
+  }
+
+  try {
+    console.log('Checking for package match:', groupPrestationIds.value)
+    
+    const result = await ficheNavetteService.detectMatchingPackage(
+      groupPrestationIds.value,
+      props.packages
+    )
+
+    if (result.success && result.data) {
+      matchingPackage.value = result.data
+      showConversionDialog.value = true
+      toast.add({
+        severity: 'info',
+        summary: 'Package Found',
+        detail: `Found matching package: ${result.data.name}`,
+        life: 3000
+      })
+    } else {
+      toast.add({
+        severity: 'warn',
+        summary: 'No Match',
+        detail: 'No package matches this combination of prestations',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('Error checking for package:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to check for matching package',
+      life: 3000
+    })
+  }
+}
+
+const performPackageConversion = async () => {
+  if (!matchingPackage.value) return
+
+  isConvertingToPackage.value = true
+  try {
+    console.log('Converting prestations to package:', {
+      ficheNavetteId: props.ficheNavetteId,
+      prestationIds: groupPrestationIds.value,
+      packageId: matchingPackage.value.id
+    })
+
+    const result = await ficheNavetteService.convertPrestationsToPackage(
+      props.ficheNavetteId,
+      groupPrestationIds.value,
+      matchingPackage.value.id
+    )
+
+    if (result.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Conversion Successful',
+        detail: `Converted to package: ${matchingPackage.value.name}`,
+        life: 3000
+      })
+
+      // Reset the dialog
+      showConversionDialog.value = false
+      matchingPackage.value = null
+
+      // Refresh the parent component
+      emit('item-updated', { refresh: true })
+    } else {
+      throw new Error(result.message || 'Conversion failed')
+    }
+  } catch (error) {
+    console.error('Error converting to package:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Conversion Failed',
+      detail: error.message || 'Failed to convert prestations to package',
+      life: 3000
+    })
+  } finally {
+    isConvertingToPackage.value = false
+  }
 }
 
   const removeItemGroup = (itemsGroup) => {
@@ -740,6 +863,75 @@ const doctorTags = computed(() => {
   
   return doctors
 })
+
+// NEW: Computed property to get doctors from package reception records
+const packageDoctors = computed(() => {
+  if (props.group?.type !== 'package') {
+    return []
+  }
+  
+  // Get all doctors from packageReceptionRecords of items in this group
+  const doctors = []
+  
+  groupItems.value.forEach(item => {
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        // Avoid duplicates by checking if doctor already exists
+        if (record.doctor && !doctors.some(d => d.id === record.doctor.id)) {
+          doctors.push({
+            id: record.doctor.id,
+            name: record.doctor.name,
+            prestation_id: record.prestation_id,
+            source: 'package_reception'
+          })
+        }
+      })
+    }
+  })
+  
+  return doctors
+})
+
+// Methods to get doctors for each prestation in package
+const getPrestationDoctors = (prestation) => {
+  if (!prestation || !prestation.id) return []
+  
+  // Find doctors assigned to this specific prestation from packageReceptionRecords
+  const doctors = []
+  
+  groupItems.value.forEach(item => {
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        if (record.prestation_id === prestation.id && record.doctor) {
+          // Avoid duplicates
+          if (!doctors.some(d => d.id === record.doctor.id)) {
+            doctors.push({
+              id: record.doctor.id,
+              name: record.doctor.name
+            })
+          }
+        }
+      })
+    }
+  })
+  
+  return doctors
+}
+
+const showPrestationDoctors = (prestation) => {
+  const doctors = getPrestationDoctors(prestation)
+  if (doctors.length === 0) return
+  
+  // For now, just show a toast with the doctor names
+  // In the future, this could open a dialog
+  const doctorNames = doctors.map(d => d.name).join(', ')
+  toast.add({
+    severity: 'info',
+    summary: `Doctors for ${prestation.name}`,
+    detail: `Assigned doctors: ${doctorNames}`,
+    life: 4000
+  })
+}
 </script>
 
 <template>
@@ -787,7 +979,7 @@ const doctorTags = computed(() => {
         </div>
         
         <!-- Doctor Tags -->
-        <div v-if="doctorTags.length > 0" class="doctor-chips">
+        <div v-if="((doctorTags.length > 0) && (packageDoctors.length === 0))" class="doctor-chips">
           <Chip
             v-for="doctor in doctorTags.slice(0, 2)"
             :key="doctor.id"
@@ -804,6 +996,8 @@ const doctorTags = computed(() => {
             size="small"
           />
         </div>
+
+      
       </div>
     </div>
 
@@ -844,12 +1038,6 @@ const doctorTags = computed(() => {
             class="payment-status-chip"
             :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
           />
-        </div>
-        
-        <div class="info-item">
-          <span class="info-label">Total:</span>
-          <strong class="total-price" v-if="paymentStatusInfo && paymentStatusInfo.status === 'unpaid'">{{ paymentStatusInfo.label }}</strong>
-          <strong class="total-price" v-else>{{ formatCurrency(totalPrice) }}</strong>
         </div>
       </div>
 
@@ -895,21 +1083,34 @@ const doctorTags = computed(() => {
       </div>
 
       <!-- FIXED: Package Content Section -->
-      <div v-if="group?.type === 'package'" class="package-content">
-        <!-- Package Info -->
-        <div class="package-info">
-          <div class="package-details">
-            <div class="detail-row">
-              <span class="detail-label">Package Price:</span>
-              <span class="detail-value package-price">{{ formatCurrency(totalPrice) }}</span>
-            </div>
-            <div v-if="group.doctor_name" class="detail-row">
-              <span class="detail-label">Assigned Doctor:</span>
-              <span class="detail-value">Dr. {{ group.doctor_name }}</span>
-            </div>
+      <!-- Package Reception Doctors -->
+        <div v-if="packageDoctors.length > 0" class="package-doctor-chips">
+          <div v-if="packageDoctors.length <= 3" class="doctor-chips-grid ">
+            <Chip
+              v-for="doctor in packageDoctors"
+              :key="`pkg-doc-${doctor.id}`"
+              :label="`${doctor.name}`"
+              severity="info"
+              class="package-doctor-chip"
+              title="Package Reception Doctor"
+            />
+          </div>
+          <div v-else class="doctor-chips-compact">
+            <Chip
+              :label="`${packageDoctors.length} Doctors`"
+              severity="info"
+              class="doctor-count-chip"
+              size="small"
+              icon="pi pi-users"
+              @click="showDoctorDialog = true"
+              title="Click to see all doctors"
+            />
+            <small class="doctor-preview">
+              {{ packageDoctors.slice(0, 2).map(d => d.name).join(', ') }}
+              <span v-if="packageDoctors.length > 2"> +{{ packageDoctors.length - 2 }} more</span>
+            </small>
           </div>
         </div>
-      </div>
     </div>
 
     <!-- Footer - Fixed at bottom -->
@@ -920,6 +1121,13 @@ const doctorTags = computed(() => {
         label="Remise"
         class="p-button-outlined p-button-warning p-button-sm"
         @click="openRemiseModal"
+      />
+      <Button
+        v-if="canConvertToPackage"
+        icon="pi pi-box"
+        label="Convert to Package"
+        class="p-button-outlined p-button-info p-button-sm"
+        @click="checkForPackageConversion"
       />
       <Button
         icon="pi pi-eye"
@@ -983,33 +1191,6 @@ const doctorTags = computed(() => {
                   class="payment-status-chip"
                   :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
                 />
-              </div>
-              
-              <div class="detail-item">
-                <span class="detail-label">Total Price:</span>
-                <strong class="total-amount">{{ formatCurrency(totalPrice) }}</strong>
-              </div>
-              
-              <!-- Package-specific info -->
-              <div v-if="group.type === 'package'" class="detail-item">
-                <span class="detail-label">Package Price:</span>
-                <span class="detail-value package-price">{{ formatCurrency(totalPrice) }}</span>
-              </div>
-              
-              <!-- Package Savings Info -->
-              <div v-if="group.type === 'package' && showSavings" class="detail-item">
-                <span class="detail-label">Savings:</span>
-                <div class="savings-chips">
-                  <Chip
-                    :label="`Individual Total: ${formatCurrency(individualTotal)}`"
-                    severity="warning"
-                    class="mr-2"
-                  />
-                  <Chip
-                    :label="`You Save: ${formatCurrency(individualTotal - group.total_price)}`"
-                    severity="success"
-                  />
-                </div>
               </div>
               
               <div class="detail-item">
@@ -1080,10 +1261,30 @@ const doctorTags = computed(() => {
                 </template>
               </Column>
 
-              <Column field="public_price" header="Individual Price" :sortable="true">
+              <Column header="Assigned Doctor" :sortable="true">
                 <template #body="{ data }">
-                  <div class="price-cell">
-                    <span class="individual-price">{{ formatCurrency(data.public_price) }}</span>
+                  <div class="doctor-assignment-cell">
+                    <template v-if="getPrestationDoctors(data).length > 0">
+                      <div v-if="getPrestationDoctors(data).length === 1" class="single-doctor">
+                        <Chip
+                          :label="getPrestationDoctors(data)[0].name"
+                          severity="success"
+                          size="small"
+                          icon="pi pi-user-md"
+                        />
+                      </div>
+                      <div v-else class="multiple-doctors">
+                        <Chip
+                          :label="`${getPrestationDoctors(data).length} doctors`"
+                          severity="warning"
+                          size="small"
+                          icon="pi pi-users"
+                          @click="showPrestationDoctors(data)"
+                          title="Click to see assigned doctors"
+                        />
+                      </div>
+                    </template>
+                    <span v-else class="no-doctor text-muted">Not assigned</span>
                   </div>
                 </template>
               </Column>
@@ -1121,22 +1322,6 @@ const doctorTags = computed(() => {
                 </template>
               </Column> -->
             </DataTable>
-
-            <!-- Package Summary -->
-            <div class="package-summary mt-3">
-              <div class="summary-row">
-                <span class="summary-label">Individual Prestations Total:</span>
-                <span class="summary-value individual-total">{{ formatCurrency(individualTotal) }}</span>
-              </div>
-              <div class="summary-row package-price-row">
-                <span class="summary-label">Package Price:</span>
-                <span class="summary-value package-price">{{ formatCurrency(totalPrice) }}</span>
-              </div>
-              <div v-if="showSavings" class="summary-row savings-row">
-                <span class="summary-label">Your Savings:</span>
-                <span class="summary-value savings-amount">{{ formatCurrency(individualTotal - totalPrice) }}</span>
-              </div>
-            </div>
           </template>
         </Card>
 
@@ -1210,12 +1395,6 @@ const doctorTags = computed(() => {
                                   (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545'
                     }"
                   />
-                </template>
-              </Column>
-
-              <Column field="final_price" header="Final Price">
-                <template #body="{ data }">
-                  <strong>{{ formatCurrency(data.final_price ?? data.base_price ?? 0) }}</strong>
                 </template>
               </Column>
 
@@ -1308,12 +1487,6 @@ const doctorTags = computed(() => {
                 </template>
               </Column>
 
-              <Column field="price" header="Price">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.dependencyPrestation?.public_price || data.dependency_prestation?.public_price || 0) }}
-                </template>
-              </Column>
-
               <Column field="notes" header="Notes">
                 <template #body="{ data }">
                   <span class="notes-text">{{ data.notes || 'No notes' }}</span>
@@ -1357,6 +1530,33 @@ const doctorTags = computed(() => {
                 </template>
               </Column>
             </DataTable>
+          </template>
+        </Card>
+
+        <!-- NEW: Package Doctors Section -->
+        <Card v-if="group?.type === 'package' && packageDoctors.length > 0" class="mb-4">
+          <template #title>
+            <div class="table-title">
+              <i class="pi pi-users"></i>
+              Doctors in Package ({{ packageDoctors.length }})
+            </div>
+          </template>
+          <template #content>
+            <div class="doctors-grid">
+              <div 
+                v-for="doctor in packageDoctors" 
+                :key="`${doctor.id}_${doctor.prestation_id}`"
+                class="doctor-card"
+              >
+                <div class="doctor-avatar">
+                  <i class="pi pi-user-md"></i>
+                </div>
+                <div class="doctor-info">
+                  <div class="doctor-name">Dr. {{ doctor.name }}</div>
+                  <small class="doctor-id">ID: {{ doctor.id }}</small>
+                </div>
+              </div>
+            </div>
           </template>
         </Card>
       </div>
@@ -1406,6 +1606,68 @@ const doctorTags = computed(() => {
       <template #footer>
         <Button label="Cancel" class="p-button-text" @click="cancelPaymentTypeChange" />
         <Button label="Save" icon="pi pi-check" @click="savePaymentTypeChange" />
+      </template>
+    </Dialog>
+
+    <!-- Package Conversion Dialog -->
+    <Dialog
+      v-model:visible="showConversionDialog"
+      header="Convert to Package"
+      :modal="true"
+      :style="{ width: '500px' }"
+      @hide="() => { matchingPackage = null }"
+    >
+      <div v-if="matchingPackage" class="conversion-dialog-content">
+        <div class="info-section">
+          <h3>Matching Package Found</h3>
+          <div class="package-info-display">
+            <div class="info-row">
+              <span class="label">Package Name:</span>
+              <span class="value font-bold">{{ matchingPackage.name }}</span>
+            </div>
+            <div v-if="matchingPackage.description" class="info-row">
+              <span class="label">Description:</span>
+              <span class="value">{{ matchingPackage.description }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Package Price:</span>
+              <span class="value font-bold text-primary">{{ formatCurrency(matchingPackage.price) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="current-items-section">
+          <h3>Current Prestations</h3>
+          <div class="items-list">
+            <div v-for="prestationId in groupPrestationIds" :key="prestationId" class="item-row">
+              <i class="pi pi-check-circle text-success"></i>
+              <span>{{ 
+                groupItems.find(item => item.prestation_id === prestationId)?.prestation?.name || `Prestation ${prestationId}`
+              }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="notice-section">
+          <i class="pi pi-info-circle"></i>
+          <p>Converting will remove the current items and create a single package item.</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button 
+          label="Cancel" 
+          class="p-button-text" 
+          @click="showConversionDialog = false" 
+        />
+        <Button 
+          label="Convert to Package" 
+          icon="pi pi-check"
+          :loading="isConvertingToPackage"
+          :disabled="isConvertingToPackage"
+          class="p-button-success"
+          @click="performPackageConversion"
+        />
       </template>
     </Dialog>
   </div>
@@ -2067,5 +2329,214 @@ const doctorTags = computed(() => {
   background-color: #28a745 !important;
   color: white !important;
   border-color: #28a745 !important;
+}
+
+/* Package Conversion Dialog Styles */
+.conversion-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.info-section h3,
+.current-items-section h3 {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.package-info-display {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #7dd3fc;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .label {
+  color: #0369a1;
+  font-weight: 500;
+}
+
+.info-row .value {
+  color: #1f2937;
+  text-align: right;
+  word-break: break-word;
+  margin-left: 1rem;
+}
+
+.items-list {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #10b981;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  color: #374151;
+}
+
+.item-row i {
+  font-size: 0.9rem;
+}
+
+.notice-section {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #7f1d1d;
+}
+
+.notice-section i {
+  flex-shrink: 0;
+  color: #dc2626;
+  font-size: 1.1rem;
+  margin-top: 0.125rem;
+}
+
+.notice-section p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.font-bold {
+  font-weight: 600;
+}
+
+.text-primary {
+  color: #0369a1;
+}
+
+.text-success {
+  color: #10b981;
+}
+
+/* Package Doctors Grid */
+.doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.doctor-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+
+.doctor-card:hover {
+  border-color: #007bff;
+  background-color: #f8f9ff;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.doctor-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: var(--blue-100, #dbeafe);
+  color: var(--blue-600, #2563eb);
+  border-radius: 50%;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.doctor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.doctor-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.doctor-id {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+/* Doctor Assignment Cell Styles */
+.doctor-assignment-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.single-doctor {
+  display: flex;
+  align-items: center;
+}
+
+.multiple-doctors {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.multiple-doctors:hover {
+  opacity: 0.8;
+}
+
+.no-doctor {
+  font-style: italic;
+  color: #6c757d;
+}
+
+/* Doctor Chips Grid and Compact Styles */
+.doctor-chips-grid {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.doctor-chips-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.doctor-count-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doctor-count-chip:hover {
+  transform: scale(1.05);
+}
+
+.doctor-preview {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin: 0;
 }
 </style>

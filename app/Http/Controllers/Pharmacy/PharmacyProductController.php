@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Pharmacy;
 
 use App\Models\PharmacyInventory;
 use App\Models\PharmacyProduct;
+use App\Models\PharmacyProductGlobalSetting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -677,37 +678,104 @@ class PharmacyProductController extends \App\Http\Controllers\Controller
 
     public function getStockDetails($productId)
     {
-        $product = PharmacyProduct::find($productId);
-
-        if (! $product) {
+        try {
+            $product = PharmacyProduct::with(['pharmacyInventories.pharmacyStockage.service'])->findOrFail($productId);
+            
+            // Get global settings
+            $globalSettings = PharmacyProductGlobalSetting::getAllSettingsForProduct($productId);
+            
+            // Set defaults if no settings exist
+            if (empty($globalSettings)) {
+                $globalSettings = [
+                    'min_quantity_all_services' => ['threshold' => 10, 'enabled' => true],
+                    'critical_stock_threshold' => ['threshold' => 5, 'enabled' => true],
+                    'expiry_alert_days' => ['days' => 30, 'enabled' => true],
+                ];
+            }
+            
+            // Calculate stock summary
+            $unitsPerPackage = $product->units_per_package ?? 1;
+            
+            $totalQuantity = $product->pharmacyInventories->sum(function ($inventory) use ($unitsPerPackage) {
+                return $inventory->quantity * $unitsPerPackage;
+            });
+            
+            $totalValue = $product->pharmacyInventories->sum(function ($inventory) {
+                return $inventory->quantity * ($inventory->unit_price ?? 0);
+            });
+            
+            $lowStockThreshold = is_array($globalSettings['min_quantity_all_services']) ? 
+                ($globalSettings['min_quantity_all_services']['threshold'] ?? 10) : 10;
+            $criticalStockThreshold = is_array($globalSettings['critical_stock_threshold']) ? 
+                ($globalSettings['critical_stock_threshold']['threshold'] ?? 5) : 5;
+            
+            // Get stock details by location
+            $locations = $product->pharmacyInventories->map(function ($inventory) use ($product, $lowStockThreshold, $unitsPerPackage) {
+                $quantity = $inventory->quantity * $unitsPerPackage;
+                
+                return [
+                    'id' => $inventory->id,
+                    'stockage_id' => $inventory->pharmacy_stockage_id,
+                    'stockage' => [
+                        'id' => $inventory->pharmacyStockage->id ?? null,
+                        'name' => $inventory->pharmacyStockage->name ?? 'Unknown',
+                    ],
+                    'service_name' => $inventory->pharmacyStockage->service->name ?? 'N/A',
+                    'quantity' => $quantity,
+                    'unit_price' => $inventory->unit_price ?? 0,
+                    'total_value' => $quantity * ($inventory->unit_price ?? 0),
+                    'batch_number' => $inventory->batch_number ?? 'N/A',
+                    'expiry_date' => $inventory->expiry_date,
+                    'is_low_stock' => $quantity <= $lowStockThreshold,
+                    'is_expired' => $inventory->expiry_date && now()->gt($inventory->expiry_date),
+                    'unit' => $product->dosage_form ?? 'units',
+                ];
+            });
+            
+            // Calculate alerts
+            $alerts = [
+                'low_stock' => $totalQuantity <= $lowStockThreshold && $totalQuantity > $criticalStockThreshold,
+                'critical_stock' => $totalQuantity <= $criticalStockThreshold,
+                'expiring_soon' => $product->pharmacyInventories->filter(function ($inv) {
+                    return $inv->expiry_date && now()->diffInDays($inv->expiry_date) <= 30 && now()->lt($inv->expiry_date);
+                })->count(),
+                'expired' => $product->pharmacyInventories->filter(function ($inv) {
+                    return $inv->expiry_date && now()->gt($inv->expiry_date);
+                })->count(),
+            ];
+            
+            return response()->json([
+                'success' => true,
+                'product' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'generic_name' => $product->generic_name,
+                    'brand_name' => $product->brand_name,
+                    'category' => $product->category,
+                    'dosage_form' => $product->dosage_form,
+                    'strength' => $product->strength,
+                    'units_per_package' => $product->units_per_package,
+                    'low_stock_threshold' => $lowStockThreshold,
+                    'requires_prescription' => $product->requires_prescription,
+                    'is_controlled_substance' => $product->is_controlled_substance,
+                ],
+                'summary' => [
+                    'total_quantity' => $totalQuantity,
+                    'total_value' => $totalValue,
+                    'location_count' => $locations->count(),
+                    'average_price' => $totalQuantity > 0 ? $totalValue / $totalQuantity : 0,
+                ],
+                'stock_details' => $locations->values(),
+                'alerts' => $alerts,
+                'global_settings' => $globalSettings,
+            ]);
+            
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Pharmacy product not found.',
-            ], 404);
+                'message' => 'Failed to load stock details: ' . $e->getMessage(),
+            ], 500);
         }
-
-        $stockDetails = PharmacyInventory::where('pharmacy_product_id', $productId)
-            ->with('pharmacyStockage')
-            ->get();
-
-        $totalQuantity = $stockDetails->sum('quantity');
-        $locationsCount = $stockDetails->unique('pharmacy_stockage_id')->count();
-        $batchesCount = $stockDetails->unique('batch_number')->count();
-
-        $summary = [
-            'total_quantity' => $totalQuantity,
-            'locations_count' => $locationsCount,
-            'batches_count' => $batchesCount,
-            'is_low_stock' => $totalQuantity <= ($product->low_stock_threshold ?? 0),
-            'is_critical_stock' => $totalQuantity <= ($product->critical_stock_threshold ?? 0),
-        ];
-
-        return response()->json([
-            'success' => true,
-            'product' => $product,
-            'stock_details' => $stockDetails,
-            'summary' => $summary,
-        ]);
     }
 
     public function getCategories()

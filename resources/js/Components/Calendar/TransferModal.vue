@@ -237,35 +237,35 @@ const formatTime = (timeString) => {
 
 <style scoped>
 .transfer-modal :deep(.p-dialog-header) {
-  @apply tw-bg-blue-50 tw-border-b tw-border-blue-200;
+  @apply bg-blue-50 tw-border-b tw-border-blue-200;
 }
 
 .transfer-modal :deep(.p-dialog-title) {
-  @apply tw-text-blue-900 tw-font-semibold;
+  @apply text-blue-900 tw-font-semibold;
 }
 
 .transfer-modal :deep(.p-dialog-content) {
-  @apply tw-p-6;
+  @apply p-6;
 }
 
 .transfer-modal :deep(.p-dialog-footer) {
-  @apply tw-bg-gray-50 tw-border-t tw-border-gray-200 tw-px-6 tw-py-4;
+  @apply bg-gray-50 tw-border-t tw-border-gray-200 tw-px-6 tw-py-4;
 }
 
 /* Dropdown and Calendar styling */
 .transfer-modal :deep(.p-dropdown) {
-  @apply tw-border tw-border-gray-300 tw-rounded-md;
+  @apply border tw-border-gray-300 tw-rounded-md;
 }
 
 .transfer-modal :deep(.p-calendar) {
-  @apply tw-border tw-border-gray-300 tw-rounded-md;
+  @apply border tw-border-gray-300 tw-rounded-md;
 }
 
 .transfer-modal :deep(.p-inputtext) {
-  @apply tw-border tw-border-gray-300 tw-rounded-md tw-px-3 tw-py-2;
+  @apply border tw-border-gray-300 tw-rounded-md tw-px-3 tw-py-2;
 }
 
 .transfer-modal :deep(.p-inputtext:focus) {
-  @apply tw-border-blue-500 tw-ring-1 tw-ring-blue-500;
+  @apply border-blue-500 tw-ring-1 tw-ring-blue-500;
 }
 </style>

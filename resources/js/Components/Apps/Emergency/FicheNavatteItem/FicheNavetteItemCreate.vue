@@ -373,17 +373,9 @@ const handleProceedWithAppointments = (appointmentData) => {
 
 // Pass-through functions for modals
 const onConventionModeToggle = () => {
-  console.log('=== Convention mode toggled ===')
-  console.log('enableConventionMode:', enableConventionMode.value)
-  
-  if (enableConventionMode.value) {
-    console.log('Opening convention modal...')
-    showConventionModal.value = true
-    console.log('showConventionModal is now:', showConventionModal.value)
-  } else {
-    console.log('Closing convention modal...')
-    showConventionModal.value = false
-  }
+  console.log('=== Convention toggle button clicked ===')
+  console.log('enableConventionMode is now:', enableConventionMode.value)
+  // The watcher will handle updating showConventionModal
 }
 
 const onConventionItemsAdded = (data) => {
@@ -752,6 +744,14 @@ const debugAppointmentState = () => {
   console.log('================================')
 }
 
+// Watch for convention mode changes
+watch(enableConventionMode, (newValue) => {
+  console.log('=== Convention mode changed ===')
+  console.log('enableConventionMode:', newValue)
+  showConventionModal.value = newValue
+  console.log('showConventionModal is now:', showConventionModal.value)
+})
+
 // Watch for same day modal visibility changes
 watch(showSameDayModal, (newValue) => {
   console.log('SameDayModal visibility changed to:', newValue)
@@ -847,7 +847,7 @@ onMounted(() => {
                   
                 </div>
                 <ToggleButton
-                  v-model:visiable="enableConventionMode"
+                  v-model="enableConventionMode"
                   onLabel="Convention"
                   offLabel="Regular"
                   onIcon="pi pi-building"
@@ -981,15 +981,15 @@ onMounted(() => {
 
     <!-- All Modals -->
     <ConventionModal
-      v-model:visible:="showConventionModal"
+      :visible="showConventionModal"
+      @update:visible="showConventionModal = $event"
       :ficheNavetteId="props.ficheNavetteId"
       :patientId="props.patientId"
       @convention-items-added="onConventionItemsAdded"
-      @update:visible="showConventionModal = $event"
     />
 
     <SameDayAppointmentModal
-      v-model:visible="showSameDayModal"
+      v-model="showSameDayModal"
       :doctor-id="safeDoctorId"
       :patient-id="props.patientId"
       :fuckuifwork="fuckuifwork"
@@ -1000,7 +1000,7 @@ onMounted(() => {
     />
     
     <AppointmentRequiredAlert
-      v-model:visible="showAppointmentAlert"
+      v-model="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
       :selected-doctor="selectedDoctor"
@@ -1010,7 +1010,7 @@ onMounted(() => {
     />
     
     <DoctorSelectionModal
-      v-model:visible="showDoctorSelectionModal"
+      v-model="showDoctorSelectionModal"
       :prestation="selectedPrestationForAppointment"
       :doctors="allDoctors"
       :specializations="specializations"
@@ -1020,7 +1020,7 @@ onMounted(() => {
     />
     
     <ReasonModel
-      v-model:visible="showCancelReasonModal"
+      v-model="showCancelReasonModal"
       @submit="onReasonSubmitted"
       @close="showCancelReasonModal = false; prestationToCancel = null"
     />

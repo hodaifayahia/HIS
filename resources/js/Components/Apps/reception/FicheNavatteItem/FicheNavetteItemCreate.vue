@@ -8,6 +8,9 @@ import Button from 'primevue/button'
 import ToggleButton from 'primevue/togglebutton'
 import Badge from 'primevue/badge'
 import ProgressBar from 'primevue/progressbar'
+import ConfirmDialog from 'primevue/confirmdialog'
+import { useConfirm } from 'primevue/useconfirm'
+import Dialog from 'primevue/dialog'
 
 // New child components
 import PrestationSelection from '../components/PrestationSelection.vue'
@@ -37,6 +40,7 @@ const props = defineProps({
 })
 
 const toast = useToast()
+const confirm = useConfirm()
 
 // Global Reactive State
 const activeTab = ref(0)
@@ -49,6 +53,8 @@ const showConventionModal = ref(false)
 const enableConventionMode = ref(false)
 const conventionOrganismes = ref([])
 const loadingConventions = ref(false)
+const showPackageConversionDialog = ref(false)
+const convertedPackageInfo = ref(null)
 
 // Appointment State
 const showSameDayModal = ref(false)
@@ -143,24 +149,91 @@ const fetchAllDoctors = async () => {
 
 const fetchAllPrestations = async () => {
   try {
-    const prestationResult = await ficheNavetteService.getAllPrestations();
-    console.log('Prestation Result:', prestationResult);
-    const packageResult = await ficheNavetteService.getAllPackages();
+    console.log('Fetching prestations and packages...')
+    
+    // Fetch both prestations and packages in parallel
+    const [prestationResult, packageResult] = await Promise.all([
+      ficheNavetteService.getAllPrestations(),
+      ficheNavetteService.getAllPackages()
+    ])
+
+    console.log('Prestation Result:', prestationResult)
+    console.log('Package Result:', packageResult)
 
     if (prestationResult.success) {
-      allPrestations.value = prestationResult.data || [];
+      allPrestations.value = prestationResult.data || []
+      console.log('Loaded prestations:', allPrestations.value.length)
+    } else {
+      console.error('Failed to load prestations:', prestationResult.message)
     }
+
     if (packageResult.success) {
-      availablePackages.value = packageResult.data || [];
+      // Ensure packages have the correct structure
+      availablePackages.value = (packageResult.data || []).map(pkg => {
+        // Normalize package structure
+        const normalizedPkg = {
+          id: pkg.id,
+          name: pkg.name || `Package ${pkg.id}`,
+          prestations: []
+        }
+
+        // Priority 1: Use prestations array if available (preferred format)
+        if (Array.isArray(pkg.prestations) && pkg.prestations.length > 0) {
+          console.log(`✓ Package ${pkg.id}: Using prestations array (${pkg.prestations.length} items)`)
+          normalizedPkg.prestations = pkg.prestations.map(p => ({
+            id: p.id || p.prestation_id,
+            prestation_id: p.id || p.prestation_id,
+            name: p.name
+          }))
+        }
+        // Priority 2: Fall back to items.prestation structure (backward compatibility)
+        else if (Array.isArray(pkg.items) && pkg.items.length > 0) {
+          console.log(`✓ Package ${pkg.id}: Using items structure (${pkg.items.length} items)`)
+          normalizedPkg.prestations = pkg.items
+            .filter(item => item.prestation)
+            .map(item => ({
+              id: item.prestation.id,
+              prestation_id: item.prestation.id,
+              name: item.prestation.name
+            }))
+        }
+        // Priority 3: Handle prestation_package_prestations (another possible format)
+        else if (Array.isArray(pkg.prestation_package_prestations) && pkg.prestation_package_prestations.length > 0) {
+          console.log(`✓ Package ${pkg.id}: Using prestation_package_prestations structure`)
+          normalizedPkg.prestations = pkg.prestation_package_prestations.map(p => ({
+            id: p.prestation_id,
+            prestation_id: p.prestation_id,
+            name: p.prestation?.name || `Prestation ${p.prestation_id}`
+          }))
+        } else {
+          console.warn(`⚠ Package ${pkg.id}: No prestations found in any expected format`)
+        }
+
+        console.log('Normalized package:', {
+          id: normalizedPkg.id,
+          name: normalizedPkg.name,
+          prestation_count: normalizedPkg.prestations.length,
+          prestation_ids: normalizedPkg.prestations.map(p => p.id)
+        })
+        
+        return normalizedPkg
+      })
+
+      console.log('Loaded and normalized packages:', availablePackages.value.length, 'packages')
+      availablePackages.value.forEach(pkg => {
+        console.log(`  📦 Package ${pkg.id}: ${pkg.name} with ${pkg.prestations.length} prestations: [${pkg.prestations.map(p => p.id).join(', ')}]`)
+      })
+    } else {
+      console.error('Failed to load packages:', packageResult.message)
     }
   } catch (error) {
-    console.error('Error fetching all prestations and packages:', error);
+    console.error('Error fetching all prestations and packages:', error)
     toast.add({
       severity: 'error',
       summary: 'Error',
       detail: 'Failed to load prestations and packages',
       life: 3000
-    });
+    })
   }
 }
 
@@ -208,15 +281,38 @@ const createFicheNavette = async (data) => {
       result = await ficheNavetteService.createFicheNavette(data)
     }
     if (result.success) {
+      // Log conversion info for debugging
+      console.log('✅ Items added/created successfully:', {
+        conversion: result.conversion,
+        is_cascading: result.conversion?.is_cascading,
+        converted: result.conversion?.converted,
+        package_name: result.conversion?.package_name
+      })
+      
       // Update frontend state immediately without refetching
       updateFrontendStateAfterCreation(data, result.data)
       
-      toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: props.ficheNavetteId ? 'Items added successfully' : 'Fiche Navette created successfully',
-        life: 3000
-      })
+      // Check if automatic conversion happened
+      if (result.conversion && result.conversion.converted) {
+        const isCascading = result.conversion.is_cascading
+        toast.add({
+          severity: 'success',
+          summary: isCascading ? '🔄 Cascading Package Conversion' : '✨ Package Auto-Conversion',
+          detail: isCascading 
+            ? `Previous package replaced with "${result.conversion.package_name}"!`
+            : `Items automatically converted to "${result.conversion.package_name}" package!`,
+          life: 5000
+        })
+      } else {
+        // Regular success message if no conversion
+        toast.add({
+          severity: 'success',
+          summary: 'Success',
+          detail: props.ficheNavetteId ? 'Items added successfully' : 'Fiche Navette created successfully',
+          life: 3000
+        })
+      }
+      
       resetSelections()
       emit('created', result.data)
     } else {
@@ -296,11 +392,217 @@ const onTabChange = (event) => {
 }
 
 // --- Simple Item Handler (like nursing) ---
-const handleItemsCreated = (data) => {
+const handleItemsCreated = async (data) => {
   console.log('=== handleItemsCreated called ===')
   console.log('Items to create:', data)
-  // Directly create the fiche navette with the selected data
-  createFicheNavette(data)
+  
+  try {
+    // Validate input data
+    if (!data) {
+      throw new Error('No data provided for item creation')
+    }
+
+    // Ensure data has the expected structure
+    if (!data.prestations) {
+      data.prestations = []
+    }
+
+    if (!Array.isArray(data.prestations)) {
+      console.error('Invalid prestations data:', data.prestations)
+      throw new Error('Invalid prestations format')
+    }
+
+    // Check if there are prestations to check for package conversion
+    if (data.prestations.length > 0) {
+      await checkAndCreateWithPackage(data)
+    } else {
+      // If no prestations, proceed normally
+      await createFicheNavette(data)
+    }
+  } catch (error) {
+    console.error('Error in handleItemsCreated:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.message || 'Failed to create items',
+      life: 3000
+    })
+  }
+}
+
+// Helper function to check for package conversion
+const checkForPackageConversion = (prestations) => {
+  
+  // Validation checks
+  if (!prestations || !Array.isArray(prestations) || prestations.length === 0) {
+    console.log('❌ No valid prestations array provided')
+    return null
+  }
+
+  if (!availablePackages.value || !Array.isArray(availablePackages.value) || availablePackages.value.length === 0) {
+    console.log('❌ No available packages to check against')
+    return null
+  }
+
+  try {
+    // STEP 1: Filter out convention items and dependencies
+    console.log('📋 STEP 1: Filtering prestations...')
+    const standardPrestations = prestations.filter(p => {
+      const isValid = p && !p.is_convention && !p.is_dependency
+      console.log(`  - Prestation ID: ${p?.prestation_id || p?.id}, convention: ${p?.is_convention}, dependency: ${p?.is_dependency}, valid: ${isValid}`)
+      return isValid
+    })
+
+    console.log(`📊 Found ${standardPrestations.length} standard prestations (excluding conventions and dependencies)`)
+
+    if (standardPrestations.length === 0) {
+      console.log('❌ No standard prestations after filtering')
+      return null
+    }
+
+    // STEP 2: Extract prestation IDs
+    console.log('📋 STEP 2: Extracting prestation IDs...')
+    const standardPrestationIds = new Set()
+    standardPrestations.forEach(p => {
+      const id = p.prestation_id || p.id
+      if (id) {
+        standardPrestationIds.add(id)
+        console.log(`  ✓ Added prestation ID: ${id}`)
+      } else {
+        console.log(`  ✗ Prestation has no ID:`, p)
+      }
+    })
+
+    console.log(`🎯 Searching for packages containing these ${standardPrestationIds.size} prestations:`, [...standardPrestationIds])
+
+    // STEP 3: Find matching packages
+    console.log('📋 STEP 3: Checking available packages...')
+    const matchingPackage = availablePackages.value.find(pkg => {
+      if (!pkg || typeof pkg !== 'object') {
+        console.log(`  ✗ Invalid package object`)
+        return false
+      }
+
+      // Extract prestations from package (handle different structures)
+      const packagePrestations = pkg.prestations || pkg.prestation_package_prestations || []
+      
+      if (!Array.isArray(packagePrestations)) {
+        console.log(`  ⚠ Package ${pkg.id} (${pkg.name}) has no prestations array`)
+        return false
+      }
+
+      // Extract prestation IDs from package
+      const packagePrestationIds = new Set()
+      packagePrestations.forEach(p => {
+        const id = p.prestation_id || p.id
+        if (id) {
+          packagePrestationIds.add(id)
+        }
+      })
+
+      console.log(`  📦 Package ${pkg.id} (${pkg.name}): ${packagePrestationIds.size} prestations [${[...packagePrestationIds].join(', ')}]`)
+
+      // Check for exact match
+      const hasAllPrestations = [...standardPrestationIds].every(id => packagePrestationIds.has(id))
+      const isExactMatch = packagePrestationIds.size === standardPrestationIds.size
+
+      if (hasAllPrestations && isExactMatch) {
+        console.log(`  ✅ EXACT MATCH FOUND: Package ${pkg.id} (${pkg.name})`)
+        return true
+      }
+
+      return false
+    })
+
+    if (matchingPackage) {
+      console.log(`✅ === PACKAGE FOUND: ${matchingPackage.name} (ID: ${matchingPackage.id}) ===`)
+      return matchingPackage
+    } else {
+      console.log('❌ No matching package found')
+      return null
+    }
+
+  } catch (error) {
+    console.error('🚨 Error in checkForPackageConversion:', error)
+    return null
+  }
+}
+
+// Function to handle automatic package conversion - NO USER CONFIRMATION
+const checkAndCreateWithPackage = async (data) => {
+  console.log('=== checkAndCreateWithPackage START ===')
+  console.log('Input data:', data)
+
+  try {
+    // Separate prestations by type
+    const standardPrestations = data.prestations?.filter(p => !p.is_convention && !p.is_dependency) || []
+    const conventionPrestations = data.prestations?.filter(p => p.is_convention) || []
+    const dependencyPrestations = data.prestations?.filter(p => p.is_dependency) || []
+    
+    console.log('📊 Prestation breakdown:', {
+      total: data.prestations?.length || 0,
+      standard: standardPrestations.length,
+      convention: conventionPrestations.length,
+      dependency: dependencyPrestations.length
+    })
+    
+    // Check if a matching package exists (only for standard prestations)
+    const matchingPackage = checkForPackageConversion(standardPrestations)
+    
+    if (matchingPackage) {
+      console.log(`✅ Matching package found: ${matchingPackage.name}`)
+      console.log(`📋 Converting ${standardPrestations.length} standard prestations to package...`)
+      console.log(`� Preserving ${conventionPrestations.length} convention + ${dependencyPrestations.length} dependency items`)
+      
+      // Store package info for info dialog (only standard prestations that are being converted)
+      convertedPackageInfo.value = {
+        packageName: matchingPackage.name,
+        packageId: matchingPackage.id,
+        prestationCount: standardPrestations.length,
+        prestations: standardPrestations.map(p => p.name || `Prestation ${p.prestation_id || p.id}`),
+      }
+
+      // STEP 1: Convert to package format
+      console.log(`📦 Converting to package format...`)
+      const newData = {
+        ...data,
+        // Preserve convention and dependency items, remove only standard ones
+        prestations: [...conventionPrestations, ...dependencyPrestations],
+        packages: [{
+          package_id: matchingPackage.id,
+          id: matchingPackage.id,
+          quantity: 1,
+          name: matchingPackage.name
+        }]
+      }
+
+      console.log('📤 Sending to backend:', {
+        packages: newData.packages.length,
+        remaining_prestations: newData.prestations.length,
+        package_id: matchingPackage.id
+      })
+
+      // STEP 2: Create the package (backend will handle everything in a transaction)
+      await createFicheNavette(newData)
+
+      // STEP 3: Show info dialog about the conversion
+      showPackageConversionDialog.value = true
+
+      console.log('✅ === PACKAGE CONVERSION COMPLETE ===')
+    } else {
+      // No matching package - proceed with creating individual prestations
+      console.log('ℹ️ No matching package found - creating individual prestations')
+      await createFicheNavette(data)
+    }
+  } catch (error) {
+    console.error('🚨 Error in package conversion:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.message || 'Failed to process items',
+      life: 3000
+    })
+  }
 }
 
 // --- Appointment & Convention Handlers (kept for compatibility) ---
@@ -374,17 +676,9 @@ const handleProceedWithAppointments = (appointmentData) => {
 
 // Pass-through functions for modals
 const onConventionModeToggle = () => {
-  console.log('=== Convention mode toggled ===')
-  console.log('enableConventionMode:', enableConventionMode.value)
-  
-  if (enableConventionMode.value) {
-    console.log('Opening convention modal...')
-    showConventionModal.value = true
-    console.log('showConventionModal is now:', showConventionModal.value)
-  } else {
-    console.log('Closing convention modal...')
-    showConventionModal.value = false
-  }
+  console.log('=== Convention toggle button clicked ===')
+  console.log('enableConventionMode is now:', enableConventionMode.value)
+  // The watcher will handle updating showConventionModal
 }
 
 const onConventionItemsAdded = (data) => {
@@ -753,6 +1047,14 @@ const debugAppointmentState = () => {
   console.log('================================')
 }
 
+// Watch for convention mode changes
+watch(enableConventionMode, (newValue) => {
+  console.log('=== Convention mode changed ===')
+  console.log('enableConventionMode:', newValue)
+  showConventionModal.value = newValue
+  console.log('showConventionModal is now:', showConventionModal.value)
+})
+
 // Watch for same day modal visibility changes
 watch(showSameDayModal, (newValue) => {
   console.log('SameDayModal visibility changed to:', newValue)
@@ -848,7 +1150,7 @@ onMounted(() => {
                   />
                 </div>
                 <ToggleButton
-                  v-model:visiable="enableConventionMode"
+                  v-model="enableConventionMode"
                   onLabel="Convention"
                   offLabel="Regular"
                   onIcon="pi pi-building"
@@ -981,15 +1283,15 @@ onMounted(() => {
 
     <!-- All Modals -->
     <ConventionModal
-      v-model:visible="showConventionModal"
+      :visible="showConventionModal"
+      @update:visible="showConventionModal = $event"
       :ficheNavetteId="props.ficheNavetteId"
       :patientId="props.patientId"
       @convention-items-added="onConventionItemsAdded"
-      @update:visible="showConventionModal = $event"
     />
 
     <SameDayAppointmentModal
-      v-model:visible="showSameDayModal"
+      v-model="showSameDayModal"
       :doctor-id="safeDoctorId"
       :patient-id="props.patientId"
       :fuckuifwork="fuckuifwork"
@@ -1000,7 +1302,7 @@ onMounted(() => {
     />
     
     <AppointmentRequiredAlert
-      v-model:visible="showAppointmentAlert"
+      v-model="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
       :selected-doctor="selectedDoctor"
@@ -1010,7 +1312,7 @@ onMounted(() => {
     />
     
     <DoctorSelectionModal
-      v-model:visible="showDoctorSelectionModal"
+      v-model="showDoctorSelectionModal"
       :prestation="selectedPrestationForAppointment"
       :doctors="allDoctors"
       :specializations="specializations"
@@ -1020,10 +1322,90 @@ onMounted(() => {
     />
     
     <ReasonModel
-      v-model:visible="showCancelReasonModal"
+      v-model="showCancelReasonModal"
       @submit="onReasonSubmitted"
       @close="showCancelReasonModal = false; prestationToCancel = null"
     />
+
+    <!-- Package Conversion Info Dialog -->
+    <Dialog
+      v-model="showPackageConversionDialog"
+      header="✅ Package Created Successfully"
+      modal
+      class="w-full md:w-2/3 lg:w-1/2"
+      :closable="true"
+      @hide="showPackageConversionDialog = false"
+    >
+      <div v-if="convertedPackageInfo" class="space-y-6">
+        <!-- Success Message -->
+        <div class="bg-green-50 border-l-4 border-green-600 p-4 rounded">
+          <div class="flex items-center gap-3">
+            <i class="pi pi-check-circle text-green-600 text-2xl"></i>
+            <div>
+              <p class="font-semibold text-green-900">Automatic Package Conversion</p>
+              <p class="text-sm text-green-700 mt-1">
+                Individual prestations have been successfully converted to a package
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Package Information -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <p class="text-sm text-gray-600 font-medium">Package Name</p>
+              <p class="text-lg font-semibold text-blue-900 mt-1">
+                {{ convertedPackageInfo.packageName }}
+              </p>
+            </div>
+            <div>
+              <p class="text-sm text-gray-600 font-medium">Package ID</p>
+              <p class="text-lg font-semibold text-blue-900 mt-1">
+                #{{ convertedPackageInfo.packageId }}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Converted Prestations List -->
+        <div>
+          <p class="text-sm font-semibold text-gray-700 mb-2">
+            Converted Prestations ({{ convertedPackageInfo.prestationCount }})
+          </p>
+          <ul class="space-y-2">
+            <li 
+              v-for="(prestation, index) in convertedPackageInfo.prestations" 
+              :key="index"
+              class="flex items-center gap-3 p-2 bg-gray-50 rounded text-sm"
+            >
+              <i class="pi pi-check text-green-600"></i>
+              <span class="text-gray-700">{{ prestation }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Info Message -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+          <div class="flex gap-2">
+            <i class="pi pi-info-circle flex-shrink-0 mt-0.5"></i>
+            <p>
+              Instead of creating {{ convertedPackageInfo.prestationCount }} separate items, 
+              a single package has been created. This improves organization and billing efficiency.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button 
+          label="Close" 
+          icon="pi pi-check"
+          class="p-button-primary"
+          @click="showPackageConversionDialog = false"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 

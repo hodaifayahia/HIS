@@ -106,6 +106,15 @@ class FicheNavetteResource extends JsonResource
             'patient_id' => $this->patient_id,
             'patient_name' => $this->whenLoaded('patient', fn () => $this->patient?->Firstname.' '.$this->patient?->Lastname),
             'patient_balance' => $this->whenLoaded('patient', fn () => $this->patient?->balance),
+            'patient' => $this->whenLoaded('patient', function () {
+                return $this->patient ? [
+                    'id' => $this->patient->id,
+                    'Firstname' => $this->patient->Firstname,
+                    'Lastname' => $this->patient->Lastname,
+                    'balance' => $this->patient->balance,
+                    'is_faithful' => $this->patient->is_faithful ?? true,
+                ] : null;
+            }),
             'creator_id' => $this->creator_id,
             'creator_name' => $this->whenLoaded('creator', fn () => $this->creator?->name),
             'status' => $this->status,

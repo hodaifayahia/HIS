@@ -17,6 +17,7 @@ class CoffreTransactionResource extends JsonResource
             'status' => $this->status,
             'transaction_type' => $this->transaction_type,
             'transaction_type_display' => $this->transaction_type_display,
+            'payment_method' => $this->payment_method,
             'amount' => (float) $this->amount,
             'formatted_amount' => $this->formatted_amount,
             'description' => $this->description,
@@ -52,7 +53,26 @@ class CoffreTransactionResource extends JsonResource
             'source_caisse_session' => $this->whenLoaded('sourceCaisseSession', function () {
                 return [
                     'id' => $this->sourceCaisseSession->id,
-                    // Add other relevant fields
+                    'caisse_id' => $this->sourceCaisseSession->caisse_id ?? null,
+                    'cashier_id' => $this->sourceCaisseSession->cashier_id ?? null,
+                    'cashier' => $this->sourceCaisseSession->cashier ? [
+                        'id' => $this->sourceCaisseSession->cashier->id,
+                        'name' => $this->sourceCaisseSession->cashier->name,
+                    ] : null,
+                ];
+            }),
+            
+            'patient' => $this->whenLoaded('patient', function () {
+                return [
+                    'id' => $this->patient->id,
+                    'name' => $this->patient->name,
+                ];
+            }),
+            
+            'prestation' => $this->whenLoaded('prestation', function () {
+                return [
+                    'id' => $this->prestation->id,
+                    'name' => $this->prestation->name,
                 ];
             }),
             

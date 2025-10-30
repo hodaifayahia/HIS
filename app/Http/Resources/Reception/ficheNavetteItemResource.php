@@ -127,9 +127,13 @@ class ficheNavetteItemResource extends JsonResource
                         // Get doctor information for package prestation
                         $doctorInfo = null;
                         if ($packageItem->prestation->relationLoaded('doctor') && $packageItem->prestation->doctor) {
+                            $doctorName = null;
+                            if ($packageItem->prestation->doctor->relationLoaded('user') && $packageItem->prestation->doctor->user) {
+                                $doctorName = $packageItem->prestation->doctor->user->name;
+                            }
                             $doctorInfo = [
                                 'id' => $packageItem->prestation->doctor->id,
-                                'name' => $packageItem->prestation->doctor->name,
+                                'name' => $doctorName,
                             ];
                         }
 
@@ -180,6 +184,28 @@ class ficheNavetteItemResource extends JsonResource
             ] : null;
         }
 
+        // Add package reception records with doctor info (for multi-doctor packages)
+        if ($this->relationLoaded('packageReceptionRecords')) {
+            $data['packageReceptionRecords'] = $this->packageReceptionRecords->map(function ($record) {
+                return [
+                    'id' => $record->id,
+                    'package_id' => $record->package_id,
+                    'prestation_id' => $record->prestation_id,
+                    'doctor_id' => $record->doctor_id,
+                    'doctor' => ($record->relationLoaded('doctor') && $record->doctor) ? [
+                        'id' => $record->doctor->id,
+                        'name' => $record->doctor->relationLoaded('user') && $record->doctor->user ? $record->doctor->user->name : null,
+                    ] : null,
+                    'prestation' => ($record->relationLoaded('prestation') && $record->prestation) ? [
+                        'id' => $record->prestation->id,
+                        'name' => $record->prestation->name,
+                    ] : null,
+                ];
+            })->values();
+        } else {
+            $data['packageReceptionRecords'] = [];
+        }
+
         // Fixed dependencies - Use dependencyPrestation, not parentItem->prestation
         $data['dependencies'] = $this->whenLoaded('dependencies', function () {
             $paymentTypes = [
@@ -220,7 +246,7 @@ class ficheNavetteItemResource extends JsonResource
                         ] : null,
                         'doctor' => ($prestation->relationLoaded('doctor') && $prestation->doctor) ? [
                             'id' => $prestation->doctor->id,
-                            'name' => $prestation->doctor->name,
+                            'name' => ($prestation->doctor->relationLoaded('user') && $prestation->doctor->user) ? $prestation->doctor->user->name : null,
                         ] : null,
                     ];
 

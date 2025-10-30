@@ -1668,11 +1668,11 @@ onMounted(async () => {
 <style scoped>
 /* DataTable enhancements */
 :deep(.p-datatable) {
-  @apply tw-border-0 tw-rounded-lg;
+  @apply border-0 tw-rounded-lg;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1680,44 +1680,44 @@ onMounted(async () => {
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr.p-highlight) {
-  @apply tw-bg-cyan-100;
+  @apply bg-cyan-100;
 }
 
 /* Card styling */
 :deep(.p-card) {
-  @apply tw-rounded-xl;
+  @apply rounded-xl;
 }
 
 :deep(.p-card-title) {
-  @apply tw-text-xl tw-font-bold tw-text-gray-800;
+  @apply text-xl tw-font-bold tw-text-gray-800;
 }
 
 /* Dialog */
 :deep(.p-dialog-header) {
-  @apply tw-bg-gradient-to-r tw-from-teal-600 tw-to-cyan-700 tw-text-white;
+  @apply bg-gradient-to-r tw-from-teal-600 tw-to-cyan-700 tw-text-white;
 }
 
 :deep(.p-dialog-header .p-dialog-title) {
-  @apply tw-text-white tw-font-bold;
+  @apply text-white tw-font-bold;
 }
 
 /* Calendar */
 :deep(.p-calendar) {
-  @apply tw-w-full;
+  @apply w-full;
 }
 
 :deep(.p-calendar:hover) {
-  @apply tw-shadow-md tw-transition-shadow;
+  @apply shadow-md tw-transition-shadow;
 }
 
 /* FileUpload */
 :deep(.p-fileupload) {
-  @apply tw-border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg hover:tw-border-teal-400 hover:tw-bg-teal-50 tw-transition-all;
+  @apply border-2 tw-border-dashed tw-border-gray-300 tw-rounded-lg hover:tw-border-teal-400 hover:tw-bg-teal-50 tw-transition-all;
 }
 
 /* Steps */
 :deep(.p-steps .p-steps-item) {
-  @apply tw-flex-1;
+  @apply flex-1;
 }
 
 /* Animations */
@@ -1751,10 +1751,10 @@ onMounted(async () => {
 
 /* Hover effects */
 :deep(.p-button:not(:disabled):hover) {
-  @apply tw-transform tw-scale-105 tw-transition-transform;
+  @apply transform tw-scale-105 tw-transition-transform;
 }
 
 :deep(.p-card:hover) {
-  @apply tw-shadow-2xl tw-transition-shadow;
+  @apply shadow-2xl tw-transition-shadow;
 }
 </style>

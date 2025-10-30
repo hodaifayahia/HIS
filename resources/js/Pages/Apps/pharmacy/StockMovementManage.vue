@@ -1191,7 +1191,7 @@ export default {
       try {
         loadingProducts.value = true
         // Load available products from the providing service
-        const productsResponse = await axios.get(`/api/products?service_id=${movement.value?.providing_service_id}&per_page=1000`)
+        const productsResponse = await axios.get(`/api/pharmacy/products?service_id=${movement.value?.providing_service_id}&per_page=1000`)
         availableProducts.value = productsResponse.data.data || []
         
         // console.log('Loaded products:', availableProducts.value.length)
@@ -1323,7 +1323,7 @@ export default {
             // Try to get stock information for products that don't have it
             const stockPromises = productsWithoutStock.map(async (product) => {
               try {
-                const detailsResponse = await axios.get(`/api/products/${product.id}/details`)
+                const detailsResponse = await axios.get(`/api/pharmacy/products/${product.id}/details`)
                 const detailsData = detailsResponse.data
 
                 // Return object with stock information

@@ -1,9 +1,12 @@
+
+
 <?php
 
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\AllergyController;
 use App\Http\Controllers\Api\ApprovalPersonController; // This serves your main SPA layout
 use App\Http\Controllers\Api\BonCommendApprovalController;
+use App\Http\Controllers\Api\InventoryAuditProductController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AppointmentAvailableMonthController;
 use App\Http\Controllers\AppointmentController;
@@ -75,6 +78,8 @@ use App\Http\Controllers\Pharmacy\PharmacyInventoryController;
 use App\Http\Controllers\Pharmacy\PharmacyProductController;
 use App\Http\Controllers\Pharmacy\PharmacyStockageController;
 use App\Http\Controllers\Pharmacy\PharmacyStockMovementController;
+use App\Http\Controllers\Stock\ProductController;
+use App\Http\Controllers\Purchasing\PurchasingProductController;
 use App\Http\Controllers\PlaceholderController;
 use App\Http\Controllers\PrescriptionController;
 use App\Http\Controllers\ProductHistoryController;
@@ -82,6 +87,7 @@ use App\Http\Controllers\Reception\ficheNavetteController;
 use App\Http\Controllers\Reception\FicheNavetteCustomPackageController;
 use App\Http\Controllers\Reception\ficheNavetteItemController;
 use App\Http\Controllers\Reception\RemiseApproverController;
+use App\Http\Controllers\Reception\PrestationPackageDoctorAssignmentController;
 use App\Http\Controllers\Reception\RemiseRequestNotificationController;
 use App\Http\Controllers\ScheduleController;
 use App\Http\Controllers\SettingController;
@@ -91,6 +97,7 @@ use App\Http\Controllers\TemplateController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WaitListController;
 use App\Http\Controllers\BonCommendController;
+use App\Http\Controllers\Stock\ReserveController;
 use App\Http\Controllers\BonRetourController;
 
 use Illuminate\Support\Facades\Route;
@@ -132,6 +139,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::patch('/users/{userid}/change-role', [UserController::class, 'ChangeRole'])->name('users.ChangeRole');
         Route::get('/loginuser', [UserController::class, 'getCurrentUser']);
+        Route::get('/user-info', [UserController::class, 'getUserInfo']); // Get user info with all assigned services
         Route::get('/role', [UserController::class, 'role']);
 
         // Password Validation Routes
@@ -545,6 +553,36 @@ Route::middleware(['auth'])->group(function () {
         Route::apiResource('/fiche-navette-custom-packages', FicheNavetteCustomPackageController::class);
 
         Route::prefix('/reception')->group(function () {
+            // Prestation Package Doctor Assignments
+            Route::prefix('/packages')->group(function () {
+                // Get prestations with doctors for a package
+                Route::get('/{packageId}/prestations-with-doctors', 
+                    [PrestationPackageDoctorAssignmentController::class, 'getPrestationsWithDoctors']);
+                
+                // Store doctor assignments (bulk)
+                Route::post('/{packageId}/doctor-assignments', 
+                    [PrestationPackageDoctorAssignmentController::class, 'storeDoctorAssignments']);
+                
+                // Update single doctor assignment
+                Route::put('/{packageId}/prestations/{prestationId}/doctor', 
+                    [PrestationPackageDoctorAssignmentController::class, 'updateDoctorAssignment']);
+                
+                // Remove doctor assignment
+                Route::delete('/{packageId}/prestations/{prestationId}/doctor', 
+                    [PrestationPackageDoctorAssignmentController::class, 'removeDoctorAssignment']);
+                
+                // Bulk update doctor assignments (replaces all)
+                Route::patch('/{packageId}/doctor-assignments/bulk', 
+                    [PrestationPackageDoctorAssignmentController::class, 'bulkUpdateDoctorAssignments']);
+            });
+
+            // Fiche Navette Item Doctor Assignments for Packages
+            Route::prefix('/fiche-navette-items')->group(function () {
+                // Get package doctors for a fiche navette item
+                Route::get('/{itemId}/package-doctors', 
+                    [PrestationPackageDoctorAssignmentController::class, 'getPackageItemDoctors']);
+            });
+
             Route::post('/fiche-navette/{ficheNavetteId}/items', [ficheNavetteItemController::class, 'store']);
             Route::get('/fiche-navette/{ficheNavetteId}/items', [ficheNavetteItemController::class, 'index']);
             Route::get('/fiche-navette/{ficheNavetteId}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
@@ -556,12 +594,18 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/fiche-navette/dependencies/{dependencyId}', [ficheNavetteItemController::class, 'updateDependency']);
             Route::post('/fiche-navette/dependencies/{dependencyId}', [ficheNavetteItemController::class, 'updateDependency']);
             Route::delete('/fiche-navette/{ficheNavetteId}/items/{itemId}', [ficheNavetteItemController::class, 'destroy']);
+            Route::post('/fiche-navette/{ficheNavetteId}/convert-to-package', [ficheNavetteItemController::class, 'convertToPackage']);
+            // NEW: Create package with strict doctor validation
+            Route::post('/fiche-navette/{ficheNavetteId}/create-package', [ficheNavetteItemController::class, 'createPackageWithDoctorValidation']);
             Route::get('/fiche-navette/today-pending', [ficheNavetteController::class, 'getPrestationsForTodayAndPendingByAuthenticatedUser']);
             Route::get('/prestations/all', [ficheNavetteController::class, 'getAllPrestations']);
             Route::post('/fiche-navette/{prestationId}/update-status', [FicheNavetteController::class, 'updatePrestationStatus']);
 
             // Print fiche navette ticket (must be before apiResource to avoid route conflict)
             Route::post('/fiche-navette/{id}/print-ticket', [ficheNavetteController::class, 'printFicheNavetteTicket']);
+
+            // Toggle patient faithful status
+            Route::post('/fiche-navette/{ficheNavetteId}/toggle-patient-faithful', [ficheNavetteController::class, 'togglePatientFaithful']);
 
             Route::apiResource('/fiche-navette', ficheNavetteController::class);
 
@@ -716,6 +760,19 @@ Route::prefix('bon-retours')->group(function () {
 
         Route::apiResource('patient-consumptions', PatientConsumptionController::class);
 
+        // Product Reserves Routes
+        Route::prefix('product-reserves')->group(function () {
+            Route::get('/', [\App\Http\Controllers\ProductReserveController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\ProductReserveController::class, 'store']);
+            Route::post('/bulk-fulfill', [\App\Http\Controllers\ProductReserveController::class, 'bulkFulfill']);
+            Route::post('/bulk-cancel', [\App\Http\Controllers\ProductReserveController::class, 'bulkCancel']);
+            Route::get('/{productReserve}', [\App\Http\Controllers\ProductReserveController::class, 'show']);
+            Route::put('/{productReserve}', [\App\Http\Controllers\ProductReserveController::class, 'update']);
+            Route::delete('/{productReserve}', [\App\Http\Controllers\ProductReserveController::class, 'destroy']);
+            Route::post('/{productReserve}/cancel', [\App\Http\Controllers\ProductReserveController::class, 'cancel']);
+            Route::post('/{productReserve}/fulfill', [\App\Http\Controllers\ProductReserveController::class, 'fulfill']);
+        });
+
         // Nursing Product Routes
         Route::prefix('nursing')->group(function () {
             Route::get('products', [\App\Http\Controllers\Nursing\NursingProductController::class, 'index']);
@@ -789,6 +846,8 @@ Route::prefix('bon-retours')->group(function () {
         Route::get('financial-transactions-prestations', [FinancialTransactionController::class, 'getPrestationsWithDependencies']);
         Route::get('financial-transactions-patient-prestations', [FinancialTransactionController::class, 'getPatientPrestations']);
         Route::get('financial-transactions-by-fiche-navette', [FinancialTransactionController::class, 'getByFicheNavette']);
+            Route::get('financial-transactions-by-session', [FinancialTransactionController::class, 'getBySession']);
+
         Route::post('financial-transactions/{financialTransaction}/refund', [FinancialTransactionController::class, 'refund']);
         Route::get('financial-transactions-daily-summary', [FinancialTransactionController::class, 'dailySummary']);
         // Refund and overpayment routes
@@ -870,6 +929,13 @@ Route::prefix('bon-retours')->group(function () {
             Route::get('{productId}/stock-details', [PharmacyProductController::class, 'getStockDetails']);
         });
         Route::apiResource('pharmacy/products', PharmacyProductController::class);
+
+        // Alias routes for purchasing products - use pharmacy-products instead of pharmacy/products
+        Route::get('pharmacy-products', [PharmacyProductController::class, 'index']);
+        Route::post('pharmacy-products', [PharmacyProductController::class, 'store']);
+        Route::get('pharmacy-products/{pharmacyProduct}', [PharmacyProductController::class, 'show']);
+        Route::put('pharmacy-products/{pharmacyProduct}', [PharmacyProductController::class, 'update']);
+        Route::delete('pharmacy-products/{pharmacyProduct}', [PharmacyProductController::class, 'destroy']);
 
         // Pharmacy Inventory - Static routes first to avoid conflicts
         Route::prefix('pharmacy/inventory')->group(function () {
@@ -1022,6 +1088,55 @@ Route::prefix('bon-retours')->group(function () {
             Route::post('/{id}/add-note', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'addWorkflowNote']);
         });
         Route::get('products/{productId}/history', [ProductHistoryController::class, 'getProductHistory']);
+        
+        // Inventory Audit Routes
+        Route::prefix('inventory-audits')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'store']);
+            Route::get('/my-audits', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'myAudits']);
+            Route::get('/{inventoryAudit}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'show']);
+            Route::put('/{inventoryAudit}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'update']);
+            Route::delete('/{inventoryAudit}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'destroy']);
+            
+            // Audit actions
+            Route::post('/{inventoryAudit}/start', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'start']);
+            Route::post('/{inventoryAudit}/complete', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'complete']);
+            
+            // Participants
+            Route::post('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'addParticipant']);
+            Route::delete('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'removeParticipant']);
+            
+            // Audit items (products)
+            Route::get('/{inventoryAudit}/items', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'getItems']);
+            Route::post('/{inventoryAudit}/items/bulk', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'bulkUpdateItems']);
+            Route::get('/{inventoryAudit}/pdf', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'generatePDF']);
+            
+            // Reconciliation
+            Route::get('/{inventoryAudit}/analyze-discrepancies', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'analyzeDiscrepancies']);
+            Route::post('/{inventoryAudit}/assign-recount', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'assignRecount']);
+            Route::post('/{inventoryAudit}/finalize-reconciliation', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'finalizeReconciliation']);
+            
+            // Recount specific routes
+            Route::post('/{inventoryAudit}/recount/assign-products', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'assignProductsForRecount']);
+            Route::get('/{inventoryAudit}/recount/products/{participantId}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'getRecountProducts']);
+            Route::delete('/{inventoryAudit}/recount/participants/{participantId}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'removeRecount']);
+            Route::post('/{inventoryAudit}/recount/complete/{participantId}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'completeRecount']);
+        });
+        
+        // Legacy Inventory Audit Product Routes (keep for backward compatibility)
+        Route::prefix('inventory-audit')->group(function () {
+            Route::get('/products', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'getProductsForAudit']);
+            Route::post('/save', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'saveAudit']);
+            Route::get('/template', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'downloadTemplate']);
+            Route::get('/export', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'exportToExcel']);
+            Route::post('/import', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'importFromExcel']);
+            Route::post('/report', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'generatePdfReport']);
+            Route::get('/history', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'getAuditHistory']);
+        });
+        
+        // Stockages route for dropdowns (returns all stockages)
+        Route::get('/stockages', [PharmacyStockageController::class, 'index']);
+        
         // Facture Proforma Management routes
         Route::prefix('facture-proformas')->group(function () {
             // Helper endpoints (must come BEFORE parameterized routes)
@@ -1081,9 +1196,9 @@ Route::prefix('bon-retours')->group(function () {
             Route::get('/approval-thresholds', [\App\Http\Controllers\BonCommendController::class, 'getApprovalThresholds']);
             Route::get('/approval-thresholds/list', [\App\Http\Controllers\BonCommendController::class, 'getApprovalThresholdsList']);
             Route::post('/create-from-facture-proforma', [\App\Http\Controllers\BonCommendController::class, 'createFromFactureProforma']);
- Route::get('/{id}/pdf', [BonCommendController::class, 'downloadPdf']);
-    Route::get('/{id}/pdf/preview', [BonCommendController::class, 'previewPdf']);
-    Route::post('/{id}/pdf/save', [BonCommendController::class, 'generateAndSavePdf']);
+             Route::get('/{id}/pdf', [BonCommendController::class, 'downloadPdf']);
+            Route::get('/{id}/pdf/preview', [BonCommendController::class, 'previewPdf']);
+            Route::post('/{id}/pdf/save', [BonCommendController::class, 'generateAndSavePdf']);
             // Routes with IDs
             Route::get('/{id}/download', [\App\Http\Controllers\BonCommendController::class, 'download']);
             Route::put('/{id}/status', [\App\Http\Controllers\BonCommendController::class, 'updateStatus']);
@@ -1147,6 +1262,7 @@ Route::prefix('bon-retours')->group(function () {
             Route::post('/{id}/update-status', [\App\Http\Controllers\BonReceptionController::class, 'updateStatus']);
         });
 
+      
         Route::prefix('bon-entrees')->group(function () {
             // CRUD Routes
             Route::get('/', [BonEntreeController::class, 'index']);
@@ -1167,11 +1283,21 @@ Route::prefix('bon-retours')->group(function () {
             Route::delete('/{id}/items/{itemId}', [BonEntreeController::class, 'removeItem']);
         });
 
+        // Purchasing Products routes (unified products from both stock and pharmacy)
+        Route::prefix('purchasing')->group(function () {
+            Route::get('products', [PurchasingProductController::class, 'index']); // Get combined products
+            Route::post('products', [PurchasingProductController::class, 'store']); // Create in correct table
+            Route::get('products/{id}', [PurchasingProductController::class, 'show']); // Get single product
+            Route::put('products/{id}', [PurchasingProductController::class, 'update']); // Update product
+            Route::delete('products/{id}', [PurchasingProductController::class, 'destroy']); // Delete product
+        });
+
         // Old stock routes commented out to avoid conflicts with pharmacy routes
         Route::apiResource('products', \App\Http\Controllers\Stock\ProductController::class)->withoutMiddleware(['auth:sanctum']);
 
         // Custom product routes
         Route::get('products/{id}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
+        Route::get('products/{productId}/stock-details', [\App\Http\Controllers\Stock\ProductController::class, 'getStockDetails']);
         Route::get('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'getSettings']);
         Route::post('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'saveSettings']);
         Route::post('products/bulk-update-approval', [\App\Http\Controllers\Stock\ProductController::class, 'bulkUpdateApproval'])->name('api.products.bulk-update-approval');
@@ -1181,10 +1307,31 @@ Route::prefix('bon-retours')->group(function () {
 
         Route::apiResource('stockages', \App\Http\Controllers\Stock\StockageController::class);
         //  Custom inventory routes must come BEFORE the resource route
-        Route::apiResource('inventory', \App\Http\Controllers\Stock\InventoryController::class);
-        Route::get('inventory/service-stock', [\App\Http\Controllers\Stock\InventoryController::class, 'getServiceStock']);
-        Route::post('inventory/{inventory}/adjust', [\App\Http\Controllers\Stock\InventoryController::class, 'adjustStock']);
-        Route::post('inventory/{inventory}/transfer', [\App\Http\Controllers\Stock\InventoryController::class, 'transferStock']);
+        Route::apiResource('inventory', \App\Http\Controllers\Inventory\InventoryController::class);
+        Route::get('inventory/service-stock', [\App\Http\Controllers\Inventory\InventoryController::class, 'getServiceStock']);
+        Route::post('inventory/{inventory}/adjust', [\App\Http\Controllers\Inventory\InventoryController::class, 'adjustStock']);
+        Route::post('inventory/{inventory}/transfer', [\App\Http\Controllers\Inventory\InventoryController::class, 'transferStock']);
+        
+        // Inventory Audit routes
+        Route::prefix('inventory-audits')->group(function () {
+            Route::get('/my-audits', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'myAudits']);
+            Route::post('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'addParticipant']);
+            Route::delete('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'removeParticipant']);
+            Route::post('/{inventoryAudit}/start', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'start']);
+            Route::post('/{inventoryAudit}/complete', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'complete']);
+            
+            // Audit Items routes
+            Route::get('/{inventoryAudit}/items', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'getItems']);
+            Route::post('/{inventoryAudit}/items/bulk', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'bulkUpdateItems']);
+            Route::get('/{inventoryAudit}/pdf', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'generatePdf']);
+            
+            // Reconciliation routes
+            Route::get('/{inventoryAudit}/analyze-discrepancies', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'analyzeDiscrepancies']);
+            Route::post('/{inventoryAudit}/assign-recount', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'assignRecount']);
+            Route::post('/{inventoryAudit}/finalize-reconciliation', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'finalizeReconciliation']);
+        });
+        Route::apiResource('inventory-audits', \App\Http\Controllers\Inventory\InventoryAuditController::class);
+        
         Route::apiResource('categories', \App\Http\Controllers\Stock\CategoryController::class);
 
         // Stock Movement routes
@@ -1241,6 +1388,7 @@ Route::prefix('bon-retours')->group(function () {
             Route::put('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'update']);
             Route::delete('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'destroy']);
             Route::get('product-settings/{serviceId}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'getByService']);
+           Route::apiResource('reserves', ReserveController::class);
 
             // Product Settings Routes (per product)
             Route::get('products/{product}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);

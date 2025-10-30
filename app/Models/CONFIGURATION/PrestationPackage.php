@@ -28,11 +28,10 @@ class PrestationPackage extends Model
         'updated_by',
     ];
 
-      public function items(): HasMany
+    public function items(): HasMany
     {
-        return $this->hasMany(PrestationPackageitem::class, 'prestation_package_id');
+        return $this->hasMany(PrestationPackageitem::class, 'prestation_package_id')->with(['prestation.doctor.user']);
     }
-  
 
     /**
      * Get prestations through package items
@@ -46,6 +45,29 @@ class PrestationPackage extends Model
             'id', // Foreign key on Prestation table
             'id', // Local key on PrestationPackage table
             'prestation_id' // Local key on PrestationPackageitem table
+        );
+    }
+
+    /**
+     * Get reception records for this package (doctor assignments for each prestation)
+     */
+    public function receptionRecords()
+    {
+        return $this->hasMany(\App\Models\CONFIGURATION\PrestationPackageReception::class, 'package_id');
+    }
+
+    /**
+     * Get all prestations with their assigned doctors during reception
+     */
+    public function prestationsWithDoctors()
+    {
+        return $this->hasManyThrough(
+            Prestation::class,
+            \App\Models\CONFIGURATION\PrestationPackageReception::class,
+            'package_id',           // Foreign key on PrestationPackageReception
+            'id',                   // Foreign key on Prestation
+            'id',                   // Local key on PrestationPackage
+            'prestation_id'         // Local key on PrestationPackageReception
         );
     }
 

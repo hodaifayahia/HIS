@@ -110,6 +110,15 @@ const cardSubtitle = computed(() => {
       doctors.push(item.doctor_name)
     }
     
+    // Package reception doctors (Emergency module - FIXED)
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        if (record.doctor?.name && !doctors.includes(record.doctor.name)) {
+          doctors.push(record.doctor.name)
+        }
+      })
+    }
+    
     // Package prestations doctors
     if (item.package?.prestations) {
       item.package.prestations.forEach(prestation => {
@@ -579,6 +588,168 @@ const handleApplyRemise = async (data) => {
   }
 }
 
+// Package replacement state
+const showPackageReplacementDialog = ref(false)
+const packageReplacementInfo = ref(null)
+
+// Check if there's an existing package containing all prestations (current + new)
+const checkExistingPackageContainingAllPrestations = (newPrestationIds) => {
+  // Get current non-convention prestations
+  const currentPrestationIds = getCurrentNonConventionPrestations()
+  
+  // Combine current and new prestation IDs
+  const allPrestationIds = [...currentPrestationIds, ...newPrestationIds]
+  
+  // Find a package that contains all these prestations
+  return props.packages.find(pkg => {
+    // Get prestation IDs from this package
+    const packagePrestationIds = getPackagePrestationIds(pkg)
+    
+    // Check if this package contains all the prestations we need
+    return allPrestationIds.every(id => packagePrestationIds.includes(id))
+  })
+}
+
+// Get current prestations excluding convention items and dependencies
+const getCurrentNonConventionPrestations = () => {
+  return groupItems.value
+    .filter(item => 
+      // Exclude convention items
+      !item.convention_id && 
+      // Exclude dependencies
+      !item.isDependency
+    )
+    .map(item => item.prestation_id)
+    .filter(Boolean)
+}
+
+// Get prestation IDs from a package, excluding convention items and dependencies
+const getPackagePrestationIds = (pkg) => {
+  if (!pkg.prestations) return []
+  
+  return pkg.prestations
+    .filter(prestation => 
+      // Exclude convention items
+      !prestation.convention_id
+    )
+    .map(prestation => prestation.id)
+    .filter(Boolean)
+}
+
+// Remove all prestations from an existing package
+const removeAllPrestationsFromPackage = async (packageId) => {
+  try {
+    // Get all non-convention, non-dependency items from this package
+    const itemsToRemove = groupItems.value.filter(item => 
+      !item.convention_id && 
+      !item.isDependency
+    )
+    
+    // Remove each item
+    for (const item of itemsToRemove) {
+      await ficheNavetteService.removeFicheNavetteItem(props.ficheNavetteId, item.id)
+    }
+    
+    return true
+  } catch (error) {
+    console.error('Error removing prestations from package:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to remove prestations from package',
+      life: 3000
+    })
+    return false
+  }
+}
+
+// Create a new package with the specified prestations
+const createNewPackage = async (packageId, prestationIds) => {
+  try {
+    // Create the new package
+    const response = await ficheNavetteService.createFicheNavetteItem({
+      fiche_navette_id: props.ficheNavetteId,
+      patient_id: props.patientId,
+      package_id: packageId,
+      prestation_ids: prestationIds
+    })
+    
+    if (response.success) {
+      return response.data
+    } else {
+      throw new Error(response.message || 'Failed to create package')
+    }
+  } catch (error) {
+    console.error('Error creating new package:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to create new package',
+      life: 3000
+    })
+    return null
+  }
+}
+
+// Handle package replacement
+const handlePackageReplacement = async (existingPackage, newPrestationIds) => {
+  // Remove all prestations from the existing package
+  const removed = await removeAllPrestationsFromPackage(existingPackage.id)
+  if (!removed) return false
+  
+  // Get current non-convention prestations
+  const currentPrestationIds = getCurrentNonConventionPrestations()
+  
+  // Combine current and new prestation IDs
+  const allPrestationIds = [...currentPrestationIds, ...newPrestationIds]
+  
+  // Create a new package with all prestations
+  const newPackage = await createNewPackage(existingPackage.id, allPrestationIds)
+  if (!newPackage) return false
+  
+  // Set package replacement info for the dialog
+  packageReplacementInfo.value = {
+    oldPackage: existingPackage,
+    newPackage: newPackage,
+    includedPrestations: [
+      ...props.prestations.filter(p => currentPrestationIds.includes(p.id)),
+      ...props.prestations.filter(p => newPrestationIds.includes(p.id))
+    ]
+  }
+  
+  // Show the dialog
+  showPackageReplacementDialog.value = true
+  
+  // Emit event to refresh the parent component
+  emit('item-updated', { refresh: true })
+  
+  return true
+}
+
+// Close package replacement dialog
+const closePackageReplacementDialog = () => {
+  showPackageReplacementDialog.value = false
+  packageReplacementInfo.value = null
+}
+
+// Public method to handle new items addition
+const handleNewItemsAddition = (newPrestationIds) => {
+  // Check if there's an existing package containing all prestations
+  const existingPackage = checkExistingPackageContainingAllPrestations(newPrestationIds)
+  
+  if (existingPackage) {
+    // Handle package replacement
+    return handlePackageReplacement(existingPackage, newPrestationIds)
+  }
+  
+  return false
+}
+
+// Expose the method to parent components
+defineExpose({
+  handleNewItemsAddition
+})
+
 // FIXED: Update the packagePrestations computed property
 const packagePrestations = computed(() => {
   console.log('=== Computing packagePrestations ===')
@@ -711,6 +882,19 @@ const doctorTags = computed(() => {
       })
     }
     
+    // Package reception doctors (Emergency module - FIXED)
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        if (record.doctor && !doctors.some(d => d.id === record.doctor.id)) {
+          doctors.push({
+            id: record.doctor.id,
+            name: record.doctor.name,
+            source: 'package_reception'
+          })
+        }
+      })
+    }
+    
     // Package prestations doctors
     if (item.package?.prestations) {
       item.package.prestations.forEach(prestation => {
@@ -740,6 +924,57 @@ const doctorTags = computed(() => {
   
   return doctors
 })
+
+// NEW: Computed property to get doctors from package reception records (Emergency module)
+const packageDoctors = computed(() => {
+  if (props.group?.type !== 'package') {
+    return []
+  }
+  
+  // Get all doctors from packageReceptionRecords of items in this group
+  const doctors = []
+  
+  groupItems.value.forEach(item => {
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        // Avoid duplicates by checking if doctor already exists
+        if (record.doctor && !doctors.some(d => d.id === record.doctor.id)) {
+          doctors.push({
+            id: record.doctor.id,
+            name: record.doctor.name,
+            prestation_id: record.prestation_id,
+            source: 'package_reception'
+          })
+        }
+      })
+    }
+  })
+  
+  return doctors
+})
+
+// NEW: Function to get detailed package reception records for display
+const getPackageReceptionDetails = () => {
+  const details = []
+  
+  groupItems.value.forEach(item => {
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        details.push({
+          id: record.id,
+          prestation_id: record.prestation_id,
+          prestation_name: record.prestation?.name || 'Unknown Prestation',
+          prestation_code: record.prestation?.internal_code || '',
+          doctor_id: record.doctor?.id,
+          doctor_name: record.doctor?.name || 'No Doctor Assigned',
+          status: item.status || 'assigned'
+        })
+      })
+    }
+  })
+  
+  return details
+}
 </script>
 
 <template>
@@ -801,6 +1036,26 @@ const doctorTags = computed(() => {
             v-if="doctorTags.length > 2"
             :label="`+${doctorTags.length - 2} more`"
             severity="secondary"
+            size="small"
+          />
+        </div>
+
+        <!-- Package Reception Doctors (Emergency module) -->
+        <div v-if="packageDoctors.length > 0" class="package-doctor-chips">
+          <Chip
+            v-for="doctor in packageDoctors.slice(0, 2)"
+            :key="`pkg-doc-${doctor.id}`"
+            :label="`${doctor.name}`"
+            severity="info"
+            class="package-doctor-chip"
+            size="small"
+            icon="pi pi-box"
+            title="Package Reception Doctor"
+          />
+          <Chip
+            v-if="packageDoctors.length > 2"
+            :label="`+${packageDoctors.length - 2} pkg`"
+            severity="info"
             size="small"
           />
         </div>
@@ -1259,6 +1514,64 @@ const doctorTags = computed(() => {
           </template>
         </Card>
 
+        <!-- Package Reception Doctors Table (Emergency Module) -->
+        <Card v-if="packageDoctors.length > 0" class="mb-4">
+          <template #title>
+            <div class="table-title">
+              <i class="pi pi-user-md"></i>
+              Package Doctor Assignments ({{ packageDoctors.length }})
+            </div>
+          </template>
+          <template #content>
+            <div class="package-reception-info mb-3">
+              <p class="info-text">
+                <i class="pi pi-info-circle"></i>
+                This package has multiple prestations assigned to different doctors. Each prestation's assigned doctor is shown below.
+              </p>
+            </div>
+            
+            <DataTable
+              :value="getPackageReceptionDetails()"
+              class="package-reception-table"
+              responsiveLayout="scroll"
+              :rowHover="true"
+              :paginator="getPackageReceptionDetails().length > 10"
+              :rows="10"
+            >
+              <Column field="prestation_name" header="Prestation" :sortable="true">
+                <template #body="{ data }">
+                  <div class="prestation-name-cell">
+                    <i class="pi pi-medical prestation-icon"></i>
+                    <div class="prestation-details">
+                      <div class="prestation-name">{{ data.prestation_name }}</div>
+                      <small class="prestation-code">{{ data.prestation_code || 'N/A' }}</small>
+                    </div>
+                  </div>
+                </template>
+              </Column>
+
+              <Column field="doctor_name" header="Assigned Doctor" :sortable="true">
+                <template #body="{ data }">
+                  <div class="doctor-cell">
+                    <i class="pi pi-user-md doctor-icon"></i>
+                    <span class="doctor-name">Dr. {{ data.doctor_name }}</span>
+                  </div>
+                </template>
+              </Column>
+
+              <Column field="status" header="Status" :sortable="true">
+                <template #body="{ data }">
+                  <Tag
+                    :value="data.status || 'Assigned'"
+                    severity="info"
+                    size="small"
+                  />
+                </template>
+              </Column>
+            </DataTable>
+          </template>
+        </Card>
+
         <!-- Regular Dependencies Table -->
         <Card v-if="regularDependencies.length > 0" class="mb-4">
           <template #title>
@@ -1408,10 +1721,114 @@ const doctorTags = computed(() => {
         <Button label="Save" icon="pi pi-check" @click="savePaymentTypeChange" />
       </template>
     </Dialog>
+
+    <!-- Package Replacement Information Dialog -->
+    <Dialog
+      v-model:visible="showPackageReplacementDialog"
+      header="Package Replacement Information"
+      :modal="true"
+      :style="{ width: '550px' }"
+      :closable="true"
+      @hide="closePackageReplacementDialog"
+    >
+      <div v-if="packageReplacementInfo" class="package-replacement-dialog">
+        <div class="info-section">
+          <i class="pi pi-info-circle info-icon"></i>
+          <p class="info-text">
+            We've detected that the selected prestations can be combined into a package.
+            The following changes have been made:
+          </p>
+        </div>
+
+        <div class="replacement-details">
+          <div class="old-package">
+            <h4>Original Package:</h4>
+            <p>{{ packageReplacementInfo.oldPackage.name }}</p>
+            <small>{{ packageReplacementInfo.oldPackage.internal_code || 'No code' }}</small>
+          </div>
+
+          <div class="new-package">
+            <h4>New Package:</h4>
+            <p>{{ packageReplacementInfo.newPackage.package?.name || packageReplacementInfo.oldPackage.name }}</p>
+            <small>{{ packageReplacementInfo.newPackage.package?.internal_code || packageReplacementInfo.oldPackage.internal_code || 'No code' }}</small>
+          </div>
+
+          <div class="included-prestations">
+            <h4>Included Prestations:</h4>
+            <ul>
+              <li v-for="prestation in packageReplacementInfo.includedPrestations" :key="prestation.id">
+                {{ prestation.name }}
+                <small>({{ prestation.internal_code || 'No code' }})</small>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <Button label="OK" icon="pi pi-check" @click="closePackageReplacementDialog" />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
+/* Package Replacement Dialog Styles */
+.package-replacement-dialog {
+  padding: 1rem;
+}
+
+.info-section {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.info-icon {
+  font-size: 1.5rem;
+  color: #3b82f6;
+  margin-right: 1rem;
+}
+
+.info-text {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.replacement-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.old-package, .new-package, .included-prestations {
+  padding: 1rem;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+}
+
+.old-package h4, .new-package h4, .included-prestations h4 {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  color: #495057;
+}
+
+.included-prestations ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.included-prestations li {
+  margin-bottom: 0.5rem;
+}
+
+.included-prestations small {
+  color: #6c757d;
+  margin-left: 0.5rem;
+}
+
 /* Base Card Styles - Using Flexbox Layout */
 .item-card {
   margin-bottom: 1rem;
@@ -2067,5 +2484,88 @@ const doctorTags = computed(() => {
   background-color: #28a745 !important;
   color: white !important;
   border-color: #28a745 !important;
+}
+
+/* Package Reception Doctors Table Styles */
+.package-reception-info {
+  padding: 0.75rem 1rem;
+  background-color: #e7f3ff;
+  border-left: 4px solid #007bff;
+  border-radius: 6px;
+}
+
+.package-reception-info .info-text {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #2c3e50;
+  font-size: 0.9rem;
+}
+
+.package-reception-info .pi-info-circle {
+  color: #007bff;
+  font-size: 1.1rem;
+}
+
+.package-reception-table .prestation-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.package-reception-table .prestation-icon {
+  color: #28a745;
+  font-size: 1.1rem;
+}
+
+.package-reception-table .prestation-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.package-reception-table .prestation-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+.package-reception-table .prestation-code {
+  color: #6c757d;
+  font-size: 0.8rem;
+}
+
+.package-reception-table .doctor-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.package-reception-table .doctor-icon {
+  color: #007bff;
+  font-size: 1rem;
+}
+
+.package-reception-table .doctor-name {
+  font-weight: 500;
+  color: #2c3e50;
+}
+
+/* Package Doctor Chips Styles */
+.package-doctor-chips {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.package-doctor-chip {
+  font-size: 0.75rem;
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+  border-color: #90caf9 !important;
+  font-weight: 500;
+}
+
+.package-doctor-chip .pi-box {
+  font-size: 0.65rem;
 }
 </style>

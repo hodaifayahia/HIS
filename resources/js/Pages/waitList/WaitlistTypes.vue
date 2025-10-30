@@ -253,15 +253,15 @@ onMounted(() => {
 <style scoped>
 /* Custom PrimeVue overrides */
 :deep(.p-card) {
-  @apply tw-border-0 tw-overflow-hidden;
+  @apply border-0 tw-overflow-hidden;
 }
 
 :deep(.p-card-content) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-button) {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 /* Gradient animations */

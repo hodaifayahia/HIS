@@ -2,6 +2,7 @@
 
 namespace App\Models\CONFIGURATION;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 //import App\Models\Prestation;
@@ -15,6 +16,9 @@ use App\Models\CONFIGURATION\PrestationPackageitem;
 
 class PrestationPackageitem extends Model
 {
+    use HasFactory;
+
+    protected $table = 'prestation_package_items'; // Specify the table name if different
     
     protected $fillable = [
         'prestation_package_id',

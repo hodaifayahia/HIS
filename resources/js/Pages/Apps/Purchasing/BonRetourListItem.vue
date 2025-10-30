@@ -783,14 +783,14 @@ watch(() => props.mode, (newMode) => {
 
 <style scoped>
 :deep(.p-card) {
-  @apply tw-shadow-sm tw-border-0;
+  @apply shadow-sm tw-border-0;
 }
 
 :deep(.p-card-title) {
-  @apply tw-text-base tw-font-semibold;
+  @apply text-base tw-font-semibold;
 }
 
 :deep(.p-tabview-nav) {
-  @apply tw-bg-gray-50;
+  @apply bg-gray-50;
 }
 </style>

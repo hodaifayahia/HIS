@@ -2,13 +2,33 @@
 
 use App\Http\Controllers\Api\ApprovalPersonController;
 use App\Http\Controllers\Api\BonCommendApprovalController;
+use App\Http\Controllers\Api\InventoryAuditProductController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\ProductHistoryController;
+use App\Http\Controllers\Purchasing\PurchasingProductController;
 use Illuminate\Support\Facades\Route;
 
-// Product History API - Put this BEFORE resource routes to avoid conflicts
-Route::get('products/{productId}/history', [ProductHistoryController::class, 'getProductHistory'])
-    ->name('api.purchasing.products.history');
+// Purchasing Products Routes - Combined from both stock and pharmacy tables
+Route::prefix('products')->group(function () {
+    // Index - Get all products from both tables
+    Route::get('/', [PurchasingProductController::class, 'index'])->name('api.purchasing.products.index');
+    
+    // Store - Create product (routes to correct table based on is_clinic flag)
+    Route::post('/', [PurchasingProductController::class, 'store'])->name('api.purchasing.products.store');
+    
+    // Show - Get specific product from either table
+    Route::get('/{id}', [PurchasingProductController::class, 'show'])->name('api.purchasing.products.show');
+    
+    // Update - Update product in correct table
+    Route::put('/{id}', [PurchasingProductController::class, 'update'])->name('api.purchasing.products.update');
+    
+    // Delete - Delete product from correct table
+    Route::delete('/{id}', [PurchasingProductController::class, 'destroy'])->name('api.purchasing.products.destroy');
+    
+    // Product History API - Put this AFTER resource routes but in same prefix to avoid conflicts
+    Route::get('/{productId}/history', [ProductHistoryController::class, 'getProductHistory'])
+        ->name('api.purchasing.products.history');
+});
 
 // Attachment Management Routes
 Route::prefix('attachments')->group(function () {
@@ -45,3 +65,14 @@ Route::prefix('bon-commend-approvals')->group(function () {
 // Bon Commend - Request Approval
 Route::post('bon-commends/{bonCommend}/request-approval', [BonCommendApprovalController::class, 'requestApproval'])
     ->name('api.bon-commends.request-approval');
+
+// Inventory Audit Routes
+Route::prefix('inventory-audit')->group(function () {
+    Route::get('/products', [InventoryAuditProductController::class, 'getProductsForAudit'])->name('api.inventory-audit.products');
+    Route::post('/save', [InventoryAuditProductController::class, 'saveAudit'])->name('api.inventory-audit.save');
+    Route::get('/template', [InventoryAuditProductController::class, 'downloadTemplate'])->name('api.inventory-audit.template');
+    Route::get('/export', [InventoryAuditProductController::class, 'exportToExcel'])->name('api.inventory-audit.export');
+    Route::post('/import', [InventoryAuditProductController::class, 'importFromExcel'])->name('api.inventory-audit.import');
+    Route::post('/report', [InventoryAuditProductController::class, 'generatePdfReport'])->name('api.inventory-audit.report');
+    Route::get('/history', [InventoryAuditProductController::class, 'getAuditHistory'])->name('api.inventory-audit.history');
+});

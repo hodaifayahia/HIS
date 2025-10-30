@@ -1628,11 +1628,11 @@ watch(() => form.items.length, () => {
 <style scoped>
 /* DataTable enhancements */
 :deep(.p-datatable) {
-  @apply tw-border-0 tw-rounded-lg;
+  @apply border-0 tw-rounded-lg;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1641,16 +1641,16 @@ watch(() => form.items.length, () => {
 
 /* Card styling */
 :deep(.p-card) {
-  @apply tw-rounded-xl;
+  @apply rounded-xl;
 }
 
 :deep(.p-card-title) {
-  @apply tw-text-xl tw-font-bold tw-text-gray-800;
+  @apply text-xl tw-font-bold tw-text-gray-800;
 }
 
 /* TabView */
 :deep(.p-tabview-nav) {
-  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100;
+  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100;
 }
 
 :deep(.p-tabview-nav-link) {
@@ -1658,21 +1658,21 @@ watch(() => form.items.length, () => {
 }
 
 :deep(.p-tabview-nav-link.p-highlight) {
-  @apply tw-bg-white tw-border-teal-600;
+  @apply bg-white tw-border-teal-600;
 }
 
 /* Dialog */
 :deep(.p-dialog-header) {
-  @apply tw-bg-gradient-to-r tw-from-teal-600 tw-to-cyan-700 tw-text-white;
+  @apply bg-gradient-to-r tw-from-teal-600 tw-to-cyan-700 tw-text-white;
 }
 
 :deep(.p-dialog-header .p-dialog-title) {
-  @apply tw-text-white tw-font-bold;
+  @apply text-white tw-font-bold;
 }
 
 /* Steps */
 :deep(.p-steps .p-steps-item.p-highlight .p-steps-number) {
-  @apply tw-bg-teal-600 tw-text-white;
+  @apply bg-teal-600 tw-text-white;
 }
 
 /* Animations */
@@ -1706,10 +1706,10 @@ watch(() => form.items.length, () => {
 
 /* Hover effects */
 :deep(.p-button:not(:disabled):hover) {
-  @apply tw-transform tw-scale-105 tw-transition-transform;
+  @apply transform tw-scale-105 tw-transition-transform;
 }
 
 :deep(.p-card:hover) {
-  @apply tw-shadow-2xl tw-transition-shadow;
+  @apply shadow-2xl tw-transition-shadow;
 }
 </style>

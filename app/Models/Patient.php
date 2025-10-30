@@ -24,12 +24,14 @@ class Patient extends Model
         'created_by',
         'dateOfBirth',
         'balance',
+        'is_faithful',
     ];
 
     protected $casts = [
         'age' => 'integer',
         'weight' => 'decimal:2',
         'balance' => 'decimal:2',
+        'is_faithful' => 'boolean',
     ];
 
     // Add 'fullname' to the $appends array

@@ -29,6 +29,12 @@ const doctorRoutes = [  {
                 component: () => import('../Pages/Patient/PatientList.vue'),
             },
             {
+                path: 'patient/appointments/:id',
+                name: 'doctor.patient.appointments',
+                component: () => import('../Pages/Patient/PatientPortalPage.vue'),
+                props: true,
+            },
+            {
                 path: 'consultations/consultation-workspaces',
                 name: 'doctor.consultations.ConsultationWorkspaces',
                 component: () => import('../Pages/Consultation/DoctorDoc/ConsultationWorkspacelist.vue'),

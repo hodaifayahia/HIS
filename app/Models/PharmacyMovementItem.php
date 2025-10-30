@@ -11,6 +11,8 @@ class PharmacyMovementItem extends Model
 
     protected $fillable = [
         'pharmacy_stock_movement_id',
+        'pharmacy_movement_id',
+        'product_id',
         'pharmacy_product_id',
         'requested_quantity',
         'approved_quantity',
@@ -48,14 +50,19 @@ class PharmacyMovementItem extends Model
         return $this->belongsTo(Product::class);
     }
 
+    public function pharmacyProduct(): BelongsTo
+    {
+        return $this->belongsTo(PharmacyProduct::class, 'product_id', 'id');
+    }
+
     public function inventorySelections()
     {
-        return $this->hasMany(PharmacyMovementInventorySelection::class);
+        return $this->hasMany(PharmacyMovementInventorySelection::class, 'pharmacy_stock_movement_item_id');
     }
 
     public function selectedInventory()
     {
-        return $this->hasMany(PharmacyMovementInventorySelection::class);
+        return $this->hasMany(PharmacyMovementInventorySelection::class, 'pharmacy_stock_movement_item_id');
     }
 
     // Helper methods

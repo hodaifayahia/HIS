@@ -58,9 +58,11 @@ class PharmacyStorageTool extends Model
 
         static::updating(function ($tool) {
             // Only regenerate if relevant fields changed
-            if ($tool->isDirty(['tool_type', 'tool_number', 'block', 'shelf_level']) ||
-                $tool->pharmacyStorage->isDirty(['location_code']) ||
-                $tool->pharmacyStorage->service->isDirty(['service_abv'])) {
+            if ($tool->isDirty(['tool_type', 'tool_number', 'block', 'shelf_level'])) {
+                $tool->location_code = $tool->generateLocationCode();
+            } elseif ($tool->pharmacyStorage && $tool->pharmacyStorage->isDirty(['location_code'])) {
+                $tool->location_code = $tool->generateLocationCode();
+            } elseif ($tool->pharmacyStorage && $tool->pharmacyStorage->service && $tool->pharmacyStorage->service->isDirty(['service_abv'])) {
                 $tool->location_code = $tool->generateLocationCode();
             }
         });
@@ -71,7 +73,7 @@ class PharmacyStorageTool extends Model
      */
     public function pharmacyStorage(): BelongsTo
     {
-        return $this->belongsTo(PharmacyStorage::class);
+        return $this->belongsTo(PharmacyStockage::class, 'pharmacy_storage_id');
     }
 
     /**
@@ -123,8 +125,15 @@ class PharmacyStorageTool extends Model
      */
     public function generateLocationCode(): string
     {
-        $serviceAbv = $this->pharmacyStorage->service->service_abv;
-        $storageLocationCode = $this->pharmacyStorage->location_code;
+        // Load relationships if not already loaded
+        if (!$this->relationLoaded('pharmacyStorage')) {
+            $this->load('pharmacyStorage.service');
+        } elseif ($this->pharmacyStorage && !$this->pharmacyStorage->relationLoaded('service')) {
+            $this->pharmacyStorage->load('service');
+        }
+
+        $serviceAbv = $this->pharmacyStorage?->service?->service_abv ?? 'PHR';
+        $storageLocationCode = $this->pharmacyStorage?->location_code ?? 'UNK';
 
         $base = $serviceAbv.$storageLocationCode.'-'.$this->tool_type.$this->tool_number;
 

@@ -195,27 +195,48 @@ const toggleStatus = async (caisse) => {
 };
 
 const confirmDeleteCaisse = (caisse) => {
+  console.log('confirmDeleteCaisse called for caisse:', caisse && caisse.id);
   confirm.require({
-    message: `Are you sure you want to delete "${caisse.name}"? This action is irreversible.`,
+    message: `Are you sure you want to delete "${caisse?.name || 'this register'}"? This action is irreversible.`,
     header: 'Delete Confirmation',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    accept: () => deleteCaisse(caisse)
+    accept: async () => {
+      await deleteCaisse(caisse);
+    },
+    reject: () => {
+      console.log('Delete cancelled');
+    }
   });
 };
 
 const deleteCaisse = async (caisse) => {
+  if (!caisse || !caisse.id) {
+    showToast('error', 'Error', 'Invalid caisse data');
+    return;
+  }
+  
+  console.log('deleteCaisse called for id:', caisse.id);
   try {
     const result = await caisseService.delete(caisse.id);
+    console.log('deleteCaisse result:', result);
     if (result.success) {
-      showToast('success', 'Success', 'Cash register deleted successfully');
-      fetchCaisses();
-      loadDropdownData();
+      showToast('success', 'Success', 'Cash register deleted successfully. Refreshing list...');
+      
+      // Refresh the list
+      console.log('Refreshing caisses list...');
+      await fetchCaisses();
+      console.log('Caisses refreshed, now loading dropdown data...');
+      
+      // Refresh dropdown data
+      await loadDropdownData();
+      console.log('Dropdown data loaded. Deletion complete.');
     } else {
-      showToast('error', 'Error', result.message);
+      showToast('error', 'Error', result.message || 'Failed to delete');
     }
   } catch (error) {
-    showToast('error', 'Error', 'An error occurred during deletion.');
+    console.error('deleteCaisse error:', error);
+    showToast('error', 'Error', error.message || 'An error occurred during deletion.');
   }
 };
 
@@ -225,7 +246,7 @@ const closeModal = () => {
 
 const handleCaisseSaved = (message) => {
   closeModal();
-  showToast('success', 'Success', message);
+  showToast('success', 'Success', 'caisse was created successfully');
   fetchCaisses();
   loadDropdownData();
 };
@@ -240,7 +261,11 @@ const openOperation = (caisse) => {
 };
 
 const viewTransactions = (caisse) => {
-  router.push({ name: 'coffre.caisse.financial-transactions', params: { caisse_id: caisse.id } });
+  router.push({ 
+    name: 'coffre.caisse.financial-transactions', 
+    params: { caisse_id: caisse.id },
+    query: { caisse_filter: true }
+  });
 };
 
 const openCaisseDetails = (caisse) => {
@@ -388,7 +413,7 @@ onMounted(() => {
                   <Button icon="pi pi-clock" class="p-button-rounded p-button-info p-button-outlined" v-tooltip.top="'View Sessions'" @click="openOperation(caisse)" />
                   <Button icon="pi pi-credit-card" class="p-button-rounded p-button-secondary p-button-outlined" v-tooltip.top="'Transactions'" @click="viewTransactions(caisse)" />
                   <Button icon="pi pi-pencil" class="p-button-rounded p-button-warning p-button-outlined" v-tooltip.top="'Edit'" @click="editCaisse(caisse)" />
-                  <Button icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-outlined" v-tooltip.top="'Delete'" @click="confirmDeleteCaisse(caisse)" />
+                  <Button icon="pi pi-trash" class="p-button-rounded p-button-danger p-button-outlined" v-tooltip.top="'Delete'" @click.stop="confirmDeleteCaisse(caisse)" />
                   <Button 
                   :icon="caisse.is_active ? 'pi pi-pause' : 'pi pi-play'" 
                   :class="caisse.is_active ? 'p-button-warning' : 'p-button-success'"

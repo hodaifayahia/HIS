@@ -202,23 +202,61 @@ const onFicheSaved = (savedFiche, mode) => {
     }
 }
 
+const togglePatientFaithful = (fiche) => {
+  const isFaithful = fiche.patient?.is_faithful ?? true
+  const action = isFaithful ? 'marquer comme infidèle' : 'marquer comme fidèle'
+
+  confirm.require({
+    message: `Voulez-vous ${action} le patient ${fiche.patient_name}?`,
+    header: 'Changer le statut de fidélité',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'Oui, confirmer',
+    rejectLabel: 'Annuler',
+    acceptClass: isFaithful ? 'p-button-warning' : 'p-button-success',
+    accept: async () => {
+      try {
+        const res = await ficheNavetteService.togglePatientFaithful(fiche.id)
+        if (res.success) {
+          // Update entire fiche object with returned data from FicheNavetteResource
+          const idx = ficheNavettes.value.findIndex(f => f.id === fiche.id)
+          if (idx !== -1 && res.data) {
+            // Replace entire fiche with the returned fiche from the resource
+            ficheNavettes.value[idx] = { ...ficheNavettes.value[idx], ...res.data }
+          }
+
+          toast.add({
+            severity: 'success',
+            summary: 'Succès',
+            detail: res.message,
+            life: 3000
+          })
+        } else {
+          toast.add({ severity: 'error', summary: 'Erreur', detail: res.message, life: 4000 })
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Erreur', detail: 'Impossible de modifier le statut', life: 4000 })
+      }
+    }
+  })
+}
+
 // Utility functions
 const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    })
+  return new Date(date).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
 }
 
 const formatDateTime = (date) => {
-    return new Date(date).toLocaleString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    })
+  return new Date(date).toLocaleString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 const formatCurrency = (amount) => {
@@ -513,6 +551,16 @@ onMounted(() => {
           <Column header="Actions" class="tw-w-32 tw-text-center">
             <template #body="{ data }">
               <div class="tw-flex tw-gap-1 tw-items-center tw-justify-center">
+                <Button
+                  :icon="data.patient && data.patient.is_faithful === false ? 'pi pi-heart-fill' : 'pi pi-heart'"
+                  class="p-button-rounded p-button-text p-button-sm tw-text-lg"
+                  :class="[
+                    data.patient && data.patient.is_faithful === false
+                      ? '!tw-text-green-600 tw-hover:!tw-bg-green-100'
+                      : '!tw-text-orange-600 tw-hover:!tw-bg-orange-100'
+                  ]"
+                  v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Unfaithful' : 'Mark as Faithful'"
+                  @click.stop="togglePatientFaithful(data)" />
                 <Button 
                   icon="pi pi-list" 
                   class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 tw-hover:!tw-bg-blue-100"

@@ -1661,11 +1661,11 @@ export default {
 
 /* DataTable enhancements */
 :deep(.p-datatable) {
-  @apply tw-border-0 tw-rounded-lg;
+  @apply border-0 tw-rounded-lg;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1674,16 +1674,16 @@ export default {
 
 /* Card styling */
 :deep(.p-card) {
-  @apply tw-rounded-xl;
+  @apply rounded-xl;
 }
 
 :deep(.p-card-title) {
-  @apply tw-text-xl tw-font-bold tw-text-gray-800;
+  @apply text-xl tw-font-bold tw-text-gray-800;
 }
 
 /* TabView */
 :deep(.p-tabview-nav) {
-  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100;
+  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100;
 }
 
 :deep(.p-tabview-nav-link) {
@@ -1691,26 +1691,26 @@ export default {
 }
 
 :deep(.p-tabview-nav-link.p-highlight) {
-  @apply tw-bg-white tw-border-blue-600;
+  @apply bg-white tw-border-blue-600;
 }
 
 /* Timeline customization */
 :deep(.p-timeline .p-timeline-event-connector) {
-  @apply tw-bg-gradient-to-b tw-from-blue-200 tw-to-indigo-200;
+  @apply bg-gradient-to-b tw-from-blue-200 tw-to-indigo-200;
 }
 
 /* Button hover effects */
 .p-button {
-  @apply tw-transition-all tw-duration-200;
+  @apply transition-all tw-duration-200;
 }
 
 .p-button:hover:not(:disabled) {
-  @apply tw-transform tw-scale-105;
+  @apply transform tw-scale-105;
 }
 
 /* Tag styles */
 .p-tag {
-  @apply tw-font-medium tw-capitalize;
+  @apply font-medium tw-capitalize;
 }
 
 /* Print styles */

@@ -237,31 +237,111 @@ const onPackageSelect = async (event) => {
   selectedDependencies.value = []
   packagePrestations.value = []
 
+  // Helper to normalize different item shapes into a common prestation object
+  const normalizeItem = (raw) => {
+    // If the API returned an object with a nested 'prestation'
+    if (raw && raw.prestation) {
+      return {
+        id: raw.prestation.id ?? raw.prestation_id ?? raw.id,
+        name: raw.prestation.name ?? raw.name,
+        internal_code: raw.prestation.internal_code ?? raw.internal_code,
+        public_price: raw.prestation.public_price ?? raw.public_price ?? raw.prestation_price ?? 0,
+        price_with_vat: raw.prestation.price_with_vat ?? raw.price_with_vat,
+        need_an_appointment: raw.prestation.need_an_appointment ?? raw.need_an_appointment ?? false,
+        package_item_id: raw.id ?? raw.package_item_id ?? null,
+        prestation_package_id: raw.prestation_package_id ?? raw.prestation_package_id ?? null,
+        raw
+      }
+    }
+
+    // If the API returned a flat prestation object
+    return {
+      id: raw.id ?? raw.prestation_id ?? null,
+      name: raw.name ?? null,
+      internal_code: raw.internal_code ?? null,
+      public_price: raw.public_price ?? raw.publicPrice ?? 0,
+      price_with_vat: raw.price_with_vat ?? raw.priceWithVat ?? null,
+      need_an_appointment: raw.need_an_appointment ?? raw.needAnAppointment ?? false,
+      package_item_id: raw.package_item_id ?? raw.id ?? null,
+      prestation_package_id: raw.prestation_package_id ?? raw.prestationPackageId ?? null,
+      raw
+    }
+  }
+
   if (packageItem && packageItem.id) {
     isLoadingPackage.value = true
     try {
-      if (packageItem.items && packageItem.items.length > 0) {
-        const prestations = packageItem.items.map(item => ({
-          ...item.prestation,
-          package_item_id: item.id,
-          prestation_package_id: item.prestation_package_id
-        }))
-        packagePrestations.value = prestations
+      let rawPrestations = []
+
+      // If the package object already contains items, use them (could come from PrestationPackageResource)
+      if (packageItem.items && Array.isArray(packageItem.items) && packageItem.items.length > 0) {
+        rawPrestations = packageItem.items
       } else {
+        // Otherwise call backend to fetch package prestations
         const result = await ficheNavetteService.getPrestationsPackage(packageItem.id)
-        if (result.success) {
-          packagePrestations.value = result.data
+        console.log('getPrestationsPackage result:', result)
+
+        if (!result || typeof result !== 'object') {
+          throw new Error('Invalid response from server')
+        }
+
+        // The service may return many shapes. Try to extract an array in order of likelihood.
+        const payload = result.data ?? result // prefer .data, fall back to whole result
+
+        const extractArray = (obj) => {
+          if (!obj && obj !== 0) return null
+          if (Array.isArray(obj)) return obj
+          if (obj && Array.isArray(obj.data)) return obj.data
+          if (obj && Array.isArray(obj.items)) return obj.items
+          if (obj && obj.data && Array.isArray(obj.data.items)) return obj.data.items
+          // fallback: if it's an object keyed by numeric indices, convert to array
+          if (obj && typeof obj === 'object') {
+            const values = Object.values(obj)
+            if (values.length > 0 && values.every(v => v && typeof v === 'object')) {
+              // Heuristic: return values if they look like resource items
+              return values
+            }
+          }
+          return null
+        }
+
+        const extracted = extractArray(payload)
+        if (extracted && Array.isArray(extracted)) {
+          rawPrestations = extracted
+        } else if (result.success && result.data && Array.isArray(result.data)) {
+          rawPrestations = result.data
         } else {
-          throw new Error(result.message)
+          // Log full payload for debugging and throw
+          console.error('Unexpected getPrestationsPackage payload shape:', payload)
+          throw new Error(result.message || 'Unknown payload shape')
         }
       }
-      
+
+      // Normalize each raw item into a consistent prestation object
+      let prestations = []
+      try {
+        prestations = Array.isArray(rawPrestations) ? rawPrestations.map(normalizeItem).filter(p => p && p.id !== null) : []
+      } catch (mapErr) {
+        console.error('Failed to map rawPrestations:', rawPrestations, mapErr)
+        prestations = []
+      }
+
+      packagePrestations.value = prestations
+
       if (packagePrestations.value.length > 0) {
         toast.add({ 
           severity: 'success', 
           summary: 'Package Loaded', 
           detail: `Package contains ${packagePrestations.value.length} services`, 
           life: 3000 
+        })
+      } else {
+        // If no prestations found, inform user
+        toast.add({ 
+          severity: 'warn', 
+          summary: 'Empty Package', 
+          detail: 'This package appears to contain no services.', 
+          life: 4000 
         })
       }
     } catch (error) {

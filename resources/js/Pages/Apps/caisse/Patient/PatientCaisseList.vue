@@ -337,6 +337,44 @@ const passerToCaisse = () => {
 };
 
 
+const togglePatientFaithful = (fiche) => {
+  const isFaithful = fiche.patient?.is_faithful ?? true
+  const action = isFaithful ? 'mark as unfaithful' : 'mark as faithful'
+
+  confirm.require({
+    message: `Do you want to ${action} patient ${fiche.patient.name}?`,
+    header: 'Change faithful status',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'Yes, confirm',
+    rejectLabel: 'Cancel',
+    acceptClass: isFaithful ? 'p-button-warning' : 'p-button-success',
+    accept: async () => {
+      try {
+        const res = await ficheNavetteService.togglePatientFaithful(fiche.id)
+        if (res.success) {
+          // Update entire fiche object with returned data from FicheNavetteResource
+          const idx = ficheNavettes.value.findIndex(f => f.id === fiche.id)
+          if (idx !== -1 && res.data) {
+            // Replace entire fiche with the returned fiche from the resource
+            ficheNavettes.value[idx] = { ...ficheNavettes.value[idx], ...res.data }
+          }
+
+          toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: res.message,
+            life: 3000
+          })
+        } else {
+          toast.add({ severity: 'error', summary: 'Error', detail: res.message, life: 4000 })
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to change status', life: 4000 })
+      }
+    }
+  })
+}
+
 const formatDateTime = (d) => d ? new Date(d).toLocaleString() : '—'
 
 // helper to produce initials from a full name (used in template)
@@ -391,42 +429,93 @@ const openCreateModal = () => {
 const sessionPaymentStats = ref({
   total_donations: 0,
   total_regular_payments: 0,
-  total_session_amount: 0
+  total_session_amount: 0,
+  payment_methods: {
+    cash: { count: 0, total: 0 },
+    card: { count: 0, total: 0 },
+    check: { count: 0, total: 0 },
+    transfer: { count: 0, total: 0 },
+    insurance: { count: 0, total: 0 }
+  }
 })
 
 // Load session payment statistics
 const loadSessionPaymentStats = async (sessionId = null) => {
   const sid = sessionId ?? caisseSessionId.value
   if (!sid) {
-    sessionPaymentStats.value = { total_donations: 0, total_regular_payments: 0, total_session_amount: 0 }
+    sessionPaymentStats.value = { 
+      total_donations: 0, 
+      total_regular_payments: 0, 
+      total_session_amount: 0,
+      payment_methods: {
+        cash: { count: 0, total: 0 },
+        card: { count: 0, total: 0 },
+        check: { count: 0, total: 0 },
+        transfer: { count: 0, total: 0 },
+        insurance: { count: 0, total: 0 }
+      }
+    }
     return
   }
   try {
-    const res = await axios.get(`/api/financial-transactions?caisse_session_id=${sid}`, { 
+    // Use the updated getBySession endpoint to get payment method breakdowns
+    const res = await axios.get(`/api/financial-transactions-by-session?session_id=${sid}`, { 
+      params: { session_id: sid },
       headers: { Accept: 'application/json' }, 
       withCredentials: true 
     })
-    const transactions = res?.data?.data ?? []
+    
+    const data = res?.data?.data ?? {}
+    
+    // Get payment method breakdowns from the response
+    const paymentMethods = data.payment_methods ?? {
+      cash: { count: 0, total: 0 },
+      card: { count: 0, total: 0 },
+      check: { count: 0, total: 0 },
+      transfer: { count: 0, total: 0 },
+      insurance: { count: 0, total: 0 }
+    }
+    
+    // For backward compatibility, also fetch transactions to calculate donations
+    const transRes = await axios.get(`/api/financial-transactions?caisse_session_id=${sid}`, { 
+      headers: { Accept: 'application/json' }, 
+      withCredentials: true 
+    })
+    const transactions = transRes?.data?.data ?? []
     
     let totalDonations = 0
-    let totalRegularPayments = 0
     
     transactions.forEach(tx => {
       if (tx.transaction_type === 'donation') {
         totalDonations += Number(tx.amount || 0)
-      } else if (tx.transaction_type === 'payment') {
-        totalRegularPayments += Number(tx.amount || 0)
       }
     })
+    
+    // Calculate total regular payments from payment methods
+    const totalRegularPayments = Object.values(paymentMethods).reduce(
+      (sum, method) => sum + Number(method.total || 0), 0
+    )
     
     sessionPaymentStats.value = {
       total_donations: totalDonations,
       total_regular_payments: totalRegularPayments,
-      total_session_amount: totalDonations + totalRegularPayments
+      total_session_amount: totalDonations + totalRegularPayments,
+      payment_methods: paymentMethods
     }
   } catch (e) {
     console.error('Failed to load session payment stats', e)
-    sessionPaymentStats.value = { total_donations: 0, total_regular_payments: 0, total_session_amount: 0 }
+    sessionPaymentStats.value = { 
+      total_donations: 0, 
+      total_regular_payments: 0, 
+      total_session_amount: 0,
+      payment_methods: {
+        cash: { count: 0, total: 0 },
+        card: { count: 0, total: 0 },
+        check: { count: 0, total: 0 },
+        transfer: { count: 0, total: 0 },
+        insurance: { count: 0, total: 0 }
+      }
+    }
   }
 }
 
@@ -500,27 +589,81 @@ const onPassingCreated = (passing) => {
     <div class="tw-max-w-7xl tw-mx-auto tw-px-4 sm:tw-px-6 lg:tw-px-8 tw-pb-8">
       <Card v-if="sessionInfo" class="tw-p-4 tw-rounded-2xl tw-shadow-md tw-mb-6">
         <template #content>
-          <div class="tw-flex tw-justify-between tw-items-center tw-flex-wrap tw-gap-4">
-            <div>
-              <div class="tw-text-sm tw-text-gray-500">Session (Opening)</div>
-              <div class="tw-text-2xl tw-font-bold">{{ formatCurrency(sessionInfo.opening_amount) }}</div>
-              <div class="tw-text-sm tw-text-gray-600 tw-mt-1">Caisse: {{ sessionInfo.caisse?.name ?? sessionInfo.caisse_name ?? '—' }}</div>
+          <div class="tw-flex tw-flex-col tw-gap-6">
+            <!-- Session Info -->
+            <div class="tw-flex tw-justify-between tw-items-center tw-flex-wrap tw-gap-4">
+              <div>
+                <div class="tw-text-sm tw-text-gray-500">Session (Opening)</div>
+                <div class="tw-text-2xl tw-font-bold">{{ formatCurrency(sessionInfo.opening_amount) }}</div>
+                <div class="tw-text-sm tw-text-gray-600 tw-mt-1">Caisse: {{ sessionInfo.caisse?.name ?? sessionInfo.caisse_name ?? '—' }}</div>
+              </div>
+              <div class="tw-text-center">
+                <div class="tw-text-sm tw-text-gray-500">Session Payments</div>
+                <div class="tw-font-semibold tw-text-blue-600">{{ formatCurrency(sessionPaymentStats.total_regular_payments) }}</div>
+                <div class="tw-text-sm tw-text-gray-500 tw-mt-1">Regular Payments</div>
+              </div>
+              <div class="tw-text-center">
+                <div class="tw-text-sm tw-text-gray-500">Donations</div>
+                <div class="tw-font-semibold tw-text-green-600">{{ formatCurrency(sessionPaymentStats.total_donations) }}</div>
+                <div class="tw-text-sm tw-text-gray-500 tw-mt-1">Total Donated</div>
+              </div>
+              <div class="tw-text-right">
+                <div class="tw-text-sm tw-text-gray-500">Opened by</div>
+                <div class="tw-font-semibold">{{ sessionInfo.opened_by?.name ?? sessionInfo.user?.name ?? sessionInfo.open_by ?? '—' }}</div>
+                <div class="tw-text-sm tw-text-gray-500 tw-mt-2">Opened at: {{ formatDateTime(sessionInfo.ouverture_at ?? sessionInfo.opened_at ?? sessionInfo.created_at) }}</div>
+                <Tag :value="sessionInfo.status ?? 'unknown'" class="tw-mt-2" :severity="sessionInfo.status === 'open' ? 'success' : 'info'" />
+              </div>
             </div>
-            <div class="tw-text-center">
-              <div class="tw-text-sm tw-text-gray-500">Session Payments</div>
-              <div class="tw-font-semibold tw-text-blue-600">{{ formatCurrency(sessionPaymentStats.total_regular_payments) }}</div>
-              <div class="tw-text-sm tw-text-gray-500 tw-mt-1">Regular Payments</div>
-            </div>
-            <div class="tw-text-center">
-              <div class="tw-text-sm tw-text-gray-500">Donations</div>
-              <div class="tw-font-semibold tw-text-green-600">{{ formatCurrency(sessionPaymentStats.total_donations) }}</div>
-              <div class="tw-text-sm tw-text-gray-500 tw-mt-1">Total Donated</div>
-            </div>
-            <div class="tw-text-right">
-              <div class="tw-text-sm tw-text-gray-500">Opened by</div>
-              <div class="tw-font-semibold">{{ sessionInfo.opened_by?.name ?? sessionInfo.user?.name ?? sessionInfo.open_by ?? '—' }}</div>
-              <div class="tw-text-sm tw-text-gray-500 tw-mt-2">Opened at: {{ formatDateTime(sessionInfo.ouverture_at ?? sessionInfo.opened_at ?? sessionInfo.created_at) }}</div>
-              <Tag :value="sessionInfo.status ?? 'unknown'" class="tw-mt-2" :severity="sessionInfo.status === 'open' ? 'success' : 'info'" />
+            
+            <!-- Payment Method Breakdown -->
+            <div class="tw-bg-gray-50 tw-p-4 tw-rounded-lg tw-border tw-border-gray-200">
+              <h3 class="tw-text-lg tw-font-semibold tw-mb-3">Payment Method Breakdown</h3>
+              <div class="tw-grid tw-grid-cols-2 md:tw-grid-cols-5 tw-gap-4">
+                <div class="tw-bg-white tw-p-3 tw-rounded-lg tw-shadow-sm tw-border tw-border-gray-100">
+                  <div class="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                    <i class="pi pi-money-bill tw-text-green-500"></i>
+                    <span class="tw-font-medium">Cash</span>
+                  </div>
+                  <div class="tw-text-lg tw-font-bold tw-text-green-600">{{ formatCurrency(sessionPaymentStats.payment_methods?.cash?.total || 0) }}</div>
+                  <div class="tw-text-xs tw-text-gray-500">{{ sessionPaymentStats.payment_methods?.cash?.count || 0 }} transactions</div>
+                </div>
+                
+                <div class="tw-bg-white tw-p-3 tw-rounded-lg tw-shadow-sm tw-border tw-border-gray-100">
+                  <div class="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                    <i class="pi pi-credit-card tw-text-blue-500"></i>
+                    <span class="tw-font-medium">Card</span>
+                  </div>
+                  <div class="tw-text-lg tw-font-bold tw-text-blue-600">{{ formatCurrency(sessionPaymentStats.payment_methods?.card?.total || 0) }}</div>
+                  <div class="tw-text-xs tw-text-gray-500">{{ sessionPaymentStats.payment_methods?.card?.count || 0 }} transactions</div>
+                </div>
+                
+                <div class="tw-bg-white tw-p-3 tw-rounded-lg tw-shadow-sm tw-border tw-border-gray-100">
+                  <div class="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                    <i class="pi pi-file tw-text-purple-500"></i>
+                    <span class="tw-font-medium">Check</span>
+                  </div>
+                  <div class="tw-text-lg tw-font-bold tw-text-purple-600">{{ formatCurrency(sessionPaymentStats.payment_methods?.check?.total || 0) }}</div>
+                  <div class="tw-text-xs tw-text-gray-500">{{ sessionPaymentStats.payment_methods?.check?.count || 0 }} transactions</div>
+                </div>
+                
+                <div class="tw-bg-white tw-p-3 tw-rounded-lg tw-shadow-sm tw-border tw-border-gray-100">
+                  <div class="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                    <i class="pi pi-send tw-text-orange-500"></i>
+                    <span class="tw-font-medium">Transfer</span>
+                  </div>
+                  <div class="tw-text-lg tw-font-bold tw-text-orange-600">{{ formatCurrency(sessionPaymentStats.payment_methods?.transfer?.total || 0) }}</div>
+                  <div class="tw-text-xs tw-text-gray-500">{{ sessionPaymentStats.payment_methods?.transfer?.count || 0 }} transactions</div>
+                </div>
+                
+                <div class="tw-bg-white tw-p-3 tw-rounded-lg tw-shadow-sm tw-border tw-border-gray-100">
+                  <div class="tw-flex tw-items-center tw-gap-2 tw-mb-2">
+                    <i class="pi pi-shield tw-text-teal-500"></i>
+                    <span class="tw-font-medium">Insurance</span>
+                  </div>
+                  <div class="tw-text-lg tw-font-bold tw-text-teal-600">{{ formatCurrency(sessionPaymentStats.payment_methods?.insurance?.total || 0) }}</div>
+                  <div class="tw-text-xs tw-text-gray-500">{{ sessionPaymentStats.payment_methods?.insurance?.count || 0 }} transactions</div>
+                </div>
+              </div>
             </div>
           </div>
         </template>
@@ -702,12 +845,24 @@ const onPassingCreated = (passing) => {
 
             <Column header="Actions" class="tw-w-[15%]">
               <template #body="{ data }">
-                <Button
-                  icon="pi pi-wallet"
-                  label="Pay"
-                  class="p-button-success p-button-sm tw-shadow-sm"
-                  @click="handlePay(data)"
-                />
+                <div class="tw-flex tw-gap-1 tw-items-center tw-justify-center">
+                  <Button
+                    :icon="data.patient && data.patient.is_faithful === false ? 'pi pi-heart-fill' : 'pi pi-heart'"
+                    class="p-button-rounded p-button-text p-button-sm tw-text-lg"
+                    :class="[
+                      data.patient && data.patient.is_faithful === false
+                        ? '!tw-text-green-600 tw-hover:!tw-bg-green-100'
+                        : '!tw-text-orange-600 tw-hover:!tw-bg-orange-100'
+                    ]"
+                    v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Unfaithful' : 'Mark as Faithful'"
+                    @click.stop="togglePatientFaithful(data)" />
+                  <Button
+                    icon="pi pi-wallet"
+                    label="Pay"
+                    class="p-button-success p-button-sm tw-shadow-sm"
+                    @click="handlePay(data)"
+                  />
+                </div>
               </template>
             </Column>
 
@@ -768,21 +923,21 @@ const onPassingCreated = (passing) => {
 
 /* PrimeVue Overrides */
 :deep(.p-card-header) {
-    @apply tw-p-0;
+    @apply p-0;
 }
 :deep(.p-card-content) {
-    @apply tw-p-0;
+    @apply p-0;
 }
 :deep(.p-datatable-thead tr th) {
-    @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
+    @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
 }
 :deep(.p-datatable-tbody tr td) {
-    @apply tw-text-gray-800;
+    @apply text-gray-800;
 }
 :deep(.p-datatable-tbody tr:hover) {
-    @apply tw-bg-blue-50;
+    @apply bg-blue-50;
 }
 :deep(.p-datatable .p-paginator-bottom) {
-    @apply tw-p-4 tw-border-t-0;
+    @apply p-4 tw-border-t-0;
 }
 </style>

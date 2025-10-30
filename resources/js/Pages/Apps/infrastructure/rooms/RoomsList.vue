@@ -62,14 +62,7 @@ const filteredRooms = computed(() => {
 const showBedsModal = ref(false)
 
 const handleViewBeds = (room) => {
-    // Check if room type is not "WaitingRoom"
-    const roomTypeName = room.room_type?.room_type || room.room_type?.name
-    
-    if (roomTypeName && roomTypeName.toLowerCase() === 'waitingroom') {
-        toaster.warning('Beds management is not available for waiting rooms')
-        return
-    }
-    
+    // Beds management is available for all room types
     selectedRoom.value = room
     showBedsModal.value = true
 }

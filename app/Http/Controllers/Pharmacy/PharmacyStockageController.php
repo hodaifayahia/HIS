@@ -614,7 +614,7 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
      */
     public function addTool(Request $request, $stockageId)
     {
-        $stockage = PharmacyStockage::findOrFail($stockageId);
+        $stockage = PharmacyStockage::with('service')->findOrFail($stockageId);
 
         $validated = $request->validate([
             'tool_type' => ['required', Rule::in(['RY', 'AR', 'CF', 'FR', 'CS', 'CH', 'PL', 'SC', 'VT'])],
@@ -660,6 +660,101 @@ class PharmacyStockageController extends \App\Http\Controllers\Controller
                 'message' => 'Failed to add tool: '.$e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Display a single tool for the given stockage.
+     */
+    public function showTool($stockageId, $toolId)
+    {
+        $tool = PharmacyStorageTool::with(['pharmacyStorage:id,name,location_code,service_id', 'pharmacyStorage.service:id,name,service_abv'])
+            ->where('pharmacy_storage_id', $stockageId)
+            ->where('id', $toolId)
+            ->firstOrFail();
+
+        return response()->json([
+            'success' => true,
+            'data' => $tool,
+        ]);
+    }
+
+    /**
+     * Update an existing tool that belongs to the stockage.
+     */
+    public function updateTool(Request $request, $stockageId, $toolId)
+    {
+        $stockage = PharmacyStockage::findOrFail($stockageId);
+
+        $tool = $stockage->pharmacyStockageTools()
+            ->where('id', $toolId)
+            ->firstOrFail();
+
+        $incomingToolType = $request->input('tool_type', $tool->tool_type);
+
+        $validated = $request->validate([
+            'tool_type' => ['sometimes', Rule::in(['RY', 'AR', 'CF', 'FR', 'CS', 'CH', 'PL', 'SC', 'VT'])],
+            'tool_number' => ['sometimes', 'integer', 'min:1'],
+            'block' => ['nullable', 'string', 'size:1', 'regex:/^[A-M]$/', Rule::requiredIf($incomingToolType === 'RY')],
+            'shelf_level' => ['nullable', 'integer', 'min:1', Rule::requiredIf($incomingToolType === 'RY')],
+        ]);
+
+        $newToolType = $validated['tool_type'] ?? $tool->tool_type;
+        $newToolNumber = $validated['tool_number'] ?? $tool->tool_number;
+        $newBlock = array_key_exists('block', $validated) ? $validated['block'] : $tool->block;
+        $newShelfLevel = array_key_exists('shelf_level', $validated) ? $validated['shelf_level'] : $tool->shelf_level;
+
+        if ($newToolType !== 'RY') {
+            $newBlock = null;
+            $newShelfLevel = null;
+        }
+
+        $duplicateExists = PharmacyStorageTool::where('pharmacy_storage_id', $stockage->id)
+            ->where('tool_type', $newToolType)
+            ->where('tool_number', $newToolNumber)
+            ->when($newToolType === 'RY', function ($query) use ($newBlock) {
+                return $query->where('block', $newBlock);
+            })
+            ->where('id', '!=', $tool->id)
+            ->exists();
+
+        if ($duplicateExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Another tool with this type and number already exists in this stockage.',
+            ], 422);
+        }
+
+        $updateData = $validated;
+        $updateData['tool_type'] = $newToolType;
+        $updateData['tool_number'] = $newToolNumber;
+        $updateData['block'] = $newBlock;
+        $updateData['shelf_level'] = $newShelfLevel;
+
+        $tool->fill($updateData);
+        $tool->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tool updated successfully',
+            'data' => $tool->fresh(),
+        ]);
+    }
+
+    /**
+     * Remove a tool from the stockage.
+     */
+    public function removeTool($stockageId, $toolId)
+    {
+        $tool = PharmacyStorageTool::where('pharmacy_storage_id', $stockageId)
+            ->where('id', $toolId)
+            ->firstOrFail();
+
+        $tool->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Tool removed successfully',
+        ]);
     }
 
     /**

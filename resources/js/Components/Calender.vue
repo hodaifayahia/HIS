@@ -1163,56 +1163,56 @@ onMounted(async () => {
 
 /* Status Badge Classes */
 .status-scheduled {
-  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+  @apply bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
 }
 
 .status-confirmed {
-  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+  @apply bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
 }
 
 .status-canceled {
-  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-cancelled {
-  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-pending {
-  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+  @apply bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
 }
 
 .status-done {
-  @apply tw-bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
+  @apply bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
 }
 
 .status-onworking {
-  @apply tw-bg-orange-100 tw-text-orange-800 tw-border tw-border-orange-200;
+  @apply bg-orange-100 tw-text-orange-800 tw-border tw-border-orange-200;
 }
 
 /* PrimeVue severity mapping to Tailwind classes */
 .status-primary {
-  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+  @apply bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
 }
 
 .status-success {
-  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+  @apply bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
 }
 
 .status-danger {
-  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-warning {
-  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+  @apply bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
 }
 
 .status-info {
-  @apply tw-bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
+  @apply bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
 }
 
 .status-secondary {
-  @apply tw-bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
+  @apply bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
 }
 
 @media (max-width: 768px) {

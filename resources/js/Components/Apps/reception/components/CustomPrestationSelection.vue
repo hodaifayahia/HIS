@@ -812,75 +812,75 @@ onMounted(() => {
 <style scoped>
 /* Enhanced styling */
 :deep(.p-card) {
-  @apply tw-border-0 tw-shadow-sm;
+  @apply border-0 tw-shadow-sm;
 }
 
 :deep(.p-card-body) {
-  @apply tw-p-0;
+  @apply p-0;
 }
 
 :deep(.p-card-content) {
-  @apply tw-p-6;
+  @apply p-6;
 }
 
 :deep(.p-inputtext) {
-  @apply tw-border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
+  @apply border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
 }
 
 :deep(.p-multiselect), :deep(.p-dropdown) {
-  @apply tw-border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
+  @apply border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
 }
 
 :deep(.p-button) {
-  @apply tw-rounded-lg tw-font-medium;
+  @apply rounded-lg tw-font-medium;
 }
 
 :deep(.p-datatable) {
-  @apply tw-border-0 tw-shadow-none;
+  @apply border-0 tw-shadow-none;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply tw-bg-gray-50 tw-border-gray-200 tw-text-gray-700 tw-font-semibold tw-text-sm;
+  @apply bg-gray-50 tw-border-gray-200 tw-text-gray-700 tw-font-semibold tw-text-sm;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply tw-border-gray-100 hover:tw-bg-blue-25;
+  @apply border-gray-100 hover:tw-bg-blue-25;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  @apply tw-bg-blue-50;
+  @apply bg-blue-50;
 }
 
 :deep(.p-tag) {
-  @apply tw-font-medium tw-text-xs;
+  @apply font-medium tw-text-xs;
 }
 
 :deep(.p-paginator) {
-  @apply tw-border-0 tw-bg-white;
+  @apply border-0 tw-bg-white;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-  @apply tw-border-gray-300 tw-rounded tw-w-4 tw-h-4;
+  @apply border-gray-300 tw-rounded tw-w-4 tw-h-4;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
-  @apply tw-bg-blue-500 tw-border-blue-500;
+  @apply bg-blue-500 tw-border-blue-500;
 }
 
 :deep(.p-divider) {
-  @apply tw-my-4;
+  @apply my-4;
 }
 
 :deep(.p-divider.p-divider-horizontal:before) {
-  @apply tw-border-gray-200;
+  @apply border-gray-200;
 }
 
 :deep(.p-tooltip .p-tooltip-text) {
-  @apply tw-bg-gray-800 tw-text-white tw-rounded-lg tw-px-3 tw-py-2 tw-text-sm tw-shadow-lg;
+  @apply bg-gray-800 tw-text-white tw-rounded-lg tw-px-3 tw-py-2 tw-text-sm tw-shadow-lg;
 }
 
 :deep(.p-skeleton) {
-  @apply tw-bg-gray-200;
+  @apply bg-gray-200;
 }
 
 /* Custom scrollbar styling */
@@ -889,15 +889,15 @@ onMounted(() => {
 }
 
 .tw-overflow-y-auto::-webkit-scrollbar-track {
-  @apply tw-bg-gray-100 tw-rounded-full;
+  @apply bg-gray-100 tw-rounded-full;
 }
 
 .tw-overflow-y-auto::-webkit-scrollbar-thumb {
-  @apply tw-bg-gray-300 tw-rounded-full;
+  @apply bg-gray-300 tw-rounded-full;
 }
 
 .tw-overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  @apply tw-bg-gray-400;
+  @apply bg-gray-400;
 }
 
 /* Animation classes */
@@ -918,7 +918,7 @@ onMounted(() => {
 
 /* Enhanced hover effects */
 .tw-group:hover .tw-opacity-0 {
-  @apply tw-opacity-100;
+  @apply opacity-100;
 }
 
 /* Blue-25 custom class since it's not in standard Tailwind */

@@ -10,6 +10,7 @@
       >
         <i class="pi pi-lightbulb tw-text-white tw-text-xl"></i>
       </Button>
+      
       <Button
         v-if="movement?.status === 'draft'"
         @click="openAddProductDialog"
@@ -623,7 +624,7 @@
                       suggestion.type === 'expiring_soon' ? 'tw-bg-yellow-50 tw-border-yellow-200 hover:tw-bg-yellow-100 tw-border-l-4 tw-border-l-yellow-500' :
                       'tw-bg-gray-50 tw-border-gray-200 hover:tw-bg-gray-100 tw-border-l-4 tw-border-l-gray-500'
                     ]"
-                    @click="showQuantityDialog(product, suggestion.type)"
+                    @click="openQuantityDialog(product, suggestion.type)"
                   >
                     <div class="tw-flex tw-items-center tw-justify-between">
                       <div class="tw-flex-1">
@@ -796,7 +797,7 @@
 
     <!-- Quantity Selection Dialog -->
     <Dialog 
-      v-model:visible="showQuantityDialog" 
+      v-model:visible="showQuantityDialogState" 
       modal 
       :header="quantityDialogProduct ? `Add ${quantityDialogProduct.name}` : 'Add Product'" 
       :style="{ width: '500px' }"
@@ -1722,6 +1723,17 @@ export default {
     }
 
     const openAddProductDialog = async () => {
+      // Only allow opening dialog for draft movements
+      if (movement.value?.status !== 'draft') {
+        toast.add({
+          severity: 'warn',
+          summary: 'Not Allowed',
+          detail: 'Cannot add products to non-draft movements',
+          life: 3000
+        })
+        return
+      }
+      
       showAddProductDialog.value = true
       // Load available products if not already loaded or if providing service changed
       if (availableProducts.value.length === 0 || !movement.value?.providing_service_id) {
@@ -1730,6 +1742,17 @@ export default {
     }
 
     const openSuggestionsDialog = async () => {
+      // Only allow opening dialog for draft movements
+      if (movement.value?.status !== 'draft') {
+        toast.add({
+          severity: 'warn',
+          summary: 'Not Allowed',
+          detail: 'Cannot add suggestions to non-draft movements',
+          life: 3000
+        })
+        return
+      }
+      
       showSuggestionsDialog.value = true
       // Reload suggestions when opening the dialog
       await loadAvailableProducts()
@@ -2220,11 +2243,11 @@ export default {
       handlePageSizeChange,
       goToPage,
       // Quantity Dialog
-      showQuantityDialog: showQuantityDialogState,
+      showQuantityDialogState,
       quantityDialogProduct,
       quantityDialogType,
       quantityDialogQuantity,
-      showQuantityDialog,
+      openQuantityDialog: showQuantityDialog,
       closeQuantityDialog,
       addProductWithQuantity
     }

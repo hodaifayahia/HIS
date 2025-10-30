@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\ServiceProvider;
 use App\Models\CONFIGURATION\Modality;
+use App\Models\Reception\ficheNavetteItem;
 use App\Observers\CONFIGURATION\ModalityObserver;
+use App\Observers\Reception\FicheNavetteItemObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
             Modality::observe(ModalityObserver::class);
+            ficheNavetteItem::observe(FicheNavetteItemObserver::class);
 
         
         // Model::preventLazyLoading(!app()->isProduction());

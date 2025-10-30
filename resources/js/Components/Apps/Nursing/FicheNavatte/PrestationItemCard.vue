@@ -735,11 +735,6 @@ const paymentStatusInfo = computed(() => {
             :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
           />
         </div>
-        
-        <div class="info-item">
-          <span class="info-label">Total:</span>
-          <strong class="total-price">{{ formatCurrency(totalPrice) }}</strong>
-        </div>
       </div>
 
       <!-- Dependencies Summary -->
@@ -780,10 +775,6 @@ const paymentStatusInfo = computed(() => {
             severity="info"
           />
         </div>
-        <div class="info-item">
-          <span class="info-label">Nursing Total:</span>
-          <strong class="total-price">{{ formatCurrency(nursingConsumptionsTotalPrice) }}</strong>
-        </div>
       </div>
       
       <!-- Package Dependencies Info -->
@@ -802,10 +793,6 @@ const paymentStatusInfo = computed(() => {
         <!-- Package Info -->
         <div class="package-info">
           <div class="package-details">
-            <div class="detail-row">
-              <span class="detail-label">Package Price:</span>
-              <span class="detail-value package-price">{{ formatCurrency(totalPrice) }}</span>
-            </div>
             <div v-if="group.doctor_name" class="detail-row">
               <span class="detail-label">Assigned Doctor:</span>
               <span class="detail-value">{{ group.doctor_name }}</span>
@@ -890,33 +877,6 @@ const paymentStatusInfo = computed(() => {
               </div>
               
               <div class="detail-item">
-                <span class="detail-label">Total Price:</span>
-                <strong class="total-amount">{{ formatCurrency(totalPrice) }}</strong>
-              </div>
-              
-              <!-- Package-specific info -->
-              <div v-if="group.type === 'package'" class="detail-item">
-                <span class="detail-label">Package Price:</span>
-                <span class="detail-value package-price">{{ formatCurrency(totalPrice) }}</span>
-              </div>
-              
-              <!-- Package Savings Info -->
-              <div v-if="group.type === 'package' && showSavings" class="detail-item">
-                <span class="detail-label">Savings:</span>
-                <div class="savings-chips">
-                  <Chip
-                    :label="`Individual Total: ${formatCurrency(individualTotal)}`"
-                    severity="warning"
-                    class="mr-2"
-                  />
-                  <Chip
-                    :label="`You Save: ${formatCurrency(individualTotal - group.total_price)}`"
-                    severity="success"
-                  />
-                </div>
-              </div>
-              
-              <div class="detail-item">
                 <span class="detail-label">Regular Dependencies:</span>
                 <Chip
                   :label="`${regularDependencies.length} dependencies`"
@@ -991,14 +951,6 @@ const paymentStatusInfo = computed(() => {
                 </template>
               </Column>
 
-              <Column field="public_price" header="Individual Price" :sortable="true">
-                <template #body="{ data }">
-                  <div class="price-cell">
-                    <span class="individual-price">{{ formatCurrency(data.public_price) }}</span>
-                  </div>
-                </template>
-              </Column>
-
               <!-- <Column field="need_an_appointment" header="Appointment" :sortable="true">
                 <template #body="{ data }">
                   <Tag
@@ -1033,21 +985,6 @@ const paymentStatusInfo = computed(() => {
               </Column> -->
             </DataTable>
 
-            <!-- Package Summary -->
-            <div class="package-summary mt-3">
-              <div class="summary-row">
-                <span class="summary-label">Individual Prestations Total:</span>
-                <span class="summary-value individual-total">{{ formatCurrency(individualTotal) }}</span>
-              </div>
-              <div class="summary-row package-price-row">
-                <span class="summary-label">Package Price:</span>
-                <span class="summary-value package-price">{{ formatCurrency(totalPrice) }}</span>
-              </div>
-              <div v-if="showSavings" class="summary-row savings-row">
-                <span class="summary-label">Your Savings:</span>
-                <span class="summary-value savings-amount">{{ formatCurrency(individualTotal - totalPrice) }}</span>
-              </div>
-            </div>
           </template>
         </Card>
 
@@ -1123,24 +1060,6 @@ const paymentStatusInfo = computed(() => {
                     }"
                   />
                   <span v-else class="text-muted">Not set</span>
-                </template>
-              </Column>
-
-              <Column field="base_price" header="Base Price">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.base_price) }}
-                </template>
-              </Column>
-
-              <Column field="final_price" header="Final Price">
-                <template #body="{ data }">
-                  <strong>{{ formatCurrency(data.final_price) }}</strong>
-                </template>
-              </Column>
-
-              <Column field="patient_share" header="Patient Share">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.patient_share) }}
                 </template>
               </Column>
 
@@ -1222,16 +1141,6 @@ const paymentStatusInfo = computed(() => {
                   />
                 </template>
               </Column>
-              <Column field="unitPrice" header="Unit Price" style="min-width: 140px" class="text-right">
-                <template #body="{ data }">
-                  {{ data.unitPrice != null ? formatCurrency(data.unitPrice) : '—' }}
-                </template>
-              </Column>
-              <Column field="totalPrice" header="Total" style="min-width: 140px" class="text-right">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.totalPrice) }}
-                </template>
-              </Column>
               <Column field="consumedBy" header="Consumed By" style="min-width: 160px">
                 <template #body="{ data }">
                   {{ data.consumedBy ? `User #${data.consumedBy}` : '—' }}
@@ -1248,10 +1157,6 @@ const paymentStatusInfo = computed(() => {
               <div class="summary-row">
                 <span class="summary-label">Total Quantity</span>
                 <span class="summary-value">{{ nursingConsumptionsTotalQuantity }}</span>
-              </div>
-              <div class="summary-row">
-                <span class="summary-label">Total Amount</span>
-                <span class="summary-value">{{ formatCurrency(nursingConsumptionsTotalPrice) }}</span>
               </div>
             </div>
           </template>
@@ -1303,12 +1208,6 @@ const paymentStatusInfo = computed(() => {
                     :label="data.dependencyPrestation?.specialization_name || data.dependency_prestation?.specialization_name || 'N/A'"
                     severity="secondary"
                   />
-                </template>
-              </Column>
-
-              <Column field="price" header="Price">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.dependencyPrestation?.public_price || data.dependency_prestation?.public_price || 0) }}
                 </template>
               </Column>
 

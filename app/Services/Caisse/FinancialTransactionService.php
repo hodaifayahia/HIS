@@ -48,6 +48,10 @@ class FinancialTransactionService
             $query->where('cashier_id', $filters['cashier_id']);
         }
 
+        if (! empty($filters['caisse_id'])) {
+            $query->where('caisse_session_id', $filters['caisse_id']);
+        }
+
         if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
@@ -56,12 +60,12 @@ class FinancialTransactionService
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
-        if (! empty($filters['caisse_id'])) {
-            $caisseId = $filters['caisse_id'];
-            $query->whereHas('ficheNavetteItem.ficheNavette', function ($q) use ($caisseId) {
-                $q->where('caisse_id', $caisseId);
-            });
-        }
+        // if (! empty($filters['caisse_id'])) {
+        //     $caisseId = $filters['caisse_id'];
+        //     $query->whereHas('ficheNavetteItem.ficheNavette', function ($q) use ($caisseId) {
+        //         $q->where('caisse_id', $caisseId);
+        //     });
+        // }
 
         return $query->paginate($perPage);
     }

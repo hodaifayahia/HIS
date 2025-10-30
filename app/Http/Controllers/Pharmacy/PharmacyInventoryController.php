@@ -86,6 +86,11 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             });
         }
 
+        // Filter by stockage ID
+        if ($request->has('stockage_id') && $request->stockage_id) {
+            $query->where('pharmacy_stockage_id', $request->stockage_id);
+        }
+
         // Filter by low stock (pharmacy-specific thresholds)
         if ($request->has('low_stock') && $request->boolean('low_stock')) {
             $query->where('quantity', '<=', 20); // Pharmacy-specific low stock threshold
@@ -153,8 +158,8 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'pharmacy_product_id' => 'required',
-            'pharmacy_stockage_id' => 'required',
+            'pharmacy_product_id' => 'required|exists:pharmacy_products,id',
+            'pharmacy_stockage_id' => 'required|exists:pharmacy_stockages,id',
             'quantity' => 'required|numeric|min:0',
             'unit' => 'nullable|string|max:50',
             'batch_number' => 'nullable|string|max:100',
@@ -168,33 +173,55 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             'pharmacist_verified' => 'boolean',
             'quality_check_passed' => 'boolean',
             'temperature_log' => 'nullable|string',
+        ], [
+            'pharmacy_product_id.exists' => 'The selected pharmacy product does not exist.',
+            'pharmacy_stockage_id.exists' => 'The selected pharmacy stockage does not exist. Please select a valid pharmacy stockage.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors(),
+                'message' => 'Validation failed. Please check your input.',
             ], 422);
         }
 
-        // Check if product with same batch already exists in this location
+        // Check if product already exists in this stockage
+        // Due to unique constraint on pharmacy_product_id + pharmacy_stockage_id,
+        // only one inventory record is allowed per product-stockage combination
         $existingInventory = PharmacyInventory::where('pharmacy_product_id', $request->pharmacy_product_id)
             ->where('pharmacy_stockage_id', $request->pharmacy_stockage_id)
-            ->where('batch_number', $request->batch_number)
-            ->where('expiry_date', $request->expiry_date)
             ->first();
 
         if ($existingInventory) {
-            // Update existing inventory quantity
-            $existingInventory->update([
-                'quantity' => $existingInventory->quantity + $request->quantity,
-                'updated_at' => now(),
-            ]);
+            // Product already exists in this stockage - merge the new quantity
+            // Update quantity and keep the most recent batch/expiry information
+            $newQuantity = $existingInventory->quantity + $request->quantity;
+            
+            // If new batch has a later expiry date, update batch information
+            $newExpiryDate = $request->expiry_date ? date('Y-m-d', strtotime($request->expiry_date)) : null;
+            $currentExpiryDate = $existingInventory->expiry_date ? $existingInventory->expiry_date->format('Y-m-d') : null;
+            
+            $updateData = ['quantity' => $newQuantity];
+            
+            // Update batch info if the new batch has a later expiry or if no expiry exists
+            if ($newExpiryDate && (!$currentExpiryDate || $newExpiryDate > $currentExpiryDate)) {
+                $updateData['batch_number'] = $request->batch_number;
+                $updateData['expiry_date'] = $newExpiryDate;
+                $updateData['serial_number'] = $request->serial_number;
+                
+                if ($request->filled('purchase_price')) {
+                    $updateData['purchase_price'] = $request->purchase_price;
+                }
+            }
+            
+            $existingInventory->update($updateData);
 
             return response()->json([
                 'success' => true,
-                'data' => $existingInventory->load(['pharmacyProduct', 'pharmacyStockage']),
-                'message' => 'Pharmacy product quantity adjusted successfully',
+                'data' => $existingInventory->fresh()->load(['pharmacyProduct', 'pharmacyStockage']),
+                'message' => 'Pharmacy product quantity updated successfully. Note: Only one batch per product-stockage combination is allowed.',
+                'merged' => true,
             ]);
         }
 
@@ -323,7 +350,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         $validator = Validator::make($request->all(), [
             'adjustment_type' => 'required|in:increase,decrease',
             'quantity' => 'required|numeric',
-            'reason' => 'required|string|max:255',
+            'reason' => 'nullable|string|max:255',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -528,7 +555,7 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
         $perPage = $request->get('per_page', 10);
         $inventory = $query->paginate($perPage);
 
-        // Add pharmacy-specific data to each item
+        // Add pharmacy-specific data to each item and map to consistent naming
         $inventory->getCollection()->transform(function ($item) {
             if ($item->expiry_date) {
                 $item->days_until_expiry = now()->diffInDays($item->expiry_date, false);
@@ -539,6 +566,11 @@ class PharmacyInventoryController extends \App\Http\Controllers\Controller
             $item->requires_prescription = $item->pharmacyProduct->requires_prescription ?? false;
             $item->is_controlled_substance = $item->pharmacyProduct->is_controlled_substance ?? false;
 
+            // Map to consistent naming for frontend
+            $item->product = $item->pharmacyProduct;
+            $item->stockage = $item->pharmacyStockage;
+            $item->stockage_id = $item->pharmacy_stockage_id;
+            
             return $item;
         });
 

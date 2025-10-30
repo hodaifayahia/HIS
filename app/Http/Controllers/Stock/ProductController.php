@@ -943,4 +943,90 @@ class ProductController extends \App\Http\Controllers\Controller
             ], 500);
         }
     }
+
+    /**
+     * Get detailed stock information for a specific product
+     */
+    public function getStockDetails($productId)
+    {
+        try {
+            $product = Product::with(['inventories.stockage.service'])->findOrFail($productId);
+            
+            // Get global settings
+            $globalSettings = \App\Models\ProductGlobalSetting::getAllSettingsForProduct($productId);
+            
+            // Calculate stock summary
+            $totalQuantity = $product->inventories->sum(function ($inventory) use ($product) {
+                return $inventory->quantity * ($product->boite_de ?? 1);
+            });
+            
+            $totalValue = $product->inventories->sum(function ($inventory) {
+                return $inventory->quantity * ($inventory->unit_price ?? 0);
+            });
+            
+            $lowStockThreshold = $globalSettings['min_quantity_all_services']['threshold'] ?? 10;
+            $criticalStockThreshold = $globalSettings['critical_stock_threshold']['threshold'] ?? 5;
+            
+            // Get stock details by location
+            $locations = $product->inventories->map(function ($inventory) use ($product, $lowStockThreshold) {
+                $quantity = $inventory->quantity * ($product->boite_de ?? 1);
+                
+                return [
+                    'id' => $inventory->id,
+                    'stockage_id' => $inventory->stockage_id,
+                    'stockage_name' => $inventory->stockage->name ?? 'Unknown',
+                    'service_name' => $inventory->stockage->service->name ?? 'N/A',
+                    'quantity' => $quantity,
+                    'unit_price' => $inventory->unit_price ?? 0,
+                    'total_value' => $quantity * ($inventory->unit_price ?? 0),
+                    'batch_number' => $inventory->batch_number ?? 'N/A',
+                    'expiry_date' => $inventory->expiry_date,
+                    'is_low_stock' => $quantity <= $lowStockThreshold,
+                    'is_expired' => $inventory->expiry_date && now()->gt($inventory->expiry_date),
+                    'unit' => $inventory->unit ?? $product->forme ?? 'units',
+                ];
+            });
+            
+            // Calculate alerts
+            $alerts = [
+                'low_stock' => $totalQuantity <= $lowStockThreshold && $totalQuantity > $criticalStockThreshold,
+                'critical_stock' => $totalQuantity <= $criticalStockThreshold,
+                'expiring_soon' => $product->inventories->filter(function ($inv) {
+                    return $inv->expiry_date && now()->diffInDays($inv->expiry_date) <= 30 && now()->lt($inv->expiry_date);
+                })->count(),
+                'expired' => $product->inventories->filter(function ($inv) {
+                    return $inv->expiry_date && now()->gt($inv->expiry_date);
+                })->count(),
+            ];
+            
+            return response()->json([
+                'success' => true,
+                'product' => [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'code_interne' => $product->code_interne,
+                    'category' => $product->category,
+                    'forme' => $product->forme,
+                    'dosage' => $product->dosage,
+                    'boite_de' => $product->boite_de,
+                    'low_stock_threshold' => $lowStockThreshold,
+                ],
+                'summary' => [
+                    'total_quantity' => $totalQuantity,
+                    'total_value' => $totalValue,
+                    'location_count' => $locations->count(),
+                    'average_price' => $totalQuantity > 0 ? $totalValue / $totalQuantity : 0,
+                ],
+                'stock_details' => $locations->values(),
+                'alerts' => $alerts,
+                'global_settings' => $globalSettings,
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load stock details: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }

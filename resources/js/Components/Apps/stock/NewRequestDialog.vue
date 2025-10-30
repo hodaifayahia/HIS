@@ -3,13 +3,34 @@
     <div class="tw-space-y-6">
       <div class="tw-grid tw-grid-cols-2 tw-gap-6">
         <div>
-          <label class="tw-block tw-text-sm tw-font-medium tw-mb-2">Select Service to Request From *</label>
+          <label class="tw-block tw-text-sm tw-font-medium tw-mb-2">Your Service (Requesting From) *</label>
+          <Dropdown
+            v-model="formData.requesting_service_id"
+            :options="userServices"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select your service"
+            class="tw-w-full"
+            :loading="loadingServices"
+            :class="{ 'p-invalid': validationErrors.requesting_service_id }"
+            :disabled="userServices.length === 1"
+          />
+          <small v-if="validationErrors.requesting_service_id" class="p-error">
+            {{ validationErrors.requesting_service_id }}
+          </small>
+          <small class="tw-text-gray-500 tw-text-xs tw-mt-1 tw-block">
+            {{ userServices.length === 1 ? 'Your assigned service' : 'Select which service you are requesting from' }}
+          </small>
+        </div>
+
+        <div>
+          <label class="tw-block tw-text-sm tw-font-medium tw-mb-2">Service to Request From *</label>
           <Dropdown
             v-model="formData.providing_service_id"
             :options="services"
             optionLabel="name"
             optionValue="id"
-            placeholder="Choose service"
+            placeholder="Choose service to request from"
             class="tw-w-full"
             :loading="loadingServices"
             :class="{ 'p-invalid': validationErrors.providing_service_id }"
@@ -17,8 +38,13 @@
           <small v-if="validationErrors.providing_service_id" class="p-error">
             {{ validationErrors.providing_service_id }}
           </small>
+          <small class="tw-text-gray-500 tw-text-xs tw-mt-1 tw-block">
+            Service that will provide the products
+          </small>
         </div>
+      </div>
 
+      <div class="tw-grid tw-grid-cols-2 tw-gap-6">
         <div>
           <label class="tw-block tw-text-sm tw-font-medium tw-mb-2">Expected Delivery Date</label>
           <Calendar
@@ -93,6 +119,10 @@ export default {
       type: Array,
       default: () => []
     },
+    userServices: {
+      type: Array,
+      default: () => []
+    },
     loadingServices: {
       type: Boolean,
       default: false
@@ -105,21 +135,30 @@ export default {
   emits: ['update:visible', 'create-draft', 'close'],
   setup(props, { emit }) {
     const formData = reactive({
+      requesting_service_id: null,
       providing_service_id: null,
       request_reason: '',
       expected_delivery_date: null
     });
 
     const validationErrors = reactive({
+      requesting_service_id: '',
       providing_service_id: '',
       request_reason: '',
       expected_delivery_date: ''
     });
 
+    // Auto-select requesting service if user has only one
+    watch(() => props.userServices, (newServices) => {
+      if (newServices.length === 1 && !formData.requesting_service_id) {
+        formData.requesting_service_id = newServices[0].id;
+      }
+    }, { immediate: true });
+
     const minDate = computed(() => new Date());
     
     const isFormValid = computed(() => {
-      return formData.providing_service_id && formData.request_reason.trim();
+      return formData.requesting_service_id && formData.providing_service_id && formData.request_reason.trim();
     });
 
     const validateForm = () => {
@@ -130,9 +169,22 @@ export default {
 
       let isValid = true;
 
+      // Validate requesting_service_id
+      if (!formData.requesting_service_id) {
+        validationErrors.requesting_service_id = 'Please select your service';
+        isValid = false;
+      }
+
       // Validate providing_service_id
       if (!formData.providing_service_id) {
         validationErrors.providing_service_id = 'Please select a service to request from';
+        isValid = false;
+      }
+
+      // Validate that requesting and providing services are different
+      if (formData.requesting_service_id && formData.providing_service_id && 
+          formData.requesting_service_id === formData.providing_service_id) {
+        validationErrors.providing_service_id = 'Cannot request from your own service';
         isValid = false;
       }
 
@@ -162,6 +214,7 @@ export default {
 
     const resetForm = () => {
       Object.assign(formData, {
+        requesting_service_id: props.userServices.length === 1 ? props.userServices[0].id : null,
         providing_service_id: null,
         request_reason: '',
         expected_delivery_date: null

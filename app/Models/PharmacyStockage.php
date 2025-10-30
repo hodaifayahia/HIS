@@ -88,7 +88,7 @@ class PharmacyStockage extends Model
      */
     public function pharmacyStockageTools()
     {
-        return $this->hasMany(PharmacyStorageTool::class, 'pharmacy_stockage_id');
+    return $this->hasMany(PharmacyStorageTool::class, 'pharmacy_storage_id');
     }
 
     /**

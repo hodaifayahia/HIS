@@ -7,13 +7,18 @@ export default defineConfig({
         host: '0.0.0.0',
         port: 5173,
         strictPort: true,
+        watch: {
+            usePolling: true, // Enable polling for Docker volumes
+            interval: 100,    // Poll every 100ms
+        },
         cors: {
-            origin: ['http://10.47.0.26:8080', 'http://localhost:8080', 'http://127.0.0.1:8080'],
+            origin: ['http://10.47.0.26:9000', 'http://10.47.0.26:8080', 'http://localhost:8080', 'http://localhost:9000', 'http://127.0.0.1:8080', 'http://127.0.0.1:9000'],
             credentials: true
         },
         hmr: { 
             host: '10.47.0.26',
-            port: 5173
+            port: 5173,
+            protocol: 'ws',
         }
     },
     plugins: [

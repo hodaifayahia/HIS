@@ -328,10 +328,10 @@ const allApps = ref([
   },
   {
     id: 25,
-    name: 'Inventory',
+    name: 'Inventory audit',
     icon: 'fas fa-boxes',
     color: '#6B7280',
-    route: '/admin/inventory',
+    route: '/Inventory-audit',
     category: 'administrative'
   },
   {
@@ -440,10 +440,10 @@ const allApps = ref([
   },
   {
     id: 39,
-    name: 'Soon',
-    icon: 'fas fa-gift',
-    color: '#DC2785',
-    route: '/admin/maintenance',
+    name: 'Inventory Audit',
+    icon: 'fas fa-clipboard-check',
+    color: '#14B8A6',
+    route: '/Inventory-audit',
     category: 'administrative'
   },
 ]);

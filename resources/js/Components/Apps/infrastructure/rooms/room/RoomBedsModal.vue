@@ -178,7 +178,7 @@ const closeModal = () => {
           <div>
             <h2 class="modal-title">{{ room.name }}</h2>
             <p class="room-details">
-              Room {{ room.room_number }} • {{ room.room_type }} • {{ room.service?.name || 'No Service' }}
+              Room {{ room.room_number }} • {{ room.room_type?.name || 'Unknown Type' }} • {{ room.service?.name || 'No Service' }}
             </p>
           </div>
         </div>
