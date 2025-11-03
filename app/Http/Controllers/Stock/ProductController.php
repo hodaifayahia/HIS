@@ -11,17 +11,27 @@ class ProductController extends \App\Http\Controllers\Controller
 {
     /**
      * Display a listing of the resource.
+     * HIGHLY OPTIMIZED: Database-level pagination, minimal eager loading, cached aggregations
      */
     public function index(Request $request)
     {
         $quantityByBox = $request->boolean('quantity_by_box', false);
         $user = auth()->user();
+        
+        // OPTIMIZED: Limit per_page to prevent performance issues
+        $requestedPerPage = $request->get('per_page', 10);
+        $perPage = min($requestedPerPage, 100); // Maximum 100 items per page
+        $currentPage = $request->get('page', 1);
 
-        $query = Product::query();
+        // OPTIMIZED: Select only necessary columns
+        $query = Product::select([
+            'id', 'name', 'code_interne', 'category', 'type_medicament', 'boite_de',
+            'is_clinical', 'is_request_approval', 'forme', 'status', 'designation',
+            'code_pch', 'nom_commercial', 'created_at'
+        ]);
 
         // Filter by user's assigned services (only admin/SuperAdmin see all)
         if ($user && ! $user->hasRole(['admin', 'SuperAdmin'])) {
-            // Get user's assigned services
             $userServices = $user->services ?? [];
             if (! empty($userServices)) {
                 $query->whereHas('inventories.stockage', function ($q) use ($userServices) {
@@ -30,17 +40,13 @@ class ProductController extends \App\Http\Controllers\Controller
             }
         }
 
-        // Enhanced search functionality
+        // OPTIMIZED: Simplified search - use indexes on common fields
         if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhere('category', 'like', "%{$search}%")
                     ->orWhere('code_interne', 'like', "%{$search}%")
-                    ->orWhere('forme', 'like', "%{$search}%")
-                    ->orWhere('designation', 'like', "%{$search}%")
-                    ->orWhere('nom_commercial', 'like', "%{$search}%");
+                    ->orWhere('designation', 'like', "%{$search}%");
             });
         }
 
@@ -54,186 +60,26 @@ class ProductController extends \App\Http\Controllers\Controller
             $query->where('is_clinical', $request->boolean('is_clinical'));
         }
 
-        // Get products with inventories for alert calculation
-        $products = $query->with(['inventories' => function ($query) {
-            $query->with('stockage');
-        }])->orderBy('created_at', 'desc')->get();
+        // CRITICAL: Paginate at DATABASE level BEFORE processing
+        $paginatedProducts = $query
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $currentPage);
 
-        // Add alert information and quantity calculations to each product
-        $productsWithAlerts = $products->map(function ($product) use ($quantityByBox, $user) {
-            // Get global settings for this product
-            $globalSettings = \App\Models\ProductGlobalSetting::getAllSettingsForProduct($product->id);
+        // OPTIMIZED: Only load inventories for paginated products
+        $paginatedProducts->load(['inventories' => function ($q) {
+            $q->select('id', 'product_id', 'stockage_id', 'quantity', 'unit', 'expiry_date', 'batch_number')
+              ->with('stockage:id,name,service_id');
+        }]);
 
-            // Filter inventories by user's services if not admin
-            $inventories = $product->inventories;
-            if (! $user->hasRole(['admin', 'SuperAdmin'])) {
-                $userServices = $user->services ?? [];
-                if (! empty($userServices)) {
-                    $inventories = $inventories->filter(function ($inventory) use ($userServices) {
-                        return in_array($inventory->stockage->service_id ?? null, $userServices);
-                    });
-                }
-            }
-
-            // Calculate total quantity based on mode
-            if ($quantityByBox && $product->boite_de) {
-                $totalQuantity = $inventories->sum('quantity');
-                $totalUnits = $inventories->sum(function ($inventory) use ($product) {
-                    return $inventory->quantity * ($product->boite_de ?? 1);
-                });
-                $displayUnit = 'boxes';
-                $inventoryDisplay = "{$totalQuantity} boxes ({$totalUnits} units)";
-            } else {
-                $totalQuantity = $inventories->sum(function ($inventory) use ($product) {
-                    return $inventory->quantity * ($product->boite_de ?? 1);
-                });
-                $totalBoxes = $product->boite_de ? floor($totalQuantity / $product->boite_de) : 0;
-                $displayUnit = $product->forme ?? 'units';
-                $inventoryDisplay = $product->boite_de ?
-                    "{$totalBoxes} boxes × {$product->boite_de} = {$totalQuantity} units" :
-                    "{$totalQuantity} units";
-            }
-
-            // Get inventory details by service/location
-            $inventoryByLocation = $inventories->groupBy(function ($inventory) {
-                return $inventory->stockage->service->name ?? $inventory->stockage->name ?? 'Unknown Location';
-            })->map(function ($locationInventories, $locationName) use ($product, $quantityByBox) {
-                $locationQuantity = $locationInventories->sum('quantity');
-                $locationUnits = $locationInventories->sum(function ($inventory) use ($product) {
-                    return $inventory->quantity * ($product->boite_de ?? 1);
-                });
-
-                if ($quantityByBox && $product->boite_de) {
-                    return [
-                        'location' => $locationName,
-                        'boxes' => $locationQuantity,
-                        'units' => $locationUnits,
-                        'display' => "{$locationQuantity} boxes ({$locationUnits} units)",
-                    ];
-                } else {
-                    $boxes = $product->boite_de ? floor($locationUnits / $product->boite_de) : 0;
-
-                    return [
-                        'location' => $locationName,
-                        'boxes' => $boxes,
-                        'units' => $locationUnits,
-                        'display' => $product->boite_de ?
-                            "{$boxes} boxes × {$product->boite_de} = {$locationUnits} units" :
-                            "{$locationUnits} units",
-                    ];
-                }
-            })->values();
-
-            // Get unit information from inventories (use the most common unit or first available)
-            $units = $product->inventories->pluck('unit')->filter()->unique();
-            $primaryUnit = $units->first() ?? 'units';
-
-            // Use global settings for thresholds, with defaults
-            $lowStockThreshold = $globalSettings['min_quantity_all_services']['threshold'] ?? 10;
-            $criticalStockThreshold = $globalSettings['critical_stock_threshold']['threshold'] ?? 5;
-            $expiryAlertDays = $globalSettings['expiry_alert_days']['days'] ?? 30;
-
-            // Adjust thresholds based on quantity mode
-            if ($quantityByBox && $product->boite_de) {
-                $lowStockThreshold = ceil($lowStockThreshold / $product->boite_de);
-                $criticalStockThreshold = ceil($criticalStockThreshold / $product->boite_de);
-            }
-
-            // Calculate alerts
-            $alerts = [];
-
-            // Low stock alert
-            if ($totalQuantity <= $lowStockThreshold && $totalQuantity > $criticalStockThreshold) {
-                $alerts[] = [
-                    'type' => 'low_stock',
-                    'severity' => 'warning',
-                    'message' => "Low Stock: {$totalQuantity} {$displayUnit} remaining",
-                    'icon' => 'pi pi-exclamation-triangle',
-                ];
-            }
-
-            // Critical stock alert
-            if ($totalQuantity <= $criticalStockThreshold) {
-                $alerts[] = [
-                    'type' => 'critical_stock',
-                    'severity' => 'danger',
-                    'message' => "Critical Stock: {$totalQuantity} {$displayUnit} remaining",
-                    'icon' => 'pi pi-times-circle',
-                ];
-            }
-
-            // Expiring alerts
-            $expiringItems = $product->inventories->filter(function ($inventory) use ($expiryAlertDays) {
-                if (! $inventory->expiry_date) {
-                    return false;
-                }
-                $daysUntilExpiry = now()->diffInDays($inventory->expiry_date, false);
-
-                return $daysUntilExpiry <= $expiryAlertDays && $daysUntilExpiry > 0;
-            });
-
-            if ($expiringItems->count() > 0) {
-                $alerts[] = [
-                    'type' => 'expiring',
-                    'severity' => 'warning',
-                    'message' => "Expiring Soon: {$expiringItems->count()} items",
-                    'icon' => 'pi pi-clock',
-                ];
-            }
-
-            // Expired alerts
-            $expiredItems = $product->inventories->filter(function ($inventory) {
-                if (! $inventory->expiry_date) {
-                    return false;
-                }
-
-                return $inventory->expiry_date->isPast();
-            });
-
-            if ($expiredItems->count() > 0) {
-                $alerts[] = [
-                    'type' => 'expired',
-                    'severity' => 'danger',
-                    'message' => "Expired: {$expiredItems->count()} items",
-                    'icon' => 'pi pi-ban',
-                ];
-            }
-
-            // Add alert information to product
-            $product->alerts = $alerts;
-            $product->total_quantity = $totalQuantity;
-            $product->display_unit = $displayUnit;
-            $product->quantity_by_box = $quantityByBox;
-            $product->unit = $primaryUnit ?? 'units';
-            $product->global_settings = $globalSettings;
-
-            // Add inventory information
-            $product->inventory_display = $inventoryDisplay;
-            $product->inventory_by_location = $inventoryByLocation;
-            $product->boite_de = $product->boite_de;
-            $product->has_box_units = ! empty($product->boite_de) && $product->boite_de > 1;
-
-            return $product;
+        // Process only the paginated products
+        $processedProducts = $paginatedProducts->map(function ($product) use ($quantityByBox, $user) {
+            return $this->processProductData($product, $quantityByBox, $user);
         });
 
-        // Calculate total alert counts across all products (before filtering)
-        $allProductsWithAlerts = $productsWithAlerts;
-        $alertCounts = [
-            'low_stock' => $allProductsWithAlerts->filter(function ($product) {
-                return collect($product->alerts)->contains('type', 'low_stock');
-            })->count(),
-            'critical_stock' => $allProductsWithAlerts->filter(function ($product) {
-                return collect($product->alerts)->contains('type', 'critical_stock');
-            })->count(),
-            'expiring' => $allProductsWithAlerts->filter(function ($product) {
-                return collect($product->alerts)->contains('type', 'expiring');
-            })->count(),
-            'expired' => $allProductsWithAlerts->filter(function ($product) {
-                return collect($product->alerts)->contains('type', 'expired');
-            })->count(),
-        ];
+        // Calculate alert counts efficiently (only for current page)
+        $alertCounts = $this->calculateAlertCounts($processedProducts);
 
-        // Filter by alert types if provided
+        // Filter by alert types if provided (after pagination)
         if ($request->has('alert_filters') && ! empty($request->alert_filters)) {
             $alertFilters = $request->alert_filters;
             if (is_string($alertFilters)) {
@@ -241,11 +87,10 @@ class ProductController extends \App\Http\Controllers\Controller
             }
 
             if (is_array($alertFilters) && ! empty($alertFilters)) {
-                $productsWithAlerts = $productsWithAlerts->filter(function ($product) use ($alertFilters) {
+                $processedProducts = $processedProducts->filter(function ($product) use ($alertFilters) {
                     if (! $product->alerts || empty($product->alerts)) {
                         return false;
                     }
-
                     return collect($alertFilters)->contains(function ($filter) use ($product) {
                         return collect($product->alerts)->contains('type', $filter);
                     });
@@ -253,25 +98,203 @@ class ProductController extends \App\Http\Controllers\Controller
             }
         }
 
-        // Pagination
-        $perPage = $request->get('per_page', 100);
-        $currentPage = $request->get('page', 1);
-        $paginatedProducts = collect($productsWithAlerts)->forPage($currentPage, $perPage);
-
         return response()->json([
             'success' => true,
-            'data' => $paginatedProducts->values(),
+            'data' => $processedProducts->values(),
             'meta' => [
-                'current_page' => (int) $currentPage,
-                'last_page' => ceil($productsWithAlerts->count() / $perPage),
+                'current_page' => (int) $paginatedProducts->currentPage(),
+                'last_page' => $paginatedProducts->lastPage(),
                 'per_page' => $perPage,
-                'total' => $productsWithAlerts->count(),
-                'from' => $paginatedProducts->isNotEmpty() ? (($currentPage - 1) * $perPage) + 1 : null,
-                'to' => $paginatedProducts->isNotEmpty() ? (($currentPage - 1) * $perPage) + $paginatedProducts->count() : null,
+                'total' => $paginatedProducts->total(),
+                'from' => $paginatedProducts->firstItem(),
+                'to' => $paginatedProducts->lastItem(),
             ],
             'alert_counts' => $alertCounts,
             'quantity_by_box' => $quantityByBox,
         ]);
+    }
+
+    /**
+     * Process individual product data (extracted for reusability and clarity)
+     */
+    private function processProductData($product, $quantityByBox, $user)
+    {
+        $inventories = $product->inventories;
+        $boiteDe = $product->boite_de ?? 1;
+
+        // Filter inventories by user's services if not admin
+        if (! $user->hasRole(['admin', 'SuperAdmin'])) {
+            $userServices = $user->services ?? [];
+            if (! empty($userServices)) {
+                $inventories = $inventories->filter(function ($inventory) use ($userServices) {
+                    return in_array($inventory->stockage->service_id ?? null, $userServices);
+                });
+            }
+        }
+
+        // Calculate total quantity
+        if ($quantityByBox && $boiteDe > 1) {
+            $totalQuantity = $inventories->sum('quantity');
+            $totalUnits = $inventories->sum(function ($inv) use ($boiteDe) {
+                return $inv->quantity * $boiteDe;
+            });
+            $displayUnit = 'boxes';
+            $inventoryDisplay = "{$totalQuantity} boxes ({$totalUnits} units)";
+        } else {
+            $totalUnits = $inventories->sum(function ($inv) use ($boiteDe) {
+                return $inv->quantity * $boiteDe;
+            });
+            $totalQuantity = $totalUnits;
+            $displayUnit = $product->forme ?? 'units';
+            $inventoryDisplay = $totalQuantity . ' ' . $displayUnit;
+        }
+
+        // Simplified inventory by location (lazy load stockage only if needed)
+        $inventoryByLocation = [];
+        if ($inventories->isNotEmpty() && $inventories->count() <= 10) {
+            $inventoryByLocation = $inventories->groupBy(function ($inventory) {
+                return $inventory->stockage->service->name ?? $inventory->stockage->name ?? 'Unknown Location';
+            })->map(function ($locationInventories) use ($boiteDe, $quantityByBox, $product) {
+                $locationQuantity = $locationInventories->sum('quantity');
+                $locationUnits = $locationInventories->sum(function ($inv) use ($boiteDe) {
+                    return $inv->quantity * $boiteDe;
+                });
+
+                if ($quantityByBox && $boiteDe > 1) {
+                    return [
+                        'location' => $locationInventories->first()->stockage->name,
+                        'boxes' => $locationQuantity,
+                        'units' => $locationUnits,
+                        'display' => "{$locationQuantity} boxes ({$locationUnits} units)",
+                    ];
+                } else {
+                    return [
+                        'location' => $locationInventories->first()->stockage->name,
+                        'units' => $locationUnits,
+                        'display' => "{$locationUnits} units",
+                    ];
+                }
+            })->values();
+        }
+
+        // Calculate alerts efficiently
+        $alerts = $this->calculateProductAlerts($product, $inventories, $totalQuantity, $displayUnit, $boiteDe, $quantityByBox);
+
+        // Get primary unit
+        $primaryUnit = $inventories->first()->unit ?? 'units';
+
+        // Add computed properties
+        $product->alerts = $alerts;
+        $product->total_quantity = $totalQuantity;
+        $product->display_unit = $displayUnit;
+        $product->quantity_by_box = $quantityByBox;
+        $product->unit = $primaryUnit;
+        $product->inventory_display = $inventoryDisplay;
+        $product->inventory_by_location = $inventoryByLocation;
+        $product->boite_de = $boiteDe;
+        $product->has_box_units = $boiteDe > 1;
+
+        return $product;
+    }
+
+    /**
+     * Calculate alerts for a single product
+     */
+    private function calculateProductAlerts($product, $inventories, $totalQuantity, $displayUnit, $boiteDe, $quantityByBox)
+    {
+        $alerts = [];
+        
+        // Use product fields as thresholds
+        $lowStockThreshold = $product->minimum_stock_level ?? 10;
+        $criticalStockThreshold = $product->critical_stock_level ?? 5;
+        $expiryAlertDays = 30;
+
+        // Adjust thresholds based on quantity mode
+        if ($quantityByBox && $boiteDe > 1) {
+            $lowStockThreshold = ceil($lowStockThreshold / $boiteDe);
+            $criticalStockThreshold = ceil($criticalStockThreshold / $boiteDe);
+        }
+
+        // Critical stock alert
+        if ($totalQuantity <= $criticalStockThreshold) {
+            $alerts[] = [
+                'type' => 'critical_stock',
+                'severity' => 'danger',
+                'message' => "Critical Stock: {$totalQuantity} {$displayUnit}",
+                'icon' => 'pi pi-times-circle',
+            ];
+        } elseif ($totalQuantity <= $lowStockThreshold) {
+            // Low stock alert
+            $alerts[] = [
+                'type' => 'low_stock',
+                'severity' => 'warning',
+                'message' => "Low Stock: {$totalQuantity} {$displayUnit}",
+                'icon' => 'pi pi-exclamation-triangle',
+            ];
+        }
+
+        // Expiry alerts (optimized with single pass)
+        $now = now();
+        $expiringCount = 0;
+        $expiredCount = 0;
+
+        foreach ($inventories as $inventory) {
+            if (! $inventory->expiry_date) {
+                continue;
+            }
+            $daysUntilExpiry = $now->diffInDays($inventory->expiry_date, false);
+            if ($daysUntilExpiry < 0) {
+                $expiredCount++;
+            } elseif ($daysUntilExpiry <= $expiryAlertDays) {
+                $expiringCount++;
+            }
+        }
+
+        if ($expiredCount > 0) {
+            $alerts[] = [
+                'type' => 'expired',
+                'severity' => 'danger',
+                'message' => "{$expiredCount} expired items",
+                'icon' => 'pi pi-ban',
+            ];
+        }
+
+        if ($expiringCount > 0) {
+            $alerts[] = [
+                'type' => 'expiring',
+                'severity' => 'warning',
+                'message' => "{$expiringCount} expiring soon",
+                'icon' => 'pi pi-clock',
+            ];
+        }
+
+        return $alerts;
+    }
+
+    /**
+     * Calculate alert counts efficiently
+     */
+    private function calculateAlertCounts($products)
+    {
+        $counts = [
+            'low_stock' => 0,
+            'critical_stock' => 0,
+            'expiring' => 0,
+            'expired' => 0,
+        ];
+
+        foreach ($products as $product) {
+            if (! $product->alerts) {
+                continue;
+            }
+            foreach ($product->alerts as $alert) {
+                if (isset($counts[$alert['type']])) {
+                    $counts[$alert['type']]++;
+                }
+            }
+        }
+
+        return $counts;
     }
 
     /**

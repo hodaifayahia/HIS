@@ -1655,27 +1655,33 @@ export default {
   try {
     transferLoading.value = true
     
-    // Get items with selected inventory (same logic as approve)
+    // Get items with approved quantities - all items should be transferred if approved
     const itemsToTransfer = movement.value.items.filter(item => 
-      item.selected_inventory && item.selected_inventory.length > 0
+      item.approved_quantity && item.approved_quantity > 0
     )
 
     if (itemsToTransfer.length === 0) {
-      console.warn('No items selected for transfer')
+      console.warn('No approved items to transfer')
       return
     }
     
-    // Call API to initialize transfer with item_ids like approve method
-    await axios.post(`/api/pharmacy/stock-movements/${props.movementId}/init-transfer`, {
-      item_ids: itemsToTransfer.map(item => item.id)
+    // Call API to initialize transfer - pass all approved items
+    const response = await axios.post(`/api/pharmacy/stock-movements/${props.movementId}/init-transfer`, {
+      item_ids: itemsToTransfer.map(item => item.id),
+      total_items: itemsToTransfer.length
     })
 
     // Refresh movement data
     await loadMovement()
     
-    console.log('Transfer initialized successfully')
+    console.log('Transfer initialized successfully', response.data)
   } catch (error) {
     console.error('Error initializing transfer:', error)
+    
+    // Show user-friendly error message
+    if (error.response?.data?.message) {
+      console.error('API Error:', error.response.data.message)
+    }
   } finally {
     transferLoading.value = false
   }

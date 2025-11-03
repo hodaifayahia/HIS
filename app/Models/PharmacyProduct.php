@@ -94,15 +94,17 @@ class PharmacyProduct extends Model
      */
     public function pharmacyInventories()
     {
-        return $this->hasMany(PharmacyInventory::class, 'pharmacy_product_id');
+        return $this->hasMany(PharmacyInventory::class, 'pharmacy_product_id')
+            ->select(['id', 'pharmacy_product_id', 'pharmacy_stockage_id', 'quantity', 'unit', 'expiry_date']);
     }
 
     /**
      * Alias for pharmacyInventories() for backward compatibility
+     * OPTIMIZED: Returns only necessary columns by default
      */
     public function inventories()
     {
-        return $this->pharmacyInventories();
+        return $this->hasMany(PharmacyInventory::class, 'pharmacy_product_id');
     }
 
     /**

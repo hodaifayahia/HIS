@@ -420,7 +420,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 
@@ -479,6 +479,7 @@ const errors = ref({});
 const editingTool = ref(null);
 const toolToDelete = ref(null);
 const searchTimeout = ref(null);
+const fetchController = ref(null); // OPTIMIZED: For request cancellation
 
 // Computed
 const showToolDialog = computed(() => showAddToolModal.value || showEditToolModal.value);
@@ -531,13 +532,22 @@ const fetchBlocks = async () => {
 const fetchTools = async () => {
   loading.value = true;
   try {
+    // OPTIMIZED: Cancel previous request if still pending
+    if (fetchController.value) {
+      fetchController.value.abort();
+    }
+    fetchController.value = new AbortController();
+
     const params = {
       page: currentPage.value,
       per_page: 15,
       ...filters.value
     };
 
-    const response = await axios.get(`/api/pharmacy/stockages/${props.stockageId}/tools`, { params });
+    const response = await axios.get(`/api/pharmacy/stockages/${props.stockageId}/tools`, { 
+      params,
+      signal: fetchController.value.signal 
+    });
 
     if (response.data && response.data.success && response.data.data) {
       tools.value = response.data.data.data || [];
@@ -559,6 +569,10 @@ const fetchTools = async () => {
       currentPage.value = 1;
     }
   } catch (error) {
+    // OPTIMIZED: Ignore cancelled requests
+    if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      return;
+    }
     console.error('Error fetching tools:', error);
     showError('Failed to load locations');
     tools.value = [];
@@ -754,6 +768,13 @@ onMounted(() => {
   fetchToolTypes();
   fetchBlocks();
   fetchTools();
+});
+
+// OPTIMIZED: Cleanup on component unmount
+onBeforeUnmount(() => {
+  if (fetchController.value) {
+    fetchController.value.abort();
+  }
 });
 </script>
 

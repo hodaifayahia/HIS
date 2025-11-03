@@ -66,7 +66,7 @@ const stockRoutes = [
         path: 'services/:id/orders',
         name: 'stock.services.orders',
         component: () => import('../Pages/Apps/stock/services/purchasing/ServiceDemandManagement.vue'),
-        props: (route) => ({ serviceId: route.params.id }),
+        props: (route) => ({ serviceId: route.params.id, moduleType: 'stock' }),
       },
      
       {

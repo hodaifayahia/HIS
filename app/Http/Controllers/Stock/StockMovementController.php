@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Stock;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Stock\ApproveItemsRequest;
 use App\Http\Requests\Stock\RejectItemsRequest;
-use App\Http\Resources\Stock\StockMovementItemResource;
+use App\Http\Resources\stock\StockMovementItemResource;
 use App\Http\Resources\stock\StockMovementResource;
 use App\Models\CONFIGURATION\Service;
 use App\Models\Product;
@@ -44,8 +44,12 @@ class StockMovementController extends Controller
             }
 
             // Get user's active specialization
+            // Note: status can be boolean true or string 'active'
             $userSpecialization = UserSpecialization::where('user_id', $user->id)
-                ->where('status', true)
+                ->where(function($q) {
+                    $q->where('status', true)
+                      ->orWhere('status', 'active');
+                })
                 ->with('specialization.service')
                 ->first();
 
@@ -80,6 +84,65 @@ class StockMovementController extends Controller
 
             return null;
         }
+    }
+
+    /**
+     * Get all user's services through their specializations
+     */
+    private function getUserServices()
+    {
+        try {
+            $user = Auth::user();
+
+            if (! $user) {
+                \Log::warning('StockMovementController: No authenticated user found');
+
+                return [];
+            }
+
+            // Get all user's active specializations with services
+            // Note: status can be boolean true or string 'active'
+            $userSpecializations = UserSpecialization::where('user_id', $user->id)
+                ->where(function($q) {
+                    $q->where('status', true)
+                      ->orWhere('status', 'active');
+                })
+                ->with('specialization.service')
+                ->get();
+
+            // Extract unique service IDs
+            return $userSpecializations
+                ->pluck('specialization.service.id')
+                ->filter()
+                ->unique()
+                ->values()
+                ->toArray();
+
+        } catch (\Exception $e) {
+            \Log::error('StockMovementController: Error getting user services', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Check if user has access to a movement
+     */
+    private function canAccessMovement(StockMovement $movement): bool
+    {
+        $userServices = $this->getUserServices();
+
+        // If user has no services, check if they're the requesting user (for drafts)
+        if (empty($userServices)) {
+            return $movement->requesting_user_id === Auth::id();
+        }
+
+        // User can access if any of their services match the requesting or providing service
+        return in_array($movement->requesting_service_id, $userServices) ||
+               in_array($movement->providing_service_id, $userServices);
     }
 
     /**
@@ -386,9 +449,18 @@ class StockMovementController extends Controller
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
+        $user = Auth::user();
+        $userServices = $this->getUserServices();
 
-        // Check if user owns this draft
-        if ($movement->requesting_user_id !== Auth::id() || $movement->status !== 'draft') {
+        // Check if user has access to this draft
+        $isRequestingUser = $movement->requesting_user_id === $user->id;
+        $userHasRequestingService = !empty($userServices) && in_array($movement->requesting_service_id, $userServices);
+        
+        if ($movement->status !== 'draft') {
+            return response()->json(['error' => 'Can only add items to draft movements'], 422);
+        }
+
+        if (!($isRequestingUser || $userHasRequestingService)) {
             return response()->json(['error' => 'Unauthorized or invalid movement'], 403);
         }
 
@@ -464,9 +536,18 @@ class StockMovementController extends Controller
         ]);
 
         $movement = StockMovement::findOrFail($movementId);
+        $user = Auth::user();
+        $userServices = $this->getUserServices();
 
-        // Check if user owns this draft
-        if ($movement->requesting_user_id !== Auth::id() || $movement->status !== 'draft') {
+        // Check if user has access to this draft
+        $isRequestingUser = $movement->requesting_user_id === $user->id;
+        $userHasRequestingService = !empty($userServices) && in_array($movement->requesting_service_id, $userServices);
+        
+        if ($movement->status !== 'draft') {
+            return response()->json(['error' => 'Can only update items in draft movements'], 422);
+        }
+
+        if (!($isRequestingUser || $userHasRequestingService)) {
             return response()->json(['error' => 'Unauthorized or invalid movement'], 403);
         }
 
@@ -506,8 +587,18 @@ class StockMovementController extends Controller
     public function removeItem($movementId, $itemId)
     {
         $movement = StockMovement::findOrFail($movementId);
+        $user = Auth::user();
+        $userServices = $this->getUserServices();
 
-        if ($movement->requesting_user_id !== Auth::id() || $movement->status !== 'draft') {
+        // Check if user has access to this draft
+        $isRequestingUser = $movement->requesting_user_id === $user->id;
+        $userHasRequestingService = !empty($userServices) && in_array($movement->requesting_service_id, $userServices);
+        
+        if ($movement->status !== 'draft') {
+            return response()->json(['error' => 'Can only remove items from draft movements'], 422);
+        }
+
+        if (!($isRequestingUser || $userHasRequestingService)) {
             return response()->json(['error' => 'Unauthorized or invalid movement'], 403);
         }
 
@@ -526,8 +617,21 @@ class StockMovementController extends Controller
     public function sendDraft($movementId)
     {
         $movement = StockMovement::findOrFail($movementId);
+        $user = Auth::user();
+        $userServices = $this->getUserServices();
 
-        if ($movement->requesting_user_id !== Auth::id() || $movement->status !== 'draft') {
+        // Check if user has access to this movement
+        // User can send if: 1) They are the requesting user, OR 2) They have the requesting service
+        $isRequestingUser = $movement->requesting_user_id === $user->id;
+        $userHasRequestingService = !empty($userServices) && in_array($movement->requesting_service_id, $userServices);
+        
+        // Must be in draft status
+        if ($movement->status !== 'draft') {
+            return response()->json(['error' => 'Movement must be in draft status to send'], 422);
+        }
+
+        // Check authorization
+        if (!($isRequestingUser || $userHasRequestingService)) {
             return response()->json(['error' => 'Unauthorized or invalid movement'], 403);
         }
 
@@ -572,15 +676,16 @@ class StockMovementController extends Controller
     public function getSuggestions(Request $request)
     {
         $user = Auth::user();
-        $userService = $this->getUserService();
-
-        if (! $userService) {
-            return response()->json(['error' => 'User not assigned to any service'], 403);
-        }
 
         $providingServiceId = $request->get('providing_service_id');
         if (! $providingServiceId) {
             return response()->json(['error' => 'Providing service ID required'], 422);
+        }
+
+        // Verify the providing service exists
+        $providingService = Service::find($providingServiceId);
+        if (! $providingService) {
+            return response()->json(['error' => 'Providing service not found'], 404);
         }
 
         // Get products with different stock levels
@@ -700,10 +805,10 @@ class StockMovementController extends Controller
 
         $movement = StockMovement::findOrFail($movementId);
         $user = Auth::user();
-        $userService = $this->getUserService();
+        $userServices = $this->getUserServices();
 
         // Check if user can approve for this service
-        if (! $userService || $movement->providing_service_id !== $userService->id) {
+        if (! in_array($movement->providing_service_id, $userServices)) {
             return response()->json(['error' => 'Unauthorized to approve this request'], 403);
         }
 
@@ -764,26 +869,37 @@ class StockMovementController extends Controller
     public function getStats()
     {
         $user = Auth::user();
-        $userService = $this->getUserService();
+        $userServices = $this->getUserServices();
 
-        if (! $userService) {
-            return response()->json(['error' => 'User not assigned to any service'], 403);
+        // If user has no services, return zero stats
+        if (empty($userServices)) {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'draft' => 0,
+                    'requesting_pending' => 0,
+                    'providing_pending' => 0,
+                    'approved' => 0,
+                    'rejected' => 0,
+                    'executed' => 0,
+                ],
+            ]);
         }
 
         $stats = [
-            'draft' => StockMovement::where('requesting_service_id', $userService->id)
+            'draft' => StockMovement::whereIn('requesting_service_id', $userServices)
                 ->where('status', 'draft')->count(),
-            'requesting_pending' => StockMovement::where('requesting_service_id', $userService->id)
+            'requesting_pending' => StockMovement::whereIn('requesting_service_id', $userServices)
                 ->where('status', 'pending')->count(),
-            'providing_pending' => StockMovement::where('providing_service_id', $userService->id)
+            'providing_pending' => StockMovement::whereIn('providing_service_id', $userServices)
                 ->where('status', 'pending')->count(),
-            'approved' => StockMovement::where('providing_service_id', $userService->id)
+            'approved' => StockMovement::whereIn('providing_service_id', $userServices)
                 ->where('status', 'approved')->count(),
-            'rejected' => StockMovement::where('requesting_service_id', $userService->id)
+            'rejected' => StockMovement::whereIn('requesting_service_id', $userServices)
                 ->where('status', 'rejected')->count(),
-            'executed' => StockMovement::where(function ($q) use ($userService) {
-                $q->where('requesting_service_id', $userService->id)
-                    ->orWhere('providing_service_id', $userService->id);
+            'executed' => StockMovement::where(function ($q) use ($userServices) {
+                $q->whereIn('requesting_service_id', $userServices)
+                    ->orWhereIn('providing_service_id', $userServices);
             })->where('status', 'executed')->count(),
         ];
 
@@ -809,12 +925,21 @@ class StockMovementController extends Controller
         ])->findOrFail($movementId);
 
         $user = Auth::user();
-        $userService = $this->getUserService();
+        $userServices = $this->getUserServices();
 
         // Check if user has access to this movement
-        if (! $userService ||
-            ($movement->requesting_service_id !== $userService->id &&
-             $movement->providing_service_id !== $userService->id)) {
+        // Allow access if: 1) They are requesting user, 2) Their service matches, or 3) For testing (if strict disabled)
+        $isRequestingUser = $movement->requesting_user_id === $user->id;
+        $userServiceMatches = !empty($userServices) && (
+            in_array($movement->requesting_service_id, $userServices) ||
+            in_array($movement->providing_service_id, $userServices)
+        );
+        
+        // For testing/development: allow if user has no services (still trying to access)
+        // In production, you may want to restrict this further
+        $canAccess = $isRequestingUser || $userServiceMatches || env('ALLOW_TEST_ACCESS', false);
+        
+        if (!$canAccess) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -849,8 +974,18 @@ class StockMovementController extends Controller
     public function destroy($movementId)
     {
         $movement = StockMovement::findOrFail($movementId);
+        $user = Auth::user();
+        $userServices = $this->getUserServices();
 
-        if ($movement->requesting_user_id !== Auth::id() || $movement->status !== 'draft') {
+        // Check if user has access to this draft
+        $isRequestingUser = $movement->requesting_user_id === $user->id;
+        $userHasRequestingService = !empty($userServices) && in_array($movement->requesting_service_id, $userServices);
+        
+        if ($movement->status !== 'draft') {
+            return response()->json(['error' => 'Can only delete draft movements'], 422);
+        }
+
+        if (!($isRequestingUser || $userHasRequestingService)) {
             return response()->json(['error' => 'Unauthorized or cannot delete'], 403);
         }
 
@@ -875,12 +1010,9 @@ class StockMovementController extends Controller
         $productId = $request->product_id;
 
         $user = Auth::user();
-        $userService = $this->getUserService();
 
         // Check if user has access to this movement
-        if (! $userService ||
-            ($movement->requesting_service_id !== $userService->id &&
-             $movement->providing_service_id !== $userService->id)) {
+        if (! $this->canAccessMovement($movement)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -912,12 +1044,16 @@ class StockMovementController extends Controller
     {
         $movement = StockMovement::findOrFail($movementId);
         $user = Auth::user();
-        $userService = $this->getUserService();
+        $userServices = $this->getUserServices();
 
-        // Check if user has access to this movement and is the providing service
-        if (! $userService || $movement->providing_service_id !== $userService->id) {
+        // Check if user has access to this movement as the providing service
+        $userServiceIds = $userServices; // getUserServices returns array
+        if (! in_array($movement->providing_service_id, $userServiceIds)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
+
+        // Verify the product exists
+        $product = Product::findOrFail($productId);
 
         // Get inventory items for this product from the providing service's stockages
         $providingService = $movement->providingService;
@@ -929,7 +1065,11 @@ class StockMovementController extends Controller
                 $inventories = $stockage->inventories()
                     ->with('product')
                     ->where('product_id', $productId)
-                    ->where('quantity', '>', 0)
+                    ->where(function($q) {
+                        // Check both quantity and total_units since both can have stock
+                        $q->where('quantity', '>', 0)
+                          ->orWhere('total_units', '>', 0);
+                    })
                     ->get();
 
                 foreach ($inventories as $inventory) {
@@ -956,6 +1096,14 @@ class StockMovementController extends Controller
         return response()->json([
             'success' => true,
             'data' => $inventoryItems,
+            'meta' => [
+                'product_id' => $productId,
+                'product_name' => $product->name,
+                'service_id' => $providingService->id,
+                'service_name' => $providingService->name,
+                'total_items' => count($inventoryItems),
+                'message' => count($inventoryItems) === 0 ? 'No inventory available for this product in the providing service' : null,
+            ],
         ]);
     }
 
@@ -973,10 +1121,10 @@ class StockMovementController extends Controller
 
         $movement = StockMovement::findOrFail($movementId);
         $user = Auth::user();
-        $userService = $this->getUserService();
+        $userServices = $this->getUserServices();
 
-        // Check if user has access to this movement and is the providing service
-        if (! $userService || $movement->providing_service_id !== $userService->id) {
+        // Check if user has access to this movement as the providing service
+        if (! in_array($movement->providing_service_id, $userServices)) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
@@ -1017,6 +1165,15 @@ class StockMovementController extends Controller
                 ]);
 
                 $totalSelectedQuantity += $selection['quantity'];
+            }
+
+            // Validate that total selected quantity matches approved quantity
+            if ($item->approved_quantity && abs($totalSelectedQuantity - $item->approved_quantity) > 0.01) {
+                throw new \Exception(
+                    'Total selected quantity (' . $totalSelectedQuantity . 
+                    ') does not match approved quantity (' . $item->approved_quantity . 
+                    ') for product: ' . $item->product->name
+                );
             }
 
             // Update the item's provided quantity
@@ -1063,8 +1220,8 @@ class StockMovementController extends Controller
     public function approveItems(ApproveItemsRequest $request, $movementId)
     {
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1072,7 +1229,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('providing_service_id', $userService->id)
+                ->whereIn('providing_service_id', $userServices)
                 ->with('items.product')
                 ->first();
 
@@ -1128,8 +1285,8 @@ class StockMovementController extends Controller
     public function rejectItems(RejectItemsRequest $request, $movementId)
     {
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1137,7 +1294,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('providing_service_id', $userService->id)
+                ->whereIn('providing_service_id', $userServices)
                 ->with('items.product')
                 ->first();
 
@@ -1198,16 +1355,16 @@ class StockMovementController extends Controller
     public function initializeTransfer(Request $request, $movementId)
     {
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
                 ], 403);
             }
             $movement = StockMovement::where('id', $movementId)
-                ->where('providing_service_id', $userService->id)
-                ->with(['items.product'])
+                ->whereIn('providing_service_id', $userServices)
+                ->with(['items.product', 'items.selectedInventory.inventory'])
                 ->first();
 
             if (! $movement) {
@@ -1225,6 +1382,64 @@ class StockMovementController extends Controller
                 ], 422);
             }
 
+            // First, validate all approved items have correct inventory selections
+            $itemsWithIssues = [];
+            foreach ($movement->items as $item) {
+                // Skip items that weren't approved
+                if ($item->approved_quantity === null || $item->approved_quantity <= 0) {
+                    continue;
+                }
+
+                // Check if inventory selections exist
+                if (!$item->selectedInventory || $item->selectedInventory->count() === 0) {
+                    $itemsWithIssues[] = [
+                        'product' => $item->product->name,
+                        'issue' => 'No inventory selected',
+                        'approved_qty' => $item->approved_quantity,
+                        'selected_qty' => 0
+                    ];
+                    continue;
+                }
+
+                // Calculate total selected quantity
+                $totalSelectedQuantity = 0;
+                foreach ($item->selectedInventory as $selection) {
+                    $totalSelectedQuantity += $selection->selected_quantity;
+                }
+
+                // Get the approved quantity in the correct unit
+                // If quantity_by_box is true, multiply by boite_de to get actual unit quantity
+                $approvedQuantityInUnits = $item->approved_quantity;
+                if ($item->quantity_by_box && $item->product && $item->product->boite_de) {
+                    $approvedQuantityInUnits = $item->approved_quantity * $item->product->boite_de;
+                }
+
+                // Validate match
+                if (abs($totalSelectedQuantity - $approvedQuantityInUnits) > 0.01) {
+                    $itemsWithIssues[] = [
+                        'product' => $item->product->name,
+                        'issue' => 'Mismatch between selected and approved quantities',
+                        'approved_qty' => $approvedQuantityInUnits,
+                        'selected_qty' => $totalSelectedQuantity
+                    ];
+                }
+            }
+
+            // If there are validation issues, return detailed error
+            if (!empty($itemsWithIssues)) {
+                $errorDetails = "The following items have issues:\n";
+                foreach ($itemsWithIssues as $issue) {
+                    $errorDetails .= "• {$issue['product']}: {$issue['issue']} (Approved: {$issue['approved_qty']}, Selected: {$issue['selected_qty']})\n";
+                }
+                
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot initialize transfer due to inventory selection mismatches',
+                    'details' => $errorDetails,
+                    'items_with_issues' => $itemsWithIssues,
+                ], 422);
+            }
+
             DB::beginTransaction();
 
             try {
@@ -1232,27 +1447,31 @@ class StockMovementController extends Controller
                 foreach ($movement->items as $item) {
                     $totalSentQuantity = 0;
 
-                    if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                        foreach ($item->selectedInventory as $selection) {
-                            $inventory = $selection->inventory;
+                    // Check if item has approved quantity
+                    if ($item->approved_quantity === null || $item->approved_quantity <= 0) {
+                        continue; // Skip items that weren't approved
+                    }
 
-                            // Deduct quantity from provider's stock
-                            if ($inventory->quantity >= $selection->quantity) {
-                                $inventory->quantity -= $selection->quantity;
-                                $inventory->save();
+                    // Now deduct the selected quantities from inventory
+                    foreach ($item->selectedInventory as $selection) {
+                        $inventory = $selection->inventory;
 
-                                // Track the quantity being sent
-                                $totalSentQuantity += $selection->quantity;
+                        // Deduct quantity from provider's stock
+                        if ($inventory->quantity >= $selection->selected_quantity) {
+                            $inventory->quantity -= $selection->selected_quantity;
+                            $inventory->save();
 
-                                \Log::info('Stock deducted for transfer', [
-                                    'inventory_id' => $inventory->id,
-                                    'product_id' => $inventory->product_id,
-                                    'deducted_quantity' => $selection->quantity,
-                                    'remaining_quantity' => $inventory->quantity,
-                                ]);
-                            } else {
-                                throw new \Exception("Insufficient stock for product: {$item->product->name}");
-                            }
+                            // Track the quantity being sent
+                            $totalSentQuantity += $selection->selected_quantity;
+
+                            \Log::info('Stock deducted for transfer', [
+                                'inventory_id' => $inventory->id,
+                                'product_id' => $inventory->product_id,
+                                'deducted_quantity' => $selection->selected_quantity,
+                                'remaining_quantity' => $inventory->quantity,
+                            ]);
+                        } else {
+                            throw new \Exception("Insufficient stock for product: {$item->product->name}. Available: {$inventory->quantity}, Requested: {$selection->selected_quantity}");
                         }
                     }
 
@@ -1316,8 +1535,8 @@ class StockMovementController extends Controller
         }
 
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1325,7 +1544,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('requesting_service_id', $userService->id)
+                ->whereIn('requesting_service_id', $userServices)
                 ->with(['items.selectedInventory.inventory', 'items.product'])
                 ->first();
 
@@ -1353,28 +1572,38 @@ class StockMovementController extends Controller
 
                 if ($deliveryStatus === 'good') {
                     // Mark as fulfilled - add stock to requester's inventory
-                    foreach ($movement->items as $item) {
-                        if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                            foreach ($item->selectedInventory as $selection) {
-                                // Create new inventory record for the requesting service
-                                $newInventory = new \App\Models\Inventory;
-                                $newInventory->product_id = $selection->inventory->product_id;
-                                $newInventory->service_id = $userService->id;
-                                $newInventory->quantity = $selection->quantity;
-                                $newInventory->batch_number = $selection->inventory->batch_number;
-                                $newInventory->serial_number = $selection->inventory->serial_number;
-                                $newInventory->expiry_date = $selection->inventory->expiry_date;
-                                $newInventory->barcode = $selection->inventory->barcode;
-                                $newInventory->save();
+                    // Get the stockage for the requesting service
+                    $stockage = \App\Models\Stockage::where('service_id', $movement->requesting_service_id)->first();
+                    
+                    if ($stockage) {
+                        foreach ($movement->items as $item) {
+                            if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
+                                foreach ($item->selectedInventory as $selection) {
+                                    // Create new inventory record in the requesting service's stockage
+                                    $newInventory = new \App\Models\Inventory;
+                                    $newInventory->product_id = $selection->inventory->product_id;
+                                    $newInventory->stockage_id = $stockage->id;
+                                    $newInventory->quantity = $selection->quantity;
+                                    $newInventory->batch_number = $selection->inventory->batch_number;
+                                    $newInventory->serial_number = $selection->inventory->serial_number;
+                                    $newInventory->expiry_date = $selection->inventory->expiry_date;
+                                    $newInventory->barcode = $selection->inventory->barcode;
+                                    $newInventory->save();
 
-                                \Log::info('Stock added to requesting service', [
-                                    'new_inventory_id' => $newInventory->id,
-                                    'product_id' => $newInventory->product_id,
-                                    'service_id' => $userService->id,
-                                    'quantity' => $selection->quantity,
-                                ]);
+                                    \Log::info('Stock added to requesting service', [
+                                        'new_inventory_id' => $newInventory->id,
+                                        'product_id' => $newInventory->product_id,
+                                        'stockage_id' => $stockage->id,
+                                        'quantity' => $selection->quantity,
+                                    ]);
+                                }
                             }
                         }
+                    } else {
+                        \Log::warning('No stockage found for requesting service during delivery confirmation', [
+                            'movement_id' => $movement->id,
+                            'service_id' => $movement->requesting_service_id,
+                        ]);
                     }
 
                     $movement->status = 'fulfilled';
@@ -1394,7 +1623,7 @@ class StockMovementController extends Controller
                                     'product_id' => $selection->inventory->product_id,
                                     'quantity' => $selection->quantity,
                                     'batch_number' => $selection->inventory->batch_number,
-                                    'service_id' => $userService->id,
+                                    'service_id' => $movement->requesting_service_id,
                                 ]);
                             }
                         }
@@ -1406,25 +1635,35 @@ class StockMovementController extends Controller
                     $movement->delivery_status = 'manque';
                     $movement->missing_quantity = $missingQuantity;
 
-                    // Add received quantities to requester's inventory (if any)
-                    foreach ($movement->items as $item) {
-                        if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                            foreach ($item->selectedInventory as $selection) {
-                                $receivedQuantity = max(0, $selection->quantity - $missingQuantity);
+                    // Get the stockage for the requesting service
+                    $stockage = \App\Models\Stockage::where('service_id', $movement->requesting_service_id)->first();
+                    
+                    if ($stockage) {
+                        // Add received quantities to requester's inventory (if any)
+                        foreach ($movement->items as $item) {
+                            if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
+                                foreach ($item->selectedInventory as $selection) {
+                                    $receivedQuantity = max(0, $selection->quantity - $missingQuantity);
 
-                                if ($receivedQuantity > 0) {
-                                    $newInventory = new \App\Models\Inventory;
-                                    $newInventory->product_id = $selection->inventory->product_id;
-                                    $newInventory->service_id = $userService->id;
-                                    $newInventory->quantity = $receivedQuantity;
-                                    $newInventory->batch_number = $selection->inventory->batch_number;
-                                    $newInventory->serial_number = $selection->inventory->serial_number;
-                                    $newInventory->expiry_date = $selection->inventory->expiry_date;
-                                    $newInventory->barcode = $selection->inventory->barcode;
-                                    $newInventory->save();
+                                    if ($receivedQuantity > 0) {
+                                        $newInventory = new \App\Models\Inventory;
+                                        $newInventory->product_id = $selection->inventory->product_id;
+                                        $newInventory->stockage_id = $stockage->id;
+                                        $newInventory->quantity = $receivedQuantity;
+                                        $newInventory->batch_number = $selection->inventory->batch_number;
+                                        $newInventory->serial_number = $selection->inventory->serial_number;
+                                        $newInventory->expiry_date = $selection->inventory->expiry_date;
+                                        $newInventory->barcode = $selection->inventory->barcode;
+                                        $newInventory->save();
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        \Log::warning('No stockage found for requesting service during manque confirmation', [
+                            'movement_id' => $movement->id,
+                            'service_id' => $movement->requesting_service_id,
+                        ]);
                     }
                 }
 
@@ -1489,8 +1728,8 @@ class StockMovementController extends Controller
         }
 
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1498,7 +1737,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('requesting_service_id', $userService->id)
+                ->whereIn('requesting_service_id', $userServices)
                 ->with(['items.selectedInventory.inventory', 'items.product'])
                 ->first();
 
@@ -1545,24 +1784,35 @@ class StockMovementController extends Controller
 
                     // Add stock to requester's inventory
                     if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                        foreach ($item->selectedInventory as $selection) {
-                            // Create new inventory record for the requesting service
-                            $newInventory = new \App\Models\Inventory;
-                            $newInventory->product_id = $selection->inventory->product_id;
-                            $newInventory->service_id = $userService->id;
-                            $newInventory->quantity = $selection->quantity;
-                            $newInventory->batch_number = $selection->inventory->batch_number;
-                            $newInventory->serial_number = $selection->inventory->serial_number;
-                            $newInventory->expiry_date = $selection->inventory->expiry_date;
-                            $newInventory->barcode = $selection->inventory->barcode;
-                            $newInventory->save();
+                        // Get the stockage for the requesting service
+                        $stockage = \App\Models\Stockage::where('service_id', $movement->requesting_service_id)->first();
+                        
+                        if ($stockage) {
+                            foreach ($item->selectedInventory as $selection) {
+                                // Create new inventory record in the requesting service's stockage
+                                $newInventory = new \App\Models\Inventory;
+                                $newInventory->product_id = $selection->inventory->product_id;
+                                $newInventory->stockage_id = $stockage->id;
+                                $newInventory->quantity = $selection->quantity;
+                                $newInventory->batch_number = $selection->inventory->batch_number;
+                                $newInventory->serial_number = $selection->inventory->serial_number;
+                                $newInventory->expiry_date = $selection->inventory->expiry_date;
+                                $newInventory->barcode = $selection->inventory->barcode;
+                                $newInventory->save();
 
-                            \Log::info('Stock added to requesting service for individual product', [
-                                'new_inventory_id' => $newInventory->id,
-                                'product_id' => $newInventory->product_id,
-                                'service_id' => $userService->id,
-                                'quantity' => $selection->quantity,
-                                'item_id' => $item->id,
+                                \Log::info('Stock added to requesting service for individual product', [
+                                    'new_inventory_id' => $newInventory->id,
+                                    'product_id' => $newInventory->product_id,
+                                    'stockage_id' => $stockage->id,
+                                    'service_id' => $movement->requesting_service_id,
+                                    'quantity' => $selection->quantity,
+                                    'item_id' => $item->id,
+                                ]);
+                            }
+                        } else {
+                            \Log::warning('No stockage found for requesting service', [
+                                'movement_id' => $movement->id,
+                                'service_id' => $movement->requesting_service_id,
                             ]);
                         }
                     }
@@ -1578,7 +1828,7 @@ class StockMovementController extends Controller
                                 'product_id' => $selection->inventory->product_id,
                                 'quantity' => $selection->quantity,
                                 'batch_number' => $selection->inventory->batch_number,
-                                'service_id' => $userService->id,
+                                'service_id' => $movement->requesting_service_id,
                             ]);
                         }
                     }
@@ -1601,7 +1851,7 @@ class StockMovementController extends Controller
                         'movement_id' => $movement->id,
                         'item_id' => $item->id,
                         'product_id' => $item->product_id,
-                        'service_id' => $userService->id,
+                        'service_id' => $movement->requesting_service_id,
                         'received_quantity' => $receivedQuantity,
                     ]);
                 }
@@ -1665,8 +1915,8 @@ class StockMovementController extends Controller
         }
 
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1674,7 +1924,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('requesting_service_id', $userService->id)
+                ->whereIn('requesting_service_id', $userServices)
                 ->with(['items.product', 'items.selectedInventory.inventory'])
                 ->first();
 
@@ -1803,8 +2053,8 @@ class StockMovementController extends Controller
         }
 
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1812,7 +2062,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('requesting_service_id', $userService->id)
+                ->whereIn('requesting_service_id', $userServices)
                 ->with(['items.product', 'items.selectedInventory.inventory'])
                 ->first();
 
@@ -1856,20 +2106,25 @@ class StockMovementController extends Controller
 
                         // Add received stock to inventory
                         if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                            foreach ($item->selectedInventory as $selection) {
-                                // Calculate proportional quantity for this selection
-                                $proportionalQuantity = ($selection->quantity / $requestedQuantity) * $receivedQuantity;
+                            // Get the stockage for the requesting service
+                            $stockage = \App\Models\Stockage::where('service_id', $movement->requesting_service_id)->first();
+                            
+                            if ($stockage) {
+                                foreach ($item->selectedInventory as $selection) {
+                                    // Calculate proportional quantity for this selection
+                                    $proportionalQuantity = ($selection->quantity / $requestedQuantity) * $receivedQuantity;
 
-                                if ($proportionalQuantity > 0) {
-                                    $newInventory = new \App\Models\Inventory;
-                                    $newInventory->product_id = $selection->inventory->product_id;
-                                    $newInventory->service_id = $userService->id;
-                                    $newInventory->quantity = $proportionalQuantity;
-                                    $newInventory->batch_number = $selection->inventory->batch_number;
-                                    $newInventory->serial_number = $selection->inventory->serial_number;
-                                    $newInventory->expiry_date = $selection->inventory->expiry_date;
-                                    $newInventory->barcode = $selection->inventory->barcode;
-                                    $newInventory->save();
+                                    if ($proportionalQuantity > 0) {
+                                        $newInventory = new \App\Models\Inventory;
+                                        $newInventory->product_id = $selection->inventory->product_id;
+                                        $newInventory->stockage_id = $stockage->id;
+                                        $newInventory->quantity = $proportionalQuantity;
+                                        $newInventory->batch_number = $selection->inventory->batch_number;
+                                        $newInventory->serial_number = $selection->inventory->serial_number;
+                                        $newInventory->expiry_date = $selection->inventory->expiry_date;
+                                        $newInventory->barcode = $selection->inventory->barcode;
+                                        $newInventory->save();
+                                    }
                                 }
                             }
                         }
@@ -1891,19 +2146,24 @@ class StockMovementController extends Controller
 
                             // Add received stock to inventory (proportional)
                             if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                                foreach ($item->selectedInventory as $selection) {
-                                    $proportionalQuantity = ($selection->quantity / $requestedQuantity) * $receivedQuantity;
+                                // Get the stockage for the requesting service
+                                $stockage = \App\Models\Stockage::where('service_id', $movement->requesting_service_id)->first();
+                                
+                                if ($stockage) {
+                                    foreach ($item->selectedInventory as $selection) {
+                                        $proportionalQuantity = ($selection->quantity / $requestedQuantity) * $receivedQuantity;
 
-                                    if ($proportionalQuantity > 0) {
-                                        $newInventory = new \App\Models\Inventory;
-                                        $newInventory->product_id = $selection->inventory->product_id;
-                                        $newInventory->service_id = $userService->id;
-                                        $newInventory->quantity = $proportionalQuantity;
-                                        $newInventory->batch_number = $selection->inventory->batch_number;
-                                        $newInventory->serial_number = $selection->inventory->serial_number;
-                                        $newInventory->expiry_date = $selection->inventory->expiry_date;
-                                        $newInventory->barcode = $selection->inventory->barcode;
-                                        $newInventory->save();
+                                        if ($proportionalQuantity > 0) {
+                                            $newInventory = new \App\Models\Inventory;
+                                            $newInventory->product_id = $selection->inventory->product_id;
+                                            $newInventory->stockage_id = $stockage->id;
+                                            $newInventory->quantity = $proportionalQuantity;
+                                            $newInventory->batch_number = $selection->inventory->batch_number;
+                                            $newInventory->serial_number = $selection->inventory->serial_number;
+                                            $newInventory->expiry_date = $selection->inventory->expiry_date;
+                                            $newInventory->barcode = $selection->inventory->barcode;
+                                            $newInventory->save();
+                                        }
                                     }
                                 }
                             }
@@ -1974,8 +2234,8 @@ class StockMovementController extends Controller
     public function finalizeConfirmation(Request $request, $movementId)
     {
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
+            $userServices = $this->getUserServices();
+            if (empty($userServices)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'User service not found',
@@ -1983,7 +2243,7 @@ class StockMovementController extends Controller
             }
 
             $movement = StockMovement::where('id', $movementId)
-                ->where('requesting_service_id', $userService->id)
+                ->whereIn('requesting_service_id', $userServices)
                 ->with(['items'])
                 ->first();
 

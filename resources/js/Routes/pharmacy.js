@@ -1,5 +1,5 @@
 
-    
+
 
 // src/router/routes/pharmacy.js
 
@@ -61,6 +61,36 @@ const pharmacyRoutes = [
         props: (route) => ({ serviceId: route.params.id }),
       },
       {
+        path: 'services/:id/orders',
+        name: 'pharmacy.services.orders',
+        component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandManagement.vue'),
+        props: (route) => ({ serviceId: route.params.id, moduleType: 'pharmacy' }),
+      },
+      {
+        path: 'service-demands/create',
+        name: 'pharmacy.service-demands.create',
+        component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'create', ...route.params })
+      },
+      {
+        path: 'service-demands/create/:demandId',
+        name: 'pharmacy.service-demands.create.edit',
+        component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'create', ...route.params })
+      },
+      {
+        path: 'service-demands/edit/:demandId',
+        name: 'pharmacy.service-demands.edit',
+        component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'edit', demandId: route.params.demandId })
+      },
+      {
+        path: 'service-demands/view/:demandId',
+        name: 'pharmacy.service-demands.view',
+        component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
+        props: (route) => ({ mode: 'view', demandId: route.params.demandId })
+      },
+      {
         path: 'movements',
         name: 'pharmacy.movements',
         component: () => import('../Pages/Apps/pharmacy/StockMovement.vue'),
@@ -86,6 +116,22 @@ const pharmacyRoutes = [
         name: 'pharmacy.movements.view',
         component: () => import('../Pages/Apps/pharmacy/StockMovementView.vue'),
         props: (route) => ({ movementId: route.params.id }),
+      },
+      {
+        path: 'reservations',
+        name: 'pharmacy.reservations',
+        component: () => import('../Pages/Apps/pharmacy/Reservations/stockageReservations.vue'),
+      },
+      {
+        path: 'product-reserves',
+        name: 'pharmacy.product-reserves',
+        component: () => import('../Pages/Apps/pharmacy/ProductReserve/ReserveList.vue'),
+      },
+      {
+        path: 'product-reserves/:reserveId/products',
+        name: 'pharmacy.product-reserves.products',
+        component: () => import('../Pages/Apps/pharmacy/ProductReserve/ReserveProducts.vue'),
+        props: (route) => ({ reserveId: route.params.reserveId })
       },
     ],
   },

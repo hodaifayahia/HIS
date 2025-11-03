@@ -1156,7 +1156,9 @@ export default {
       ]
   ,
   // Cache for product-specific settings loaded from backend
-  productSettingsCache: {}
+  productSettingsCache: {},
+  // Track which products are currently being loaded to prevent duplicate requests
+  loadingProductSettings: {}
     }
   },
   mounted() {
@@ -1536,9 +1538,10 @@ export default {
       this.selectedProductGroup = null;
     },
 
-    editProductSettings(productGroup) {
+    async editProductSettings(productGroup) {
       this.selectedProductGroup = productGroup;
-      this.loadProductSettings(productGroup);
+      // Load settings before showing modal
+      await this.loadProductSettings(productGroup);
       this.showProductSettingsModal = true;
     },
 
@@ -1550,42 +1553,45 @@ export default {
 
       // Return cached if available
       if (this.productSettingsCache[key]) {
-        // if modal open for this product, set selected settings
-        if (this.selectedProductGroup && this.selectedProductGroup.productName === productName && this.selectedProductGroup.forme === productGroup.forme) {
-          this.selectedProductSettings = this.productSettingsCache[key];
-        }
+        this.selectedProductSettings = this.productSettingsCache[key];
         return Promise.resolve(this.productSettingsCache[key]);
       }
 
-      return axios.get(`/api/stock/product-settings/${this.serviceId}/${encodeURIComponent(productName)}/${encodeURIComponent(productForme)}`)
+      // If already loading, return the existing promise
+      if (this.loadingProductSettings[key]) {
+        return this.loadingProductSettings[key];
+      }
+
+      // Create and store the loading promise
+      const loadingPromise = axios.get(`/api/stock/product-settings/${this.serviceId}/${encodeURIComponent(productName)}/${encodeURIComponent(productForme)}`)
         .then(response => {
           const payload = response.data || {};
           if (payload.success && payload.data) {
             const mapped = this.mapRemoteSettings(payload.data);
             this.productSettingsCache[key] = mapped;
-            if (this.selectedProductGroup && this.selectedProductGroup.productName === productName && this.selectedProductGroup.forme === productGroup.forme) {
-              this.selectedProductSettings = mapped;
-            }
+            this.selectedProductSettings = mapped;
             return mapped;
           }
 
           // Not found: cache and return default
           const defaults = this.getDefaultProductSettings(productGroup);
           this.productSettingsCache[key] = defaults;
-          if (this.selectedProductGroup && this.selectedProductGroup.productName === productName && this.selectedProductGroup.forme === productGroup.forme) {
-            this.selectedProductSettings = defaults;
-          }
+          this.selectedProductSettings = defaults;
           return defaults;
         })
         .catch(error => {
           console.error('Failed to load product settings:', error);
           const defaults = this.getDefaultProductSettings(productGroup);
           this.productSettingsCache[key] = defaults;
-          if (this.selectedProductGroup && this.selectedProductGroup.productName === productName && this.selectedProductGroup.forme === productGroup.forme) {
-            this.selectedProductSettings = defaults;
-          }
+          this.selectedProductSettings = defaults;
           return defaults;
+        })
+        .finally(() => {
+          delete this.loadingProductSettings[key];
         });
+
+      this.loadingProductSettings[key] = loadingPromise;
+      return loadingPromise;
     },
 
     // Map server response fields (snake_case) to frontend camelCase keys
@@ -1783,8 +1789,7 @@ export default {
 
       if (this.productSettingsCache[key]) return this.productSettingsCache[key];
 
-      // Kick off background load and return defaults for now
-      this.loadProductSettings(productGroup).then(() => {});
+      // Return defaults immediately - settings will be loaded on-demand when modal is opened
       return this.getDefaultProductSettings(productGroup);
     },
   }

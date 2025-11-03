@@ -71,6 +71,12 @@ const hasPermission = (requiredRoles) => {
                             <p>Services</p>
                         </router-link>
                     </li>
+                     <li class="nav-item">
+                             <router-link to="/pharmacy/product-reserves" active-class="active" class="nav-link">
+                                    <i class="fas fa-bookmark nav-icon"></i>
+                                    <p>Reservations</p>
+                            </router-link>
+                                        </li>
                     <li class="nav-item">
                         <router-link to="/pharmacy/stockages" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>

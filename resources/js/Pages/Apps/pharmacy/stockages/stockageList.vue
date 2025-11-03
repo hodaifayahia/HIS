@@ -699,19 +699,16 @@ export default {
   // fetchManagers removed: managers are no longer used for stockages
 
     async fetchServices() {
+      // OPTIMIZED: Cache services and use dedicated endpoint
+      if (this.services.length > 0) return; // Already loaded
+      
       try {
-        const response = await axios.get('/api/pharmacy/stockages', { params });
-        // Normalize different possible API shapes:
-        // - { status: 'success', data: [...] }
-        // - { success: true, data: [...] }
-        // - [...] (raw array)
-        const resData = response.data;
-        if (Array.isArray(resData)) {
-          this.services = resData;
-        } else if (resData && Array.isArray(resData.data)) {
-          this.services = resData.data;
+        const response = await axios.get('/api/pharmacy/stockages/services');
+        if (response.data.success) {
+          this.services = response.data.data;
         }
       } catch (error) {
+        console.error('Failed to fetch services:', error);
       }
     },
 

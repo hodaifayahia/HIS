@@ -12,6 +12,7 @@ class FactureProformaProduct extends Model
     protected $fillable = [
         'factureproforma_id',
         'product_id',
+        'pharmacy_product_id',
         'quantity',
         'price',
         'unit',
@@ -49,6 +50,14 @@ class FactureProformaProduct extends Model
     }
 
     /**
+     * Get the pharmacy product details when present.
+     */
+    public function pharmacyProduct(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\PharmacyProduct::class, 'pharmacy_product_id');
+    }
+
+    /**
      * Get the total price for this product line.
      */
     public function getTotalPriceAttribute()
@@ -61,7 +70,7 @@ class FactureProformaProduct extends Model
      */
     public function getProductNameAttribute()
     {
-        return $this->product?->name;
+        return $this->product?->name ?? $this->pharmacyProduct?->name;
     }
 
     /**
@@ -69,6 +78,6 @@ class FactureProformaProduct extends Model
      */
     public function getProductCodeAttribute()
     {
-        return $this->product?->code ?? $this->product?->product_code;
+        return $this->product?->code ?? $this->product?->product_code ?? $this->pharmacyProduct?->sku;
     }
 }

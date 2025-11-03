@@ -14,34 +14,61 @@ class InventoryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Inventory::with(['product', 'stockage']);
+        $perPage = min($request->get('per_page', 10), 100);
+
+        // Build query with selective column loading
+        $query = Inventory::select(
+            'id',
+            'product_id',
+            'stockage_id',
+            'quantity',
+            'total_units',
+            'unit',
+            'batch_number',
+            'serial_number',
+            'purchase_price',
+            'barcode',
+            'expiry_date',
+            'location',
+            'created_at',
+            'updated_at'
+        );
 
         // Filter by stockage
         if ($request->has('stockage_id') && $request->stockage_id) {
             $query->where('stockage_id', $request->stockage_id);
         }
 
-        // Search functionality
+        // Search functionality - use indexed columns only
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('code_interne', 'like', "%{$search}%");
             });
         }
 
-        // Pagination
-        $perPage = $request->get('per_page', 10);
-        $inventory = $query->paginate($perPage);
+        // Apply database-level pagination BEFORE loading relationships
+        $paginatedInventories = $query->paginate($perPage);
+
+        // Load relationships only for paginated results
+        $paginatedInventories->load([
+            'product:id,name,code_interne,forme,boite_de',
+            'stockage:id,name,type,location'
+        ]);
+
+        // Process inventory data and calculate alerts
+        $data = $paginatedInventories->items();
+        $processedData = array_map(fn($inv) => $this->processInventoryData($inv), $data);
 
         return response()->json([
             'success' => true,
-            'data' => $inventory->items(),
+            'data' => $processedData,
             'meta' => [
-                'current_page' => $inventory->currentPage(),
-                'last_page' => $inventory->lastPage(),
-                'per_page' => $inventory->perPage(),
-                'total' => $inventory->total(),
+                'current_page' => $paginatedInventories->currentPage(),
+                'last_page' => $paginatedInventories->lastPage(),
+                'per_page' => $paginatedInventories->perPage(),
+                'total' => $paginatedInventories->total(),
             ],
         ]);
     }
@@ -347,33 +374,167 @@ class InventoryController extends Controller
             ], 422);
         }
 
-        $query = Inventory::with(['product', 'stockage'])
-            ->whereHas('stockage', function ($q) use ($request) {
-                $q->where('service_id', $request->get('service_id'));
-            });
+        $perPage = min($request->get('per_page', 10), 100);
+
+        // Build optimized query with database-level pagination
+        $query = Inventory::select(
+            'id',
+            'product_id',
+            'stockage_id',
+            'quantity',
+            'total_units',
+            'unit',
+            'batch_number',
+            'serial_number',
+            'purchase_price',
+            'barcode',
+            'expiry_date',
+            'location',
+            'created_at',
+            'updated_at'
+        )
+        ->whereHas('stockage', function ($q) use ($request) {
+            $q->where('service_id', $request->get('service_id'));
+        });
 
         // Search functionality
         if ($request->has('search') && $request->search) {
             $search = $request->search;
             $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('code_interne', 'like', "%{$search}%");
             });
         }
 
-        // Pagination
-        $perPage = $request->get('per_page', 10);
-        $inventory = $query->paginate($perPage);
+        // Apply database-level pagination BEFORE loading relationships
+        $paginatedInventories = $query->paginate($perPage);
+
+        // Load relationships only for paginated results
+        $paginatedInventories->load([
+            'product:id,name,code_interne,forme,boite_de',
+            'stockage:id,name,type,location'
+        ]);
+
+        // Process inventory data
+        $data = $paginatedInventories->items();
+        $processedData = array_map(fn($inv) => $this->processInventoryData($inv), $data);
 
         return response()->json([
             'success' => true,
-            'data' => $inventory->items(),
+            'data' => $processedData,
             'meta' => [
-                'current_page' => $inventory->currentPage(),
-                'last_page' => $inventory->lastPage(),
-                'per_page' => $inventory->perPage(),
-                'total' => $inventory->total(),
+                'current_page' => $paginatedInventories->currentPage(),
+                'last_page' => $paginatedInventories->lastPage(),
+                'per_page' => $paginatedInventories->perPage(),
+                'total' => $paginatedInventories->total(),
             ],
         ]);
+    }
+
+    /**
+     * Process individual inventory item with calculated properties
+     */
+    private function processInventoryData($inventory)
+    {
+        $expiryDate = $inventory->expiry_date ? \Carbon\Carbon::parse($inventory->expiry_date) : null;
+        $now = now();
+
+        // Calculate expiry status
+        if (!$expiryDate) {
+            $expiryStatus = 'no_expiry';
+            $daysUntilExpiry = null;
+        } elseif ($expiryDate->isPast()) {
+            $expiryStatus = 'expired';
+            $daysUntilExpiry = $expiryDate->diffInDays($now) * -1;
+        } elseif ($expiryDate->diffInDays($now) <= 30) {
+            $expiryStatus = 'expiring_soon';
+            $daysUntilExpiry = $expiryDate->diffInDays($now);
+        } else {
+            $expiryStatus = 'valid';
+            $daysUntilExpiry = $expiryDate->diffInDays($now);
+        }
+
+        // Calculate low stock alert
+        $isLowStock = $inventory->quantity <= 10;
+
+        return [
+            'id' => $inventory->id,
+            'product_id' => $inventory->product_id,
+            'stockage_id' => $inventory->stockage_id,
+            'quantity' => $inventory->quantity,
+            'total_units' => $inventory->total_units,
+            'unit' => $inventory->unit,
+            'batch_number' => $inventory->batch_number,
+            'serial_number' => $inventory->serial_number,
+            'purchase_price' => $inventory->purchase_price,
+            'barcode' => $inventory->barcode,
+            'expiry_date' => $inventory->expiry_date,
+            'location' => $inventory->location,
+            'expiry_status' => $expiryStatus,
+            'days_until_expiry' => $daysUntilExpiry,
+            'is_low_stock' => $isLowStock,
+            'product' => $inventory->product,
+            'stockage' => $inventory->stockage,
+            'created_at' => $inventory->created_at,
+            'updated_at' => $inventory->updated_at,
+        ];
+    }
+
+    /**
+     * Calculate inventory alerts for a collection
+     */
+    private function calculateAlerts($inventories)
+    {
+        return collect($inventories)->map(function ($inventory) {
+            $alerts = [];
+
+            // Expiry alert
+            if ($inventory->expiry_date) {
+                $expiryDate = \Carbon\Carbon::parse($inventory->expiry_date);
+                if ($expiryDate->isPast()) {
+                    $alerts[] = [
+                        'type' => 'expired',
+                        'severity' => 'critical',
+                        'message' => 'Product has expired',
+                    ];
+                } elseif ($expiryDate->diffInDays(now()) <= 30) {
+                    $alerts[] = [
+                        'type' => 'expiring_soon',
+                        'severity' => 'warning',
+                        'message' => 'Product expiring within 30 days',
+                    ];
+                }
+            }
+
+            // Low stock alert
+            if ($inventory->quantity <= 10) {
+                $alerts[] = [
+                    'type' => 'low_stock',
+                    'severity' => 'warning',
+                    'message' => 'Stock level is low',
+                ];
+            }
+
+            return [
+                'inventory_id' => $inventory->id,
+                'alerts' => $alerts,
+                'has_alerts' => count($alerts) > 0,
+            ];
+        });
+    }
+
+    /**
+     * Calculate alert counts for a collection
+     */
+    private function calculateAlertCounts($inventories)
+    {
+        $alerts = $this->calculateAlerts($inventories);
+
+        return [
+            'expired' => $alerts->filter(fn($a) => collect($a['alerts'])->pluck('type')->contains('expired'))->count(),
+            'expiring_soon' => $alerts->filter(fn($a) => collect($a['alerts'])->pluck('type')->contains('expiring_soon'))->count(),
+            'low_stock' => $alerts->filter(fn($a) => collect($a['alerts'])->pluck('type')->contains('low_stock'))->count(),
+            'total_alerts' => $alerts->filter(fn($a) => $a['has_alerts'])->count(),
+        ];
     }
 }

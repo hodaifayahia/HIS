@@ -8,11 +8,15 @@ class ReserveService
 {
     public function paginate(int $perPage = 15)
     {
-        return Reserve::query()->paginate($perPage);
+        return Reserve::with('creator')->paginate($perPage);
     }
 
     public function store(array $data): Reserve
     {
+        // Ensure we record the creator server-side if not provided
+        if (!isset($data['created_by']) || !$data['created_by']) {
+            $data['created_by'] = auth()->id();
+        }
         return Reserve::create($data);
     }
 

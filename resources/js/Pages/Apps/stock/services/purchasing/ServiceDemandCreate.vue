@@ -343,13 +343,7 @@
               </template>
             </Column>
 
-            <Column field="unit_price" header="Unit Price" sortable>
-              <template #body="slotProps">
-                <div class="tw-font-medium tw-text-gray-900">
-                  ${{ Number(slotProps.data.unit_price || 0).toFixed(2) }}
-                </div>
-              </template>
-            </Column>
+
 
             <Column field="notes" header="Notes">
               <template #body="slotProps">

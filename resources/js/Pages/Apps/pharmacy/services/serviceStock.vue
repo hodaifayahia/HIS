@@ -429,7 +429,7 @@ import ProgressSpinner from 'primevue/progressspinner';
 import Toast from 'primevue/toast';
 
 // Custom Components
-import AddProductToStockModal from '@/Components/Apps/stock/AddProductToStockModal.vue';
+import AddProductToStockModal from '@/Components/Apps/pharmacy/AddProductToStockModal.vue';
 
 export default {
   name: 'ServiceStock',

@@ -1,5 +1,6 @@
 <template>
   <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-blue-50 tw-via-indigo-50 tw-to-purple-50 tw-p-6">
+    <Toast position="top-right" />
     <Card class="tw-mb-8 tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-text-white tw-shadow-xl">
       <template #content>
         <div class="tw-flex tw-justify-between tw-items-center">
@@ -1207,12 +1208,14 @@
 <script>
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useToast } from 'primevue/usetoast'
 import axios from 'axios'
 import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Dialog from 'primevue/dialog'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
+import Toast from 'primevue/toast'
 import ProductSelectionDialog from './ProductSelectionDialog.vue'
 
 export default {
@@ -1223,6 +1226,7 @@ export default {
     Dialog,
     DataTable,
     Column,
+    Toast,
     ProductSelectionDialog
   },
   props: {
@@ -1234,6 +1238,7 @@ export default {
   setup(props) {
     const route = useRoute()
     const router = useRouter()
+    const toast = useToast()
 
     // Reactive data
     const movement = ref({})
@@ -1484,35 +1489,120 @@ export default {
         rejectionLoading.value = false
       }
     }
+
     const initializeTransfer = async () => {
-  try {
-    transferLoading.value = true
-    
-    // Get items with selected inventory (same logic as approve)
-    const itemsToTransfer = movement.value.items.filter(item => 
-      item.selected_inventory && item.selected_inventory.length > 0
-    )
+      try {
+        transferLoading.value = true
+        
+        // Validate all approved items have matching inventory selections
+        const approvedItems = movement.value.items.filter(item => 
+          item.approved_quantity && item.approved_quantity > 0
+        )
+        
+        const itemsWithIssues = []
+        const validItemsForTransfer = []
+        
+        approvedItems.forEach(item => {
+          // Check if inventory is selected
+          if (!item.selected_inventory || item.selected_inventory.length === 0) {
+            itemsWithIssues.push({
+              product: item.product?.name || 'Unknown',
+              issue: 'No inventory selected',
+              approved_qty: item.approved_quantity,
+              selected_qty: 0
+            })
+            return
+          }
+          
+          // Calculate total selected quantity
+          const totalSelectedQuantity = item.selected_inventory.reduce((total, selection) => {
+            return total + parseFloat(selection.quantity || 0)
+          }, 0)
+          
+          // Get the approved quantity in the correct unit
+          // If quantity_by_box is true, multiply by boite_de to get actual unit quantity
+          let approvedQuantityInUnits = item.approved_quantity
+          if (item.quantity_by_box && item.product?.boite_de) {
+            approvedQuantityInUnits = item.approved_quantity * item.product.boite_de
+          }
+          
+          // Check if quantities match (with 0.01 tolerance for decimal precision)
+          if (Math.abs(totalSelectedQuantity - approvedQuantityInUnits) > 0.01) {
+            itemsWithIssues.push({
+              product: item.product?.name || 'Unknown',
+              issue: 'Quantity mismatch',
+              approved_qty: approvedQuantityInUnits,
+              selected_qty: totalSelectedQuantity
+            })
+          } else {
+            validItemsForTransfer.push(item)
+          }
+        })
+        
+        // Show issues if any exist
+        if (itemsWithIssues.length > 0) {
+          const issueDetails = itemsWithIssues.map(issue => 
+            `• ${issue.product}: ${issue.issue} (Approved: ${issue.approved_qty}, Selected: ${issue.selected_qty})`
+          ).join('\n')
+          
+          toast.add({
+            severity: 'error',
+            summary: 'Inventory Selection Issues',
+            detail: `Cannot initialize transfer. The following items have problems:\n${issueDetails}`,
+            life: 5000,
+            sticky: true
+          })
+          return
+        }
+        
+        if (validItemsForTransfer.length === 0) {
+          toast.add({
+            severity: 'warn',
+            summary: 'No Items Ready',
+            detail: 'No approved items with proper inventory selection found for transfer',
+            life: 3000
+          })
+          return
+        }
+        
+        // All validation passed, proceed with transfer
+        const response = await axios.post(`/api/stock-movements/${props.movementId}/init-transfer`, {
+          item_ids: validItemsForTransfer.map(item => item.id)
+        })
 
-    if (itemsToTransfer.length === 0) {
-      console.warn('No items selected for transfer')
-      return
+        // Refresh movement data
+        await loadMovement()
+        
+        toast.add({
+          severity: 'success',
+          summary: 'Transfer Initialized',
+          detail: 'Stock transfer has been initialized successfully',
+          life: 3000
+        })
+        
+        console.log('Transfer initialized successfully', response.data)
+      } catch (error) {
+        console.error('Error initializing transfer:', error)
+        
+        // Show detailed error from backend if available
+        let errorMessage = 'Failed to initialize transfer'
+        if (error.response?.data?.details) {
+          errorMessage = error.response.data.details
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        }
+        
+        toast.add({
+          severity: 'error',
+          summary: 'Transfer Failed',
+          detail: errorMessage,
+          life: 5000,
+          sticky: true
+        })
+      } finally {
+        transferLoading.value = false
+      }
     }
-    
-    // Call API to initialize transfer with item_ids like approve method
-    await axios.post(`/api/stock-movements/${props.movementId}/init-transfer`, {
-      item_ids: itemsToTransfer.map(item => item.id)
-    })
-
-    // Refresh movement data
-    await loadMovement()
-    
-    console.log('Transfer initialized successfully')
-  } catch (error) {
-    console.error('Error initializing transfer:', error)
-  } finally {
-    transferLoading.value = false
-  }
-}
 
     const confirmDeliveryGood = async () => {
       try {

@@ -28,6 +28,11 @@ class PharmacyMovementItem extends Model
         'expiry_date_required',
         'batch_number',
         'pharmacist_notes',
+        'confirmation_status',
+        'confirmation_notes',
+        'confirmed_at',
+        'confirmed_by',
+        'received_quantity',
     ];
 
     protected $casts = [
@@ -35,8 +40,10 @@ class PharmacyMovementItem extends Model
         'approved_quantity' => 'decimal:2',
         'executed_quantity' => 'decimal:2',
         'provided_quantity' => 'decimal:2',
+        'received_quantity' => 'decimal:2',
         'duration_days' => 'integer',
         'expiry_date_required' => 'boolean',
+        'confirmed_at' => 'datetime',
     ];
 
     // Relationships
@@ -61,6 +68,12 @@ class PharmacyMovementItem extends Model
     }
 
     public function selectedInventory()
+    {
+        return $this->hasMany(PharmacyMovementInventorySelection::class, 'pharmacy_stock_movement_item_id');
+    }
+
+    // Alias for snake_case usage in queries
+    public function selected_inventory()
     {
         return $this->hasMany(PharmacyMovementInventorySelection::class, 'pharmacy_stock_movement_item_id');
     }

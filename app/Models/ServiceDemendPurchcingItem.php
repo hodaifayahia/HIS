@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Product;
+use App\Models\PharmacyProduct;
 
 class ServiceDemendPurchcingItem extends Model
 {
@@ -13,6 +15,7 @@ class ServiceDemendPurchcingItem extends Model
     protected $fillable = [
         'service_demand_purchasing_id',
         'product_id',
+        'pharmacy_product_id',
         'quantity',
         'unit_price',
         'quantity_by_box',
@@ -36,6 +39,14 @@ class ServiceDemendPurchcingItem extends Model
         return $this->belongsTo(Product::class);
     }
 
+    /**
+     * Pharmacy product relation (used when item belongs to pharmacy module)
+     */
+    public function pharmacyProduct(): BelongsTo
+    {
+        return $this->belongsTo(PharmacyProduct::class, 'pharmacy_product_id');
+    }
+
     public function fournisseurAssignments(): HasMany
     {
         return $this->hasMany(ServiceDemandItemFournisseur::class, 'service_demand_purchasing_item_id');
@@ -47,9 +58,22 @@ class ServiceDemendPurchcingItem extends Model
     public function bonCommends()
     {
         return BonCommend::where('service_demand_purchasing_id', $this->service_demand_purchasing_id)
-            ->whereHas('items', function ($query) {
-                $query->where('product_id', $this->product_id);
+            ->where(function ($q) {
+                $q->whereHas('items', function ($query) {
+                    $query->where('product_id', $this->product_id);
+                })
+                ->orWhereHas('items', function ($query) {
+                    $query->where('pharmacy_product_id', $this->pharmacy_product_id);
+                });
             });
+    }
+
+    /**
+     * Helper accessor to get whichever product object is present (stock or pharmacy)
+     */
+    public function getProductObjectAttribute()
+    {
+        return $this->product ?? $this->pharmacyProduct;
     }
 
     public function getTotalPriceAttribute()

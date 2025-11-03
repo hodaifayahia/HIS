@@ -12,11 +12,20 @@ class Reserve extends Model
         'description',
         'reserved_at',
         'status',
+        'created_by',
     ];
     
     public function products()
     {
         return $this->hasMany(\App\Models\ProductReserve::class);
+    }
+    
+    /**
+     * The user who created the reserve
+     */
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
     
 }

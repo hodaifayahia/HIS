@@ -15,6 +15,7 @@ class ServiceDemendPurchcing extends Model
         'expected_date',
         'status',
         'notes',
+        'created_by',
         'proforma_confirmed',
         'boncommend_confirmed',
         'proforma_confirmed_at',
@@ -32,6 +33,11 @@ class ServiceDemendPurchcing extends Model
     public function service()
     {
         return $this->belongsTo(\App\Models\CONFIGURATION\Service::class, 'service_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
     }
 
     public function items(): HasMany

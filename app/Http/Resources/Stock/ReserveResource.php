@@ -20,6 +20,15 @@ class ReserveResource extends JsonResource
             'description' => $this->description,
             'reserved_at' => $this->reserved_at,
             'status' => $this->status,
+            'created_by' => $this->created_by,
+            'creator' => $this->whenLoaded('creator', function () {
+                if (!$this->creator) return null;
+                return [
+                    'id' => $this->creator->id,
+                    'name' => $this->creator->name ?? null,
+                    'email' => $this->creator->email ?? null,
+                ];
+            }),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'deleted_at' => $this->whenLoaded('deleted_at', $this->deleted_at),

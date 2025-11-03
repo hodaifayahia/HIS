@@ -29,19 +29,24 @@
                 :options="availableProducts"
                 option-label="name"
                 option-value="id"
-                placeholder="Search and select a product..."
+                placeholder="Type product name to search..."
                 class="tw-w-full"
-                :filter="true"
-                filter-placeholder="Type to search products..."
+                :filter="false"
+                editable
                 required
                 :loading="loadingProducts"
                 @change="onProductSelect"
+                @keyup="handleProductSearch"
+                :show-clear="true"
               />
-              <small v-if="!loadingProducts && availableProducts.length === 0" class="tw-text-red-500 tw-block tw-mt-1">
-                No products available. Please check your connection or contact support.
+              <small v-if="loadingProducts" class="tw-text-blue-500 tw-block tw-mt-1">
+                <i class="pi pi-spin pi-spinner"></i> Searching products...
               </small>
-              <small v-if="!loadingProducts && availableProducts.length > 0" class="tw-text-green-500 tw-block tw-mt-1">
-                {{ availableProducts.length }} products loaded
+              <small v-else-if="availableProducts.length === 0" class="tw-text-orange-500 tw-block tw-mt-1">
+                Start typing to search all products in the system...
+              </small>
+              <small v-else class="tw-text-green-500 tw-block tw-mt-1">
+                {{ availableProducts.length }} product(s) found
               </small>
             </div>
 
@@ -471,6 +476,7 @@ export default {
       showProductDetails: false,
       quantityByBox: false,
       purchasePriceByBox: false,
+      searchTimeout: null,
 
       // Data
       availableProducts: [],
@@ -508,7 +514,7 @@ export default {
   },
   mounted() {
     // Initialize data when component is first mounted
-    this.fetchAvailableProducts();
+    // Don't fetch products initially - user will search when opening modal
     this.fetchToolTypes();
     this.fetchBlocks();
     if (this.preSelectedStockageId) {
@@ -521,10 +527,7 @@ export default {
       this.showModal = newVal;
       if (newVal) {
         this.resetForm();
-        // Only fetch if data hasn't been loaded yet
-        if (this.availableProducts.length === 0) {
-          this.fetchAvailableProducts();
-        }
+        // Don't pre-fetch products - user will search when needed
         if (this.toolTypes.length === 0) {
           this.fetchToolTypes();
         }
@@ -561,20 +564,105 @@ export default {
     }
   },
   methods: {
-    async fetchAvailableProducts() {
+    async fetchAvailableProducts(searchQuery = '') {
       this.loadingProducts = true;
       try {
+        // Fetch all products or search if query provided
         const response = await axios.get('/api/pharmacy/products', {
-          params: { per_page: 1000 }
+          params: { 
+            per_page: 50,
+            search: searchQuery
+          }
         });
         if (response.data.success) {
-          this.availableProducts = response.data.data;
+          this.availableProducts = response.data.data || [];
         }
       } catch (error) {
-        console.error('Failed to load products');
+        console.error('Failed to load products:', error);
         this.$emit('error', 'Failed to load available products');
+        this.availableProducts = [];
       } finally {
         this.loadingProducts = false;
+      }
+    },
+
+    async onProductSearch(event) {
+      // This method is called when user types in the dropdown filter
+      const searchQuery = event.filter || '';
+      if (searchQuery.length >= 2) {
+        // Only search if at least 2 characters typed
+        await this.fetchAvailableProducts(searchQuery);
+      } else if (searchQuery.length === 0) {
+        // Clear search on empty
+        this.availableProducts = [];
+      }
+    },
+
+    handleDropdownFilter(event) {
+      // Handle the filter event from PrimeVue Dropdown
+      // The event.filter contains the search text
+      const searchQuery = event.filter?.trim() || '';
+      
+      console.log('Filter event received:', searchQuery); // Debug log
+      
+      // Debounce the search to avoid excessive API calls
+      clearTimeout(this.searchTimeout);
+      
+      if (searchQuery.length >= 2) {
+        // Only search if at least 2 characters typed
+        this.searchTimeout = setTimeout(() => {
+          console.log('Executing search for:', searchQuery);
+          this.fetchAvailableProducts(searchQuery);
+        }, 300); // 300ms debounce
+      } else if (searchQuery.length === 0) {
+        // Clear search on empty immediately
+        this.availableProducts = [];
+      }
+    },
+
+    handleDropdownInput(event) {
+      // Handle input event from dropdown (alternative to filter event)
+      const searchQuery = typeof event === 'string' ? event.trim() : (event?.target?.value?.trim() || '');
+      
+      console.log('Dropdown input received:', searchQuery); // Debug log
+      
+      if (!searchQuery) {
+        this.availableProducts = [];
+        return;
+      }
+      
+      // Debounce the search to avoid excessive API calls
+      clearTimeout(this.searchTimeout);
+      
+      if (searchQuery.length >= 2) {
+        // Only search if at least 2 characters typed
+        this.searchTimeout = setTimeout(() => {
+          console.log('Executing search for:', searchQuery);
+          this.fetchAvailableProducts(searchQuery);
+        }, 300); // 300ms debounce
+      }
+    },
+
+    handleProductSearch(event) {
+      // Handle keyup event from editable dropdown
+      const inputValue = event.target?.value?.trim() || '';
+      
+      console.log('Product search input:', inputValue); // Debug log
+      
+      // Clear previous timeout
+      clearTimeout(this.searchTimeout);
+      
+      if (!inputValue) {
+        this.availableProducts = [];
+        return;
+      }
+      
+      if (inputValue.length >= 2) {
+        // Only search if at least 2 characters typed
+        this.searchTimeout = setTimeout(() => {
+          console.log('Executing search for:', inputValue);
+          this.fetchAvailableProducts(inputValue);
+        }, 300); // 300ms debounce
       }
     },
 
@@ -843,7 +931,7 @@ export default {
     openModal() {
       this.showModal = true;
       this.resetForm();
-      this.fetchAvailableProducts();
+      // Don't pre-fetch products - user will search when needed
       this.fetchToolTypes();
       this.fetchBlocks();
       if (this.preSelectedStockageId) {

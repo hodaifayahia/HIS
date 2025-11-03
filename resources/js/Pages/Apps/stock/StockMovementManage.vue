@@ -664,43 +664,74 @@
             <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
               Select Product <span class="tw-text-red-500">*</span>
             </label>
-            <Dropdown
-              v-model="newItem.product_id"
-              :options="availableProducts"
-              option-label="name"
-              option-value="id"
+            
+            <!-- Search Input -->
+            <InputText
+              v-model="productSearchQuery"
+              @input="onProductSearch"
               placeholder="Search and select a product..."
-              class="tw-w-full tw-rounded-xl tw-border-2"
-              :loading="loadingProducts"
-              :filter="true"
-              filter-placeholder="Type to search products..."
-            >
-              <template #option="slotProps">
-                <div class="tw-flex tw-items-center tw-justify-between tw-w-full tw-py-4 tw-px-2">
-                  <div class="tw-flex tw-items-center tw-gap-3">
-                    <div class="tw-w-12 tw-h-12 tw-bg-blue-100 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
-                      <i class="pi pi-box tw-text-blue-600"></i>
+              class="tw-w-full tw-rounded-xl tw-border-2 tw-border-gray-300 tw-px-4 tw-py-3 tw-mb-3"
+            />
+            
+            <!-- Products List with Infinite Scroll -->
+            <div class="tw-border-2 tw-border-gray-300 tw-rounded-xl tw-bg-white tw-max-h-96 tw-overflow-y-auto" @scroll="onProductListScroll" ref="productListRef">
+              <div v-if="loadingProducts && displayedProducts.length === 0" class="tw-p-6 tw-text-center">
+                <i class="pi pi-spin pi-spinner tw-text-blue-600 tw-text-2xl"></i>
+                <p class="tw-text-gray-600 tw-mt-2">Loading products...</p>
+              </div>
+              
+              <div v-else-if="displayedProducts.length === 0" class="tw-p-6 tw-text-center">
+                <i class="pi pi-inbox tw-text-gray-400 tw-text-3xl tw-mb-2"></i>
+                <p class="tw-text-gray-500">No products found</p>
+              </div>
+              
+              <div v-else class="tw-divide-y tw-divide-gray-100">
+                <div
+                  v-for="product in displayedProducts"
+                  :key="product.id"
+                  @click="selectProduct(product)"
+                  :class="[
+                    'tw-p-4 tw-cursor-pointer tw-transition-all tw-duration-200 hover:tw-bg-blue-50',
+                    newItem.product_id === product.id ? 'tw-bg-blue-100 tw-border-l-4 tw-border-l-blue-500' : ''
+                  ]"
+                >
+                  <div class="tw-flex tw-items-center tw-justify-between">
+                    <div class="tw-flex tw-items-center tw-gap-3 tw-flex-1">
+                      <div class="tw-w-10 tw-h-10 tw-bg-blue-100 tw-rounded-lg tw-flex tw-items-center tw-justify-center tw-flex-shrink-0">
+                        <i class="pi pi-box tw-text-blue-600 tw-text-sm"></i>
+                      </div>
+                      <div class="tw-flex-1 tw-min-w-0">
+                        <div class="tw-font-semibold tw-text-gray-900 tw-truncate">{{ product.name }}</div>
+                        <div class="tw-text-xs tw-text-gray-500 tw-flex tw-items-center tw-gap-2">
+                          <span v-if="product.code" class="tw-truncate">{{ product.code }}</span>
+                          <span v-if="product.code && getProductType(product)">•</span>
+                          <span class="tw-truncate">{{ getProductType(product) }}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div class="tw-font-semibold tw-text-gray-900">{{ slotProps.option.name }}</div>
-                      <div class="tw-text-sm tw-text-gray-500 tw-flex tw-items-center tw-gap-2">
-                        <span>{{ slotProps.option.code }}</span>
-                        <span>•</span>
-                        <span>{{ getProductType(slotProps.option) }}</span>
+                    <div class="tw-text-right tw-ml-2 tw-flex-shrink-0">
+                      <div class="tw-text-sm tw-font-medium tw-text-gray-900">
+                        {{ getProductStock(product.id) || 'N/A' }}
+                      </div>
+                      <div class="tw-text-xs tw-text-gray-500">
+                        {{ getProductUnit(product) }}
                       </div>
                     </div>
                   </div>
-                  <div class="tw-text-right">
-                    <div class="tw-text-sm tw-font-medium tw-text-gray-900">
-                      {{ loadingProducts ? '...' : (getProductStock(slotProps.option.id) || 'N/A') }} {{ getProductUnit(slotProps.option) }}
-                    </div>
-                    <div class="tw-text-xs tw-text-gray-500">
-                      {{ loadingProducts ? 'Loading...' : 'Available' }}
-                    </div>
-                  </div>
                 </div>
-              </template>
-            </Dropdown>
+              </div>
+              
+              <!-- Loading more indicator -->
+              <div v-if="loadingMoreProducts" class="tw-p-4 tw-text-center tw-bg-gray-50">
+                <i class="pi pi-spin pi-spinner tw-text-blue-600"></i>
+                <p class="tw-text-xs tw-text-gray-600 tw-mt-1">Loading more...</p>
+              </div>
+              
+              <!-- End of list indicator -->
+              <div v-if="displayedProducts.length > 0 && !hasMoreProducts && !loadingMoreProducts" class="tw-p-4 tw-text-center tw-bg-gray-50 tw-text-xs tw-text-gray-500">
+                ✓ All {{ totalProductsCount }} products loaded
+              </div>
+            </div>
           </div>
 
           <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
@@ -1138,6 +1169,17 @@ export default {
       { label: '50', value: 50 }
     ])
 
+    // Infinite scroll for products
+    const productListRef = ref(null)
+    const productSearchQuery = ref('')
+    const displayedProducts = ref([])
+    const allProductsData = ref([])
+    const productsLoadedCount = ref(0)
+    const loadingMoreProducts = ref(false)
+    const hasMoreProducts = ref(true)
+    const totalProductsCount = ref(0)
+    const productsPageSize = ref(50)
+
 
 
     const newItem = ref({
@@ -1283,9 +1325,57 @@ export default {
     const loadAvailableProducts = async () => {
       try {
         loadingProducts.value = true
-        // Load available products from the providing service
-        const productsResponse = await axios.get(`/api/products?service_id=${movement.value?.providing_service_id}&per_page=1000`)
-        availableProducts.value = productsResponse.data.data || []
+        
+        // Smart loading: Get first page to determine total with larger page size
+        const firstPageResponse = await axios.get(`/api/products?service_id=${movement.value?.providing_service_id}&per_page=500&nocache=${Date.now()}`)
+        const firstPageProducts = firstPageResponse.data.data || []
+        const meta = firstPageResponse.data.meta || {}
+        
+        // If all products fit in first page, use them directly
+        if (!meta.last_page || meta.last_page <= 1) {
+          availableProducts.value = firstPageProducts
+        } else {
+          // Need multiple pages - fetch remaining pages in parallel, but limit to max 10 pages
+          const totalPages = Math.min(meta.last_page, 10)
+          const remainingPagePromises = []
+          
+          console.log(`Loading ${firstPageProducts.length} products from page 1, total pages: ${meta.last_page}`)
+          
+          // Create requests for pages 2 through last page (max 10 pages)
+          for (let page = 2; page <= totalPages; page++) {
+            remainingPagePromises.push(
+              axios.get(`/api/products?service_id=${movement.value?.providing_service_id}&per_page=500&page=${page}&nocache=${Date.now()}`)
+                .catch(error => {
+                  console.warn(`Failed to load page ${page}:`, error)
+                  return { data: { data: [] } }
+                })
+            )
+          }
+          
+          // Fetch all remaining pages in parallel
+          console.log(`Fetching ${remainingPagePromises.length} additional pages in parallel...`)
+          const remainingResponses = await Promise.all(remainingPagePromises)
+          let allProducts = [...firstPageProducts]
+          
+          remainingResponses.forEach((response, index) => {
+            const pageProducts = response.data.data || []
+            allProducts = allProducts.concat(pageProducts)
+            console.log(`Page ${index + 2}: ${pageProducts.length} products`)
+          })
+          
+          console.log(`Total products loaded: ${allProducts.length}`)
+          availableProducts.value = allProducts
+        }
+        
+        // Store all products for infinite scroll
+        allProductsData.value = availableProducts.value
+        totalProductsCount.value = availableProducts.value.length
+        
+        // Initialize infinite scroll - load first batch
+        productsLoadedCount.value = 0
+        displayedProducts.value = []
+        hasMoreProducts.value = true
+        await loadMoreProducts()
         
         // console.log('Loaded products:', availableProducts.value.length)
         availableProducts.value.forEach(product => {
@@ -1409,44 +1499,13 @@ export default {
           })
         }
 
-        // If some products still don't have stock information, try to load it from the details endpoint
-        const productsWithoutStock = availableProducts.value.filter(p => p.current_stock === undefined)
-        if (productsWithoutStock.length > 0) {
-          try {
-            // Try to get stock information for products that don't have it
-            const stockPromises = productsWithoutStock.map(async (product) => {
-              try {
-                const detailsResponse = await axios.get(`/api/products/${product.id}/details`)
-                const detailsData = detailsResponse.data
-
-                // Return object with stock information
-                return {
-                  id: product.id,
-                  total_quantity: detailsData?.stats?.total_quantity || 0,
-                  current_stock: detailsData?.stats?.total_quantity || 0
-                }
-              } catch (error) {
-                console.warn(`Could not load stock for product ${product.id}:`, error)
-                return { id: product.id, total_quantity: 0, current_stock: 0 }
-              }
-            })
-
-            const stockResults = await Promise.all(stockPromises)
-            stockResults.forEach(result => {
-              const product = availableProducts.value.find(p => p.id === result.id)
-              if (product) {
-                // Set total quantity fields if available
-                if (result.total_quantity !== null && result.total_quantity !== undefined) {
-                  product.total_quantity = result.total_quantity
-                }
-                // Always set current_stock as fallback
-                product.current_stock = result.current_stock
-              }
-            })
-          } catch (error) {
-            console.warn('Could not load additional stock information:', error)
+        // Set default stock values for products that don't have them (from suggestions data)
+        availableProducts.value.forEach(product => {
+          if (product.current_stock === undefined) {
+            product.current_stock = 0
+            product.total_quantity = 0
           }
-        }
+        })
 
         // Update suggestion counts
         suggestionCounts.value = {
@@ -2180,6 +2239,68 @@ export default {
       }
     })
 
+    // Infinite scroll methods
+    const onProductSearch = async () => {
+      productsLoadedCount.value = 0
+      displayedProducts.value = []
+      hasMoreProducts.value = true
+      await loadMoreProducts()
+    }
+
+    const loadMoreProducts = async () => {
+      if (loadingMoreProducts.value || !hasMoreProducts.value) return
+
+      loadingMoreProducts.value = true
+      try {
+        let searchResults = allProductsData.value
+
+        // Filter by search query if provided
+        if (productSearchQuery.value.trim()) {
+          const query = productSearchQuery.value.toLowerCase()
+          searchResults = allProductsData.value.filter(product =>
+            product.name.toLowerCase().includes(query) ||
+            (product.code && product.code.toLowerCase().includes(query)) ||
+            (product.designation && product.designation.toLowerCase().includes(query))
+          )
+        }
+
+        totalProductsCount.value = searchResults.length
+
+        // Calculate how many products to display
+        const nextCount = Math.min(productsLoadedCount.value + productsPageSize.value, searchResults.length)
+        displayedProducts.value = searchResults.slice(0, nextCount)
+        productsLoadedCount.value = nextCount
+
+        // Check if there are more products to load
+        hasMoreProducts.value = productsLoadedCount.value < searchResults.length
+
+        console.log(`Loaded ${productsLoadedCount.value}/${searchResults.length} products`)
+      } catch (error) {
+        console.error('Error loading more products:', error)
+      } finally {
+        loadingMoreProducts.value = false
+      }
+    }
+
+    const onProductListScroll = (event) => {
+      const element = event.target
+      const threshold = 100 // pixels from bottom
+
+      // Check if user scrolled near the bottom
+      if (element.scrollHeight - element.scrollTop - element.clientHeight < threshold) {
+        if (hasMoreProducts.value && !loadingMoreProducts.value) {
+          loadMoreProducts()
+        }
+      }
+    }
+
+    const selectProduct = (product) => {
+      newItem.value.product_id = product.id
+      selectedProduct.value = product
+      productSearchQuery.value = ''
+      // Close the list or keep it open for UX
+    }
+
     return {
       movement,
       availableProducts,
@@ -2203,6 +2324,13 @@ export default {
       currentPage,
       pageSize,
       pageSizeOptions,
+      // Infinite scroll data
+      productListRef,
+      productSearchQuery,
+      displayedProducts,
+      loadingMoreProducts,
+      hasMoreProducts,
+      totalProductsCount,
       // New computed properties
       categoryOptions,
       filteredProducts,
@@ -2229,6 +2357,11 @@ export default {
       getExpiryTextClass,
       getExpiryBadgeClass,
       getExpiryText,
+      // Infinite scroll methods
+      onProductSearch,
+      loadMoreProducts,
+      onProductListScroll,
+      selectProduct,
       addSuggestedProducts,
       getSuggestionNote,
       getStatusBadgeClass,

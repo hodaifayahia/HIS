@@ -41,11 +41,28 @@ class DatabaseSeeder extends Seeder
             StockageSeeder::class,
             InventorySeeder::class,
             
+            // Pharmacy and cash register seeders
+            PharmacyProductSeeder::class,
+            PharmacyStorageSeeder::class,
+            PharmacyStockageSeeder::class,
+            PharmacyInventorySeeder::class,
+            CaisseSeeder::class,
+            
+            // Reserve and Product Reserve seeders
+            ReserveSeeder::class,
+            ProductReserveDetailedSeeder::class,
+            
             // Medical records and operations
             AllergySeeder::class,
             AppointmentSeeder::class,
             WaitListSeeder::class,
             BonCommendSeeder::class,
+            
+            // Stock Movement and Delivery Confirmation
+            PharmacyStockMovementSeeder::class,
+            
+            // Service Demand Purchasing seeder
+            ServiceDemandPurchasingSeeder::class,
             
             // Existing seeders
             MedicationDoctorFavoratSeeder::class,

@@ -974,6 +974,7 @@ export default {
       loading: false,
       error: null,
       searchTimeout: null,
+      fetchController: null, // For request cancellation
       // Pagination
       currentPage: 1,
       lastPage: 1,
@@ -1021,6 +1022,14 @@ export default {
     this.confirm = useConfirm();
     this.fetchProducts();
   },
+  beforeUnmount() {
+    // Cancel any pending requests
+    if (this.fetchController) {
+      this.fetchController.abort();
+    }
+    // Clear any pending timeouts
+    clearTimeout(this.searchTimeout);
+  },
   computed: {
     lowStockAlertCount() {
       return this.alertCounts.low_stock || 0;
@@ -1046,29 +1055,46 @@ export default {
         };
 
         // Add search if present
-        if (this.searchQuery.trim()) {
-          params.search = this.searchQuery;
+        if (this.searchQuery && this.searchQuery.trim()) {
+          params.search = this.searchQuery.trim();
         }
 
         // Add alert filters if present
         if (this.alertFilters.length > 0) {
           params.alert_filters = this.alertFilters;
         }
-        params.is_clinical =true;
+        params.is_clinical = true;
 
-        const response = await axios.get('/api/pharmacy/products', { params });
+        // OPTIMIZED: Cancel previous request if still pending
+        if (this.fetchController) {
+          this.fetchController.abort();
+        }
+        this.fetchController = new AbortController();
+
+        const response = await axios.get('/api/pharmacy/products', { 
+          params,
+          signal: this.fetchController.signal 
+        });
+
         if (response.data.success) {
           this.products = response.data.data;
           this.currentPage = response.data.meta.current_page;
           this.lastPage = response.data.meta.last_page;
           this.total = response.data.meta.total;
+          
           // Store alert counts from API
           if (response.data.alert_counts) {
             this.alertCounts = response.data.alert_counts;
           }
+          
           this.filterProducts();
         }
       } catch (error) {
+        // Ignore cancelled requests
+        if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+          return;
+        }
+        
         this.error = 'Failed to load products';
         console.error('Error fetching products:', error);
         this.toast.add({
@@ -1083,12 +1109,12 @@ export default {
     },
 
     onSearchInput() {
-      // Debounce search to avoid too many API calls
+      // OPTIMIZED: Increased debounce time to reduce API calls
       clearTimeout(this.searchTimeout);
       this.searchTimeout = setTimeout(() => {
         this.currentPage = 1; // Reset to first page when searching
         this.fetchProducts(1);
-      }, 300);
+      }, 500); // Increased from 300ms to 500ms
     },
 
     onPage(event) {

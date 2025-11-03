@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ServiceDemandItemResource;
 use App\Models\CONFIGURATION\Service;
+use App\Models\BonCommend;
 use App\Models\FactureProforma;
 use App\Models\FactureProformaProduct;
 use App\Models\Fournisseur;
 use App\Models\Product;
+use App\Models\PharmacyProduct;
 use App\Models\ServiceDemandItemFournisseur;
 use App\Models\ServiceDemendPurchcing;
 use App\Models\ServiceDemendPurchcingItem;
@@ -21,7 +24,15 @@ class ServiceDemandPurchasingController extends Controller
     public function index(Request $request)
     {
         try {
-            $query = ServiceDemendPurchcing::with(['service', 'items.product']);
+            $query = ServiceDemendPurchcing::with(['service', 'items.product', 'items.pharmacyProduct', 'creator']);
+
+            // Get current user
+            $currentUser = Auth::user();
+
+            // If user is not admin, filter by created_by
+            if ($currentUser && !in_array($currentUser->role, ['admin', 'SuperAdmin'])) {
+                $query->where('created_by', $currentUser->id);
+            }
 
             // Filter by status if provided
             if ($request->has('status')) {
@@ -43,6 +54,14 @@ class ServiceDemandPurchasingController extends Controller
             }
 
             $demands = $query->orderBy('created_at', 'desc')->paginate(15);
+
+            // Transform items using ServiceDemandItemResource
+            $demands->getCollection()->transform(function ($demand) {
+                $demand->items = $demand->items->map(function ($item) {
+                    return new ServiceDemandItemResource($item);
+                });
+                return $demand;
+            });
 
             return response()->json([
                 'success' => true,
@@ -75,13 +94,14 @@ class ServiceDemandPurchasingController extends Controller
                 'expected_date' => $request->expected_date,
                 'notes' => $request->notes,
                 'status' => 'draft',
+                'created_by' => Auth::id(),
             ]);
 
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->load(['service', 'items.product']),
+                'data' => $demand->load(['service', 'items.product', 'items.pharmacyProduct', 'creator']),
                 'message' => 'Demand created successfully',
             ]);
 
@@ -104,14 +124,38 @@ class ServiceDemandPurchasingController extends Controller
             $demand = ServiceDemendPurchcing::with([
                 'service',
                 'items.product',
+                'items.pharmacyProduct',
+                'creator',
                 'items.fournisseurAssignments.fournisseur:id,company_name,contact_person,email,phone',
                 'items.fournisseurAssignments.assignedBy:id,name',
             ])
                 ->findOrFail($id);
 
-            // Load bon commends for each item manually since it's a complex relationship
-            foreach ($demand->items as $item) {
-                $item->bonCommends = $item->bonCommends()->with(['fournisseur:id,company_name', 'creator:id,name'])->get();
+            // Check authorization: only creator or admin can view
+            $currentUser = Auth::user();
+            if ($currentUser && !in_array($currentUser->role, ['admin', 'SuperAdmin'])) {
+                if ($demand->created_by !== $currentUser->id) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to view this demand',
+                    ], 403);
+                }
+            }
+
+            // Transform items using ServiceDemandItemResource
+            $demand->items = $demand->items->map(function ($item) {
+                return new ServiceDemandItemResource($item);
+            });
+
+            // Load bon commends through service demand relationship instead of item method
+            // This avoids complex queries that may fail
+            if ($demand->id) {
+                $bonCommends = BonCommend::where('service_demand_purchasing_id', $demand->id)
+                    ->with(['fournisseur:id,company_name', 'creator:id,name', 'items'])
+                    ->get();
+                
+                // Attach bon commends to demand
+                $demand->bonCommends = $bonCommends;
             }
 
             return response()->json([
@@ -163,7 +207,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->load(['service', 'items.product']),
+                'data' => $demand->load(['service', 'items.product', 'items.pharmacyProduct']),
                 'message' => 'Demand updated successfully',
             ]);
 
@@ -210,7 +254,7 @@ class ServiceDemandPurchasingController extends Controller
     public function addItem(Request $request, $id)
     {
         $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => 'required',
             'quantity' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'quantity_by_box' => 'nullable|boolean',
@@ -228,8 +272,24 @@ class ServiceDemandPurchasingController extends Controller
                 ], 403);
             }
 
-            // Check if product already exists in demand
-            $existingItem = $demand->items()->where('product_id', $request->product_id)->first();
+            // Determine whether the provided product_id is a stock Product or a PharmacyProduct
+            $productId = $request->product_id;
+            $isStockProduct = Product::find($productId);
+            $isPharmacyProduct = PharmacyProduct::find($productId);
+
+            if (! $isStockProduct && ! $isPharmacyProduct) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Provided product_id was not found in products or pharmacy_products',
+                ], 422);
+            }
+
+            // Check if product already exists in demand (either stock or pharmacy)
+            if ($isStockProduct) {
+                $existingItem = $demand->items()->where('product_id', $productId)->first();
+            } else {
+                $existingItem = $demand->items()->where('pharmacy_product_id', $productId)->first();
+            }
             if ($existingItem) {
                 return response()->json([
                     'success' => false,
@@ -237,18 +297,26 @@ class ServiceDemandPurchasingController extends Controller
                 ], 409);
             }
 
-            $item = ServiceDemendPurchcingItem::create([
+            $itemData = [
                 'service_demand_purchasing_id' => $demand->id,
-                'product_id' => $request->product_id,
                 'quantity' => $request->quantity,
                 'unit_price' => $request->unit_price,
                 'quantity_by_box' => $request->quantity_by_box ?? false,
                 'notes' => $request->notes,
-            ]);
+            ];
+
+            if ($isStockProduct) {
+                $itemData['product_id'] = $productId;
+            } else {
+                $itemData['pharmacy_product_id'] = $productId;
+            }
+
+            $item = ServiceDemendPurchcingItem::create($itemData);
+            $item->load('product', 'pharmacyProduct');
 
             return response()->json([
                 'success' => true,
-                'data' => $item->load('product'),
+                'data' => new ServiceDemandItemResource($item),
                 'message' => 'Item added successfully',
             ]);
 
@@ -257,7 +325,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to add item',
+                'message' => 'Failed to add item: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -272,7 +340,7 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
+            $demand = ServiceDemendPurchcing::with('items.product', 'items.pharmacyProduct')->findOrFail($id);
             $item = $demand->items()->findOrFail($itemId);
 
             // Only allow updates if status is draft
@@ -292,7 +360,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $item->load('product'),
+                'data' => $item->load('product', 'pharmacyProduct'),
                 'message' => 'Item updated successfully',
             ]);
 
@@ -309,7 +377,7 @@ class ServiceDemandPurchasingController extends Controller
     public function removeItem($id, $itemId)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
+            $demand = ServiceDemendPurchcing::with(['service', 'items.product', 'items.pharmacyProduct'])->findOrFail($id);
             $item = $demand->items()->findOrFail($itemId);
 
             // Only allow removal if status is draft
@@ -362,7 +430,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->load(['service', 'items.product']),
+                'data' => $demand->load(['service', 'items.product', 'items.pharmacyProduct']),
                 'message' => 'Demand sent successfully',
             ]);
 
@@ -401,7 +469,31 @@ class ServiceDemandPurchasingController extends Controller
 
     public function getProducts(Request $request)
     {
-        // try {
+        // Support returning pharmacy products when requested
+        if ($request->get('mode') === 'pharmacy' || $request->get('module_type') === 'pharmacy') {
+            $ppQuery = \App\Models\PharmacyProduct::query();
+
+            if ($request->has('search')) {
+                $search = $request->search;
+                $ppQuery->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('brand_name', 'like', "%{$search}%");
+                });
+            }
+
+            $pharmacyProducts = $ppQuery->select('id', 'name', 'sku as product_code', 'brand_name as nom_commercial', 'unit_of_measure as unit')
+                ->where('is_active', 1)
+                ->orderBy('name')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $pharmacyProducts,
+            ]);
+        }
+
+        // else return stock products
         $query = Product::query();
 
         // Filter by service if provided
@@ -656,7 +748,7 @@ class ServiceDemandPurchasingController extends Controller
                 'fournisseur_id' => $request->fournisseur_id,
                 'assigned_quantity' => $request->assigned_quantity,
                 'unit_price' => $request->unit_price,
-                'unit' => $request->unit ?? $item->product->unit ?? 'unit',
+                'unit' => $request->unit ?? ($item->product->unit ?? $item->pharmacyProduct->unit ?? 'unit'),
                 'notes' => $request->notes,
                 'assigned_by' => Auth::id(),
                 'status' => 'pending',
@@ -698,7 +790,7 @@ class ServiceDemandPurchasingController extends Controller
         try {
             DB::beginTransaction();
 
-            $demand = ServiceDemendPurchcing::with('items.product')->findOrFail($demandId);
+            $demand = ServiceDemendPurchcing::with(['items.product','items.pharmacyProduct'])->findOrFail($demandId);
             $createdAssignments = [];
             $errors = [];
 
@@ -708,7 +800,7 @@ class ServiceDemandPurchasingController extends Controller
 
                     // Check if item status allows assignment
                     if ($item->status !== 'pending') {
-                        $errors[] = "Item {$item->product->name} is not in pending status";
+                        $errors[] = "Item ".($item->product->name ?? $item->pharmacyProduct->name ?? 'Unknown')." is not in pending status";
 
                         continue;
                     }
@@ -720,7 +812,7 @@ class ServiceDemandPurchasingController extends Controller
                     ])->first();
 
                     if ($existingAssignment) {
-                        $errors[] = "Supplier already assigned to item {$item->product->name}";
+                        $errors[] = "Supplier already assigned to item ".($item->product->name ?? $item->pharmacyProduct->name ?? 'Unknown');
 
                         continue;
                     }
@@ -734,7 +826,7 @@ class ServiceDemandPurchasingController extends Controller
                         'fournisseur_id' => $assignmentData['fournisseur_id'],
                         'assigned_quantity' => $assignmentData['assigned_quantity'],
                         'unit_price' => $assignmentData['unit_price'] ?? null,
-                        'unit' => $assignmentData['unit'] ?? $item->product->unit ?? 'unit',
+                        'unit' => $assignmentData['unit'] ?? ($item->product->unit ?? $item->pharmacyProduct->unit ?? 'unit'),
                         'notes' => $assignmentData['notes'] ?? null,
                         'assigned_by' => Auth::id(),
                         'status' => 'pending',
@@ -881,7 +973,7 @@ class ServiceDemandPurchasingController extends Controller
             $demand = ServiceDemendPurchcing::findOrFail($demandId);
 
             // Verify all assignments belong to the specified fournisseur and demand
-            $assignments = ServiceDemandItemFournisseur::with(['item.product'])
+            $assignments = ServiceDemandItemFournisseur::with(['item.product','item.pharmacyProduct'])
                 ->whereIn('id', $request->assignment_ids)
                 ->where('fournisseur_id', $request->fournisseur_id)
                 ->whereHas('item', function ($query) use ($demandId) {
@@ -904,19 +996,27 @@ class ServiceDemandPurchasingController extends Controller
                 'status' => 'draft',
             ]);
 
-            // Create facture proforma products from assignments
-            foreach ($assignments as $assignment) {
-                FactureProformaProduct::create([
-                    'factureproforma_id' => $facture->id,
-                    'product_id' => $assignment->item->product_id,
-                    'quantity' => $assignment->assigned_quantity,
-                    'price' => $assignment->unit_price ?? 0,
-                    'unit' => $assignment->unit ?? $assignment->item->product->unit ?? 'unit',
-                ]);
+                // Create facture proforma products from assignments
+                foreach ($assignments as $assignment) {
+                    $fpData = [
+                        'factureproforma_id' => $facture->id,
+                        'quantity' => $assignment->assigned_quantity,
+                        'price' => $assignment->unit_price ?? 0,
+                        'unit' => $assignment->unit ?? ($assignment->item->product->unit ?? $assignment->item->pharmacyProduct->unit ?? 'unit'),
+                    ];
 
-                // Update assignment status
-                $assignment->update(['status' => 'ordered']);
-            }
+                    if (! empty($assignment->item->product_id)) {
+                        $fpData['product_id'] = $assignment->item->product_id;
+                    } elseif (! empty($assignment->item->pharmacy_product_id)) {
+                        // store pharmacy product id when product_id is not present
+                        $fpData['pharmacy_product_id'] = $assignment->item->pharmacy_product_id;
+                    }
+
+                    FactureProformaProduct::create($fpData);
+
+                    // Update assignment status
+                    $assignment->update(['status' => 'ordered']);
+                }
 
             DB::commit();
 
@@ -925,6 +1025,7 @@ class ServiceDemandPurchasingController extends Controller
                 'serviceDemand.service:id,name',
                 'creator:id,name',
                 'products.product:id,name,product_code',
+                'products.pharmacyProduct:id,name,sku',
             ]);
 
             return response()->json([
@@ -978,6 +1079,7 @@ class ServiceDemandPurchasingController extends Controller
         try {
             $demand = ServiceDemendPurchcing::with([
                 'items.product:id,name,product_code',
+                'items.pharmacyProduct:id,name,sku',
                 'items.fournisseurAssignments.fournisseur:id,company_name',
             ])->findOrFail($demandId);
 
@@ -1065,7 +1167,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
                 'message' => 'Service demand updated to proforma status successfully',
             ]);
 
@@ -1103,7 +1205,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
                 'message' => 'Service demand updated to bon commend status successfully',
             ]);
 
@@ -1132,7 +1234,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
                 'message' => 'Proforma confirmed successfully',
             ]);
 
@@ -1161,7 +1263,7 @@ class ServiceDemandPurchasingController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product']),
+                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
                 'message' => 'Bon commend confirmed successfully',
             ]);
 

@@ -686,6 +686,7 @@ export default {
       submitError: null,
       isSubmitting: false,
       searchTimeout: null,
+      fetchController: null, // OPTIMIZED: For request cancellation
 
       // Modals
       // showAddProductModal: false, // Now handled by AddProductToStockModal component
@@ -744,6 +745,15 @@ export default {
     this.fetchAvailableStockages();
     this.fetchCategories();
   },
+  beforeUnmount() {
+    // OPTIMIZED: Cleanup on component unmount
+    if (this.fetchController) {
+      this.fetchController.abort();
+    }
+    if (this.searchTimeout) {
+      clearTimeout(this.searchTimeout);
+    }
+  },
   computed: {
     totalProducts() {
       return this.products.length;
@@ -791,25 +801,57 @@ export default {
     async fetchProducts(page = 1) {
       this.loading = true;
       try {
+        // OPTIMIZED: Cancel previous request if still pending
+        if (this.fetchController) {
+          this.fetchController.abort();
+        }
+        this.fetchController = new AbortController();
+
         const params = {
           page: page,
-          per_page: this.perPage,
-          stockage_id: this.route.params.id
+          per_page: this.perPage
         };
 
+        // Add search filter
         if (this.searchQuery.trim()) {
           params.search = this.searchQuery;
         }
 
-        const response = await axios.get('/api/pharmacy/inventory', { params });
+        // Add category filter
+        if (this.categoryFilter) {
+          params.category = this.categoryFilter;
+        }
+
+        // Add stock status filter
+        if (this.stockStatusFilter === 'low') {
+          params.low_stock = true;
+        } else if (this.stockStatusFilter === 'expiring') {
+          params.expiry_status = 'expiring_soon';
+        } else if (this.stockStatusFilter === 'expired') {
+          params.expiry_status = 'expired';
+        }
+
+        // OPTIMIZED: Use dedicated stockage endpoint with pagination
+        const response = await axios.get(`/api/pharmacy/inventory/by-stockage/${this.route.params.id}`, { 
+          params,
+          signal: this.fetchController.signal 
+        });
+
         if (response.data.success) {
           this.products = response.data.data;
           this.currentPage = response.data.meta.current_page;
           this.lastPage = response.data.meta.last_page;
           this.total = response.data.meta.total;
-          this.filterProducts();
+          
+          // No need for client-side filtering anymore - server handles it
+          this.filteredProducts = this.products;
         }
       } catch (error) {
+        // OPTIMIZED: Ignore cancelled requests
+        if (error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+          return;
+        }
+        console.error('Failed to load products:', error);
         this.submitError = 'Failed to load products';
         setTimeout(() => {
           this.submitError = null;
@@ -849,7 +891,7 @@ export default {
       this.searchTimeout = setTimeout(() => {
         this.currentPage = 1;
         this.fetchProducts(1);
-      }, 300);
+      }, 500); // OPTIMIZED: Increased debounce from 300ms to 500ms
     },
 
     onPage(event) {
@@ -858,16 +900,22 @@ export default {
     },
 
     applyFilters() {
-      this.filterProducts();
+      // OPTIMIZED: Server-side filtering instead of client-side
+      this.currentPage = 1;
+      this.fetchProducts(1);
     },
 
     clearFilters() {
       this.categoryFilter = '';
       this.stockStatusFilter = '';
-      this.filterProducts();
+      // OPTIMIZED: Server-side filtering
+      this.currentPage = 1;
+      this.fetchProducts(1);
     },
 
     filterProducts() {
+      // DEPRECATED: Server now handles all filtering
+      // Keeping for backward compatibility but not used
       let filtered = [...this.products];
 
       // Filter by category

@@ -19,10 +19,10 @@
             <div>
               <h1 class="tw-text-2xl md:tw-text-3xl tw-font-bold tw-mb-2 tw-flex tw-items-center tw-flex-wrap tw-gap-2">
                 <i class="pi pi-shopping-cart"></i>
-                <span>{{ selectedServiceName ? `${selectedServiceName} - Demands` : 'Service Demand Management' }}</span>
+                <span>{{ selectedServiceName ? `${selectedServiceName} - Demands (${moduleDisplayName})` : `${moduleDisplayName} Service Demands` }}</span>
               </h1>
               <p class="tw-text-blue-100 tw-text-sm md:tw-text-base">
-                {{ selectedServiceName ? `Manage demands for ${selectedServiceName}` : 'Manage purchasing demands for services' }}
+                {{ selectedServiceName ? `Manage ${moduleDisplayName.toLowerCase()} demands for ${selectedServiceName}` : `Manage ${moduleDisplayName.toLowerCase()} purchasing demands for services` }}
               </p>
             </div>
           </div>
@@ -749,6 +749,11 @@ const props = defineProps({
   serviceId: {
     type: [String, Number],
     default: null
+  },
+  moduleType: {
+    type: String,
+    default: 'stock',
+    validator: (value) => ['stock', 'pharmacy'].includes(value)
   }
 });
 
@@ -809,8 +814,17 @@ const newItem = ref({
 
 const minDate = ref(new Date());
 
+// Helper function to check if user is admin
+const isAdmin = () => {
+  return currentUser.value && (currentUser.value.role === 'admin' || currentUser.value.role === 'SuperAdmin');
+};
+
 // Computed
 const filteredDemands = computed(() => demands.value);
+
+const moduleDisplayName = computed(() => {
+  return props.moduleType === 'pharmacy' ? 'Pharmacy' : 'Stock';
+});
 
 // Lifecycle
 onMounted(() => {
@@ -866,6 +880,14 @@ const loadDemands = async () => {
     if (statusFilter.value) params.status = statusFilter.value;
     if (serviceFilter.value) params.service_id = serviceFilter.value;
     if (filters.value.global.value) params.search = filters.value.global.value;
+    
+    // Add module_type filter
+    params.module_type = props.moduleType;
+    
+    // For non-admin users, filter by created_by (only show their demands)
+    if (currentUser.value && !isAdmin()) {
+      params.created_by = currentUser.value.id;
+    }
 
     const response = await axios.get('/api/service-demands', { params });
     demands.value = response.data.data.data || [];
@@ -968,7 +990,9 @@ const createDemandAndRedirect = async () => {
     const response = await axios.post('/api/service-demands', {
       service_id: newDemand.value.service_id,
       expected_date: newDemand.value.expected_date,
-      notes: newDemand.value.notes
+      notes: newDemand.value.notes,
+      module_type: props.moduleType,
+      created_by: currentUser.value?.id
     });
     
     const newDemandData = response.data.data;
@@ -984,7 +1008,7 @@ const createDemandAndRedirect = async () => {
     
     // Navigate to edit mode with the new demand
     router.push({
-      path: `/stock/service-demands/edit/${newDemandData.id}`,
+      path: `/${props.moduleType}/service-demands/edit/${newDemandData.id}`,
       query: { mode: 'edit', skipBasicInfo: 'true' }
     });
     
@@ -1017,7 +1041,7 @@ const resetNewDemand = () => {
 const editDemand = (demand) => {
   // Navigate to ServiceDemandCreate page in edit mode
   router.push({
-    path: `/stock/service-demands/edit/${demand.id}`,
+    path: `/${props.moduleType}/service-demands/edit/${demand.id}`,
     query: { mode: 'edit' }
   });
 };
@@ -1200,7 +1224,7 @@ const deleteDemand = async (demand) => {
 const viewDemand = (demand) => {
   // Navigate to ServiceDemandCreate page in view mode
   router.push({
-    path: `/stock/service-demands/view/${demand.id}`,
+    path: `/${props.moduleType}/service-demands/view/${demand.id}`,
     query: { mode: 'view' }
   });
 };
@@ -1213,7 +1237,8 @@ const editDemandFromDetails = () => {
 };
 
 const backToServices = () => {
-  router.push({ name: 'pharmacy.services' });
+  const routeName = props.moduleType === 'pharmacy' ? 'pharmacy.services' : 'stock.services';
+  router.push({ name: routeName });
 };
 
 const clearFilters = () => {

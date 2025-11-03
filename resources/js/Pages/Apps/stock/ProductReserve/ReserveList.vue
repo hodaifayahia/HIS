@@ -182,6 +182,18 @@
           </template>
         </Column>
 
+        <Column field="creator" header="Created By" style="min-width: 180px">
+          <template #body="slotProps">
+            <div class="tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-user tw-text-gray-500"></i>
+              <div>
+                <div class="tw-font-medium">{{ slotProps.data.creator?.name || ('User #' + (slotProps.data.created_by || 'N/A')) }}</div>
+                <div class="tw-text-sm tw-text-gray-500">Created {{ formatRelativeDate(slotProps.data.created_at) }}</div>
+              </div>
+            </div>
+          </template>
+        </Column>
+
        
         <Column header="Actions" style="min-width: 200px">
           <template #body="slotProps">

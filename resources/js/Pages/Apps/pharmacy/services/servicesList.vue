@@ -450,7 +450,7 @@ export default {
     },
 
        viewServiceOrders(service) {
-      this.$router.push({ name: 'stock.services.orders', params: { id: service.id } });
+      this.$router.push({ name: 'pharmacy.services.orders', params: { id: service.id } });
     },
 
     backToServices() {

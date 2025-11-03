@@ -1141,23 +1141,16 @@ class PharmacyStockMovementController extends Controller
     public function initializeTransfer(Request $request, $movementId)
     {
         try {
-            $userService = $this->getUserService();
-            if (! $userService) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'User service not found',
-                ], 403);
-            }
-
+            // Get the movement without requiring user to own the providing service
+            // The user can initialize transfer from the receiver side (StockMovementView)
             $movement = PharmacyMovement::where('id', $movementId)
-                ->where('providing_service_id', $userService->id)
-                ->with(['items.product'])
+                ->with(['items.product', 'providingService', 'requestingService'])
                 ->first();
 
             if (! $movement) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Pharmacy movement not found or access denied',
+                    'message' => 'Pharmacy movement not found',
                 ], 404);
             }
 
@@ -1169,49 +1162,29 @@ class PharmacyStockMovementController extends Controller
                 ], 422);
             }
 
+            // Check if there are any approved items
+            $approvedItems = $movement->items()->where('approved_quantity', '>', 0)->get();
+            if ($approvedItems->count() === 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No approved items to transfer',
+                ], 422);
+            }
+
             DB::beginTransaction();
 
             try {
-                // Update stock quantities for each approved item and track sender quantities
-                foreach ($movement->items as $item) {
-                    $totalSentQuantity = 0;
+                // Update status to 'in_transfer' for all approved items
+                $movement->items()
+                    ->where('approved_quantity', '>', 0)
+                    ->update([
+                        'status' => 'in_transfer',
+                        'provided_quantity' => DB::raw('`approved_quantity`'),
+                    ]);
 
-                    if ($item->selectedInventory && $item->selectedInventory->count() > 0) {
-                        foreach ($item->selectedInventory as $selection) {
-                            $inventory = $selection->inventory;
-
-                            // Deduct quantity from provider's stock
-                            if ($inventory->quantity >= $selection->quantity) {
-                                $inventory->quantity -= $selection->quantity;
-                                $inventory->save();
-
-                                // Track the quantity being sent
-                                $totalSentQuantity += $selection->quantity;
-
-                                // Log pharmacy-specific audit trail
-                                DB::table('pharmacy_movement_audit_logs')->insert([
-                                    'pharmacy_stock_movement_id' => $movement->id,
-                                    'action' => 'inventory_deducted',
-                                    'inventory_id' => $inventory->id,
-                                    'quantity_changed' => $selection->quantity,
-                                    'user_id' => Auth::id(),
-                                    'notes' => 'Stock deducted for transfer - Item: '.$item->product->name,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ]);
-                            } else {
-                                throw new \Exception('Insufficient stock for item: '.$item->product->name);
-                            }
-                        }
-                    }
-
-                    // Update the item with the actual sent quantity
-                    $item->update(['provided_quantity' => $totalSentQuantity]);
-                }
-
-                // Update movement status to 'in_transit'
+                // Update movement status to 'in_transfer'
                 $movement->update([
-                    'status' => 'in_transit',
+                    'status' => 'in_transfer',
                     'transfer_initiated_at' => now(),
                     'transfer_initiated_by' => Auth::id(),
                 ]);
@@ -1415,4 +1388,513 @@ class PharmacyStockMovementController extends Controller
             'data' => $movements,
         ]);
     }
+
+    /**
+     * Approve a pharmacy movement
+     */
+    public function approveItems(Request $request, $movementId)
+    {
+        try {
+            $movement = PharmacyMovement::findOrFail($movementId);
+
+            if ($movement->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movement must be in pending status to approve',
+                ], 422);
+            }
+
+            $movement->update([
+                'status' => 'approved',
+                'approving_user_id' => Auth::id(),
+                'approved_at' => now(),
+                'approval_notes' => $request->input('approval_notes', 'Approved'),
+            ]);
+
+            // Auto-approve all items
+            $movement->items()->update([
+                'approved_quantity' => DB::raw('requested_quantity'),
+                'approved_by' => Auth::id(),
+                'approved_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Movement approved successfully',
+                'data' => $movement->fresh(['items', 'requestingService', 'providingService']),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error approving pharmacy movement: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to approve movement: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Reject a pharmacy movement
+     */
+    public function rejectItems(Request $request, $movementId)
+    {
+        try {
+            $movement = PharmacyMovement::findOrFail($movementId);
+
+            if ($movement->status !== 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movement must be in pending status to reject',
+                ], 422);
+            }
+
+            $movement->update([
+                'status' => 'rejected',
+                'approving_user_id' => Auth::id(),
+                'approved_at' => now(),
+                'approval_notes' => $request->input('rejection_reason', 'Rejected'),
+            ]);
+
+            // Reject all items
+            $movement->items()->update([
+                'approved_quantity' => 0,
+                'rejected_by' => Auth::id(),
+                'rejected_at' => now(),
+                'rejection_reason' => $request->input('rejection_reason', 'Not approved'),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Movement rejected successfully',
+                'data' => $movement->fresh(['items', 'requestingService', 'providingService']),
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error rejecting pharmacy movement: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to reject movement: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Confirm individual product delivery with quantity validation
+     */
+    public function confirmProduct(Request $request, $movementId)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'item_id' => 'required|integer|exists:pharmacy_stock_movement_items,id',
+            'status' => 'required|in:good,damaged,manque',
+            'notes' => 'nullable|string|max:1000',
+            'received_quantity' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $movement = PharmacyMovement::where('id', $movementId)
+                ->with(['items.product', 'items.selected_inventory.inventory', 'requestingService'])
+                ->first();
+
+            if (!$movement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pharmacy movement not found',
+                ], 404);
+            }
+
+            // Check if movement is in in_transfer status
+            if ($movement->status !== 'in_transfer') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movement must be in transfer status to confirm delivery',
+                ], 422);
+            }
+
+            // Find the specific item
+            $item = $movement->items->where('id', $request->item_id)->first();
+            if (!$item) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Item not found in this movement',
+                ], 404);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                $confirmationStatus = $request->status;
+                $notes = $request->notes;
+                $receivedQuantity = $request->received_quantity;
+
+                // Update item confirmation status
+                $item->confirmation_status = $confirmationStatus;
+                $item->confirmation_notes = $notes;
+                $item->confirmed_at = now();
+                $item->confirmed_by = Auth::id();
+
+                if ($confirmationStatus === 'good') {
+                    // For 'good' status: set executed_quantity equal to approved quantity
+                    $item->executed_quantity = $item->approved_quantity;
+
+                    // Add stock to requester's inventory (pharmacy inventory)
+                    if ($item->selected_inventory && $item->selected_inventory->count() > 0) {
+                        foreach ($item->selected_inventory as $selection) {
+                            // Create new pharmacy inventory record for the requesting service
+                            $newInventory = new \App\Models\PharmacyInventory;
+                            $newInventory->pharmacy_product_id = $selection->inventory->pharmacy_product_id ?? $item->product_id;
+                            $newInventory->pharmacy_stockage_id = $movement->requestingService->pharmacyStockages()->first()->id ?? 1;
+                            $newInventory->quantity = $selection->quantity;
+                            $newInventory->batch_number = $selection->inventory->batch_number ?? '';
+                            $newInventory->serial_number = $selection->inventory->serial_number ?? '';
+                            $newInventory->expiry_date = $selection->inventory->expiry_date;
+                            $newInventory->purchase_price = $selection->inventory->purchase_price ?? 0;
+                            $newInventory->save();
+
+                            Log::info('Pharmacy stock added to requesting service for individual product', [
+                                'new_inventory_id' => $newInventory->id,
+                                'product_id' => $newInventory->pharmacy_product_id,
+                                'stockage_id' => $newInventory->pharmacy_stockage_id,
+                                'quantity' => $selection->quantity,
+                                'item_id' => $item->id,
+                                'movement_id' => $movement->id,
+                            ]);
+                        }
+                    }
+
+                } elseif ($confirmationStatus === 'damaged') {
+                    // Handle damaged products - don't add to inventory, mark as damaged
+                    if ($item->selected_inventory && $item->selected_inventory->count() > 0) {
+                        foreach ($item->selected_inventory as $selection) {
+                            Log::info('Damaged pharmacy stock reported for individual product', [
+                                'movement_id' => $movement->id,
+                                'item_id' => $item->id,
+                                'product_id' => $selection->inventory->pharmacy_product_id ?? $item->product_id,
+                                'quantity' => $selection->quantity,
+                                'batch_number' => $selection->inventory->batch_number,
+                                'service_id' => $movement->requesting_service_id,
+                            ]);
+                        }
+                    }
+
+                    // Set executed quantity to 0 for damaged items
+                    $item->executed_quantity = 0;
+
+                } elseif ($confirmationStatus === 'manque') {
+                    // For 'manque' status: update received_quantity and set executed_quantity to received quantity
+                    if ($receivedQuantity !== null) {
+                        $item->received_quantity = $receivedQuantity;
+                        $item->executed_quantity = $receivedQuantity;
+
+                        // Add whatever was received to inventory
+                        if ($receivedQuantity > 0 && $item->selected_inventory && $item->selected_inventory->count() > 0) {
+                            // Proportionally distribute received quantity across selected inventory
+                            $totalSelected = $item->selected_inventory->sum('quantity');
+                            foreach ($item->selected_inventory as $selection) {
+                                if ($totalSelected > 0) {
+                                    $proportion = $selection->quantity / $totalSelected;
+                                    $quantityToAdd = $receivedQuantity * $proportion;
+
+                                    if ($quantityToAdd > 0) {
+                                        $newInventory = new \App\Models\PharmacyInventory;
+                                        $newInventory->pharmacy_product_id = $selection->inventory->pharmacy_product_id ?? $item->product_id;
+                                        $newInventory->pharmacy_stockage_id = $movement->requestingService->pharmacyStockages()->first()->id ?? 1;
+                                        $newInventory->quantity = $quantityToAdd;
+                                        $newInventory->batch_number = $selection->inventory->batch_number ?? '';
+                                        $newInventory->serial_number = $selection->inventory->serial_number ?? '';
+                                        $newInventory->expiry_date = $selection->inventory->expiry_date;
+                                        $newInventory->purchase_price = $selection->inventory->purchase_price ?? 0;
+                                        $newInventory->save();
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        // If no received quantity provided, set executed to 0
+                        $item->executed_quantity = 0;
+                    }
+
+                    Log::info('Missing pharmacy stock reported for individual product', [
+                        'movement_id' => $movement->id,
+                        'item_id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'service_id' => $movement->requesting_service_id,
+                        'received_quantity' => $receivedQuantity,
+                    ]);
+                }
+
+                $item->save();
+
+                DB::commit();
+
+                $statusMessage = $confirmationStatus === 'good'
+                    ? 'Product confirmed successfully. Item has been added to your pharmacy inventory.'
+                    : ($confirmationStatus === 'damaged'
+                        ? 'Product confirmed as damaged. Item has been marked as damaged and not added to inventory.'
+                        : 'Product confirmed as missing. Received quantity has been processed.');
+
+                return response()->json([
+                    'success' => true,
+                    'message' => $statusMessage,
+                    'item' => $item->fresh(),
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error confirming individual pharmacy product: ' . $e->getMessage(), [
+                'movement_id' => $movementId,
+                'item_id' => $request->item_id,
+                'user_id' => Auth::id(),
+                'status' => $request->status,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while confirming product: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Validate received quantities for all items
+     */
+    public function validateQuantities(Request $request, $movementId)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'items' => 'required|array',
+            'items.*.item_id' => 'required|integer|exists:pharmacy_stock_movement_items,id',
+            'items.*.received_quantity' => 'required|numeric|min:0',
+            'items.*.sender_quantity' => 'nullable|numeric|min:0',
+            'items.*.requested_quantity' => 'nullable|numeric|min:0',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $movement = PharmacyMovement::where('id', $movementId)
+                ->with(['items.product', 'items.selected_inventory.inventory'])
+                ->first();
+
+            if (!$movement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pharmacy movement not found',
+                ], 404);
+            }
+
+            if ($movement->status !== 'in_transfer') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movement must be in transfer status to validate quantities',
+                ], 422);
+            }
+
+            $validationResults = [];
+            $hasShortages = false;
+
+            DB::beginTransaction();
+
+            foreach ($request->items as $validation) {
+                $item = $movement->items->where('id', $validation['item_id'])->first();
+                if (!$item) {
+                    continue;
+                }
+
+                $requestedQuantity = $validation['requested_quantity'] ?? $item->requested_quantity;
+                $senderQuantity = $validation['sender_quantity'] ?? $item->approved_quantity ?? $requestedQuantity;
+                $receivedQuantity = $validation['received_quantity'];
+
+                // Calculate shortage based on sender quantity (what was actually sent)
+                $shortageQuantity = max(0, $senderQuantity - $receivedQuantity);
+
+                // Automatic status determination based on quantity comparison
+                $automaticStatus = null;
+                $executedQuantity = null;
+
+                if ($receivedQuantity >= $senderQuantity) {
+                    // Received quantity meets or exceeds sent quantity - set status to 'good'
+                    $automaticStatus = 'good';
+                    $executedQuantity = $item->approved_quantity ?? $requestedQuantity;
+                } else {
+                    // Received less than sent - set status to 'manque'
+                    $automaticStatus = 'manque';
+                    $executedQuantity = $receivedQuantity;
+                    $hasShortages = true;
+                }
+
+                // Update the movement item with automatic status and quantities
+                $item->update([
+                    'received_quantity' => $receivedQuantity,
+                    'confirmation_status' => $automaticStatus,
+                    'executed_quantity' => $executedQuantity,
+                    'updated_at' => now(),
+                ]);
+
+                $result = [
+                    'item_id' => $item->id,
+                    'product_name' => $item->product->name ?? 'Unknown',
+                    'requested_quantity' => $requestedQuantity,
+                    'sender_quantity' => $senderQuantity,
+                    'received_quantity' => $receivedQuantity,
+                    'shortage_quantity' => $shortageQuantity,
+                    'has_shortage' => $shortageQuantity > 0,
+                    'status' => $shortageQuantity > 0 ? 'manque' : 'good',
+                    'automatic_status' => $automaticStatus,
+                    'executed_quantity' => $executedQuantity,
+                ];
+
+                $validationResults[] = $result;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Quantities validated and statuses updated automatically',
+                'validation_results' => $validationResults,
+                'has_shortages' => $hasShortages,
+                'total_items' => count($validationResults),
+                'shortage_items' => collect($validationResults)->where('has_shortage', true)->count(),
+                'summary' => [
+                    'good_items' => collect($validationResults)->where('automatic_status', 'good')->count(),
+                    'manque_items' => collect($validationResults)->where('automatic_status', 'manque')->count(),
+                    'automatic_processing' => true,
+                ],
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error validating quantities: ' . $e->getMessage(), [
+                'movement_id' => $movementId,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while validating quantities: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Finalize delivery confirmation and set final movement status
+     */
+    public function finalizeConfirmation(Request $request, $movementId)
+    {
+        try {
+            $movement = PharmacyMovement::where('id', $movementId)
+                ->with(['items'])
+                ->first();
+
+            if (!$movement) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pharmacy movement not found',
+                ], 404);
+            }
+
+            // Check if movement is in in_transfer status
+            if ($movement->status !== 'in_transfer') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Movement must be in transfer status to finalize confirmation',
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            try {
+                // Check confirmation status of all items
+                $confirmedItems = $movement->items->where('confirmation_status', '!=', null);
+                $goodItems = $movement->items->where('confirmation_status', 'good');
+                $damagedItems = $movement->items->where('confirmation_status', 'damaged');
+                $manqueItems = $movement->items->where('confirmation_status', 'manque');
+
+                // Determine overall movement status
+                // Use 'completed' for fulfilled deliveries (valid ENUM value)
+                if ($goodItems->count() === $movement->items->count()) {
+                    // All items received in good condition
+                    $movement->status = 'completed';
+                    $movement->delivery_status = 'good';
+                } elseif ($goodItems->count() > 0) {
+                    // Mix of good and other statuses - use completed but mark delivery as mixed
+                    $movement->status = 'completed';
+                    $movement->delivery_status = 'mixed';
+                } elseif ($damagedItems->count() > 0) {
+                    // Damaged items present
+                    $movement->status = 'completed';
+                    $movement->delivery_status = 'damaged';
+                } else {
+                    // Mostly manque/missing items
+                    $movement->status = 'completed';
+                    $movement->delivery_status = 'manque';
+                }
+
+                // Update movement finalization details
+                $movement->delivery_confirmed_at = now();
+                $movement->delivery_confirmed_by = Auth::id();
+                $movement->save();
+
+                Log::info('Pharmacy movement confirmation finalized', [
+                    'movement_id' => $movement->id,
+                    'final_status' => $movement->status,
+                    'good_items' => $goodItems->count(),
+                    'damaged_items' => $damagedItems->count(),
+                    'manque_items' => $manqueItems->count(),
+                    'total_items' => $movement->items->count(),
+                    'finalized_by' => Auth::id(),
+                ]);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Confirmation finalized successfully. Movement status updated.',
+                    'movement' => $movement->fresh(['items', 'requestingService', 'providingService']),
+                    'summary' => [
+                        'final_status' => $movement->status,
+                        'delivery_status' => $movement->delivery_status,
+                        'good_items' => $goodItems->count(),
+                        'damaged_items' => $damagedItems->count(),
+                        'manque_items' => $manqueItems->count(),
+                        'total_items' => $movement->items->count(),
+                    ],
+                ]);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Exception $e) {
+            Log::error('Error finalizing pharmacy confirmation: ' . $e->getMessage(), [
+                'movement_id' => $movementId,
+                'user_id' => Auth::id(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while finalizing confirmation: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
 }
+

@@ -17,6 +17,12 @@ class ServiceProductSettingController extends Controller
      */
     public function show(Request $request, $serviceId, $productParam, $productForme = null)
     {
+        // URL decode the parameters
+        $productParam = urldecode($productParam);
+        if ($productForme) {
+            $productForme = urldecode($productForme);
+        }
+
         $validator = Validator::make([
             'service_id' => $serviceId,
             'product_param' => $productParam,
@@ -204,6 +210,12 @@ class ServiceProductSettingController extends Controller
      */
     public function update(Request $request, $serviceId, $productName, $productForme = null)
     {
+        // URL decode the parameters
+        $productName = urldecode($productName);
+        if ($productForme) {
+            $productForme = urldecode($productForme);
+        }
+
         $validator = Validator::make(array_merge($request->all(), [
             'service_id' => $serviceId,
             'product_param' => $productName,
@@ -311,6 +323,12 @@ class ServiceProductSettingController extends Controller
      */
     public function destroy(Request $request, $serviceId, $productName, $productForme = null)
     {
+        // URL decode the parameters
+        $productName = urldecode($productName);
+        if ($productForme) {
+            $productForme = urldecode($productForme);
+        }
+
         $validator = Validator::make([
             'service_id' => $serviceId,
             'product_param' => $productName,

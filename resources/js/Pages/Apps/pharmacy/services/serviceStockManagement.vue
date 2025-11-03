@@ -1156,7 +1156,9 @@ export default {
       ]
   ,
   // Cache for product-specific settings loaded from backend
-  productSettingsCache: {}
+  productSettingsCache: {},
+  // Track which products are currently being loaded to prevent duplicate requests
+  loadingProductSettings: {}
     }
   },
   mounted() {
@@ -1536,9 +1538,10 @@ export default {
       this.selectedProductGroup = null;
     },
 
-    editProductSettings(productGroup) {
+    async editProductSettings(productGroup) {
       this.selectedProductGroup = productGroup;
-      this.loadProductSettings(productGroup);
+      // Load settings before showing modal
+      await this.loadProductSettings(productGroup);
       this.showProductSettingsModal = true;
     },
 
@@ -1557,7 +1560,13 @@ export default {
         return Promise.resolve(this.productSettingsCache[key]);
       }
 
-      return axios.get(`/api/pharmacy/stock/product-settings/${this.serviceId}/${encodeURIComponent(productName)}/${encodeURIComponent(productForme)}`)
+      // If already loading, return the existing promise
+      if (this.loadingProductSettings[key]) {
+        return this.loadingProductSettings[key];
+      }
+
+      // Create and store the loading promise
+      const loadingPromise = axios.get(`/api/pharmacy/product-settings/${this.serviceId}/${encodeURIComponent(productName)}/${encodeURIComponent(productForme)}`)
         .then(response => {
           const payload = response.data || {};
           if (payload.success && payload.data) {
@@ -1585,7 +1594,14 @@ export default {
             this.selectedProductSettings = defaults;
           }
           return defaults;
+        })
+        .finally(() => {
+          // Clean up the loading promise
+          delete this.loadingProductSettings[key];
         });
+
+      this.loadingProductSettings[key] = loadingPromise;
+      return loadingPromise;
     },
 
     // Map server response fields (snake_case) to frontend camelCase keys
@@ -1683,7 +1699,7 @@ export default {
         };
 
         // Save product settings using web routes
-        const response = await axios.post('/api/pharmacy/stock/product-settings', settingsData);
+        const response = await axios.post('/api/pharmacy/product-settings', settingsData);
 
         if (response.data.success) {
           this.$toast.add({
@@ -1783,8 +1799,7 @@ export default {
 
       if (this.productSettingsCache[key]) return this.productSettingsCache[key];
 
-      // Kick off background load and return defaults for now
-      this.loadProductSettings(productGroup).then(() => {});
+      // Return defaults immediately - settings will be loaded on-demand when modal is opened
       return this.getDefaultProductSettings(productGroup);
     },
   }

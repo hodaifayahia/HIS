@@ -32,16 +32,25 @@
                 placeholder="Search and select a product..."
                 class="tw-w-full"
                 :filter="true"
-                filter-placeholder="Type to search products..."
+                filter-placeholder="Type to search all products..."
                 required
                 :loading="loadingProducts"
                 @change="onProductSelect"
+                @filter="onProductSearch"
+                @show="loadInitialProducts"
+                :show-clear="true"
               />
-              <small v-if="!loadingProducts && availableProducts.length === 0" class="tw-text-red-500 tw-block tw-mt-1">
-                No products available. Please check your connection or contact support.
+              <small v-if="isSearching && !loadingProducts" class="tw-text-green-500 tw-block tw-mt-1">
+                <i class="pi pi-check-circle"></i> Searched all products - {{ availableProducts.length }} found
               </small>
-              <small v-if="!loadingProducts && availableProducts.length > 0" class="tw-text-green-500 tw-block tw-mt-1">
-                {{ availableProducts.length }} products loaded
+              <small v-else-if="loadingProducts" class="tw-text-blue-500 tw-block tw-mt-1">
+                <i class="pi pi-spin pi-spinner"></i> {{ isSearching ? 'Searching all products...' : 'Loading products...' }}
+              </small>
+              <small v-else-if="availableProducts.length === 0" class="tw-text-gray-500 tw-block tw-mt-1">
+                Type to search all products in the system...
+              </small>
+              <small v-else class="tw-text-gray-600 tw-block tw-mt-1">
+                {{ availableProducts.length }} product(s) - {{ isSearching ? 'search results' : 'showing initial batch' }}
               </small>
             </div>
 
@@ -471,6 +480,7 @@ export default {
       showProductDetails: false,
       quantityByBox: false,
       purchasePriceByBox: false,
+      searchTimeout: null,
 
       // Data
       availableProducts: [],
@@ -483,6 +493,12 @@ export default {
       // Loading states
       loadingProducts: false,
       loadingLocations: false,
+      
+      // Infinite scroll for initial load
+      currentPage: 1,
+      hasMoreProducts: true,
+      isSearching: false,
+      allProductsLoaded: false,
 
       // Forms
       formData: {
@@ -508,7 +524,7 @@ export default {
   },
   mounted() {
     // Initialize data when component is first mounted
-    this.fetchAvailableProducts();
+    // Don't fetch products initially - user will search when opening modal
     this.fetchToolTypes();
     this.fetchBlocks();
     if (this.preSelectedStockageId) {
@@ -521,10 +537,7 @@ export default {
       this.showModal = newVal;
       if (newVal) {
         this.resetForm();
-        // Only fetch if data hasn't been loaded yet
-        if (this.availableProducts.length === 0) {
-          this.fetchAvailableProducts();
-        }
+        // Don't pre-fetch products - user will search when needed
         if (this.toolTypes.length === 0) {
           this.fetchToolTypes();
         }
@@ -561,20 +574,139 @@ export default {
     }
   },
   methods: {
-    async fetchAvailableProducts() {
+    // Load products with infinite scroll for initial display
+    async loadMoreProducts() {
+      if (this.loadingProducts || !this.hasMoreProducts || this.isSearching) {
+        return;
+      }
+
       this.loadingProducts = true;
       try {
         const response = await axios.get('/api/products', {
-          params: { per_page: 1000 }
+          params: {
+            per_page: 50, // Load 50 products at a time
+            page: this.currentPage,
+            nocache: Date.now()
+          }
         });
+
         if (response.data.success) {
-          this.availableProducts = response.data.data;
+          const newProducts = response.data.data || [];
+          this.availableProducts = [...this.availableProducts, ...newProducts];
+          
+          const meta = response.data.meta || {};
+          this.hasMoreProducts = meta.current_page < meta.last_page;
+          this.currentPage++;
+          
+          console.log(`Loaded page ${meta.current_page}, total products: ${this.availableProducts.length}`);
         }
       } catch (error) {
-        console.error('Failed to load products');
-        this.$emit('error', 'Failed to load available products');
+        console.error('Failed to load more products:', error);
       } finally {
         this.loadingProducts = false;
+      }
+    },
+
+    // Search across ALL products in database
+    async searchAllProducts(searchQuery) {
+      if (!searchQuery || searchQuery.length < 2) {
+        // Reset to infinite scroll mode
+        this.isSearching = false;
+        this.availableProducts = [];
+        this.currentPage = 1;
+        this.hasMoreProducts = true;
+        await this.loadMoreProducts();
+        return;
+      }
+
+      this.isSearching = true;
+      this.loadingProducts = true;
+      
+      try {
+        // Fetch ALL pages in parallel when searching
+        const firstPageResponse = await axios.get('/api/products', {
+          params: { 
+            per_page: 500,
+            page: 1,
+            search: searchQuery,
+            nocache: Date.now()
+          }
+        });
+        
+        if (!firstPageResponse.data.success) {
+          this.availableProducts = [];
+          return;
+        }
+
+        const firstPageProducts = firstPageResponse.data.data || [];
+        const meta = firstPageResponse.data.meta || {};
+        const totalPages = meta.last_page || 1;
+
+        if (totalPages <= 1) {
+          this.availableProducts = firstPageProducts;
+          console.log(`Search found ${firstPageProducts.length} products`);
+          return;
+        }
+
+        // Fetch remaining search pages in parallel
+        console.log(`Searching across ${totalPages} pages...`);
+        const remainingPagePromises = [];
+        const baseTimestamp = Date.now();
+        
+        for (let page = 2; page <= totalPages; page++) {
+          remainingPagePromises.push(
+            axios.get('/api/products', {
+              params: { 
+                per_page: 500,
+                page: page,
+                search: searchQuery,
+                nocache: baseTimestamp + page
+              }
+            }).catch(error => {
+              console.warn(`Failed to load search page ${page}:`, error);
+              return { data: { data: [] } };
+            })
+          );
+        }
+
+        const remainingResponses = await Promise.all(remainingPagePromises);
+        let allProducts = [...firstPageProducts];
+
+        remainingResponses.forEach((response) => {
+          const pageProducts = response.data.data || [];
+          allProducts = allProducts.concat(pageProducts);
+        });
+
+        this.availableProducts = allProducts;
+        console.log(`Search complete: ${allProducts.length} products found`);
+      } catch (error) {
+        console.error('Failed to search products:', error);
+        this.$emit('error', 'Failed to search products');
+        this.availableProducts = [];
+      } finally {
+        this.loadingProducts = false;
+      }
+    },
+
+    async onProductSearch(event) {
+      // PrimeVue Dropdown @filter event passes { originalEvent, value }
+      const searchQuery = event?.value || '';
+      
+      // Clear previous timeout
+      if (this.searchTimeout) {
+        clearTimeout(this.searchTimeout);
+      }
+      
+      // Debounce search by 300ms
+      this.searchTimeout = setTimeout(async () => {
+        await this.searchAllProducts(searchQuery);
+      }, 300);
+    },
+
+    async loadInitialProducts() {
+      // Load first batch when dropdown opens
+      if (this.availableProducts.length === 0 && !this.isSearching) {
+        await this.loadMoreProducts();
       }
     },
 
@@ -833,6 +965,13 @@ export default {
       this.resetNewLocation();
       this.quantityByBox = false;
       this.purchasePriceByBox = false;
+      
+      // Reset product loading state
+      this.availableProducts = [];
+      this.currentPage = 1;
+      this.hasMoreProducts = true;
+      this.isSearching = false;
+      this.allProductsLoaded = false;
     },
 
     closeModal() {
@@ -843,7 +982,7 @@ export default {
     openModal() {
       this.showModal = true;
       this.resetForm();
-      this.fetchAvailableProducts();
+      // Don't pre-fetch products - user will search when needed
       this.fetchToolTypes();
       this.fetchBlocks();
       if (this.preSelectedStockageId) {

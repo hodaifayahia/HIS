@@ -670,12 +670,9 @@ Route::prefix('bon-retours')->group(function () {
             Route::get('/fiche-navette/today-pending', [ficheNavetteController::class, 'getPrestationsForTodayAndPendingByAuthenticatedUser']);
             Route::get('/prestations/all', [ficheNavetteController::class, 'getAllPrestations']);
             Route::post('/fiche-navette/{prestationId}/update-status', [FicheNavetteController::class, 'updatePrestationStatus']);
-        Route::apiResource('/prestation-packages', PrestationPackageController::class)->except(['create', 'edit']);
 
             // Print fiche navette ticket (must be before apiResource to avoid route conflict)
             Route::post('/fiche-navette/{id}/print-ticket', [ficheNavetteController::class, 'printFicheNavetteTicket']);
-
-            Route::apiResource('/fiche-navette', ficheNavetteController::class);
 
             // Add these new routes for convention pricing
             Route::get('/prestations/with-convention-pricing', [ficheNavetteItemController::class, 'getPrestationsWithConventionPricing']);
@@ -915,7 +912,9 @@ Route::prefix('bon-retours')->group(function () {
         Route::get('fournisseurs-active', [\App\Http\Controllers\FournisseurController::class, 'active']);
 
         // Pharmacy Products - Static routes first to avoid conflicts
+        Route::apiResource('pharmacy/products', PharmacyProductController::class);
         Route::prefix('pharmacy/products')->group(function () {
+            Route::get('autocomplete', [PharmacyProductController::class, 'autocomplete']); // OPTIMIZED: Lightweight endpoint
             Route::get('categories', [PharmacyProductController::class, 'getCategories']);
             Route::delete('bulk-delete', [PharmacyProductController::class, 'bulkDelete']);
             Route::get('low-stock', [PharmacyProductController::class, 'getLowStock']);
@@ -928,7 +927,6 @@ Route::prefix('bon-retours')->group(function () {
             Route::get('{product}/total-stock', [PharmacyProductController::class, 'getTotalStock']);
             Route::get('{productId}/stock-details', [PharmacyProductController::class, 'getStockDetails']);
         });
-        Route::apiResource('pharmacy/products', PharmacyProductController::class);
 
         // Alias routes for purchasing products - use pharmacy-products instead of pharmacy/products
         Route::get('pharmacy-products', [PharmacyProductController::class, 'index']);
@@ -1133,9 +1131,6 @@ Route::prefix('bon-retours')->group(function () {
             Route::post('/report', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'generatePdfReport']);
             Route::get('/history', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'getAuditHistory']);
         });
-        
-        // Stockages route for dropdowns (returns all stockages)
-        Route::get('/stockages', [PharmacyStockageController::class, 'index']);
         
         // Facture Proforma Management routes
         Route::prefix('facture-proformas')->group(function () {
@@ -1362,6 +1357,7 @@ Route::prefix('bon-retours')->group(function () {
             // Validation workflow routes
             Route::post('/{movementId}/validate-quantities', [\App\Http\Controllers\Stock\StockMovementController::class, 'validateQuantities']);
             Route::post('/{movementId}/process-validation', [\App\Http\Controllers\Stock\StockMovementController::class, 'processValidation']);
+            Route::post('/{movementId}/finalize-confirmation', [\App\Http\Controllers\Stock\StockMovementController::class, 'finalizeConfirmation']);
 
             // Item management routes
             Route::post('/{movementId}/items', [\App\Http\Controllers\Stock\StockMovementController::class, 'addItem']);
