@@ -222,7 +222,7 @@ const setPrimaryContact = (contact) => {
         <transition name="modal-fade">
             <div v-if="showModal" class="tw-fixed tw-inset-0 tw-bg-gradient-to-br tw-from-gray-900/80 tw-to-gray-600/60 tw-backdrop-blur-sm tw-flex tw-justify-center tw-items-center tw-z-50 tw-p-4">
                 <transition name="modal-scale" appear>
-                    <div class="tw-bg-gradient-to-br tw-from-white tw-to-slate-50 tw-rounded-xl tw-shadow-2xl tw-shadow-black/20 tw-border tw-border-white/10 tw-w-full tw-max-w-6xl tw-max-h-[90vh] tw-overflow-hidden tw-relative">
+                    <div class="tw-bg-gradient-to-br tw-from-white tw-to-slate-50 tw-rounded-xl tw-shadow-2xl tw-shadow-black/20 tw-border tw-border-white/10 tw-w-full tw-max-w-6xl tw-max-h-[90vh] tw-flex tw-flex-col tw-relative">
                         <!-- Header -->
                         <div class="tw-bg-gradient-to-br tw-from-slate-50 tw-to-slate-200 tw-p-8 tw-border-b tw-border-slate-200 tw-relative">
                             <div class="tw-flex tw-items-center tw-gap-4">
@@ -247,7 +247,7 @@ const setPrimaryContact = (contact) => {
                         </div>
 
                         <!-- Body -->
-                        <div class="tw-p-8 tw-max-h-[calc(90vh-8rem)] tw-overflow-y-auto">
+                        <div class="tw-p-8 tw-flex-1 tw-overflow-y-auto tw-min-h-0">
                             <form @submit.prevent="saveFournisseur" class="tw-space-y-6">
                                 <!-- Company Information Section -->
                                 <div class="tw-grid tw-grid-cols-1 tw-lg:grid-cols-2 tw-gap-8">
@@ -478,7 +478,7 @@ const setPrimaryContact = (contact) => {
                         </div>
 
                         <!-- Footer -->
-                        <div class="tw-flex tw-justify-end tw-gap-3 tw-p-6 tw-border-t tw-border-gray-200 tw-bg-gray-50">
+                        <div class="tw-flex tw-justify-end tw-gap-3 tw-p-6 tw-border-t tw-border-gray-200 tw-bg-gray-50 tw-flex-shrink-0">
                             <Button
                                 label="Cancel"
                                 icon="pi pi-times"
@@ -646,7 +646,8 @@ const setPrimaryContact = (contact) => {
     width: 100%;
     max-width: 42rem;
     max-height: 90vh;
-    overflow: hidden;
+    display: flex;
+    flex-direction: column;
     position: relative;
 }
 
@@ -728,8 +729,9 @@ const setPrimaryContact = (contact) => {
 /* Enhanced Body */
 .modal-body {
     padding: 2rem;
-    max-height: calc(90vh - 8rem);
+    flex: 1;
     overflow-y: auto;
+    min-height: 0;
 }
 
 /* Enhanced Form Groups */
@@ -860,9 +862,10 @@ const setPrimaryContact = (contact) => {
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
-    padding-top: 1.5rem;
+    padding: 1.5rem;
     border-top: 1px solid #e5e7eb;
-    margin-top: 1.5rem;
+    background: #f9fafb;
+    flex-shrink: 0;
 }
 
 /* Enhanced Buttons */
