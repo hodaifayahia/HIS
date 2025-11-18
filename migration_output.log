@@ -1,0 +1,113 @@
+
+
+
+  Dropping all tables ............................................... 1 s DONE
+
+   INFO  Preparing database.  
+
+  Creating migration table ...................................... 17.42ms DONE
+
+   INFO  Loading stored database schemas.  
+
+  database/schema/mysql-schema.sql .................................. 4 s DONE
+
+   INFO  Running migrations.  
+
+  2024_01_15_000000_enhance_schedules_table ..................... 92.91ms DONE
+  2024_11_01_add_created_by_to_service_demand_purchasings ........ 3.03ms DONE
+  2025_10_20_000000_add_specialization_id_to_modalities ........ 141.93ms DONE
+  2025_10_20_120919_add_new_field_financial_transactions ........ 89.57ms DONE
+  2025_10_20_174803_add_new_migration_filed_bank_accounts ....... 20.11ms DONE
+  2025_10_22_161207_change_filed_doctoridt0_doctor_ids ........... 0.19ms DONE
+  2025_10_23_084403_create_prestation_package_reception_table .. 127.95ms DONE
+  2025_10_26_000000_add_is_faithful_to_patients_table ........... 66.93ms DONE
+  2025_10_27_152416_create_product_reserves_table .............. 148.80ms DONE
+  2025_10_27_172625_add_stockage_columns_to_product_reserves_table  175.54ms DONE
+  2025_10_29_081201_create_reserves_table ....................... 39.59ms DONE
+  2025_10_29_081852_add_new_filed_to_resvere_product_table ....... 0.07ms DONE
+  2025_10_29_090332_add_reserve_id_to_product_reserves_table ..... 0.14ms DONE
+  2025_10_29_102106_create_inventory_audits_table .............. 119.06ms DONE
+  2025_10_29_154806_create_inventory_audits_participantes_table . 76.18ms DONE
+  2025_10_29_154806_create_inventory_audits_product_table ...... 236.38ms DONE
+  2025_10_29_185710_create_inventory_audit_items_table .......... 60.33ms DONE
+  2025_10_29_192328_make_stockage_id_nullable_in_inventory_audits_product_table  61.24ms DONE
+  2025_10_29_195603_add_unique_constraint_to_inventory_audits_product_table  18.61ms DONE
+  2025_10_30_112047_2026_01_20_100004_create_pharmacy_stock_movement_items_table  198.28ms DONE
+  2025_10_30_120000_update_unique_constraint_with_participant_id . 0.92ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 't1.product_type' in 'where clause' (Connection: mysql, SQL: 
+            DELETE t1 FROM inventory_audits_product t1
+            INNER JOIN inventory_audits_product t2 
+            WHERE t1.id < t2.id 
+            AND t1.inventory_audit_id = t2.inventory_audit_id 
+            AND t1.product_id = t2.product_id
+            AND t1.product_type = t2.product_type
+            AND t1.participant_id = t2.participant_id
+        )
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:825
+    821▕                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822▕                 );
+    823▕             }
+    824▕ 
+  ➜ 825▕             throw new QueryException(
+    826▕                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827▕             );
+    828▕         }
+    829▕     }
+
+      [2m+7 vendor frames [22m
+
+  8   database/migrations/2025_10_30_120000_update_unique_constraint_with_participant_id.php:19
+      Illuminate\Support\Facades\Facade::__callStatic()
+      [2m+37 vendor frames [22m
+
+  46  artisan:13
+      Illuminate\Foundation\Application::handleCommand()
+
+
+
+
+   INFO  Running migrations.  
+
+  2025_11_01_120558_add_indexes_to_pharmacy_tables_for_performance  337.71ms DONE
+  2025_11_01_121236_add_additional_pharmacy_inventory_indexes .. 166.59ms DONE
+  2025_11_01_134932_add_delivery_confirmation_to_pharmacy_stock_movement_items  96.73ms DONE
+  2025_11_01_151713_add_service_demand_purchasing_id_to_bon_commends  55.26ms DONE
+  2025_11_01_add_in_transfer_to_pharmacy_movement_items ......... 28.96ms DONE
+  2025_11_05_183106_make_service_demand_purchasing_id_nullable_in_factureproformas  34.77ms DONE
+  2025_11_06_000000_add_missing_columns_to_bon_receptions ...... 112.43ms DONE
+  2025_11_06_000001_fix_bon_receptions_column_types ............. 42.75ms DONE
+  2025_11_09_163637_add_is_pharmacy_reserve_to_reserves_table .... 9.22ms DONE
+  2025_11_11_092109_add_sub_items_to_bon_entree_items_table ..... 17.59ms DONE
+  2025_11_11_101500_drop_unique_pharmacy_product_stockage_constraint  26.37ms DONE
+  2025_11_11_101600_add_composite_unique_constraint_to_pharmacy_inventories  20.25ms DONE
+  2025_11_11_102000_add_pharmacy_product_id_to_bon_entree_items  103.64ms DONE
+  2025_11_11_120000_add_missing_fields_to_pharmacy_products_table  15.34ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'boite_de' in 'pharmacy_products' (Connection: mysql, SQL: alter table `pharmacy_products` add `quantity_by_box` tinyint(1) not null default '0' after `boite_de`)
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:825
+    821▕                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822▕                 );
+    823▕             }
+    824▕ 
+  ➜ 825▕             throw new QueryException(
+    826▕                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827▕             );
+    828▕         }
+    829▕     }
+
+      [2m+9 vendor frames [22m
+
+  10  database/migrations/2025_11_11_120000_add_missing_fields_to_pharmacy_products_table.php:14
+      Illuminate\Support\Facades\Facade::__callStatic()
+      [2m+26 vendor frames [22m
+
+  37  artisan:13
+      Illuminate\Foundation\Application::handleCommand()
+

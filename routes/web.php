@@ -3,16 +3,16 @@
 <?php
 
 use App\Http\Controllers\Admin\RoleController;
-use App\Http\Controllers\AllergyController;
-use App\Http\Controllers\Api\ApprovalPersonController; // This serves your main SPA layout
+use App\Http\Controllers\Admission\AdmissionController;
+use App\Http\Controllers\Admission\AdmissionDocumentController; // This serves your main SPA layout
+use App\Http\Controllers\Admission\AdmissionProcedureController;
+use App\Http\Controllers\Api\ApprovalPersonController;
 use App\Http\Controllers\Api\BonCommendApprovalController;
-use App\Http\Controllers\Api\InventoryAuditProductController;
-use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\AppointmentAvailableMonthController;
-use App\Http\Controllers\AppointmentController;
-use App\Http\Controllers\AppointmentForcerController;
-use App\Http\Controllers\AppointmentStatus;
-use App\Http\Controllers\AttributeController;
+use App\Http\Controllers\Appointment\AppointmentAvailableMonthController;
+use App\Http\Controllers\Appointment\AppointmentController;
+use App\Http\Controllers\Appointment\AppointmentForcerController;
+use App\Http\Controllers\Appointment\AppointmentStatus;
+use App\Http\Controllers\Attribute\AttributeController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordValidationController;
@@ -25,13 +25,11 @@ use App\Http\Controllers\B2B\ConventionDetailController;
 use App\Http\Controllers\B2B\PrestationPricingController;
 use App\Http\Controllers\Bank\BankAccountController;
 use App\Http\Controllers\Bank\BankAccountTransactionController;
+use App\Http\Controllers\Bank\BankAccountTransactionPackController;
 use App\Http\Controllers\Bank\BankController;
 use App\Http\Controllers\Bank\DashboardController;
-use App\Http\Controllers\BankAccountTransactionPackController;
-use App\Http\Controllers\BonEntreeController;
 use App\Http\Controllers\Caisse\CaisseTransferController;
 use App\Http\Controllers\Caisse\FinancialTransactionController;
-use App\Http\Controllers\ChronicDiseaseController;
 use App\Http\Controllers\Coffre\CaisseController;
 use App\Http\Controllers\Coffre\CaisseSessionController;
 use App\Http\Controllers\Coffre\CoffreController;
@@ -47,59 +45,67 @@ use App\Http\Controllers\CONFIGURATION\TransferApprovalController;
 use App\Http\Controllers\CONFIGURATION\UserCaisseApprovalController;
 use App\Http\Controllers\CONFIGURATION\UserPaymentMethodController;
 use App\Http\Controllers\CONFIGURATION\UserRefundPermissionController;
-use App\Http\Controllers\ConsulationController;
-use App\Http\Controllers\ConsultationworkspacesController;
+use App\Http\Controllers\Consultation\ConsulationController;
+use App\Http\Controllers\Consultation\ConsultationworkspacesController;
+use App\Http\Controllers\Consultation\OpinionRequestController;
+use App\Http\Controllers\Consultation\PrescriptionController;
+use App\Http\Controllers\Core\ApplicationController;
 use App\Http\Controllers\CRM\OrganismeContactController;
 use App\Http\Controllers\CRM\OrganismeController;
-use App\Http\Controllers\DashboradController;
-use App\Http\Controllers\DoctorController;
-use App\Http\Controllers\DoctorEmergencyPlanningController;
-use App\Http\Controllers\ExcludedDates;
-use App\Http\Controllers\ExportController;
-use App\Http\Controllers\FactureProformaController;
-use App\Http\Controllers\FamilyHistoryController;
-use App\Http\Controllers\FolderController;
-use App\Http\Controllers\ImportanceEnumController;
-use App\Http\Controllers\ImportController;
+use App\Http\Controllers\Dashboard\DashboradController;
+use App\Http\Controllers\Doctor\DoctorController;
+use App\Http\Controllers\Doctor\DoctorEmergencyPlanningController;
+use App\Http\Controllers\Doctor\ExcludedDates;
+use App\Http\Controllers\Doctor\specializationsController;
+use App\Http\Controllers\FactureProforma\FactureProformaController;
+use App\Http\Controllers\FileManagement\FolderController;
+use App\Http\Controllers\ImportExport\ExportController;
+use App\Http\Controllers\ImportExport\ImportController;
 use App\Http\Controllers\INFRASTRUCTURE\BedController;
-use App\Http\Controllers\INFRASTRUCTURE\InfrastructureDashboardController; // Assuming you have a LoginController to handle the actual login process
-use App\Http\Controllers\INFRASTRUCTURE\PavilionController; // Import the controller
-use App\Http\Controllers\INFRASTRUCTURE\RoomController; // Password validation controller
+use App\Http\Controllers\INFRASTRUCTURE\InfrastructureDashboardController;
+use App\Http\Controllers\INFRASTRUCTURE\PavilionController;
+use App\Http\Controllers\INFRASTRUCTURE\RoomController; // Assuming you have a LoginController to handle the actual login process
+use App\Http\Controllers\INFRASTRUCTURE\RoomTypeController; // Import the controller
+use App\Http\Controllers\Inventory\InventoryAuditProductController; // Password validation controller
 // ficheNavetteController
-use App\Http\Controllers\INFRASTRUCTURE\RoomTypeController;
+use App\Http\Controllers\Inventory\ServiceGroupProductPricingController;
 use App\Http\Controllers\manager\RefundAuthorizationController;
 use App\Http\Controllers\manager\TransactionBankRequestController;
-use App\Http\Controllers\MedicationController;
-use App\Http\Controllers\MedicationDoctorFavoratController;
+use App\Http\Controllers\Nursing\NursingEmergencyPlanningController;
 use App\Http\Controllers\Nursing\PatientConsumptionController;
-use App\Http\Controllers\OpinionRequestController;
-use App\Http\Controllers\PatientController;
+use App\Http\Controllers\Patient\AllergyController;
+use App\Http\Controllers\Patient\ChronicDiseaseController;
+use App\Http\Controllers\Patient\FamilyHistoryController;
+use App\Http\Controllers\Patient\MedicationController;
+use App\Http\Controllers\Patient\MedicationDoctorFavoratController;
+use App\Http\Controllers\Patient\PatientController;
+use App\Http\Controllers\Patient\SurgicalController;
+use App\Http\Controllers\Pharmacy\ExternalPrescriptionController;
 use App\Http\Controllers\Pharmacy\PharmacyInventoryController;
 use App\Http\Controllers\Pharmacy\PharmacyProductController;
 use App\Http\Controllers\Pharmacy\PharmacyStockageController;
 use App\Http\Controllers\Pharmacy\PharmacyStockMovementController;
-use App\Http\Controllers\Stock\ProductController;
+use App\Http\Controllers\Product\ProductHistoryController;
+use App\Http\Controllers\Purchasing\BonCommendController;
+use App\Http\Controllers\Purchasing\BonEntreeController;
+use App\Http\Controllers\Purchasing\BonRetourController;
+use App\Http\Controllers\Purchasing\ConsignmentReceptionController;
 use App\Http\Controllers\Purchasing\PurchasingProductController;
-use App\Http\Controllers\PlaceholderController;
-use App\Http\Controllers\PrescriptionController;
-use App\Http\Controllers\ProductHistoryController;
 use App\Http\Controllers\Reception\ficheNavetteController;
 use App\Http\Controllers\Reception\FicheNavetteCustomPackageController;
 use App\Http\Controllers\Reception\ficheNavetteItemController;
-use App\Http\Controllers\Reception\RemiseApproverController;
 use App\Http\Controllers\Reception\PrestationPackageDoctorAssignmentController;
+use App\Http\Controllers\Reception\RemiseApproverController;
 use App\Http\Controllers\Reception\RemiseRequestNotificationController;
-use App\Http\Controllers\ScheduleController;
-use App\Http\Controllers\SettingController;
-use App\Http\Controllers\specializationsController;
-use App\Http\Controllers\SurgicalController;
-use App\Http\Controllers\TemplateController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\WaitListController;
-use App\Http\Controllers\BonCommendController;
+use App\Http\Controllers\Schedule\ScheduleController;
+use App\Http\Controllers\Settings\ImportanceEnumController;
+use App\Http\Controllers\Settings\PlaceholderController;
+use App\Http\Controllers\Settings\SellingSettingsController;
+use App\Http\Controllers\Settings\SettingController;
 use App\Http\Controllers\Stock\ReserveController;
-use App\Http\Controllers\BonRetourController;
-
+use App\Http\Controllers\Template\TemplateController;
+use App\Http\Controllers\User\UserController;
+use App\Http\Controllers\WaitList\WaitListController;
 use Illuminate\Support\Facades\Route;
 
 // --- Unauthenticated Routes ---
@@ -119,9 +125,9 @@ Route::post('/login', [LoginController::class, 'login']);
 // --- Authenticated Routes ---
 Route::middleware(['auth'])->group(function () {
 
-    // Redirect authenticated users from the root to their dashboard (or /home)
+    // Load the main SPA for authenticated users
     Route::get('/', function () {
-        return redirect('/dashboard'); // Or '/home' if that's your main SPA starting point
+        return view('admin.layout.app');
     });
 
     // Logout Route
@@ -224,6 +230,33 @@ Route::middleware(['auth'])->group(function () {
         Route::put('/setting/user', [SettingController::class, 'update']);
         Route::put('/setting/password', [SettingController::class, 'updatePassword']);
 
+        // Selling Settings Routes
+        Route::prefix('/selling-settings')->group(function () {
+            Route::get('/', [SellingSettingsController::class, 'index']);
+            Route::post('/', [SellingSettingsController::class, 'store']);
+            Route::get('/services', [SellingSettingsController::class, 'getServices']);
+            Route::post('/active-percentage', [SellingSettingsController::class, 'getActivePercentage']);
+            Route::get('/{id}', [SellingSettingsController::class, 'show']);
+            Route::put('/{id}', [SellingSettingsController::class, 'update']);
+            Route::delete('/{id}', [SellingSettingsController::class, 'destroy']);
+            Route::post('/{id}/toggle-active', [SellingSettingsController::class, 'toggleActive']);
+        });
+
+        // Service Groups Routes
+        Route::prefix('/service-groups')->group(function () {
+            Route::get('/', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'store']);
+            Route::get('/available-services', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'getAvailableServices']);
+            Route::get('/all-services', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'getAllServices']);
+            Route::get('/{id}', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'destroy']);
+            Route::post('/{id}/toggle-active', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'toggleActive']);
+            Route::post('/{id}/add-service', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'addService']);
+            Route::post('/{id}/remove-service', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'removeService']);
+            Route::post('/{id}/reorder-services', [\App\Http\Controllers\Settings\ServiceGroupController::class, 'reorderServices']);
+        });
+
         // Waitlist Routes
         Route::post('/waitlists', [WaitListController::class, 'store']);
         Route::post('/waitlists/count/{doctorid}', [WaitListController::class, 'countForYouAndNotForYou']);
@@ -237,9 +270,9 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/waitlists/{waitlist}', [WaitListController::class, 'destroy']);
         Route::patch('/waitlists/{waitlist}/importance', [WaitlistController::class, 'updateImportance']);
         Route::get('/waitlist/empty', [WaitListController::class, 'isempty']);  // Request Transaction Approvals
-        Route::get('/request-transaction-approvals', [\App\Http\Controllers\RequestTransactionApprovalController::class, 'index']);
-        Route::patch('/request-transaction-approvals/{requestTransactionApproval}/approve', [\App\Http\Controllers\RequestTransactionApprovalController::class, 'approve']);
-        Route::patch('/request-transaction-approvals/{requestTransactionApproval}/reject', [\App\Http\Controllers\RequestTransactionApprovalController::class, 'reject']);
+        Route::get('/request-transaction-approvals', [\App\Http\Controllers\Approval\RequestTransactionApprovalController::class, 'index']);
+        Route::patch('/request-transaction-approvals/{requestTransactionApproval}/approve', [\App\Http\Controllers\Approval\RequestTransactionApprovalController::class, 'approve']);
+        Route::patch('/request-transaction-approvals/{requestTransactionApproval}/reject', [\App\Http\Controllers\Approval\RequestTransactionApprovalController::class, 'reject']);
 
         // Importance Enum
         Route::get('/importance-enum', [ImportanceEnumController::class, 'index']);
@@ -286,7 +319,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/consultations/{consultationId}', [ConsulationController::class, 'show']);
         Route::get('/consultations/by-appointment/{appointmentid}', [ConsulationController::class, 'getConsultationByAppointmentId']);
         Route::get('/consulations/{patientid}', [ConsulationController::class, 'index']);
-    Route::get('/consulations/consulationappointment/{doctorid}', [ConsulationController::class, 'consulationappointment']);
+        Route::get('/consulations/consulationappointment/{doctorid}', [ConsulationController::class, 'consulationappointment']);
         Route::put('/consultations/{id}', [ConsulationController::class, 'update']);
         Route::delete('/consulations/{id}', [ConsulationController::class, 'destroy']);
         Route::get('/consulations/search', [ConsulationController::class, 'search']);
@@ -556,30 +589,30 @@ Route::middleware(['auth'])->group(function () {
             // Prestation Package Doctor Assignments
             Route::prefix('/packages')->group(function () {
                 // Get prestations with doctors for a package
-                Route::get('/{packageId}/prestations-with-doctors', 
+                Route::get('/{packageId}/prestations-with-doctors',
                     [PrestationPackageDoctorAssignmentController::class, 'getPrestationsWithDoctors']);
-                
+
                 // Store doctor assignments (bulk)
-                Route::post('/{packageId}/doctor-assignments', 
+                Route::post('/{packageId}/doctor-assignments',
                     [PrestationPackageDoctorAssignmentController::class, 'storeDoctorAssignments']);
-                
+
                 // Update single doctor assignment
-                Route::put('/{packageId}/prestations/{prestationId}/doctor', 
+                Route::put('/{packageId}/prestations/{prestationId}/doctor',
                     [PrestationPackageDoctorAssignmentController::class, 'updateDoctorAssignment']);
-                
+
                 // Remove doctor assignment
-                Route::delete('/{packageId}/prestations/{prestationId}/doctor', 
+                Route::delete('/{packageId}/prestations/{prestationId}/doctor',
                     [PrestationPackageDoctorAssignmentController::class, 'removeDoctorAssignment']);
-                
+
                 // Bulk update doctor assignments (replaces all)
-                Route::patch('/{packageId}/doctor-assignments/bulk', 
+                Route::patch('/{packageId}/doctor-assignments/bulk',
                     [PrestationPackageDoctorAssignmentController::class, 'bulkUpdateDoctorAssignments']);
             });
 
             // Fiche Navette Item Doctor Assignments for Packages
             Route::prefix('/fiche-navette-items')->group(function () {
                 // Get package doctors for a fiche navette item
-                Route::get('/{itemId}/package-doctors', 
+                Route::get('/{itemId}/package-doctors',
                     [PrestationPackageDoctorAssignmentController::class, 'getPackageItemDoctors']);
             });
 
@@ -638,29 +671,32 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/specializations/all', [ficheNavetteController::class, 'getAllSpecializations']);
             Route::get('/fiche-navette/{ficheNavetteId}/grouped-items', [ficheNavetteItemController::class, 'getGroupedByInsured']);
         });
-        
-Route::prefix('bon-retours')->group(function () {
-    Route::get('/', [BonRetourController::class, 'index']);
-    Route::post('/', [BonRetourController::class, 'store']);
-    Route::get('/statistics', [BonRetourController::class, 'statistics']);
-    Route::get('/{bonRetour}', [BonRetourController::class, 'show']);
-    Route::put('/{bonRetour}', [BonRetourController::class, 'update']);
-    Route::delete('/{bonRetour}', [BonRetourController::class, 'destroy']);
-     // PDF routes
-    Route::get('/{bonRetour}/pdf', [BonRetourController::class, 'generatePdf'])->name('bon-retours.pdf');
-    Route::get('/{id}/download-pdf', [BonRetourController::class, 'downloadPdf'])->name('bon-retours.download-pdf');
-    // Status actions
-    Route::post('/{bonRetour}/submit', [BonRetourController::class, 'submitForApproval']);
-    Route::post('/{bonRetour}/approve', [BonRetourController::class, 'approve']);
-    Route::post('/{bonRetour}/complete', [BonRetourController::class, 'complete']);
-    Route::post('/{bonRetour}/cancel', [BonRetourController::class, 'cancel']);
-    
-    // PDF generation
-    Route::get('/{bonRetour}/pdf', [BonRetourController::class, 'generatePdf']);
-});
+
+        Route::prefix('bon-retours')->group(function () {
+            Route::get('/', [BonRetourController::class, 'index']);
+            Route::post('/', [BonRetourController::class, 'store']);
+            Route::get('/statistics', [BonRetourController::class, 'statistics']);
+            Route::get('/{bonRetour}', [BonRetourController::class, 'show']);
+            Route::put('/{bonRetour}', [BonRetourController::class, 'update']);
+            Route::delete('/{bonRetour}', [BonRetourController::class, 'destroy']);
+            // PDF routes
+            Route::get('/{bonRetour}/pdf', [BonRetourController::class, 'generatePdf'])->name('bon-retours.pdf');
+            Route::get('/{id}/download-pdf', [BonRetourController::class, 'downloadPdf'])->name('bon-retours.download-pdf');
+            // Status actions
+            Route::post('/{bonRetour}/submit', [BonRetourController::class, 'submitForApproval']);
+            Route::post('/{bonRetour}/approve', [BonRetourController::class, 'approve']);
+            Route::post('/{bonRetour}/complete', [BonRetourController::class, 'complete']);
+            Route::post('/{bonRetour}/cancel', [BonRetourController::class, 'cancel']);
+
+            // PDF generation
+            Route::get('/{bonRetour}/pdf', [BonRetourController::class, 'generatePdf']);
+        });
 
         // Emergency routes - same as reception but with /emergency prefix
         Route::prefix('/emergency')->group(function () {
+            // apiResource for fiche-navette CRUD operations
+            Route::apiResource('/fiche-navette', ficheNavetteController::class);
+
             Route::post('/fiche-navette/{ficheNavetteId}/items', [ficheNavetteItemController::class, 'store']);
             Route::get('/fiche-navette/{ficheNavetteId}/items', [ficheNavetteItemController::class, 'index']);
             Route::get('/fiche-navette/{ficheNavetteId}/filtered-prestations', [ficheNavetteController::class, 'getPrestationsForFicheByAuthenticatedUser']);
@@ -759,15 +795,15 @@ Route::prefix('bon-retours')->group(function () {
 
         // Product Reserves Routes
         Route::prefix('product-reserves')->group(function () {
-            Route::get('/', [\App\Http\Controllers\ProductReserveController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\ProductReserveController::class, 'store']);
-            Route::post('/bulk-fulfill', [\App\Http\Controllers\ProductReserveController::class, 'bulkFulfill']);
-            Route::post('/bulk-cancel', [\App\Http\Controllers\ProductReserveController::class, 'bulkCancel']);
-            Route::get('/{productReserve}', [\App\Http\Controllers\ProductReserveController::class, 'show']);
-            Route::put('/{productReserve}', [\App\Http\Controllers\ProductReserveController::class, 'update']);
-            Route::delete('/{productReserve}', [\App\Http\Controllers\ProductReserveController::class, 'destroy']);
-            Route::post('/{productReserve}/cancel', [\App\Http\Controllers\ProductReserveController::class, 'cancel']);
-            Route::post('/{productReserve}/fulfill', [\App\Http\Controllers\ProductReserveController::class, 'fulfill']);
+            Route::get('/', [\App\Http\Controllers\Product\ProductReserveController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Product\ProductReserveController::class, 'store']);
+            Route::post('/bulk-fulfill', [\App\Http\Controllers\Product\ProductReserveController::class, 'bulkFulfill']);
+            Route::post('/bulk-cancel', [\App\Http\Controllers\Product\ProductReserveController::class, 'bulkCancel']);
+            Route::get('/{productReserve}', [\App\Http\Controllers\Product\ProductReserveController::class, 'show']);
+            Route::put('/{productReserve}', [\App\Http\Controllers\Product\ProductReserveController::class, 'update']);
+            Route::delete('/{productReserve}', [\App\Http\Controllers\Product\ProductReserveController::class, 'destroy']);
+            Route::post('/{productReserve}/cancel', [\App\Http\Controllers\Product\ProductReserveController::class, 'cancel']);
+            Route::post('/{productReserve}/fulfill', [\App\Http\Controllers\Product\ProductReserveController::class, 'fulfill']);
         });
 
         // Nursing Product Routes
@@ -843,7 +879,7 @@ Route::prefix('bon-retours')->group(function () {
         Route::get('financial-transactions-prestations', [FinancialTransactionController::class, 'getPrestationsWithDependencies']);
         Route::get('financial-transactions-patient-prestations', [FinancialTransactionController::class, 'getPatientPrestations']);
         Route::get('financial-transactions-by-fiche-navette', [FinancialTransactionController::class, 'getByFicheNavette']);
-            Route::get('financial-transactions-by-session', [FinancialTransactionController::class, 'getBySession']);
+        Route::get('financial-transactions-by-session', [FinancialTransactionController::class, 'getBySession']);
 
         Route::post('financial-transactions/{financialTransaction}/refund', [FinancialTransactionController::class, 'refund']);
         Route::get('financial-transactions-daily-summary', [FinancialTransactionController::class, 'dailySummary']);
@@ -907,33 +943,96 @@ Route::prefix('bon-retours')->group(function () {
         Route::get('bank-account-transactions/{transactionId}/pack-users', [BankAccountTransactionPackController::class, 'getPackUsers']);
 
         // Fournisseur routes
-        Route::apiResource('fournisseurs', \App\Http\Controllers\FournisseurController::class);
-        Route::get('fournisseurs/search', [\App\Http\Controllers\FournisseurController::class, 'search']);
-        Route::get('fournisseurs-active', [\App\Http\Controllers\FournisseurController::class, 'active']);
+        Route::apiResource('fournisseurs', \App\Http\Controllers\Purchasing\FournisseurController::class);
+        Route::get('fournisseurs/search', [\App\Http\Controllers\Purchasing\FournisseurController::class, 'search']);
+        Route::get('fournisseurs-active', [\App\Http\Controllers\Purchasing\FournisseurController::class, 'active']);
+
+        // Stock Products - for direct editing
+        Route::apiResource('products', \App\Http\Controllers\Stock\ProductController::class);
 
         // Pharmacy Products - Static routes first to avoid conflicts
-        Route::apiResource('pharmacy/products', PharmacyProductController::class);
-        Route::prefix('pharmacy/products')->group(function () {
+        Route::apiResource('pharmacy-products', PharmacyProductController::class, [
+            'parameters' => ['pharmacy_product' => 'id'],
+        ])->names([
+            'index' => 'pharmacy.products.index',
+            'create' => 'pharmacy.products.create',
+            'store' => 'pharmacy.products.store',
+            'show' => 'pharmacy.products.show',
+            'edit' => 'pharmacy.products.edit',
+            'update' => 'pharmacy.products.update',
+            'destroy' => 'pharmacy.products.destroy',
+        ]);
+        Route::prefix('pharmacy-products')->group(function () {
             Route::get('autocomplete', [PharmacyProductController::class, 'autocomplete']); // OPTIMIZED: Lightweight endpoint
             Route::get('categories', [PharmacyProductController::class, 'getCategories']);
             Route::delete('bulk-delete', [PharmacyProductController::class, 'bulkDelete']);
+            Route::post('bulk-update-approval', [PharmacyProductController::class, 'bulkUpdateApproval']);
             Route::get('low-stock', [PharmacyProductController::class, 'getLowStock']);
             Route::get('critical-stock', [PharmacyProductController::class, 'getCriticalStock']);
             Route::get('controlled-substances', [PharmacyProductController::class, 'getControlledSubstances']);
+            Route::get('paginated', [PharmacyProductController::class, 'paginated']); // Infinite scroll endpoint
             Route::get('prescription-only', [PharmacyProductController::class, 'getPrescriptionOnly']);
             Route::get('{id}/details', [PharmacyProductController::class, 'getDetails']);
+            Route::get('{productId}/inventory', [PharmacyProductController::class, 'getProductInventory']);
             Route::get('{productId}/settings', [PharmacyProductController::class, 'getSettings']);
             Route::post('{productId}/settings', [PharmacyProductController::class, 'saveSettings']);
             Route::get('{product}/total-stock', [PharmacyProductController::class, 'getTotalStock']);
             Route::get('{productId}/stock-details', [PharmacyProductController::class, 'getStockDetails']);
         });
 
-        // Alias routes for purchasing products - use pharmacy-products instead of pharmacy/products
+        // Purchasing Products - Combined endpoint for managing both stock and pharmacy products
+        Route::prefix('purchasing')->group(function () {
+            Route::get('products', [PurchasingProductController::class, 'index']);
+            Route::post('products', [PurchasingProductController::class, 'store']);
+            Route::get('products/{id}', [PurchasingProductController::class, 'show']);
+            Route::put('products/{id}', [PurchasingProductController::class, 'update']);
+            Route::delete('products/{id}', [PurchasingProductController::class, 'destroy']);
+        });
+
+        // Alias routes for pharmacy-products endpoint
         Route::get('pharmacy-products', [PharmacyProductController::class, 'index']);
         Route::post('pharmacy-products', [PharmacyProductController::class, 'store']);
-        Route::get('pharmacy-products/{pharmacyProduct}', [PharmacyProductController::class, 'show']);
-        Route::put('pharmacy-products/{pharmacyProduct}', [PharmacyProductController::class, 'update']);
-        Route::delete('pharmacy-products/{pharmacyProduct}', [PharmacyProductController::class, 'destroy']);
+        Route::get('pharmacy-products/{id}', [PharmacyProductController::class, 'show']);
+        Route::put('pharmacy-products/{id}', [PharmacyProductController::class, 'update']);
+
+        // External Prescriptions - Pharmacy orders created by doctors
+        Route::prefix('external-prescriptions')->group(function () {
+            Route::get('/', [ExternalPrescriptionController::class, 'index']);
+            Route::post('/', [ExternalPrescriptionController::class, 'store']);
+            Route::get('/{id}', [ExternalPrescriptionController::class, 'show']);
+            Route::delete('/{id}', [ExternalPrescriptionController::class, 'destroy']);
+            Route::post('/{id}/items', [ExternalPrescriptionController::class, 'addItems']);
+            Route::patch('/{id}/items/{itemId}', [ExternalPrescriptionController::class, 'updateItem']);
+            Route::post('/{id}/items/{itemId}/dispense', [ExternalPrescriptionController::class, 'dispenseItem']);
+            Route::post('/{id}/items/{itemId}/cancel', [ExternalPrescriptionController::class, 'cancelItem']);
+            Route::delete('/{id}/items/{itemId}', [ExternalPrescriptionController::class, 'deleteItem']);
+            Route::get('/{id}/pdf', [ExternalPrescriptionController::class, 'generatePDF']);
+        });
+        Route::delete('pharmacy-products/{id}', [PharmacyProductController::class, 'destroy']);
+
+        // Pharmacy Products alternate endpoint (with slash instead of dash)
+        Route::prefix('pharmacy')->group(function () {
+            Route::get('products', [PharmacyProductController::class, 'index']);
+            Route::post('products', [PharmacyProductController::class, 'store']);
+            Route::post('products/bulk-update-approval', [PharmacyProductController::class, 'bulkUpdateApproval']);
+            Route::get('products/categories', [PharmacyProductController::class, 'getCategories']);
+            Route::get('products/autocomplete', [PharmacyProductController::class, 'autocomplete']);
+            Route::get('products/low-stock', [PharmacyProductController::class, 'getLowStock']);
+            Route::get('products/critical-stock', [PharmacyProductController::class, 'getCriticalStock']);
+            Route::get('products/controlled-substances', [PharmacyProductController::class, 'getControlledSubstances']);
+            Route::get('products/paginated', [PharmacyProductController::class, 'paginated']);
+            Route::get('products/prescription-only', [PharmacyProductController::class, 'getPrescriptionOnly']);
+            Route::get('products/{id}/details', [PharmacyProductController::class, 'getDetails']);
+            Route::get('products/{productId}/inventory', [PharmacyProductController::class, 'getProductInventory']);
+            Route::get('products/{productId}/settings', [PharmacyProductController::class, 'getSettings']);
+            Route::post('products/{productId}/settings', [PharmacyProductController::class, 'saveSettings']);
+            Route::get('products/{product}/total-stock', [PharmacyProductController::class, 'getTotalStock']);
+            Route::get('products/{productId}/stock-details', [PharmacyProductController::class, 'getStockDetails']);
+            Route::get('products/{pharmacyProduct}', [PharmacyProductController::class, 'show']);
+            Route::put('products/{pharmacyProduct}', [PharmacyProductController::class, 'update']);
+            Route::delete('products/{pharmacyProduct}', [PharmacyProductController::class, 'destroy']);
+            Route::delete('products/bulk-delete', [PharmacyProductController::class, 'bulkDelete']);
+        });
 
         // Pharmacy Inventory - Static routes first to avoid conflicts
         Route::prefix('pharmacy/inventory')->group(function () {
@@ -950,7 +1049,15 @@ Route::prefix('bon-retours')->group(function () {
             Route::post('{inventory}/transfer', [PharmacyInventoryController::class, 'transferStock']);
             Route::post('{inventory}/generate-barcode', [PharmacyInventoryController::class, 'generateBarcode']);
         });
-        Route::apiResource('pharmacy/inventory', PharmacyInventoryController::class);
+        Route::apiResource('pharmacy/inventory', PharmacyInventoryController::class)->names([
+            'index' => 'pharmacy.inventory.index',
+            'create' => 'pharmacy.inventory.create',
+            'store' => 'pharmacy.inventory.store',
+            'show' => 'pharmacy.inventory.show',
+            'edit' => 'pharmacy.inventory.edit',
+            'update' => 'pharmacy.inventory.update',
+            'destroy' => 'pharmacy.inventory.destroy',
+        ]);
 
         // Pharmacy Stockages - Static routes first to avoid conflicts
         Route::prefix('pharmacy/stockages')->group(function () {
@@ -963,7 +1070,15 @@ Route::prefix('bon-retours')->group(function () {
             Route::post('{stockage}/tools', [PharmacyStockageController::class, 'addTool']);
             Route::delete('{stockage}/tools/{toolId}', [PharmacyStockageController::class, 'removeTool']);
         });
-        Route::apiResource('pharmacy/stockages', PharmacyStockageController::class);
+        Route::apiResource('pharmacy/stockages', PharmacyStockageController::class)->names([
+            'index' => 'pharmacy.stockages.index',
+            'create' => 'pharmacy.stockages.create',
+            'store' => 'pharmacy.stockages.store',
+            'show' => 'pharmacy.stockages.show',
+            'edit' => 'pharmacy.stockages.edit',
+            'update' => 'pharmacy.stockages.update',
+            'destroy' => 'pharmacy.stockages.destroy',
+        ]);
 
         // Pharmacy Stock Movements - Complete routes matching stock pattern
         Route::prefix('pharmacy/stock-movements')->group(function () {
@@ -1044,49 +1159,49 @@ Route::prefix('bon-retours')->group(function () {
         });
         // Service Demand Management routes
         Route::prefix('service-demands')->group(function () {
-            Route::get('/', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'store']);
+            Route::get('/', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'store']);
 
             // Helper endpoints (must come BEFORE parameterized routes)
-            Route::get('/meta/services', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getServices']);
-            Route::get('/meta/products', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getProducts']);
-            Route::get('/meta/fournisseurs', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getFournisseurs']);
-            Route::get('/meta/stats', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getStats']);
-            Route::get('/meta/supplier-ratings', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getSupplierRatings']);
-            Route::get('/suggestions', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getSuggestions']);
+            Route::get('/meta/services', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getServices']);
+            Route::get('/meta/products', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getProducts']);
+            Route::get('/meta/fournisseurs', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getFournisseurs']);
+            Route::get('/meta/stats', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getStats']);
+            Route::get('/meta/supplier-ratings', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getSupplierRatings']);
+            Route::get('/suggestions', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getSuggestions']);
 
             // Parameterized routes (must come AFTER specific named routes)
-            Route::get('/{id}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'show']);
-            Route::put('/{id}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'update']);
-            Route::delete('/{id}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'destroy']);
+            Route::get('/{id}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'destroy']);
 
             // Status management
-            Route::post('/{id}/send', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'send']);
-            Route::post('/{id}/update-to-facture-proforma', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'updateToFactureProforma']);
-            Route::post('/{id}/update-to-bon-commend', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'updateToBonCommend']);
-            Route::post('/{id}/confirm-proforma', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'confirmProforma']);
-            Route::post('/{id}/confirm-bon-commend', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'confirmBonCommend']);
+            Route::post('/{id}/send', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'send']);
+            Route::post('/{id}/update-to-facture-proforma', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'updateToFactureProforma']);
+            Route::post('/{id}/update-to-bon-commend', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'updateToBonCommend']);
+            Route::post('/{id}/confirm-proforma', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'confirmProforma']);
+            Route::post('/{id}/confirm-bon-commend', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'confirmBonCommend']);
 
             // Item management
-            Route::post('/{id}/items', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'addItem']);
-            Route::put('/{id}/items/{itemId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'updateItem']);
-            Route::delete('/{id}/items/{itemId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'removeItem']);
+            Route::post('/{id}/items', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'addItem']);
+            Route::put('/{id}/items/{itemId}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'updateItem']);
+            Route::delete('/{id}/items/{itemId}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'removeItem']);
 
             // Fournisseur assignment management
-            Route::post('/{id}/items/{itemId}/assign-fournisseur', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'assignFournisseurToItem']);
-            Route::post('/{id}/bulk-assign-fournisseurs', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'bulkAssignFournisseurs']);
-            Route::put('/{id}/items/{itemId}/assignments/{assignmentId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'updateFournisseurAssignment']);
-            Route::delete('/{id}/items/{itemId}/assignments/{assignmentId}', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'removeFournisseurAssignment']);
+            Route::post('/{id}/items/{itemId}/assign-fournisseur', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'assignFournisseurToItem']);
+            Route::post('/{id}/bulk-assign-fournisseurs', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'bulkAssignFournisseurs']);
+            Route::put('/{id}/items/{itemId}/assignments/{assignmentId}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'updateFournisseurAssignment']);
+            Route::delete('/{id}/items/{itemId}/assignments/{assignmentId}', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'removeFournisseurAssignment']);
 
             // Facture proforma creation from assignments
-            Route::post('/{id}/create-facture-proforma', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'createFactureProformaFromAssignments']);
-            Route::get('/{id}/assignment-summary', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getAssignmentSummary']);
+            Route::post('/{id}/create-facture-proforma', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'createFactureProformaFromAssignments']);
+            Route::get('/{id}/assignment-summary', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getAssignmentSummary']);
 
             // Workflow tracking
-            Route::post('/{id}/add-note', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'addWorkflowNote']);
+            Route::post('/{id}/add-note', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'addWorkflowNote']);
         });
         Route::get('products/{productId}/history', [ProductHistoryController::class, 'getProductHistory']);
-        
+
         // Inventory Audit Routes
         Route::prefix('inventory-audits')->group(function () {
             Route::get('/', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'index']);
@@ -1095,43 +1210,43 @@ Route::prefix('bon-retours')->group(function () {
             Route::get('/{inventoryAudit}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'show']);
             Route::put('/{inventoryAudit}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'update']);
             Route::delete('/{inventoryAudit}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'destroy']);
-            
+
             // Audit actions
             Route::post('/{inventoryAudit}/start', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'start']);
             Route::post('/{inventoryAudit}/complete', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'complete']);
-            
+
             // Participants
             Route::post('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'addParticipant']);
             Route::delete('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'removeParticipant']);
-            
+
             // Audit items (products)
             Route::get('/{inventoryAudit}/items', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'getItems']);
             Route::post('/{inventoryAudit}/items/bulk', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'bulkUpdateItems']);
             Route::get('/{inventoryAudit}/pdf', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'generatePDF']);
-            
+
             // Reconciliation
             Route::get('/{inventoryAudit}/analyze-discrepancies', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'analyzeDiscrepancies']);
             Route::post('/{inventoryAudit}/assign-recount', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'assignRecount']);
             Route::post('/{inventoryAudit}/finalize-reconciliation', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'finalizeReconciliation']);
-            
+
             // Recount specific routes
             Route::post('/{inventoryAudit}/recount/assign-products', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'assignProductsForRecount']);
             Route::get('/{inventoryAudit}/recount/products/{participantId}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'getRecountProducts']);
             Route::delete('/{inventoryAudit}/recount/participants/{participantId}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'removeRecount']);
             Route::post('/{inventoryAudit}/recount/complete/{participantId}', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'completeRecount']);
         });
-        
+
         // Legacy Inventory Audit Product Routes (keep for backward compatibility)
         Route::prefix('inventory-audit')->group(function () {
-            Route::get('/products', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'getProductsForAudit']);
-            Route::post('/save', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'saveAudit']);
-            Route::get('/template', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'downloadTemplate']);
-            Route::get('/export', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'exportToExcel']);
-            Route::post('/import', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'importFromExcel']);
-            Route::post('/report', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'generatePdfReport']);
-            Route::get('/history', [\App\Http\Controllers\Api\InventoryAuditProductController::class, 'getAuditHistory']);
+            Route::get('/products', [InventoryAuditProductController::class, 'getProductsForAudit']);
+            Route::post('/save', [InventoryAuditProductController::class, 'saveAudit']);
+            Route::get('/template', [InventoryAuditProductController::class, 'downloadTemplate']);
+            Route::get('/export', [InventoryAuditProductController::class, 'exportToExcel']);
+            Route::post('/import', [InventoryAuditProductController::class, 'importFromExcel']);
+            Route::post('/report', [InventoryAuditProductController::class, 'generatePdfReport']);
+            Route::get('/history', [InventoryAuditProductController::class, 'getAuditHistory']);
         });
-        
+
         // Facture Proforma Management routes
         Route::prefix('facture-proformas')->group(function () {
             // Helper endpoints (must come BEFORE parameterized routes)
@@ -1158,7 +1273,7 @@ Route::prefix('bon-retours')->group(function () {
             // Product detail management
             Route::get('/{id}/products', [FactureProformaController::class, 'getProformaProducts']);
             Route::put('/{id}/products/{productId}', [FactureProformaController::class, 'updateProductQuantity']);
-    Route::post('/{id}/cancel', [FactureProformaController::class, 'cancel']);
+            Route::post('/{id}/cancel', [FactureProformaController::class, 'cancel']);
 
             // Attachment management
             Route::post('/{id}/attachments', [FactureProformaController::class, 'uploadAttachment']);
@@ -1184,35 +1299,67 @@ Route::prefix('bon-retours')->group(function () {
             Route::put('/{planning}', [DoctorEmergencyPlanningController::class, 'update']);
             Route::delete('/{planning}', [DoctorEmergencyPlanningController::class, 'destroy']);
         });
+
+        Route::prefix('nursing-emergency-planning')->group(function () {
+            Route::get('/', [NursingEmergencyPlanningController::class, 'index']);
+            Route::post('/', [NursingEmergencyPlanningController::class, 'store']);
+            Route::get('/data/nurses', [NursingEmergencyPlanningController::class, 'getNurses']);
+            Route::get('/data/services', [NursingEmergencyPlanningController::class, 'getServices']);
+            Route::get('/overview/monthly', [NursingEmergencyPlanningController::class, 'getMonthlyOverview']);
+            Route::post('/check-conflicts', [NursingEmergencyPlanningController::class, 'checkConflicts']);
+            Route::get('/next-available-time', [NursingEmergencyPlanningController::class, 'getNextAvailableTime']);
+            Route::get('/day-overview', [NursingEmergencyPlanningController::class, 'getDayOverview']);
+            Route::post('/copy-planning', [NursingEmergencyPlanningController::class, 'copyMonthPlanning']);
+            Route::get('/print-report', [NursingEmergencyPlanningController::class, 'generatePrintReport']);
+            Route::get('/{planning}', [NursingEmergencyPlanningController::class, 'show']);
+            Route::put('/{planning}', [NursingEmergencyPlanningController::class, 'update']);
+            Route::delete('/{planning}', [NursingEmergencyPlanningController::class, 'destroy']);
+        });
         // Bon Commend Routes - Specific routes MUST come before apiResource
         Route::prefix('bon-commends')->group(function () {
             // Static routes (no ID) must come first
-            Route::get('/meta/products', [\App\Http\Controllers\BonCommendController::class, 'getProducts']);
-            Route::get('/approval-thresholds', [\App\Http\Controllers\BonCommendController::class, 'getApprovalThresholds']);
-            Route::get('/approval-thresholds/list', [\App\Http\Controllers\BonCommendController::class, 'getApprovalThresholdsList']);
-            Route::post('/create-from-facture-proforma', [\App\Http\Controllers\BonCommendController::class, 'createFromFactureProforma']);
-             Route::get('/{id}/pdf', [BonCommendController::class, 'downloadPdf']);
+            Route::get('/meta/products', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'getProducts']);
+            Route::get('/approval-thresholds', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'getApprovalThresholds']);
+            Route::get('/approval-thresholds/list', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'getApprovalThresholdsList']);
+            Route::post('/create-from-facture-proforma', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'createFromFactureProforma']);
+            Route::get('/{id}/pdf', [BonCommendController::class, 'downloadPdf']);
             Route::get('/{id}/pdf/preview', [BonCommendController::class, 'previewPdf']);
             Route::post('/{id}/pdf/save', [BonCommendController::class, 'generateAndSavePdf']);
             // Routes with IDs
-            Route::get('/{id}/download', [\App\Http\Controllers\BonCommendController::class, 'download']);
-            Route::put('/{id}/status', [\App\Http\Controllers\BonCommendController::class, 'updateStatus']);
-            Route::post('/{id}/confirm-workflow', [\App\Http\Controllers\BonCommendController::class, 'confirmWorkflow']);
-            Route::post('/{id}/submit-for-approval', [\App\Http\Controllers\BonCommendController::class, 'submitForApproval']);
-            Route::get('/{id}/check-approval-needed', [\App\Http\Controllers\BonCommendController::class, 'checkApprovalNeeded']);
+            Route::get('/{id}/download', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'download']);
+            Route::put('/{id}/status', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'updateStatus']);
+            Route::post('/{id}/confirm-workflow', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'confirmWorkflow']);
+            Route::post('/{id}/submit-for-approval', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'submitForApproval']);
+            Route::get('/{id}/check-approval-needed', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'checkApprovalNeeded']);
 
             // Attachment management
-            Route::post('/{id}/attachments', [\App\Http\Controllers\BonCommendController::class, 'uploadAttachment']);
-            Route::get('/{id}/attachments/{attachmentId}', [\App\Http\Controllers\BonCommendController::class, 'downloadAttachment']);
-            Route::delete('/{id}/attachments/{attachmentId}', [\App\Http\Controllers\BonCommendController::class, 'deleteAttachment']);
-            Route::get('/{id}/attachments/{index}/download', [\App\Http\Controllers\BonCommendController::class, 'downloadAttachment']);
+            Route::post('/{id}/attachments', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'uploadAttachment']);
+            Route::get('/{id}/attachments/{attachmentId}', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'downloadAttachment']);
+            Route::delete('/{id}/attachments/{attachmentId}', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'deleteAttachment']);
+            Route::get('/{id}/attachments/{index}/download', [\App\Http\Controllers\Purchasing\BonCommendController::class, 'downloadAttachment']);
         });
-         Route::apiResource('bon-commends', \App\Http\Controllers\BonCommendController::class);
+        Route::apiResource('bon-commends', \App\Http\Controllers\Purchasing\BonCommendController::class);
 
-     
+        // Consignment Reception Routes
+        Route::prefix('consignments')->group(function () {
+            // Static routes (no ID) must come first
+            Route::get('/supplier/{supplierId}/stats', [ConsignmentReceptionController::class, 'supplierStats'])
+                ->name('api.consignments.supplier-stats');
+
+            // Routes with IDs
+            Route::get('/{id}/uninvoiced-items', [ConsignmentReceptionController::class, 'uninvoicedItems'])
+                ->name('api.consignments.uninvoiced-items');
+            Route::post('/{id}/invoice', [ConsignmentReceptionController::class, 'createInvoice'])
+                ->name('api.consignments.create-invoice');
+            Route::get('/{id}/consumption-history', [ConsignmentReceptionController::class, 'consumptionHistory'])
+                ->name('api.consignments.consumption-history');
+            Route::post('/{id}/confirm', [ConsignmentReceptionController::class, 'confirm'])
+                ->name('api.consignments.confirm');
+        });
+        Route::apiResource('consignments', ConsignmentReceptionController::class);
+
         // API Resource routes (index, store, show, update, destroy)
-        
-    
+
         // Approval Person Management Routes
         Route::prefix('approval-persons')->group(function () {
             Route::get('/', [ApprovalPersonController::class, 'index'])->name('api.approval-persons.index');
@@ -1240,43 +1387,61 @@ Route::prefix('bon-retours')->group(function () {
         // Bon Reception Routes
         Route::prefix('bon-receptions')->group(function () {
             // Helper endpoints (must come before parameterized routes)
-            Route::get('/meta/bon-commends', [\App\Http\Controllers\BonReceptionController::class, 'getBonCommends']);
-            Route::get('/meta/stats', [\App\Http\Controllers\BonReceptionController::class, 'getStats']);
-   // New routes for surplus handling
-    Route::post('/{id}/confirm', [\App\Http\Controllers\BonReceptionController::class, 'confirmReception']);
-    Route::get('/{id}/surplus-preview', [\App\Http\Controllers\BonReceptionController::class, 'getSurplusPreview']);
+            Route::get('/meta/bon-commends', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'getBonCommends']);
+            Route::get('/meta/stats', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'getStats']);
+
+            // Download/PDF routes (must come before parameterized routes)
+            Route::get('/{id}/download', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'download']);
+            Route::get('/{id}/export', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'export']);
+
+            // New routes for surplus handling
+            Route::post('/{id}/confirm', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'confirmReception']);
+            Route::get('/{id}/surplus-preview', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'getSurplusPreview']);
+
             // Main CRUD operations
-            Route::get('/', [\App\Http\Controllers\BonReceptionController::class, 'index']);
-            Route::post('/', [\App\Http\Controllers\BonReceptionController::class, 'store']);
-            Route::get('/{id}', [\App\Http\Controllers\BonReceptionController::class, 'show']);
-            Route::put('/{id}', [\App\Http\Controllers\BonReceptionController::class, 'update']);
-            Route::delete('/{id}', [\App\Http\Controllers\BonReceptionController::class, 'destroy']);
+            Route::get('/', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'index']);
+            Route::post('/', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'store']);
+            Route::get('/{id}', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'show']);
+            Route::put('/{id}', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'update']);
+            Route::delete('/{id}', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'destroy']);
 
             // Special operations
-            Route::post('/create-from-bon-commend', [\App\Http\Controllers\BonReceptionController::class, 'createFromBonCommend']);
-            Route::post('/{id}/update-status', [\App\Http\Controllers\BonReceptionController::class, 'updateStatus']);
+            Route::post('/create-from-bon-commend', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'createFromBonCommend']);
+            Route::post('/{id}/update-status', [\App\Http\Controllers\Purchasing\BonReceptionController::class, 'updateStatus']);
         });
 
-      
-        Route::prefix('bon-entrees')->group(function () {
-            // CRUD Routes
-            Route::get('/', [BonEntreeController::class, 'index']);
-            Route::post('/', [BonEntreeController::class, 'store']);
-            Route::get('/{id}', [BonEntreeController::class, 'show']);
-            Route::put('/{id}', [BonEntreeController::class, 'update']);
-            Route::delete('/{id}', [BonEntreeController::class, 'destroy']);
+        // Service Group Product Pricing Routes
+        Route::prefix('service-groups/{serviceGroupId}/pricing')->group(function () {
+            // Get all pricing for a service group
+            Route::get('/', [ServiceGroupProductPricingController::class, 'indexByServiceGroup']);
 
-            // Special Routes
-            Route::get('/from-reception/{bonReceptionId}', [BonEntreeController::class, 'getFromBonReception']);
-            Route::patch('/{id}/validate', [BonEntreeController::class, 'validate']);
-            Route::patch('/{id}/transfer', [BonEntreeController::class, 'transfer']);
-            Route::patch('/{id}/cancel', [BonEntreeController::class, 'cancel']);
+            // Get/Update pricing for specific product
+            Route::get('/product/{productId}', [ServiceGroupProductPricingController::class, 'show']);
+            Route::post('/product/{productId}', [ServiceGroupProductPricingController::class, 'store']);
 
-            // Item Management
-            Route::post('/{id}/items', [BonEntreeController::class, 'addItem']);
-            Route::put('/{id}/items/{itemId}', [BonEntreeController::class, 'updateItem']);
-            Route::delete('/{id}/items/{itemId}', [BonEntreeController::class, 'removeItem']);
+            // Price history
+            Route::get('/product/{productId}/history', [ServiceGroupProductPricingController::class, 'history']);
+
+            // Bulk operations
+            Route::post('/bulk-update', [ServiceGroupProductPricingController::class, 'bulkUpdate']);
+
+            // CSV Import/Export
+            Route::get('/export', [ServiceGroupProductPricingController::class, 'export']);
+            Route::post('/import', [ServiceGroupProductPricingController::class, 'import']);
+
+            // Reports
+            Route::get('/report', [ServiceGroupProductPricingController::class, 'report']);
         });
+
+        // Service Group Pricing - Batch operations
+        Route::prefix('service-group-pricing')->group(function () {
+            Route::get('/product/{productId}/by-groups', [ServiceGroupProductPricingController::class, 'getProductPricingByGroups']);
+            Route::post('/batch-update', [ServiceGroupProductPricingController::class, 'batchUpdatePricing']);
+            Route::post('/update', [ServiceGroupProductPricingController::class, 'updateSinglePricing']);
+        });
+
+        // Delete specific pricing record
+        Route::delete('/pricing/{pricingId}', [ServiceGroupProductPricingController::class, 'destroy']);
 
         // Purchasing Products routes (unified products from both stock and pharmacy)
         Route::prefix('purchasing')->group(function () {
@@ -1285,10 +1450,45 @@ Route::prefix('bon-retours')->group(function () {
             Route::get('products/{id}', [PurchasingProductController::class, 'show']); // Get single product
             Route::put('products/{id}', [PurchasingProductController::class, 'update']); // Update product
             Route::delete('products/{id}', [PurchasingProductController::class, 'destroy']); // Delete product
+
+            // Bon Entree Routes (moved inside purchasing prefix)
+            Route::prefix('bon-entrees')->group(function () {
+                // CRUD Routes
+                Route::get('/', [BonEntreeController::class, 'index']);
+                Route::post('/', [BonEntreeController::class, 'store']);
+
+                // Meta routes (MUST BE BEFORE /{id} to avoid route conflict)
+                Route::get('meta/stats', [BonEntreeController::class, 'getStats']);
+
+                // Pricing Information (MUST BE BEFORE /{id} to avoid route conflict)
+                Route::get('product/{productId}/pricing-info', [BonEntreeController::class, 'getProductPricingInfo']);
+
+                // Special Routes (BEFORE /{id})
+                Route::get('from-reception/{bonReceptionId}', [BonEntreeController::class, 'getFromBonReception']);
+
+                // CRUD Routes with ID
+                Route::get('/{id}', [BonEntreeController::class, 'show']);
+                Route::put('/{id}', [BonEntreeController::class, 'update']);
+                Route::delete('/{id}', [BonEntreeController::class, 'destroy']);
+
+                // More Special Routes
+                Route::get('/{id}/services-with-storages', [BonEntreeController::class, 'getServicesWithStorages']);
+                Route::patch('/{id}/validate', [BonEntreeController::class, 'validate']);
+                Route::patch('/{id}/transfer', [BonEntreeController::class, 'transfer']);
+                Route::patch('/{id}/cancel', [BonEntreeController::class, 'cancel']);
+
+                // Ticket/Label Generation
+                Route::get('/{id}/generate-tickets', [BonEntreeController::class, 'generateTickets']);
+
+                // Item Management
+                Route::post('/{id}/items', [BonEntreeController::class, 'addItem']);
+                Route::put('/{id}/items/{itemId}', [BonEntreeController::class, 'updateItem']);
+                Route::delete('/{id}/items/{itemId}', [BonEntreeController::class, 'removeItem']);
+            });
         });
 
-        // Old stock routes commented out to avoid conflicts with pharmacy routes
-        Route::apiResource('products', \App\Http\Controllers\Stock\ProductController::class)->withoutMiddleware(['auth:sanctum']);
+        // Stock Products Paginated endpoint for infinite scroll
+        Route::get('products-paginated', [\App\Http\Controllers\Stock\ProductController::class, 'paginated'])->withoutMiddleware(['auth:sanctum']);
 
         // Custom product routes
         Route::get('products/{id}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
@@ -1296,9 +1496,12 @@ Route::prefix('bon-retours')->group(function () {
         Route::get('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'getSettings']);
         Route::post('products/{productId}/settings', [\App\Http\Controllers\Stock\ProductController::class, 'saveSettings']);
         Route::post('products/bulk-update-approval', [\App\Http\Controllers\Stock\ProductController::class, 'bulkUpdateApproval'])->name('api.products.bulk-update-approval');
-        Route::get('products/{productId}/supplier-pricing', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getSupplierPricingForProduct']);
-        Route::get('products/{productId}/supplier/{supplierId}/history', [\App\Http\Controllers\ServiceDemandPurchasingController::class, 'getDetailedSupplierHistory']);
+        Route::get('products/{productId}/supplier-pricing', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getSupplierPricingForProduct']);
+        Route::get('products/{productId}/supplier/{supplierId}/history', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getDetailedSupplierHistory']);
         Route::get('products/{productId}/purchase-history', [\App\Http\Controllers\Stock\ProductController::class, 'getHistory']);
+
+        // Pharmacy product pricing routes
+        Route::get('pharmacy-products/{productId}/pricing-history', [\App\Http\Controllers\Purchasing\ServiceDemandPurchasingController::class, 'getPharmacyProductPricingHistory']);
 
         Route::apiResource('stockages', \App\Http\Controllers\Stock\StockageController::class);
         //  Custom inventory routes must come BEFORE the resource route
@@ -1306,7 +1509,7 @@ Route::prefix('bon-retours')->group(function () {
         Route::get('inventory/service-stock', [\App\Http\Controllers\Inventory\InventoryController::class, 'getServiceStock']);
         Route::post('inventory/{inventory}/adjust', [\App\Http\Controllers\Inventory\InventoryController::class, 'adjustStock']);
         Route::post('inventory/{inventory}/transfer', [\App\Http\Controllers\Inventory\InventoryController::class, 'transferStock']);
-        
+
         // Inventory Audit routes
         Route::prefix('inventory-audits')->group(function () {
             Route::get('/my-audits', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'myAudits']);
@@ -1314,19 +1517,19 @@ Route::prefix('bon-retours')->group(function () {
             Route::delete('/{inventoryAudit}/participants', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'removeParticipant']);
             Route::post('/{inventoryAudit}/start', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'start']);
             Route::post('/{inventoryAudit}/complete', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'complete']);
-            
+
             // Audit Items routes
             Route::get('/{inventoryAudit}/items', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'getItems']);
             Route::post('/{inventoryAudit}/items/bulk', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'bulkUpdateItems']);
             Route::get('/{inventoryAudit}/pdf', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'generatePdf']);
-            
+
             // Reconciliation routes
             Route::get('/{inventoryAudit}/analyze-discrepancies', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'analyzeDiscrepancies']);
             Route::post('/{inventoryAudit}/assign-recount', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'assignRecount']);
             Route::post('/{inventoryAudit}/finalize-reconciliation', [\App\Http\Controllers\Inventory\InventoryAuditController::class, 'finalizeReconciliation']);
         });
         Route::apiResource('inventory-audits', \App\Http\Controllers\Inventory\InventoryAuditController::class);
-        
+
         Route::apiResource('categories', \App\Http\Controllers\Stock\CategoryController::class);
 
         // Stock Movement routes
@@ -1384,7 +1587,14 @@ Route::prefix('bon-retours')->group(function () {
             Route::put('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'update']);
             Route::delete('product-settings/{serviceId}/{productName}/{productForme}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'destroy']);
             Route::get('product-settings/{serviceId}', [\App\Http\Controllers\Stock\ServiceProductSettingController::class, 'getByService']);
-           Route::apiResource('reserves', ReserveController::class);
+
+            // Reserve Routes - No authorization required (accessible to all authenticated users)
+            Route::get('reserves', [ReserveController::class, 'index']);
+            Route::post('reserves', [ReserveController::class, 'store']);
+            Route::get('reserves/{reserve}', [ReserveController::class, 'show']);
+            Route::put('reserves/{reserve}', [ReserveController::class, 'update']);
+            Route::patch('reserves/{reserve}', [ReserveController::class, 'update']);
+            Route::delete('reserves/{reserve}', [ReserveController::class, 'destroy']);
 
             // Product Settings Routes (per product)
             Route::get('products/{product}/details', [\App\Http\Controllers\Stock\ProductController::class, 'getDetails']);
@@ -1396,6 +1606,34 @@ Route::prefix('bon-retours')->group(function () {
             Route::delete('products/{productId}/settings/{key}', [\App\Http\Controllers\Stock\ProductGlobalSettingsController::class, 'destroy']);
 
         });
+
+        // Admission Routes
+        Route::get('/admissions', [AdmissionController::class, 'index']);
+        Route::post('/admissions', [AdmissionController::class, 'store']);
+        Route::get('/admissions/statistics', [AdmissionController::class, 'statistics']);
+        Route::get('/admissions/active', [AdmissionController::class, 'active']);
+        Route::get('/admissions/{admission}', [AdmissionController::class, 'show']);
+        Route::patch('/admissions/{admission}', [AdmissionController::class, 'update']);
+        Route::delete('/admissions/{admission}', [AdmissionController::class, 'destroy']);
+        Route::post('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge']);
+
+        // Admission Fiche Navette Routes
+        Route::post('/admissions/{admission}/fiche-navette', [AdmissionController::class, 'getOrCreateFicheNavette']);
+        Route::get('/admissions/{admission}/fiche-navette', [AdmissionController::class, 'getFicheNavette']);
+
+        // Admission Procedure Routes
+        Route::get('/admissions/{admission}/procedures', [AdmissionProcedureController::class, 'index']);
+        Route::post('/admissions/{admission}/procedures', [AdmissionProcedureController::class, 'store']);
+        Route::get('/admissions/{admission}/procedures/{procedure}', [AdmissionProcedureController::class, 'show']);
+        Route::patch('/admissions/{admission}/procedures/{procedure}', [AdmissionProcedureController::class, 'update']);
+        Route::post('/admissions/{admission}/procedures/{procedure}/complete', [AdmissionProcedureController::class, 'complete']);
+        Route::post('/admissions/{admission}/procedures/{procedure}/cancel', [AdmissionProcedureController::class, 'cancel']);
+
+        // Admission Document Routes
+        Route::post('/admissions/{admission}/documents', [AdmissionDocumentController::class, 'store']);
+        Route::get('/admissions/{admission}/documents/{document}/download', [AdmissionDocumentController::class, 'download']);
+        Route::delete('/admissions/{admission}/documents/{document}', [AdmissionDocumentController::class, 'destroy']);
+        Route::patch('/admissions/{admission}/documents/{document}/verify', [AdmissionDocumentController::class, 'verify']);
     }); // End of /api group
 
     // The main application entry point for authenticated users

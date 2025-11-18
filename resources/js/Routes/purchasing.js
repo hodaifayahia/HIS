@@ -125,6 +125,12 @@ const purchasingRoutes = [{
             component: () => import('../Pages/Apps/Purchasing/BonRetourListItem.vue'),
             props: (route) => ({ bonRetourId: parseInt(route.params.id), mode: 'edit' })
         },
+        // Consignment Routes
+        {
+            path: 'consignments',
+            name: 'purchasing.consignments',
+            component: () => import('../Components/Purchasing/ConsignmentDashboard.vue'),
+        },
         // Product History Route
         {
             path: 'products/:productId/history',

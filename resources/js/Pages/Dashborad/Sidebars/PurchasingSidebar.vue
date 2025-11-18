@@ -65,12 +65,6 @@ const hasPermission = (requiredRoles) => {
                 </ul>
             </li>
             <li class="nav-item">
-                <router-link to="/admin/products" active-class="active" class="nav-link">
-                    <i class="nav-icon fas fa-box"></i>
-                    <p>Stock Products</p>
-                </router-link>
-            </li>
-            <li class="nav-item">
                 <router-link to="/purchasing/products" active-class="active" class="nav-link">
                     <i class="nav-icon fas fa-shopping-bag"></i>
                     <p>All Products (Stock & Pharmacy)</p>
@@ -133,7 +127,12 @@ const hasPermission = (requiredRoles) => {
                             <p>Bon Retour List</p>
                         </router-link>
                     </li>
-                   
+                    <li class="nav-item">
+                        <router-link to="/purchasing/consignments" class="nav-link">
+                            <i class="nav-icon fas fa-handshake"></i>
+                            <p>Consignments</p>
+                        </router-link>
+                    </li>
                 </ul>
             </li>
 

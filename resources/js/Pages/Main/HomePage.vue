@@ -256,10 +256,10 @@ const allApps = ref([
   },
   {
     id: 15,
-    name: 'Admission',
+    name: 'admissions',
     icon: 'fas fa-hospital-user',
     color: '#EF4444',
-    route: '/admin/admission',
+    route: '/admissions',
     category: 'clinical'
   },
   {
@@ -278,6 +278,7 @@ const allApps = ref([
     route: '/nursing',
     category: 'clinical'
   },
+  
   {
     id: 19,
     name: 'Radiology',
@@ -316,6 +317,14 @@ const allApps = ref([
     icon: 'fas fa-prescription-bottle-alt',
     color: '#2563EB',
     route: '/pharmacy',
+    category: 'clinical'
+  },
+  {
+    id: 40,
+    name: 'External Prescriptions',
+    icon: 'fas fa-prescription',
+    color: '#6366F1',
+    route: '/external-prescriptions/dashboard',
     category: 'clinical'
   },
   {
@@ -382,14 +391,14 @@ const allApps = ref([
     route: '/admin/archive',
     category: 'administrative'
   },
-  {
-    id: 32,
-    name: 'Human Resources',
-    icon: 'fas fa-id-badge',
-    color: '#EF4444',
-    route: '/admin/hr',
-    category: 'administrative'
-  },
+  // {
+  //   id: 32,
+  //   name: 'Human Resources',
+  //   icon: 'fas fa-id-badge',
+  //   color: '#EF4444',
+  //   route: '/admin/hr',
+  //   category: 'administrative'
+  // },
   {
     id: 33,
     name: 'Dashboard',
@@ -440,10 +449,10 @@ const allApps = ref([
   },
   {
     id: 39,
-    name: 'Inventory Audit',
+    name: 'planning',
     icon: 'fas fa-clipboard-check',
     color: '#14B8A6',
-    route: '/Inventory-audit',
+    route: '/planning/dashboard',
     category: 'administrative'
   },
 ]);
@@ -522,6 +531,7 @@ const getAppDescription = (appName) => {
     'Laboratory': 'Lab tests and results',
     'Operating Room': 'Surgery scheduling and management',
     'Pharmacy': 'Medication dispensing',
+    'External Prescriptions': 'Doctor prescriptions for external pharmacies',
     'Catering': 'Food service management',
     'Inventory': 'Stock and supply management',
     'Purchasing': 'Procurement and orders',

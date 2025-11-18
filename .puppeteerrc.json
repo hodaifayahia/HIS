@@ -1,0 +1,8 @@
+{
+  "cacheDirectory": "/home/sail/.cache/puppeteer",
+  "downloadHost": "https://dl.google.com",
+  "skipDownload": false,
+  "experiments": {
+    "macArmChromiumRollout": true
+  }
+}

@@ -23,6 +23,9 @@ import NursingRoutes from './Nursing'
 import ModalityRoutes from './modality.js' // 👈 NEW IMPORT
 import FacturationRoutes from './facturation.js' // 👈 NEW IMPORT
 import InventoryAuditProductRoutes from './inventoryAudit.js' // 👈 NEW IMPORT
+import admissionRoutes from './admission.js' // 👈 NEW IMPORT
+import externalPrescriptionRoutes from './externalPrescriptions.js' // 👈 NEW IMPORT
+import planningRoutes from './planning.js' // 👈 NEW IMPORT
 
 
 
@@ -50,6 +53,9 @@ export const allRoutes = [
     ...ModalityRoutes,
     ...FacturationRoutes,
     ...InventoryAuditProductRoutes,
+    ...admissionRoutes,
+    ...externalPrescriptionRoutes,
+    ...planningRoutes,
 
 
 

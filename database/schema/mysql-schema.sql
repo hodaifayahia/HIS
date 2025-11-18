@@ -2398,8 +2398,6 @@ CREATE TABLE `pharmacy_stock_movements` (
   `approved_at` timestamp NULL DEFAULT NULL,
   `executed_at` timestamp NULL DEFAULT NULL,
   `expected_delivery_date` date DEFAULT NULL,
-  `transfer_initiated_at` timestamp NULL DEFAULT NULL,
-  `transfer_initiated_by` bigint unsigned DEFAULT NULL,
   `delivery_confirmed_at` timestamp NULL DEFAULT NULL,
   `delivery_confirmed_by` bigint unsigned DEFAULT NULL,
   `delivery_status` enum('good','manque','mixed','damaged') COLLATE utf8mb4_unicode_ci DEFAULT NULL,

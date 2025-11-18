@@ -19,6 +19,7 @@ return new class extends Migration
             $table->timestamp('reserved_at')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+            $table->softDeletes();
             $table->timestamps();
         });
     }
