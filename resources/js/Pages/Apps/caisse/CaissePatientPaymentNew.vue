@@ -11,6 +11,7 @@ import TransactionsOverview from '@/Components/Caisse/TransactionsOverview.vue'
 import GlobalPayment from '@/Components/Caisse/GlobalPayment.vue'
 import PrestationCard from '@/Components/Caisse/PrestationCard.vue'
 import PaymentModals from '@/Components/Caisse/PaymentModals.vue'
+import SupplementModal from '@/Components/Caisse/SupplementModal.vue'
 
 // PrimeVue Components
 import ProgressSpinner from 'primevue/progressspinner'
@@ -87,6 +88,11 @@ const refundAuthMap = ref({});
 const RefoundAmount = ref([]);
 // Permission: whether the authenticated user can perform refunds
 const userCanRefund = ref(false)
+
+// Supplement state
+const showSupplementModal = ref(false)
+const selectedItemForSupplement = ref(null)
+const itemSupplements = ref({}) // Store supplements per item
 
 // Summary items for the top table
 const summaryItems = computed(() => {
@@ -671,13 +677,16 @@ const payItem = async (idx) => {
     amount: amount,
     transaction_type: 'payment',
     payment_method: mapPaymentMethod(it._pay_method || globalPayment.method || 'cash'),
-    notes: `Payment for fiche item ${it.id}`
+    notes: `Payment for fiche item ${it.id}`,
+    supplements: getSupplementsForItem(it.id) // Include supplements
   }
 
   try {
     const res = await axios.post('/api/financial-transactions', payload)
     const data = res?.data ?? {}
     if (data?.success ?? (data?.data ? true : false)) {
+      // Clear supplements for this item after successful payment
+      delete itemSupplements.value[it.id]
       await loadItems()
     } else {
       toast.add({ severity: 'error', summary: 'Error', detail: data.message || 'Payment failed', life: 4000 })
@@ -743,6 +752,37 @@ const payDependency = async (parentItem, dep) => {
     const msg = e.response?.data?.message ?? 'Dependency payment failed'
     toast.add({ severity: 'error', summary: 'Error', detail: msg, life: 4000 })
   }
+}
+
+const openSupplementModal = (item) => {
+  selectedItemForSupplement.value = item
+  showSupplementModal.value = true
+}
+
+const handleSupplementsAdded = (supplements) => {
+  if (!selectedItemForSupplement.value) return
+  
+  // Store supplements for this item
+  itemSupplements.value[selectedItemForSupplement.value.id] = supplements
+  
+  toast.add({
+    severity: 'success',
+    summary: 'Supplements Added',
+    detail: `${supplements.length} supplement(s) added to ${selectedItemForSupplement.value.display_name || 'prestation'}`,
+    life: 3000
+  })
+  
+  showSupplementModal.value = false
+  selectedItemForSupplement.value = null
+}
+
+const getSupplementsForItem = (itemId) => {
+  return itemSupplements.value[itemId] || []
+}
+
+const getTotalSupplementsForItem = (itemId) => {
+  const supplements = getSupplementsForItem(itemId)
+  return supplements.reduce((sum, supp) => sum + (supp.amount || 0), 0)
 }
 
 const payGlobal = async () => {
@@ -883,6 +923,7 @@ onMounted(async () => {
                 @toggle-transactions="item._transactionsVisible = !item._transactionsVisible"
                 @open-update="openUpdateModal"
                 @open-refund="(tx) => openRefundModal(tx, item)"
+                @open-supplement-modal="openSupplementModal"
               />
 
               <div class="tw-mt-6 tw-flex tw-justify-end">
@@ -920,6 +961,14 @@ onMounted(async () => {
         @update:update-notes="updateData.notes = $event"
         @close-update="closeUpdateModal"
         @process-update="processUpdate"
+      />
+
+      <!-- Supplement Modal -->
+      <SupplementModal
+        v-model:visible="showSupplementModal"
+        :prestation-name="selectedItemForSupplement?.display_name || selectedItemForSupplement?.prestation?.name || 'Prestation'"
+        :base-price="selectedItemForSupplement?.final_price || 0"
+        @supplements-added="handleSupplementsAdded"
       />
 
       <Toast />

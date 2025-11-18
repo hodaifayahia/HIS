@@ -25,6 +25,7 @@ const errors = ref({});
 const specializations = ref({});
 const showPassword = ref(false);
 const isLoading = ref(false);
+const loading = ref(false);
 const patients_based_on_time = ref(props.doctorData.patients_based_on_time);
 const numberOfPatients = ref(
   Array.isArray(props.doctorData?.schedules)
@@ -472,7 +473,7 @@ onMounted(() => {
 
                 <div v-if="doctor.patients_based_on_time" class="col-md-6 mb-4">
                   <label for="time_slot" class="form-label fs-5">Time Slot for Patients</label>
-                  <input v-model="doctor.time_slot" class="form-control form-control-md"
+                  <input v-model.number="doctor.time_slot" type="number" class="form-control form-control-md"
                     placeholder="Select time slot" />
                 </div>
               </div>
@@ -531,14 +532,14 @@ onMounted(() => {
               <div class="row">
                 <div class="col-12" v-if="doctor.frequency === 'Daily' || doctor.frequency === 'Weekly'">
                   <DoctorSchedules :doctorId="doctor.id" :existingSchedules="doctor.schedules"
-                    :patients_based_on_time="doctor.patients_based_on_time" :time_slot="doctor.time_slot"
+                    :patients_based_on_time="Boolean(doctor.patients_based_on_time)" :time_slot="Number(doctor.time_slot) || 0"
                     v-model="doctor.schedules" @schedulesUpdated="handleSchedulesUpdated" />
                 </div>
                 <div class="col-md-12 mb-4" v-if="doctor.frequency === 'Monthly'">
                   <label class="form-label fs-5">Custom Dates</label>
                   <CustomDates :doctorId="doctor.id" :existingSchedules="doctor.schedules" v-model="doctor.customDates"
-                    :patients_based_on_time="doctor.patients_based_on_time" :time_slot="doctor.time_slot"
-                    :number_of_patients_per_day="doctor.number_of_patients_per_day"
+                    :patients_based_on_time="Boolean(doctor.patients_based_on_time)" :time_slot="Number(doctor.time_slot) || 0"
+                    :number_of_patients_per_day="Number(doctor.number_of_patients_per_day) || 0"
                     @schedulesUpdated="handlecustomDatesUpdated" />
                 </div>
 

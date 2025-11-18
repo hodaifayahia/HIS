@@ -7,7 +7,7 @@
   <title>AdminLTE 3 | Starter</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
   @if(app()->environment('local'))
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ws://10.47.0.26:5173 ws://10.47.0.26:5174 wss://10.47.0.26:5173 wss://10.47.0.26:5174 ws: wss: http: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://10.47.0.26:5173 http://10.47.0.26:5174 https://cdn.tailwindcss.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ws://10.47.0.26:5173 ws://10.47.0.26:5174 wss://10.47.0.26:5173 wss://10.47.0.26:5174 ws://127.0.0.1:5207 wss://127.0.0.1:5207 ws: wss: http: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://10.47.0.26:5173 http://10.47.0.26:5174;">
   @endif
 
   @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -45,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
 </script>
   <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -55,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     </script>
+
 </body>
 
 

@@ -295,7 +295,7 @@ const handlePatientsChange = (day, shift, event) => {
                   <div class="tw-flex tw-items-center tw-mb-4">
                     <Checkbox 
                       :inputId="'morning-' + day"
-                      binary="true"
+                      :binary="true"
                       v-model="schedules[day].morning.isActive"
                       class="tw-mr-3"
                     />
@@ -356,7 +356,7 @@ const handlePatientsChange = (day, shift, event) => {
                   <div class="tw-flex tw-items-center tw-mb-4">
                     <Checkbox 
                       :inputId="'afternoon-' + day"
-                       binary="true"
+                      :binary="true"
                       v-model="schedules[day].afternoon.isActive"
                       class="tw-mr-3"
                     />

@@ -118,6 +118,17 @@
         <div v-if="paidAmount > 0" class="tw-text-xs tw-text-gray-500 tw-bg-green-50 tw-px-2 tw-py-1 tw-rounded">
           Paid: {{ formatCurrency(paidAmount) }}
         </div>
+        
+        <!-- Add Supplement Button -->
+        <div class="tw-mt-3 tw-pt-3 tw-border-t tw-border-gray-200">
+          <Button
+            label="Add Supplement"
+            icon="pi pi-plus-circle"
+            @click="$emit('open-supplement-modal', item)"
+            class="p-button-sm p-button-outlined p-button-info tw-w-full"
+            v-tooltip.top="'Add extra charges to this prestation'"
+          />
+        </div>
       </div>
     </div>
 
@@ -282,6 +293,15 @@
                   {{ getTransactionTypeText(tx.transaction_type) }}
                 </span>
                 <span class="tw-font-bold tw-text-lg tw-text-gray-800">{{ formatCurrency(tx.amount) }}</span>
+                
+                <!-- Has Supplements Tag -->
+                <Tag 
+                  v-if="tx.has_supplements" 
+                  severity="warning"
+                  value="Has Supplements"
+                  class="tw-shadow-sm"
+                />
+                
                 <div class="tw-flex tw-items-center tw-gap-1 tw-text-gray-500 tw-text-sm tw-bg-gray-100 tw-px-2 tw-py-1 tw-rounded-full">
                   <i class="pi pi-credit-card tw-text-xs"></i>
                   <span>{{ tx.payment_method }}</span>
@@ -295,6 +315,19 @@
               <div class="tw-flex tw-items-center tw-gap-2 tw-text-xs tw-text-gray-500 tw-mb-1">
                 <i class="pi pi-calendar tw-text-xs"></i>
                 <span>{{ new Date(tx.created_at).toLocaleString() }}</span>
+              </div>
+              
+              <!-- Supplements Details -->
+              <div v-if="tx.has_supplements && tx.supplements && tx.supplements.length" class="tw-mt-2 tw-space-y-1 tw-bg-amber-50 tw-rounded-lg tw-p-2 tw-border tw-border-amber-200">
+                <div class="tw-text-xs tw-font-semibold tw-text-amber-800 tw-flex tw-items-center tw-gap-1">
+                  <i class="pi pi-plus-circle tw-text-xs"></i>
+                  Supplements:
+                </div>
+                <div v-for="supp in tx.supplements" :key="supp.id" class="tw-text-xs tw-text-amber-700 tw-ml-2">
+                  <span class="tw-font-medium">{{ supp.name }}</span>
+                  <span class="tw-text-amber-600">{{ formatCurrency(supp.amount) }}</span>
+                  <span v-if="supp.reason" class="tw-text-gray-600">({{ supp.reason }})</span>
+                </div>
               </div>
               
               <div v-if="tx.notes" class="tw-text-sm tw-text-gray-600 tw-bg-gray-100 tw-px-3 tw-py-2 tw-rounded-lg tw-mt-2">
@@ -483,7 +516,8 @@ const emit = defineEmits([
   'toggle-transactions',
   'open-update',
   'open-refund',
-  'show-overpayment'
+  'show-overpayment',
+  'open-supplement-modal'
 ])
 
 const { formatCurrency } = useCurrencyFormatter()

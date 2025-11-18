@@ -346,7 +346,7 @@ const handleSubmit = async (values, { setErrors }) => {
     } else if (props.NextAppointment) {
       emit('close');
     } else {
-      router.push({ name: 'admin.appointments', params: { doctorId: form.doctor_id } });
+      router.push({ name: 'admin.appointments.list', params: { id: form.doctor_id, specializationId: props.specialization_id || specializationId.value } });
     }
   } catch (error) {
     console.error(`${props.editMode ? 'Error updating appointment:' : 'Error creating appointment:'}`, error);

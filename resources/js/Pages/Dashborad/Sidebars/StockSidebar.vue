@@ -7,7 +7,7 @@ const authStore = useAuthStore();
 const user = computed(() => authStore.user);
 
 const appDetails = {
-    name: 'Gestion de Stock',
+    name: 'Stock Management',
     icon: '/storage/stock-icon.png', // A new icon path for stock management
     color: '#',
     backRoute: '/home'
@@ -37,7 +37,7 @@ const hasPermission = (requiredRoles) => {
             <li class="nav-item">
                 <router-link to="/stock/dashboard" active-class="active" class="nav-link">
                     <i class="nav-icon fas fa-cubes"></i>
-                    <p>Tableau de bord Stock</p>
+                    <p>Stock Dashboard</p>
                 </router-link>
             </li>
             <!-- Products Management -->
@@ -45,7 +45,7 @@ const hasPermission = (requiredRoles) => {
                 <a href="#" class="nav-link" @click.prevent="toggleProducts">
                     <i class="nav-icon fas fa-box"></i>
                     <p>
-                        Gestion des Produits
+                        Product Management
                         <i class="right fas fa-angle-left"></i>
                     </p>
                 </a>
@@ -53,38 +53,43 @@ const hasPermission = (requiredRoles) => {
                     <li class="nav-item">
                         <router-link to="/stock/productList" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Liste des Produits</p>
+                            <p>Product List</p>
                         </router-link>
                     </li>
                     <li class="nav-item">
                         <router-link to="/stock/services-stock" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Services</p>
+                            <p>Service Stock</p>
                         </router-link>
                     </li>
-                    <li class="nav-item">
-                        <router-link to="/stock/product-reserves" active-class="active" class="nav-link">
-                            <i class="fas fa-bookmark nav-icon"></i>
-                            <p>Reservations</p>
-                        </router-link>
-                    </li>
-
-                    <li class="nav-item">
-                        <router-link to="/stock/stockages" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Stockages</p>
-                        </router-link>
-                    </li>
+            <li class="nav-item">
+                <router-link to="/stock/product-reserves" active-class="active" class="nav-link">
+                    <i class="fas fa-bookmark nav-icon"></i>
+                    <p>Product Reserves</p>
+                </router-link>
+            </li>
+            <li class="nav-item">
+                <router-link to="/stock/selling-settings" active-class="active" class="nav-link">
+                    <i class="fas fa-percentage nav-icon"></i>
+                    <p>Selling Settings</p>
+                </router-link>
+            </li>
+            <li class="nav-item">
+                <router-link to="/stock/stockages" active-class="active" class="nav-link">
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Storages</p>
+                </router-link>
+            </li>
                     <li class="nav-item">
                         <router-link to="/stock/requests" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Mes Demandes</p>
+                            <p>My Requests</p>
                         </router-link>
                     </li>
                     <li class="nav-item">
                         <router-link to="/stock/approvals" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Approbations</p>
+                            <p>Approvals</p>
                         </router-link>
                     </li>
 
@@ -92,42 +97,14 @@ const hasPermission = (requiredRoles) => {
             </li>
 
             <!-- Purchasing Management -->
-            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isSuppliersOpen }">
-                <a href="#" class="nav-link" @click.prevent="toggleSuppliers">
-                    <i class="nav-icon fas fa-truck"></i>
-                    <p>
-                        Purchasing Management
-                        <i class="right fas fa-angle-left"></i>
-                    </p>
-                </a>
-                <ul class="nav nav-treeview" v-show="isSuppliersOpen">
-                    <li class="nav-item">
-                        <router-link to="/stock/facture-proforma" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Orders & Proformas</p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/purchasing/fournisseurs" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Suppliers</p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/purchasing/service-demands" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Service Demands</p>
-                        </router-link>
-                    </li>
-                </ul>
-            </li>
+            
 
             <!-- Reports Section -->
             <!-- <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isReportsOpen }">
                 <a href="#" class="nav-link" @click.prevent="toggleReports">
                     <i class="nav-icon fas fa-chart-pie"></i>
                     <p>
-                        Rapports
+                        Reports
                         <i class="right fas fa-angle-left"></i>
                     </p>
                 </a>
@@ -135,13 +112,13 @@ const hasPermission = (requiredRoles) => {
                     <li class="nav-item">
                         <router-link to="/stock/reports/inventory-status" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Statut d'Inventaire</p>
+                            <p>Inventory Status</p>
                         </router-link>
                     </li>
                     <li class="nav-item">
                         <router-link to="/stock/reports/stock-value" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Valeur du Stock</p>
+                            <p>Stock Value</p>
                         </router-link>
                     </li>
                 </ul>

@@ -5,6 +5,7 @@
 namespace App\Services\Caisse;
 
 use App\Models\Caisse\FinancialTransaction;
+use App\Models\Caisse\Supplement;
 use App\Models\Reception\ficheNavetteItem;
 use App\Models\Reception\ItemDependency;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -24,6 +25,7 @@ class FinancialTransactionService
             'patient',
             'cashier',
             'itemDependency',
+            'supplements'
         ])
             ->latest('created_at');
 
@@ -540,12 +542,15 @@ class FinancialTransactionService
             $isDependencyPayment = $data['_is_dependency_payment'] ?? false;
             $dependencyId = $data['_dependency_id'] ?? null;
             $dependencyPrestationId = $data['_dependency_prestation_id'] ?? null;
+            
+            // Extract supplements before processing
+            $supplements = $data['supplements'] ?? [];
 
             // Remove internal flags and raw items payload to avoid mass-assignment errors
             $hasDependencyFlags = $isDependencyPayment || ! empty($data['item_dependency_id']);
 
             // keep item_dependency_id in payload but remove transient internal flags
-            unset($data['_is_dependency_payment'], $data['_dependency_id'], $data['_dependency_prestation_id']);
+            unset($data['_is_dependency_payment'], $data['_dependency_id'], $data['_dependency_prestation_id'], $data['supplements']);
             if (isset($data['items'])) {
                 unset($data['items']);
             }
@@ -557,6 +562,18 @@ class FinancialTransactionService
 
             // Create the financial transaction (item_dependency_id, if present, will be persisted)
             $transaction = FinancialTransaction::create($data);
+
+            // Create supplements for this transaction
+            if (!empty($supplements) && is_array($supplements)) {
+                foreach ($supplements as $supplement) {
+                    Supplement::create([
+                        'financial_transaction_id' => $transaction->id,
+                        'name' => $supplement['name'],
+                        'amount' => $supplement['amount'],
+                        'reason' => $supplement['reason'] ?? null,
+                    ]);
+                }
+            }
 
             // Restore dependency flags for processing
             $transaction->_is_dependency_payment = $isDependencyPayment;
@@ -594,7 +611,7 @@ class FinancialTransactionService
 
             // Corrected return statement
             return [
-                'transaction' => $transaction->load(['ficheNavetteItem', 'patient', 'cashier']),
+                'transaction' => $transaction->load(['ficheNavetteItem', 'patient', 'cashier', 'supplements']),
                 'updated_items' => $updatedItems,
             ]; // <-- Semicolon and closing bracket fixed
         }); // <-- Semicolon added

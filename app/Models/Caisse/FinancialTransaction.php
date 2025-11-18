@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Reception\ficheNavetteItem;
 use App\Models\Reception\ItemDependency;
 use App\Models\Bank\BankAccount;
+use App\Models\Coffre\Supplement;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -49,7 +50,9 @@ class FinancialTransaction extends Model
         'transaction_type_text',
         'transaction_type_class',
         'payment_method_text',
-        'reference'
+        'reference',
+        'has_supplements',
+        'total_supplements_amount'
     ];
 
     // Relationships
@@ -87,6 +90,11 @@ class FinancialTransaction extends Model
     {
         // B2B\Invoice model doesn't exist, return a dummy relationship
         return $this->belongsTo(self::class, 'id')->whereRaw('1 = 0');
+    }
+
+    public function supplements()
+    {
+        return $this->hasMany(Supplement::class, 'financial_transaction_id');
     }
 
     // Scopes
@@ -255,5 +263,25 @@ class FinancialTransaction extends Model
     public function canBeAdjusted(): bool
     {
         return $this->created_at->isToday();
+    }
+
+    public function hasSupplements(): bool
+    {
+        return $this->supplements()->count() > 0;
+    }
+
+    public function getHasSupplementsAttribute(): bool
+    {
+        return $this->supplements()->count() > 0;
+    }
+
+    public function getTotalSupplementsAmountAttribute(): float
+    {
+        return (float) $this->supplements()->sum('amount');
+    }
+
+    public function getTotalAmountWithSupplements(): float
+    {
+        return (float) $this->amount + $this->total_supplements_amount;
     }
 }

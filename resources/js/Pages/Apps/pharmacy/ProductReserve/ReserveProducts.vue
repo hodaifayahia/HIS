@@ -253,44 +253,211 @@
       v-model:visible="showAddDialog"
       modal
       header="Add Pharmacy Product to Reserve"
-      :style="{ width: '60rem' }"
+      :style="{ width: '70rem', maxWidth: '95vw' }"
       :closable="true"
-      class="tw-rounded-2xl"
+      class="tw-rounded-3xl tw-shadow-2xl"
+      :dismissibleMask="true"
     >
-      <form @submit.prevent="addProduct" class="tw-p-6">
-        <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
-          <!-- Pharmacy Product -->
-          <div class="md:tw-col-span-2">
-            <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">
-              Product <span class="tw-text-red-500">*</span>
-            </label>
-            <Dropdown
-              v-model="newProduct.pharmacy_product_id"
-              :options="pharmacyProducts"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="Select a pharmacy product"
-              :filter="true"
-              class="tw-w-full"
-              required
-            />
+      <div class="tw-p-8">
+        <div class="tw-mb-6">
+          <div class="tw-bg-gradient-to-r tw-from-indigo-50 tw-to-blue-50 tw-rounded-2xl tw-p-6 tw-border tw-border-indigo-100">
+            <div class="tw-flex tw-items-center tw-gap-3 tw-mb-2">
+              <div class="tw-bg-indigo-500 tw-w-8 tw-h-8 tw-rounded-full tw-flex tw-items-center tw-justify-center">
+                <i class="pi pi-info-circle tw-text-white tw-text-sm"></i>
+              </div>
+              <h3 class="tw-text-lg tw-font-semibold tw-text-gray-800">Product Selection Guide</h3>
+            </div>
+            <p class="tw-text-gray-600 tw-ml-11">
+              First select a pharmacy product, then choose from available stockages that contain that product.
+              The quantity will be validated against available stock.
+            </p>
           </div>
+        </div>
 
-          <!-- Pharmacy Stockage -->
-          <div class="md:tw-col-span-2">
+        <form @submit.prevent="addProduct">
+            <!-- Pharmacy Product with Virtual Scroll -->
+            <div class="tw-space-y-6">
+              <div>
+                <label class="tw-block tw-text-sm tw-font-bold tw-text-gray-800 tw-mb-3 tw-flex tw-items-center tw-gap-2">
+                  <i class="pi pi-box tw-text-indigo-500"></i>
+                  Pharmacy Product <span class="tw-text-red-500">*</span>
+                </label>
+              <AutoComplete
+                v-model="selectedProductName"
+                :suggestions="filteredPharmacyProducts"
+                @complete="searchPharmacyProducts"
+                @item-select="onProductSelect"
+                field="name"
+                placeholder="Search and select a pharmacy product"
+                :dropdown="true"
+                :virtualScrollerOptions="{ 
+                  itemSize: 60,
+                  lazy: true,
+                  onLazyLoad: onProductLazyLoad,
+                  showLoader: true,
+                  loading: loadingProducts
+                }"
+                class="tw-w-full tw-transition-all tw-duration-300"
+                :class="{ 'p-invalid': !newProduct.pharmacy_product_id && formSubmitted }"
+                :minLength="0"
+                forceSelection
+              >
+                <template #option="slotProps">
+                  <div class="tw-flex tw-items-center tw-gap-4 tw-p-1 tw-rounded-lg hover:tw-bg-indigo-50 tw-transition-all tw-duration-200 tw-cursor-pointer tw-group">
+                    <div class="tw-relative">
+                      <div class="tw-bg-gradient-to-br tw-from-indigo-500 tw-to-blue-600 tw-w-12 tw-h-12 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-text-white tw-font-bold tw-shadow-lg group-hover:tw-shadow-xl group-hover:tw-scale-105 tw-transition-all tw-duration-200">
+                        <i class="pi pi-box tw-text-lg"></i>
+                      </div>
+                      <div class="tw-absolute -tw-top-1 -tw-right-1 tw-w-4 tw-h-4 tw-bg-green-500 tw-rounded-full tw-border-2 tw-border-white tw-shadow-sm"></div>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                      <div class="tw-flex tw-items-center tw-gap-2 tw-mb-1">
+                        <div class="tw-font-bold tw-text-gray-900 tw-text-base tw-truncate">{{ slotProps.option.name }}</div>
+                        <div class="tw-bg-indigo-100 tw-text-indigo-700 tw-px-2 tw-py-0.5 tw-rounded-md tw-text-xs tw-font-medium tw-shrink-0">
+                          {{ slotProps.option.code || 'N/A' }}
+                        </div>
+                      </div>
+                      <div class="tw-flex tw-items-center tw-gap-4 tw-text-sm tw-text-gray-600">
+                        <span class="tw-flex tw-items-center tw-gap-1">
+                          <i class="pi pi-tag tw-text-xs"></i>
+                          Pharmacy Product
+                        </span>
+                        <span v-if="slotProps.option.category" class="tw-flex tw-items-center tw-gap-1">
+                          <i class="pi pi-folder tw-text-xs"></i>
+                          {{ slotProps.option.category }}
+                        </span>
+                      </div>
+                    </div>
+                    <div class="tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-200">
+                      <i class="pi pi-chevron-right tw-text-indigo-400 tw-text-sm"></i>
+                    </div>
+                  </div>
+                </template>
+                <template #empty>
+                  <div class="tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-8 tw-px-4">
+                    <div class="tw-bg-gray-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mb-4">
+                      <i class="pi pi-search tw-text-2xl tw-text-gray-400"></i>
+                    </div>
+                    <p class="tw-text-gray-500 tw-text-base tw-font-medium tw-mb-1">
+                      {{ loadingProducts ? 'Searching products...' : 'No products found' }}
+                    </p>
+                    <p class="tw-text-gray-400 tw-text-sm tw-text-center">
+                      {{ loadingProducts ? 'Please wait while we search' : 'Try adjusting your search terms' }}
+                    </p>
+                  </div>
+                </template>
+              </AutoComplete>
+              <small v-if="!newProduct.pharmacy_product_id && formSubmitted" class="p-error tw-block tw-mt-1">
+                Product is required
+              </small>
+              </div>
+            </div>
+
+          <!-- Pharmacy Stockage with Virtual Scroll -->
+          <div>
             <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">
               Stockage <span class="tw-text-red-500">*</span>
             </label>
-            <Dropdown
-              v-model="newProduct.pharmacy_stockage_id"
-              :options="pharmacyStockages"
-              optionLabel="name"
-              optionValue="id"
-              placeholder="Select a pharmacy stockage"
-              :filter="true"
-              class="tw-w-full"
-              required
-            />
+            <div class="tw-relative">
+              <AutoComplete
+                v-model="selectedStockageName"
+                :suggestions="filteredPharmacyStockages"
+                @complete="searchPharmacyStockages"
+                @item-select="onStockageSelect"
+                @dropdown="handleStockageDropdown"
+                field="name"
+                :placeholder="newProduct.pharmacy_product_id ? 'Search and select a pharmacy stockage' : 'Please select a product first'"
+                :dropdown="true"
+                :disabled="!newProduct.pharmacy_product_id"
+                :virtualScrollerOptions="{ 
+                  itemSize: 70,
+                  lazy: true,
+                  onLazyLoad: onStockageLazyLoad,
+                  showLoader: true,
+                  loading: loadingStockages
+                }"
+                class="tw-w-full tw-transition-all tw-duration-300"
+                :class="{ 
+                  'p-invalid': !newProduct.pharmacy_stockage_id && formSubmitted,
+                  'p-disabled': !newProduct.pharmacy_product_id
+                }"
+                :minLength="0"
+                forceSelection
+              >
+                <template #option="slotProps">
+                  <div class="tw-flex tw-items-center tw-gap-4 tw-p-1 tw-rounded-lg hover:tw-bg-purple-50 tw-transition-all tw-duration-200 tw-cursor-pointer tw-group">
+                    <div class="tw-relative">
+                      <div class="tw-bg-gradient-to-br tw-from-purple-500 tw-to-pink-600 tw-w-12 tw-h-12 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-text-white tw-font-bold tw-shadow-lg group-hover:tw-shadow-xl group-hover:tw-scale-105 tw-transition-all tw-duration-200">
+                        <i class="pi pi-database tw-text-lg"></i>
+                      </div>
+                      <div v-if="slotProps.option.available_quantity > 0" class="tw-absolute -tw-top-1 -tw-right-1 tw-w-4 tw-h-4 tw-bg-green-500 tw-rounded-full tw-border-2 tw-border-white tw-shadow-sm"></div>
+                      <div v-else class="tw-absolute -tw-top-1 -tw-right-1 tw-w-4 tw-h-4 tw-bg-red-500 tw-rounded-full tw-border-2 tw-border-white tw-shadow-sm"></div>
+                    </div>
+                    <div class="tw-flex-1 tw-min-w-0">
+                      <div class="tw-flex tw-items-center tw-justify-between tw-mb-2">
+                        <div class="tw-font-bold tw-text-gray-900 tw-text-base tw-truncate tw-mr-3">{{ slotProps.option.name }}</div>
+                        <div v-if="slotProps.option.available_quantity !== undefined && slotProps.option.available_quantity !== null" 
+                             :class="slotProps.option.available_quantity > 0 
+                               ? 'tw-bg-green-100 tw-text-green-700 tw-border-green-200' 
+                               : 'tw-bg-red-100 tw-text-red-700 tw-border-red-200'"
+                             class="tw-border tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-bold tw-shrink-0 tw-flex tw-items-center tw-gap-1">
+                          <i class="pi pi-box tw-text-xs"></i>
+                          {{ slotProps.option.available_quantity }} available
+                        </div>
+                      </div>
+                      <div class="tw-flex tw-items-center tw-gap-4 tw-text-sm tw-text-gray-600 tw-mb-1">
+                        <span class="tw-flex tw-items-center tw-gap-1">
+                          <i class="pi pi-tag tw-text-xs"></i>
+                          {{ slotProps.option.code || 'N/A' }}
+                        </span>
+                        <span v-if="slotProps.option.inventory_items" class="tw-flex tw-items-center tw-gap-1">
+                          <i class="pi pi-list tw-text-xs"></i>
+                          {{ slotProps.option.inventory_items }} batch(es)
+                        </span>
+                        <span v-if="slotProps.option.type" class="tw-flex tw-items-center tw-gap-1">
+                          <i class="pi pi-cog tw-text-xs"></i>
+                          {{ slotProps.option.type }}
+                        </span>
+                      </div>
+                      <div v-if="slotProps.option.description" class="tw-text-xs tw-text-gray-500 tw-truncate">
+                        {{ slotProps.option.description }}
+                      </div>
+                    </div>
+                    <div class="tw-opacity-0 group-hover:tw-opacity-100 tw-transition-opacity tw-duration-200">
+                      <i class="pi pi-chevron-right tw-text-purple-400 tw-text-sm"></i>
+                    </div>
+                  </div>
+                </template>
+                <template #empty>
+                  <div class="tw-flex tw-flex-col tw-items-center tw-justify-center tw-py-8 tw-px-4">
+                    <div class="tw-bg-gray-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mb-4">
+                      <i class="pi pi-database tw-text-2xl tw-text-gray-400"></i>
+                    </div>
+                    <p class="tw-text-gray-500 tw-text-base tw-font-medium tw-mb-1">
+                      {{ loadingStockages ? 'Loading stockages...' : (newProduct.pharmacy_product_id ? 'No stockages found with this product' : 'Please select a product first') }}
+                    </p>
+                    <p class="tw-text-gray-400 tw-text-sm tw-text-center">
+                      {{ loadingStockages ? 'Please wait while we load stockages' : (newProduct.pharmacy_product_id ? 'This product is not available in any stockage' : 'Select a product to see available stockages') }}
+                    </p>
+                  </div>
+                </template>
+              </AutoComplete>
+              <small v-if="!newProduct.pharmacy_product_id" class="tw-block tw-mt-1 tw-text-gray-500">
+                <i class="pi pi-info-circle tw-text-xs"></i> Select a product first to see available stockages
+              </small>
+              <small v-else-if="!newProduct.pharmacy_stockage_id && formSubmitted" class="p-error tw-block tw-mt-1">
+                Stockage is required
+              </small>
+              <small v-else-if="filteredPharmacyStockages.length > 0" class="tw-block tw-mt-1 tw-text-green-600">
+                <i class="pi pi-check-circle tw-text-xs"></i> {{ filteredPharmacyStockages.length }} stockage(s) available 
+                <span v-if="getTotalAvailableQuantity() > 0" class="tw-font-semibold">
+                  (Total: {{ getTotalAvailableQuantity() }} units)
+                </span>
+              </small>
+              <small v-else-if="newProduct.pharmacy_product_id && filteredPharmacyStockages.length === 0" class="tw-block tw-mt-1 tw-text-orange-600">
+                <i class="pi pi-exclamation-triangle tw-text-xs"></i> No stockages found with this product
+              </small>
+            </div>
           </div>
 
           <!-- Quantity -->
@@ -301,10 +468,14 @@
             <InputNumber
               v-model="newProduct.quantity"
               :min="1"
+              :max="getSelectedStockageQuantity()"
               showButtons
               class="tw-w-full"
               required
             />
+            <small v-if="getSelectedStockageQuantity() > 0" class="tw-block tw-mt-1 tw-text-gray-600">
+              <i class="pi pi-info-circle tw-text-xs"></i> Maximum available: {{ getSelectedStockageQuantity() }} units
+            </small>
           </div>
 
           <!-- Expires At -->
@@ -322,7 +493,7 @@
           </div>
 
           <!-- Notes -->
-          <div class="md:tw-col-span-2">
+          <div>
             <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">
               Notes
             </label>
@@ -333,6 +504,7 @@
               placeholder="Additional notes..."
             />
           </div>
+        </form>
         </div>
 
         <!-- Dialog Footer -->
@@ -345,14 +517,13 @@
             @click="closeAddDialog"
           />
           <Button
-            type="submit"
             label="Add Product"
             icon="pi pi-check"
             :loading="isSubmitting"
             class="tw-bg-gradient-to-r tw-from-indigo-600 tw-to-blue-600 tw-text-white tw-border-0 tw-rounded-xl tw-px-6 tw-py-3"
+            @click="addProduct"
           />
         </div>
-      </form>
     </Dialog>
 
     <!-- Cancel Dialog -->
@@ -484,9 +655,25 @@
         <div class="tw-mb-4">
           <div class="tw-bg-green-50 tw-border tw-border-green-200 tw-rounded-lg tw-p-4">
             <p class="tw-text-sm tw-text-gray-700">
-              You are about to fulfill this product reservation.
+              You are about to fulfill this product reservation from Central Pharmacy.
             </p>
           </div>
+        </div>
+
+        <div class="tw-mb-6">
+          <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">
+            Central Pharmacy Stockage
+          </label>
+          <Dropdown
+            v-model="fulfillForm.pharmacy_stockage_id"
+            :options="centralPharmacyStockages"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select Central Pharmacy stockage"
+            :filter="true"
+            class="tw-w-full"
+          />
+          <small class="tw-text-gray-500 tw-mt-1 tw-block">Select the stockage where this product will be withdrawn from</small>
         </div>
 
         <div class="tw-mb-6">
@@ -537,9 +724,25 @@
         <div class="tw-mb-4">
           <div class="tw-bg-green-50 tw-border tw-border-green-200 tw-rounded-lg tw-p-4">
             <p class="tw-text-sm tw-text-gray-700">
-              You are about to fulfill <strong>{{ selectedProducts.filter(p => p.status === 'pending').length }}</strong> product reservation(s).
+              You are about to fulfill <strong>{{ selectedProducts.filter(p => p.status === 'pending').length }}</strong> product reservation(s) from Central Pharmacy.
             </p>
           </div>
+        </div>
+
+        <div class="tw-mb-6">
+          <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-2">
+            Central Pharmacy Stockage
+          </label>
+          <Dropdown
+            v-model="bulkFulfillForm.pharmacy_stockage_id"
+            :options="centralPharmacyStockages"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select Central Pharmacy stockage"
+            :filter="true"
+            class="tw-w-full"
+          />
+          <small class="tw-text-gray-500 tw-mt-1 tw-block">Select the stockage where these products will be withdrawn from</small>
         </div>
 
         <div class="tw-mb-6">
@@ -594,6 +797,7 @@ import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
 import Textarea from 'primevue/textarea';
 import Dropdown from 'primevue/dropdown';
+import AutoComplete from 'primevue/autocomplete';
 import Calendar from 'primevue/calendar';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
@@ -610,6 +814,7 @@ export default {
     InputNumber,
     Textarea,
     Dropdown,
+    AutoComplete,
     Calendar,
     Tag,
     Toast,
@@ -625,25 +830,42 @@ export default {
     return {
       products: [],
       pharmacyProducts: [],
+      allPharmacyProducts: [], // Store all products
+      filteredPharmacyProducts: [],
       stockages: [],
       pharmacyStockages: [],
+      allPharmacyStockages: [], // Store all stockages
+      filteredPharmacyStockages: [],
+  productStockages: null, // Store stockages for currently selected product
+  productStockagesProductId: null, // Track the product id for cached stockages
       services: [],
       reserveProducts: [],
       selectedProducts: [],
       reserveInfo: null,
       loading: false,
+      loadingProducts: false,
+      loadingStockages: false,
       showAddDialog: false,
       showCancelDialog: false,
       showBulkCancelDialog: false,
       showFulfillDialog: false,
       showBulkFulfillDialog: false,
       isSubmitting: false,
+      formSubmitted: false,
       searchQuery: '',
       searchTimeout: null,
       activeStatusFilter: 'all',
       currentPage: 1,
       perPage: 10,
       total: 0,
+      selectedProductName: '',
+      selectedStockageName: '',
+      productPage: 1,
+      productHasMore: true,
+      stockagePage: 1,
+      stockageHasMore: true,
+      productSearchQuery: '',
+      stockageSearchQuery: '',
       newProduct: {
         pharmacy_product_id: null,
         pharmacy_stockage_id: null,
@@ -663,11 +885,14 @@ export default {
       },
       fulfillForm: {
         product_id: null,
+        pharmacy_stockage_id: null,
         destination_service_id: null
       },
       bulkFulfillForm: {
+        pharmacy_stockage_id: null,
         destination_service_id: null
       },
+      centralPharmacyStockages: [],
       cancelReasons: [
         { label: 'Patient cancelled', value: 'patient_cancelled' },
         { label: 'Out of stock', value: 'out_of_stock' },
@@ -749,22 +974,37 @@ export default {
       }
     },
 
-    async loadProducts() {
+    async loadProducts(page = 1, search = '') {
+      this.loadingProducts = true;
       try {
-        // Load stock products from /api/products
-        const stockResponse = await axios.get('/api/products', { 
-          params: { per_page: 10 } 
+        // Load pharmacy products from /api/pharmacy/products with pagination
+        const pharmacyResponse = await axios.get('/api/pharmacy/products', {
+          params: {
+            page: page,
+            per_page: 50,
+            search: search
+          }
         });
-        this.products = stockResponse.data.data || stockResponse.data || [];
         
-        // OPTIMIZED: Load pharmacy products with pagination (backend caps at 100)
-        const pharmacyResponse = await axios.get('/api/pharmacy/products', { 
-          params: { per_page: 100 } 
-        });
-        this.pharmacyProducts = pharmacyResponse.data.data || pharmacyResponse.data || [];
+        const pharmacyData = pharmacyResponse.data.data || pharmacyResponse.data || [];
         
-        console.log('Stock products loaded:', this.products.length);
-        console.log('Pharmacy products loaded:', this.pharmacyProducts.length);
+        if (page === 1) {
+          this.allPharmacyProducts = pharmacyData;
+          this.pharmacyProducts = pharmacyData;
+        } else {
+          this.allPharmacyProducts = [...this.allPharmacyProducts, ...pharmacyData];
+          this.pharmacyProducts = this.allPharmacyProducts;
+        }
+        
+        // Check if there are more products to load
+        const meta = pharmacyResponse.data.meta;
+        if (meta) {
+          this.productHasMore = meta.current_page < meta.last_page;
+        } else {
+          this.productHasMore = pharmacyData.length >= 50;
+        }
+        
+        console.log('Pharmacy products loaded:', this.allPharmacyProducts.length);
       } catch (error) {
         console.error('Failed to load products:', error);
         this.toast.add({
@@ -773,21 +1013,75 @@ export default {
           detail: 'Failed to load products',
           life: 3000
         });
+      } finally {
+        this.loadingProducts = false;
       }
     },
 
-    async loadStockages() {
+    async loadStockages(page = 1, search = '') {
+      this.loadingStockages = true;
       try {
-        // Load stock stockages from /api/stockages
+        // Load pharmacy stockages from /api/pharmacy/stockages
+        const pharmacyStockageResponse = await axios.get('/api/pharmacy/stockages', {
+          params: {
+            page: page,
+            per_page: 50,
+            search: search
+          }
+        }).catch(() => ({ data: { data: [] } }));
+        
+        const pharmacyData = pharmacyStockageResponse.data.data || pharmacyStockageResponse.data || [];
+        
+        if (page === 1) {
+          this.allPharmacyStockages = pharmacyData;
+          this.pharmacyStockages = pharmacyData;
+          if (this.newProduct.pharmacy_product_id &&
+              this.productStockages &&
+              this.productStockagesProductId === this.newProduct.pharmacy_product_id) {
+            this.filteredPharmacyStockages = [...this.productStockages];
+          } else if (!this.newProduct.pharmacy_product_id) {
+            this.filteredPharmacyStockages = [];
+          }
+        } else {
+          this.allPharmacyStockages = [...this.allPharmacyStockages, ...pharmacyData];
+          this.pharmacyStockages = this.allPharmacyStockages;
+          if (this.newProduct.pharmacy_product_id &&
+              this.productStockages &&
+              this.productStockagesProductId === this.newProduct.pharmacy_product_id) {
+            this.filteredPharmacyStockages = [...this.productStockages];
+          }
+        }
+        
+        // Check if there are more stockages to load
+        const meta = pharmacyStockageResponse.data.meta;
+        if (meta) {
+          this.stockageHasMore = meta.current_page < meta.last_page;
+        } else {
+          this.stockageHasMore = pharmacyData.length >= 50;
+        }
+        
+        // Also load stock stockages for other purposes
         const stockageResponse = await axios.get('/api/stockages');
         this.stockages = stockageResponse.data.data || stockageResponse.data || [];
         
-        // Load pharmacy stockages from /api/pharmacy/stockages
-        const pharmacyStockageResponse = await axios.get('/api/pharmacy/stockages').catch(() => ({ data: { data: [] } }));
-        this.pharmacyStockages = pharmacyStockageResponse.data.data || pharmacyStockageResponse.data || [];
+        // Filter for Central Pharmacy stockages from pharmacy stockages only
+        this.centralPharmacyStockages = this.allPharmacyStockages.filter(stockage => {
+          const name = (stockage.name || '').toLowerCase();
+          const code = (stockage.code || '').toLowerCase();
+          
+          return name.includes('central') || 
+                 name.includes('pharmacy central') ||
+                 name.includes('pharmacie centrale') ||
+                 name.includes('pharmacie central') ||
+                 name.includes('central pharmacy') ||
+                 name.includes('depot central') ||
+                 name.includes('dépôt central') ||
+                 name.includes('stock central') ||
+                 code.includes('central');
+        });
         
-        console.log('Stock stockages loaded:', this.stockages.length);
-        console.log('Pharmacy stockages loaded:', this.pharmacyStockages.length);
+        console.log('Pharmacy stockages loaded:', this.allPharmacyStockages.length);
+        console.log('Central Pharmacy stockages:', this.centralPharmacyStockages.length, this.centralPharmacyStockages.map(s => s.name));
       } catch (error) {
         console.error('Failed to load stockages:', error);
         this.toast.add({
@@ -796,6 +1090,8 @@ export default {
           detail: 'Failed to load stockages',
           life: 3000
         });
+      } finally {
+        this.loadingStockages = false;
       }
     },
 
@@ -812,12 +1108,24 @@ export default {
 
     openAddDialog() {
       this.resetNewProduct();
+      this.formSubmitted = false;
+      this.productPage = 1;
+      this.stockagePage = 1;
+      this.productSearchQuery = '';
+      this.stockageSearchQuery = '';
+      // Initialize with server data
+      this.filteredPharmacyProducts = [...this.allPharmacyProducts.slice(0, 50)];
+      // Stockages are shown only after a product is selected
+      this.filteredPharmacyStockages = [];
       this.showAddDialog = true;
     },
 
     closeAddDialog() {
       this.showAddDialog = false;
       this.resetNewProduct();
+      this.formSubmitted = false;
+      this.selectedProductName = '';
+      this.selectedStockageName = '';
     },
 
     resetNewProduct() {
@@ -829,9 +1137,429 @@ export default {
         reservation_notes: '',
         source: 'manual'
       };
+      this.selectedProductName = '';
+      this.selectedStockageName = '';
+      this.productStockages = null; // Clear cached stockages
+      this.productStockagesProductId = null;
+      this.filteredPharmacyStockages = [];
+    },
+
+    async searchPharmacyProducts(event) {
+      const originalQuery = event.query || '';
+      const query = originalQuery.trim();
+      this.productSearchQuery = query;
+      
+      if (!query) {
+        this.filteredPharmacyProducts = [...this.allPharmacyProducts.slice(0, 50)];
+        return;
+      }
+      
+      // Search directly from server to get all matching products
+      this.loadingProducts = true;
+      try {
+        const response = await axios.get('/api/pharmacy/products', {
+          params: {
+            search: query, // Send original query (not lowercased) to backend
+            per_page: 100, // Get more results for search
+            page: 1,
+            is_clinical: true
+          }
+        });
+        
+        const searchResults = response.data.data || response.data || [];
+        this.filteredPharmacyProducts = searchResults;
+        
+        console.log(`Found ${searchResults.length} products matching "${query}"`);
+        
+        if (searchResults.length === 0) {
+          console.log('No products found for query:', query);
+        }
+      } catch (error) {
+        console.error('Failed to search products:', error);
+        // Fallback to local search if API fails
+        const lowerQuery = query.toLowerCase();
+        this.filteredPharmacyProducts = this.allPharmacyProducts.filter(product => {
+          const name = (product.name || '').toLowerCase();
+          const code = (product.code || '').toLowerCase();
+          return name.includes(lowerQuery) || code.includes(lowerQuery);
+        });
+      } finally {
+        this.loadingProducts = false;
+      }
+    },
+
+    async loadMoreProducts(search = '') {
+      if (!this.productHasMore || this.loadingProducts) return;
+      
+      this.productPage++;
+      await this.loadProducts(this.productPage, search || this.productSearchQuery);
+      
+      // Re-filter after loading more
+      if (this.productSearchQuery) {
+        this.filteredPharmacyProducts = this.allPharmacyProducts.filter(product => {
+          const name = (product.name || '').toLowerCase();
+          const code = (product.code || '').toLowerCase();
+          return name.includes(this.productSearchQuery) || code.includes(this.productSearchQuery);
+        });
+      } else {
+        this.filteredPharmacyProducts = [...this.allPharmacyProducts];
+      }
+    },
+
+    onProductLazyLoad(event) {
+      // Load more products when scrolling
+      if (event.last >= this.filteredPharmacyProducts.length - 10) {
+        this.loadMoreProducts();
+      }
+    },
+
+    async onProductSelect(event) {
+      if (event.value && event.value.id) {
+        const productId = event.value.id;
+        this.newProduct.pharmacy_product_id = productId;
+        this.selectedProductName = event.value.name;
+        
+        // Reset stockage selection when product changes
+        this.newProduct.pharmacy_stockage_id = null;
+        this.selectedStockageName = '';
+        
+        // Clear the cached product stockages
+        this.productStockages = null;
+        this.productStockagesProductId = productId;
+        this.filteredPharmacyStockages = [];
+        
+        // Load stockages that contain this product
+        await this.loadStockagesForProduct(productId);
+      }
+    },
+
+    async loadStockagesForProduct(productId) {
+      if (!productId) {
+        this.productStockages = null;
+        this.productStockagesProductId = null;
+        this.filteredPharmacyStockages = [];
+        return;
+      }
+
+      this.loadingStockages = true;
+      this.filteredPharmacyStockages = [];
+      try {
+        // First, try to get inventory data for this product
+        const inventoryResponse = await axios.get('/api/pharmacy/inventory', {
+          params: {
+            pharmacy_product_id: productId,
+            per_page: 1000,
+            exclude_zero: false  // Include items with zero quantity
+          }
+        });
+        
+        const inventory = inventoryResponse.data.data || inventoryResponse.data || [];
+        
+        console.log(`Raw inventory for product ${productId}:`, inventory.length, 'items');
+        
+        if (inventory.length === 0) {
+          this.productStockages = [];
+          this.productStockagesProductId = productId;
+          this.filteredPharmacyStockages = [];
+          this.toast.add({
+            severity: 'warn',
+            summary: 'No Stockages Found',
+            detail: 'This product is not available in any stockage',
+            life: 4000
+          });
+          return;
+        }
+        
+        // Group inventory by stockage and calculate total quantity
+        const stockageMap = new Map();
+        
+        inventory.forEach(item => {
+          const stockageId = item.pharmacy_stockage_id;
+          const quantity = parseFloat(item.quantity) || 0;
+          
+          if (stockageMap.has(stockageId)) {
+            const existing = stockageMap.get(stockageId);
+            existing.total_quantity += quantity;
+            existing.items.push(item);
+          } else {
+            stockageMap.set(stockageId, {
+              stockage_id: stockageId,
+              total_quantity: quantity,
+              items: [item],
+              stockage: item.pharmacy_stockage || null
+            });
+          }
+        });
+        
+        console.log(`Grouped into ${stockageMap.size} unique stockages`);
+        
+        // Get unique stockage IDs that need to be fetched
+        const stockageIds = Array.from(stockageMap.keys());
+        const missingStockageIds = stockageIds.filter(id => {
+          const stockageData = stockageMap.get(id);
+          return !stockageData.stockage;
+        });
+        
+        // Fetch missing stockage details if needed
+        if (missingStockageIds.length > 0) {
+          console.log(`Fetching details for ${missingStockageIds.length} stockages...`);
+          try {
+            const stockageResponse = await axios.get('/api/pharmacy/stockages', {
+              params: {
+                per_page: 1000
+              }
+            });
+            const allStockages = stockageResponse.data.data || stockageResponse.data || [];
+            
+            // Update stockage data in the map
+            allStockages.forEach(stockage => {
+              if (stockageMap.has(stockage.id)) {
+                const data = stockageMap.get(stockage.id);
+                data.stockage = stockage;
+              }
+            });
+          } catch (error) {
+            console.error('Failed to fetch stockage details:', error);
+          }
+        }
+        
+        // Convert map to array and merge with stockage details
+        const stockagesWithQuantity = [];
+        
+        for (const [stockageId, data] of stockageMap) {
+          // Use stockage from inventory data or from loaded stockages
+          let stockage = data.stockage;
+          
+          if (!stockage) {
+            // Try to find from previously loaded stockages
+            stockage = this.allPharmacyStockages.find(s => s.id === stockageId);
+          }
+          
+          if (stockage) {
+            stockagesWithQuantity.push({
+              id: stockage.id,
+              name: stockage.name,
+              code: stockage.code,
+              description: stockage.description,
+              type: stockage.type,
+              service_id: stockage.service_id,
+              available_quantity: data.total_quantity,
+              inventory_items: data.items.length
+            });
+          } else {
+            // Create a minimal stockage object if we still don't have details
+            console.warn(`Stockage ${stockageId} not found, creating minimal object`);
+            stockagesWithQuantity.push({
+              id: stockageId,
+              name: `Stockage #${stockageId}`,
+              code: `STK-${stockageId}`,
+              description: 'Details unavailable',
+              available_quantity: data.total_quantity,
+              inventory_items: data.items.length
+            });
+          }
+        }
+        
+        // Sort by quantity descending
+        stockagesWithQuantity.sort((a, b) => b.available_quantity - a.available_quantity);
+        
+        // Cache the stockages for this product
+  this.productStockages = stockagesWithQuantity;
+  this.productStockagesProductId = productId;
+  this.filteredPharmacyStockages = stockagesWithQuantity;
+        
+        console.log(`Stockages with product ${productId}:`, stockagesWithQuantity.length);
+        console.log('Stockages with quantities:', stockagesWithQuantity.map(s => ({ 
+          name: s.name, 
+          quantity: s.available_quantity 
+        })));
+        
+        if (stockagesWithQuantity.length === 0) {
+          this.toast.add({
+            severity: 'warn',
+            summary: 'No Stockages Found',
+            detail: 'This product is not available in any stockage',
+            life: 4000
+          });
+        }
+      } catch (error) {
+        console.error('Failed to load stockages for product:', error);
+        this.toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: 'Failed to load stockages for this product',
+          life: 3000
+        });
+        // Don't show fallback stockages - they don't have the product
+        this.productStockages = [];
+        this.productStockagesProductId = productId;
+        this.filteredPharmacyStockages = [];
+      } finally {
+        this.loadingStockages = false;
+      }
+    },
+
+    searchPharmacyStockages(event) {
+      const query = (event.query || '').toLowerCase();
+      this.stockageSearchQuery = query;
+
+      if (!this.newProduct.pharmacy_product_id) {
+        this.filteredPharmacyStockages = [];
+        return;
+      }
+
+      const currentProductId = this.newProduct.pharmacy_product_id;
+      const hasCachedData = this.productStockages &&
+        this.productStockagesProductId === currentProductId;
+
+      if (!hasCachedData) {
+        if (!this.loadingStockages) {
+          this.loadStockagesForProduct(currentProductId);
+        }
+        return;
+      }
+
+      const baseStockages = this.productStockages;
+
+      if (!query) {
+        this.filteredPharmacyStockages = [...baseStockages];
+        return;
+      }
+
+      this.filteredPharmacyStockages = baseStockages.filter(stockage => {
+        const name = (stockage.name || '').toLowerCase();
+        const code = (stockage.code || '').toLowerCase();
+        const description = (stockage.description || '').toLowerCase();
+        return name.includes(query) || code.includes(query) || description.includes(query);
+      });
+    },
+
+    async loadMoreStockages(search = '') {
+      if (this.newProduct.pharmacy_product_id) {
+        return;
+      }
+
+      if (!this.stockageHasMore || this.loadingStockages) return;
+      
+      this.stockagePage++;
+      await this.loadStockages(this.stockagePage, search || this.stockageSearchQuery);
+      
+      // Re-filter after loading more
+      if (this.stockageSearchQuery) {
+        this.filteredPharmacyStockages = this.allPharmacyStockages.filter(stockage => {
+          const name = (stockage.name || '').toLowerCase();
+          const code = (stockage.code || '').toLowerCase();
+          const description = (stockage.description || '').toLowerCase();
+          return name.includes(this.stockageSearchQuery) || code.includes(this.stockageSearchQuery) || description.includes(this.stockageSearchQuery);
+        });
+      } else {
+        this.filteredPharmacyStockages = [...this.allPharmacyStockages];
+      }
+      
+      // Update central pharmacy stockages with all loaded data
+      this.centralPharmacyStockages = this.allPharmacyStockages.filter(stockage => {
+        const name = (stockage.name || '').toLowerCase();
+        const code = (stockage.code || '').toLowerCase();
+        
+        return name.includes('central') || 
+               name.includes('pharmacy central') ||
+               name.includes('pharmacie centrale') ||
+               name.includes('pharmacie central') ||
+               name.includes('central pharmacy') ||
+               name.includes('depot central') ||
+               name.includes('dépôt central') ||
+               name.includes('stock central') ||
+               code.includes('central');
+      });
+    },
+
+    onStockageLazyLoad(event) {
+      // Load more stockages when scrolling only when browsing the full list
+      if (this.newProduct.pharmacy_product_id) {
+        return;
+      }
+
+      if (event.last >= this.filteredPharmacyStockages.length - 10) {
+        this.loadMoreStockages();
+      }
+    },
+
+    onStockageSelect(event) {
+      if (event.value && event.value.id) {
+        this.newProduct.pharmacy_stockage_id = event.value.id;
+        this.selectedStockageName = event.value.name;
+      }
+    },
+
+    async handleStockageDropdown() {
+      if (!this.newProduct.pharmacy_product_id) {
+        this.filteredPharmacyStockages = [];
+        return;
+      }
+
+      const currentProductId = this.newProduct.pharmacy_product_id;
+
+      if (this.loadingStockages) {
+        return;
+      }
+
+      if (!this.productStockages || this.productStockagesProductId !== currentProductId) {
+        await this.loadStockagesForProduct(currentProductId);
+        return;
+      }
+
+      this.stockageSearchQuery = '';
+      this.filteredPharmacyStockages = [...this.productStockages];
+    },
+
+    getTotalAvailableQuantity() {
+      if (!this.filteredPharmacyStockages || this.filteredPharmacyStockages.length === 0) {
+        return 0;
+      }
+      
+      return this.filteredPharmacyStockages.reduce((total, stockage) => {
+        return total + (parseFloat(stockage.available_quantity) || 0);
+      }, 0);
+    },
+
+    getSelectedStockageQuantity() {
+      if (!this.newProduct.pharmacy_stockage_id || !this.filteredPharmacyStockages) {
+        return null;
+      }
+      
+      const selectedStockage = this.filteredPharmacyStockages.find(
+        s => s.id === this.newProduct.pharmacy_stockage_id
+      );
+      
+      return selectedStockage ? (parseFloat(selectedStockage.available_quantity) || null) : null;
     },
 
     async addProduct() {
+      this.formSubmitted = true;
+      
+      // Validate required fields
+      if (!this.newProduct.pharmacy_product_id || !this.newProduct.pharmacy_stockage_id) {
+        this.toast.add({
+          severity: 'warn',
+          summary: 'Validation Error',
+          detail: 'Please fill in all required fields',
+          life: 3000
+        });
+        return;
+      }
+      
+      // Validate quantity against available stock
+      const maxQuantity = this.getSelectedStockageQuantity();
+      if (maxQuantity !== null && this.newProduct.quantity > maxQuantity) {
+        this.toast.add({
+          severity: 'error',
+          summary: 'Quantity Exceeds Available Stock',
+          detail: `Maximum available quantity is ${maxQuantity} units. Please reduce the quantity.`,
+          life: 4000
+        });
+        return;
+      }
+      
       this.isSubmitting = true;
       try {
         const payload = {
@@ -936,6 +1664,7 @@ export default {
     fulfillProduct(product) {
       this.fulfillForm = {
         product_id: product.id,
+        pharmacy_stockage_id: null,
         destination_service_id: null
       };
       this.showFulfillDialog = true;
@@ -945,6 +1674,9 @@ export default {
       this.isSubmitting = true;
       try {
         const payload = {};
+        if (this.fulfillForm.pharmacy_stockage_id) {
+          payload.pharmacy_stockage_id = this.fulfillForm.pharmacy_stockage_id;
+        }
         if (this.fulfillForm.destination_service_id) {
           payload.destination_service_id = this.fulfillForm.destination_service_id;
         }
@@ -1081,6 +1813,7 @@ export default {
       }
 
       this.bulkFulfillForm = {
+        pharmacy_stockage_id: null,
         destination_service_id: null
       };
       this.showBulkFulfillDialog = true;
@@ -1093,6 +1826,9 @@ export default {
         const ids = pendingProducts.map(p => p.id);
         
         const payload = { ids };
+        if (this.bulkFulfillForm.pharmacy_stockage_id) {
+          payload.pharmacy_stockage_id = this.bulkFulfillForm.pharmacy_stockage_id;
+        }
         if (this.bulkFulfillForm.destination_service_id) {
           payload.destination_service_id = this.bulkFulfillForm.destination_service_id;
         }
@@ -1257,6 +1993,7 @@ export default {
 
 .p-dialog {
   animation: slideIn 0.3s ease-out;
+  z-index: 999 !important;
 }
 
 @keyframes slideIn {
@@ -1276,5 +2013,179 @@ export default {
   font-weight: 600 !important;
   border: none !important;
   padding: 1rem !important;
+}
+
+/* AutoComplete custom styles */
+:deep(.p-autocomplete) {
+  width: 100%;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+:deep(.p-autocomplete-input) {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+:deep(.p-autocomplete-input:focus) {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1), 0 4px 12px rgba(79, 70, 229, 0.1);
+  outline: none;
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+:deep(.p-autocomplete.p-invalid .p-autocomplete-input) {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+:deep(.p-autocomplete.p-disabled .p-autocomplete-input) {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  cursor: not-allowed;
+  opacity: 0.7;
+  transform: none;
+}
+
+:deep(.p-autocomplete-panel) {
+  border-radius: 1rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  border: 1px solid #e5e7eb;
+  margin-top: 0.75rem;
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 1000 !important;
+  position: fixed !important;
+  max-width: 90vw !important;
+}
+
+:deep(.p-autocomplete-items) {
+  padding: 0.75rem;
+  max-height: 400px;
+}
+
+:deep(.p-autocomplete-item) {
+  border-radius: 0.75rem;
+  margin: 0.125rem 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+:deep(.p-autocomplete-item:hover) {
+  transform: translateX(2px) scale(1.01);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+:deep(.p-autocomplete-item.p-highlight) {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  color: white;
+  transform: translateX(4px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+:deep(.p-autocomplete-loader) {
+  position: absolute;
+  right: 3.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+:deep(.p-virtualscroller) {
+  max-height: 400px;
+}
+
+/* Enhanced dropdown button */
+:deep(.p-autocomplete .p-autocomplete-dropdown) {
+  background: linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%);
+  border: none;
+  border-radius: 0 0.75rem 0.75rem 0;
+  width: 3rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.2);
+}
+
+:deep(.p-autocomplete .p-autocomplete-dropdown:hover) {
+  background: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+:deep(.p-autocomplete .p-autocomplete-dropdown .pi) {
+  color: white;
+  font-size: 1rem;
+}
+
+/* Loading animation */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+:deep(.p-autocomplete-item .tw-bg-green-100) {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  :deep(.p-autocomplete-input) {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
+  
+  :deep(.p-autocomplete-panel) {
+    margin-top: 0.5rem;
+    border-radius: 0.75rem;
+  }
+  
+  :deep(.p-autocomplete-items) {
+    padding: 0.5rem;
+  }
+}
+
+/* Error message style */
+.p-error {
+  color: #ef4444;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+/* Quantity badge styling */
+.tw-bg-green-100 {
+  background-color: #d1fae5;
+}
+
+.tw-text-green-700 {
+  color: #047857;
+}
+
+.tw-rounded-full {
+  border-radius: 9999px;
+}
+
+/* Animation for quantity display */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.tw-bg-green-100 {
+  animation: fadeIn 0.3s ease-out;
 }
 </style>

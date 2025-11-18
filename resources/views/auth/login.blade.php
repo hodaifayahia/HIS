@@ -14,16 +14,6 @@
             <div id="login">
                 <Login />
             </div>
-
-            <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            prefix: "tw-",
-            corePlugins: {
-                preflight: false,
-            }
-        }
-    </script>
 </body>
 
 </html>

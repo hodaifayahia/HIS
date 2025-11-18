@@ -28,14 +28,6 @@
               <div class="tw-text-xs tw-text-green-700 tw-font-medium">Confirmed</div>
               <div class="tw-text-2xl tw-font-bold tw-text-green-800">{{ prescriptions.filter(p => p.status === 'confirmed').length }}</div>
             </div>
-                <div>
-                  <div class="tw-text-xs tw-text-green-700 tw-font-medium tw-uppercase tw-tracking-wide">Confirmed</div>
-                  <div class="tw-text-2xl tw-font-bold tw-text-green-800">
-                    {{ prescriptions.filter(p => p.status === 'confirmed').length }}
-                  </div>
-                </div>
-              </div>
-            </div>
 
             <div class="tw-bg-gradient-to-br tw-from-red-50 tw-to-rose-50 tw-px-4 tw-py-3 tw-rounded-xl tw-border tw-border-red-200/60 tw-shadow-sm hover:tw-shadow-md tw-transition-all tw-duration-200">
               <div class="tw-flex tw-items-center tw-gap-3">

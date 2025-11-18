@@ -8,6 +8,7 @@ const externalPrescriptionRoutes = [
     children: [
       {
         path: '', // Default route
+        name: 'external-prescriptions.redirect',
         redirect: 'list',
       },
       {

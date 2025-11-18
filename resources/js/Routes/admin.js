@@ -11,6 +11,7 @@ const adminRoutes = [{
     children: [
         {
             path: 'appointments',
+            name: 'admin.appointments',
             children: [
                 {
                     path: 'patient',
@@ -136,7 +137,7 @@ const adminRoutes = [{
                 },
                 {
                     path: ':id/:specializationId',
-                    name: 'admin.appointments',
+                    name: 'admin.appointments.list',
                     component: () => import('../Pages/Appointments/ListAppointment.vue'),
                 },
             ],

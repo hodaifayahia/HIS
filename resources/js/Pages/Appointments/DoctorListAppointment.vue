@@ -83,7 +83,7 @@ const formatClosestCanceledAppointment = (appointments) => {
 
 const goToAppointmentPage = (doctor) => {
   router.push({
-    name: 'admin.appointments',
+    name: 'admin.appointments.list',
     params: {
       id: doctor.id,
       specializationId: doctor.specialization_id
