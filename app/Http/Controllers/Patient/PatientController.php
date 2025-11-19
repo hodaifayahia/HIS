@@ -45,7 +45,6 @@ class PatientController extends Controller
      */
     public function store(Request $request)
     {
-
         $validatedData = $request->validate([
             'Firstname' => 'required|string|max:255',
             'Lastname' => 'required|string|max:255',
@@ -83,43 +82,11 @@ class PatientController extends Controller
             'other_clinical_info' => 'nullable|string',
         ]);
 
-        $patient = Patient::create([
-            'Firstname' => $validatedData['Firstname'],
-            'Lastname' => $validatedData['Lastname'],
-            'Parent' => $validatedData['Parent'] ?? null,
-            'phone' => $validatedData['phone'] ?? null,
-            'fax_number' => $validatedData['fax_number'] ?? null,
-            'email' => $validatedData['email'] ?? null,
-            'address' => $validatedData['address'] ?? null,
-            'city' => $validatedData['city'] ?? null,
-            'postal_code' => $validatedData['postal_code'] ?? null,
-            'gender' => $validatedData['gender'],
-            'dateOfBirth' => $validatedData['dateOfBirth'] ?? null,
-            'Idnum' => $validatedData['Idnum'] ?? null,
-            'identity_document_type' => $validatedData['identity_document_type'] ?? null,
-            'identity_issued_on' => $validatedData['identity_issued_on'] ?? null,
-            'identity_issued_by' => $validatedData['identity_issued_by'] ?? null,
-            'passport_number' => $validatedData['passport_number'] ?? null,
-            'professional_badge_number' => $validatedData['professional_badge_number'] ?? null,
-            'foreigner_card_number' => $validatedData['foreigner_card_number'] ?? null,
-            'nss' => $validatedData['nss'] ?? null,
-            'birth_place' => $validatedData['birth_place'] ?? null,
-            'is_birth_place_presumed' => $validatedData['is_birth_place_presumed'] ?? false,
-            'additional_ids' => $validatedData['additional_ids'] ?? null,
-            'age' => $validatedData['age'] ?? null,
-            'height' => $validatedData['height'] ?? null,
-            'weight' => $validatedData['weight'] ?? null,
-            'blood_group' => $validatedData['blood_group'] ?? null,
-            'marital_status' => $validatedData['marital_status'] ?? null,
-            'mother_firstname' => $validatedData['mother_firstname'] ?? null,
-            'mother_lastname' => $validatedData['mother_lastname'] ?? null,
-            'balance' => $validatedData['balance'] ?? 0,
-            'is_faithful' => $validatedData['is_faithful'] ?? false,
-            'firstname_ar' => $validatedData['firstname_ar'] ?? null,
-            'lastname_ar' => $validatedData['lastname_ar'] ?? null,
-            'other_clinical_info' => $validatedData['other_clinical_info'] ?? null,
-            'created_by' => Auth::id(),
-        ]);
+        // Add created_by field
+        $validatedData['created_by'] = Auth::id();
+        $validatedData['balance'] = $validatedData['balance'] ?? 0;
+
+        $patient = Patient::create($validatedData);
 
         // Clear cache when new patient is created
         Cache::flush();
