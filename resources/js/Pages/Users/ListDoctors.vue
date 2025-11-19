@@ -535,11 +535,10 @@ onMounted(() => {
 
           <!-- Actions -->
           <Column header="Actions" headerStyle="width: 12rem">
-            <template #body="{ data, index }">
+            <template #body="{ data }">
               <div class="tw-flex tw-items-center tw-gap-1">
                 <DoctorListItem
                   :doctor="data"
-                  :index="index"
                   @doctorUpdated="refreshUsers"
                 />
               </div>

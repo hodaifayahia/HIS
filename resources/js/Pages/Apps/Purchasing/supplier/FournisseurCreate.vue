@@ -419,7 +419,7 @@ const setPrimaryContact = (contact) => {
                                         <Button
                                             label="Add Contact"
                                             icon="pi pi-plus"
-                                            class="tw-bg-blue-600 tw-border-blue-600 tw-hover:bg-blue-700 tw-px-4 tw-py-2 tw-text-sm"
+                                            class="tw-bg-blue-600 tw-border-blue-600 hover:tw-bg-blue-700 tw-px-4 tw-py-2 tw-text-sm"
                                             @click="openContactDialog()"
                                         />
                                     </div>
@@ -482,14 +482,14 @@ const setPrimaryContact = (contact) => {
                             <Button
                                 label="Cancel"
                                 icon="pi pi-times"
-                                class="tw-bg-gray-600 tw-border-gray-600 tw-hover:bg-gray-700 tw-px-6 tw-py-2"
+                                class="tw-bg-gray-600 tw-border-gray-600 hover:tw-bg-gray-700 tw-px-6 tw-py-2"
                                 @click="closeModal"
                             />
                             <Button
                                 :label="isEdit ? 'Update Supplier' : 'Create Supplier'"
                                 icon="pi pi-save"
                                 :loading="saving"
-                                class="tw-bg-blue-600 tw-border-blue-600 tw-hover:bg-blue-700 tw-px-6 tw-py-2"
+                                class="tw-bg-blue-600 tw-border-blue-600 hover:tw-bg-blue-700 tw-px-6 tw-py-2"
                                 @click="saveFournisseur"
                             />
                         </div>

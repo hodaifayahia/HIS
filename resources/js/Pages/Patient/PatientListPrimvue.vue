@@ -311,7 +311,7 @@ onMounted(() => {
                         <h1 class="tw-text-3xl tw-font-bold tw-text-gray-900">Patients</h1>
                     </div>
                     <nav class="tw-flex tw-items-center tw-space-x-2 tw-text-sm">
-                        <a href="#" class="tw-text-blue-600 tw-hover:text-blue-800 tw-transition-colors">Home</a>
+                        <a href="#" class="tw-text-blue-600 hover:tw-text-blue-800 tw-transition-colors">Home</a>
                         <span class="tw-text-gray-400">/</span>
                         <span class="tw-text-gray-700 tw-font-medium">Patient</span>
                     </nav>
@@ -332,7 +332,7 @@ onMounted(() => {
                                 <InputText 
                                     v-model="searchQuery"
                                     placeholder="Search patients by name, ID, phone, or CodeBash"
-                                    class="tw-w-full tw-pl-12 tw-pr-4 tw-py-3 tw-rounded-lg tw-border tw-border-gray-300 tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent"
+                                    class="tw-w-full tw-pl-12 tw-pr-4 tw-py-3 tw-rounded-lg tw-border tw-border-gray-300 focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent"
                                     @focus="onSearchFocus"
                                     @blur="onSearchBlur"
                                 />
@@ -346,7 +346,7 @@ onMounted(() => {
                                 v-if="!isconsultation"
                                 label="Add Patient" 
                                 icon="pi pi-plus"
-                                class="tw-bg-gradient-to-r tw-from-blue-500 tw-to-blue-600 tw-text-white tw-px-5 tw-py-2.5 tw-rounded-lg tw-hover:from-blue-600 tw-hover:to-blue-700 tw-transition-all tw-shadow-md"
+                                class="tw-bg-gradient-to-r tw-from-blue-500 tw-to-blue-600 tw-text-white tw-px-5 tw-py-2.5 tw-rounded-lg hover:tw-from-blue-600 hover:tw-to-blue-700 tw-transition-all tw-shadow-md"
                                 @click="openModal"
                             />
                         </div>
@@ -364,7 +364,7 @@ onMounted(() => {
                                     class="tw-hidden"
                                     id="fileUpload"
                                 >
-                                <label for="fileUpload" class="tw-cursor-pointer tw-bg-gray-100 tw-text-gray-700 tw-px-4 tw-py-2.5 tw-rounded-lg tw-hover:bg-gray-200 tw-transition-colors tw-flex tw-items-center tw-gap-2">
+                                <label for="fileUpload" class="tw-cursor-pointer tw-bg-gray-100 tw-text-gray-700 tw-px-4 tw-py-2.5 tw-rounded-lg hover:tw-bg-gray-200 tw-transition-colors tw-flex tw-items-center tw-gap-2">
                                     <i class="pi pi-upload"></i>
                                     <span>{{ file ? file.name : 'Choose File' }}</span>
                                 </label>
@@ -373,14 +373,14 @@ onMounted(() => {
                                     label="Import Patients" 
                                     icon="pi pi-file-import"
                                     :disabled="loading || !file"
-                                    class="tw-bg-green-500 tw-text-white tw-hover:bg-green-600"
+                                    class="tw-bg-green-500 tw-text-white hover:tw-bg-green-600"
                                     @click="uploadFile"
                                 />
                                 
                                 <Button 
                                     label="Export Excel" 
                                     icon="pi pi-file-export"
-                                    class="tw-bg-purple-500 tw-text-white tw-hover:bg-purple-600"
+                                    class="tw-bg-purple-500 tw-text-white hover:tw-bg-purple-600"
                                     @click="exportUsers"
                                 />
                             </div>
@@ -432,7 +432,7 @@ onMounted(() => {
                                     v-for="(patient, index) in Patient" 
                                     :key="patient.id"
                                     @click="handlePatientRowClick(patient)"
-                                    class="tw-hover:bg-blue-50 tw-cursor-pointer tw-transition-colors tw-duration-150"
+                                    class="hover:tw-bg-blue-50 tw-cursor-pointer tw-transition-colors tw-duration-150"
                                 >
                                     <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ index + 1 }}</td>
                                     <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.Parent }}</td>
@@ -453,13 +453,13 @@ onMounted(() => {
                                         <div class="tw-flex tw-gap-2">
                                             <Button 
                                                 icon="pi pi-pencil"
-                                                class="tw-p-2 tw-bg-blue-100 tw-text-blue-600 tw-hover:bg-blue-200 tw-rounded-lg tw-transition-colors"
+                                                class="tw-p-2 tw-bg-blue-100 tw-text-blue-600 hover:tw-bg-blue-200 tw-rounded-lg tw-transition-colors"
                                                 @click.stop="openModal(patient)"
                                             />
                                             <Button 
                                                 v-if="user?.role == 'admin' || user?.role == 'SuperAdmin'"
                                                 icon="pi pi-trash"
-                                                class="tw-p-2 tw-bg-red-100 tw-text-red-600 tw-hover:bg-red-200 tw-rounded-lg tw-transition-colors"
+                                                class="tw-p-2 tw-bg-red-100 tw-text-red-600 hover:tw-bg-red-200 tw-rounded-lg tw-transition-colors"
                                                 @click.stop="deletePatient(patient.id)"
                                             />
                                         </div>
@@ -494,6 +494,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "../../../../resources/css/app.css";
+
 /* Enhanced animations */
 @keyframes slideDown {
     from {
@@ -527,23 +529,23 @@ onMounted(() => {
 
 /* PrimeVue Customizations */
 :deep(.p-paginator) {
-    @apply bg-transparent tw-border-0;
+    @apply tw-bg-transparent tw-border-0;
 }
 
 :deep(.p-paginator .p-paginator-pages .p-paginator-page) {
-    @apply min-w-[2.5rem] tw-h-10 tw-mx-1 tw-rounded-lg tw-border tw-border-gray-300 tw-text-gray-700 hover:tw-bg-blue-50 hover:tw-border-blue-500 hover:tw-text-blue-600 tw-transition-all;
+    @apply tw-min-w-[2.5rem] tw-h-10 tw-mx-1 tw-rounded-lg tw-border tw-border-gray-300 tw-text-gray-700 hover:tw-bg-blue-50 hover:tw-border-blue-500 hover:tw-text-blue-600 tw-transition-all;
 }
 
 :deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
-    @apply bg-blue-500 tw-text-white tw-border-blue-500 hover:tw-bg-blue-600;
+    @apply tw-bg-blue-500 tw-text-white tw-border-blue-500 hover:tw-bg-blue-600;
 }
 
 :deep(.p-inputtext:focus) {
-    @apply outline-none tw-ring-2 tw-ring-blue-500 tw-border-transparent;
+    @apply tw-outline-none tw-ring-2 tw-ring-blue-500 tw-border-transparent;
 }
 
 :deep(.p-button) {
-    @apply font-medium tw-transition-all tw-duration-200;
+    @apply tw-font-medium tw-transition-all tw-duration-200;
 }
 
 /* Table row hover effect */

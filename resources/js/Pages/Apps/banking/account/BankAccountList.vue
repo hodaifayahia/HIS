@@ -757,21 +757,21 @@ onMounted(() => {
 <style scoped>
 /* Scoped CSS overrides for PrimeVue components, using `@apply` for Tailwind classes */
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-none tw-text-sm;
+  @apply tw-bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-none tw-text-sm;
 }
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply transition-colors tw-duration-200;
+  @apply tw-transition-colors tw-duration-200;
 }
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  @apply bg-gray-100;
+  @apply tw-bg-gray-100;
 }
 :deep(.p-card-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 :deep(.p-card-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 :deep(.p-inputgroup .p-inputgroup-addon) {
-  @apply rounded-r-none;
+  @apply tw-rounded-r-none;
 }
 </style>

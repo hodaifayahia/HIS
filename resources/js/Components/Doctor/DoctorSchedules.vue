@@ -295,7 +295,7 @@ const handlePatientsChange = (day, shift, event) => {
                   <div class="tw-flex tw-items-center tw-mb-4">
                     <Checkbox 
                       :inputId="'morning-' + day"
-                      :binary="true"
+                      binary="true"
                       v-model="schedules[day].morning.isActive"
                       class="tw-mr-3"
                     />
@@ -314,7 +314,7 @@ const handlePatientsChange = (day, shift, event) => {
                         </label>
                         <input
                           type="time"
-                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                           :value="schedules[day].morning.startTime"
                           @input="(e) => handleTimeChange(day, 'morning', 'startTime', e)"
                         />
@@ -326,7 +326,7 @@ const handlePatientsChange = (day, shift, event) => {
                         </label>
                         <input
                           type="time"
-                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                           :value="schedules[day].morning.endTime"
                           @input="(e) => handleTimeChange(day, 'morning', 'endTime', e)"
                         />
@@ -343,7 +343,7 @@ const handlePatientsChange = (day, shift, event) => {
                         :min="0"
                         :disabled="props.patients_based_on_time"
                         class="tw-w-full"
-                        inputClass="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                        inputClass="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                         :showButtons="true"
                         buttonLayout="horizontal"
                       />
@@ -356,7 +356,7 @@ const handlePatientsChange = (day, shift, event) => {
                   <div class="tw-flex tw-items-center tw-mb-4">
                     <Checkbox 
                       :inputId="'afternoon-' + day"
-                      :binary="true"
+                       binary="true"
                       v-model="schedules[day].afternoon.isActive"
                       class="tw-mr-3"
                     />
@@ -375,7 +375,7 @@ const handlePatientsChange = (day, shift, event) => {
                         </label>
                         <input
                           type="time"
-                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                           :value="schedules[day].afternoon.startTime"
                           @input="(e) => handleTimeChange(day, 'afternoon', 'startTime', e)"
                         />
@@ -387,7 +387,7 @@ const handlePatientsChange = (day, shift, event) => {
                         </label>
                         <input
                           type="time"
-                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                           :value="schedules[day].afternoon.endTime"
                           @input="(e) => handleTimeChange(day, 'afternoon', 'endTime', e)"
                         />
@@ -404,7 +404,7 @@ const handlePatientsChange = (day, shift, event) => {
                         :min="0"
                         :disabled="props.patients_based_on_time"
                         class="tw-w-full"
-                        inputClass="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                        inputClass="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                         :showButtons="true"
                         buttonLayout="horizontal"
                       />
@@ -422,45 +422,45 @@ const handlePatientsChange = (day, shift, event) => {
 
 <style scoped>
 /* Custom PrimeVue component overrides */
-:deep(.p-card) {
-  @apply transition-all tw-duration-300;
+/* :deep(.p-card) {
+  @apply tw-transition-all tw-duration-300;
 }
 
 :deep(.p-card-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-card-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-  @apply border-2 tw-border-gray-300 tw-rounded-md tw-transition-all tw-duration-200;
+  @apply tw-border-2 tw-border-gray-300 tw-rounded-md tw-transition-all tw-duration-200;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
-  @apply bg-blue-500 tw-border-blue-500;
+  @apply tw-bg-blue-500 tw-border-blue-500;
 }
 
 :deep(.p-checkbox .p-checkbox-box:hover) {
-  @apply border-blue-400;
+  @apply tw-border-blue-400;
 }
 
 :deep(.p-inputnumber-input) {
-  @apply bg-white;
+  @apply tw-bg-white;
 }
 
 :deep(.p-inputnumber-button) {
-  @apply bg-gray-100 tw-border-gray-300 hover:tw-bg-gray-200;
+  @apply tw-bg-gray-100 tw-border-gray-300 hover:tw-bg-gray-200;
 }
 
 :deep(.p-message) {
-  @apply rounded-lg tw-border-l-4;
+  @apply tw-rounded-lg tw-border-l-4;
 }
 
 :deep(.p-message.p-message-error) {
-  @apply bg-red-50 tw-border-red-500 tw-text-red-700;
-}
+  @apply tw-bg-red-50 tw-border-red-500 tw-text-red-700;
+} */
 
 /* Animation classes */
 .fade-enter-active,
@@ -480,21 +480,21 @@ const handlePatientsChange = (day, shift, event) => {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply tw-bg-gray-100;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 tw-rounded-full;
+  @apply tw-bg-gray-400 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply tw-bg-gray-500;
 }
 
 /* Responsive grid adjustments */
-@media (max-width: 768px) {
+/* @media (max-width: 768px) {
   :deep(.tw-grid-cols-1.md\:tw-grid-cols-2) {
-    @apply grid-cols-1;
+    @apply tw-grid-cols-1;
   }
-}
+} */
 </style>

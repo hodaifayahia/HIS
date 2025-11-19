@@ -32,7 +32,7 @@
     <!-- Stockage Information -->
     <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6 tw-mb-8">
       <!-- Basic Information Card -->
-      <Card class="tw-shadow-xl tw-border-0 tw-bg-white/80 tw-backdrop-blur-sm tw-hover:shadow-2xl tw-transition-all tw-duration-300">
+      <Card class="tw-shadow-xl tw-border-0 tw-bg-white/80 tw-backdrop-blur-sm hover:tw-shadow-2xl tw-transition-all tw-duration-300">
         <template #header>
           <div class="tw-p-4 tw-bg-gradient-to-r tw-from-blue-500 tw-to-indigo-600 tw-text-white tw-rounded-t-lg">
             <div class="tw-flex tw-items-center tw-gap-3">
@@ -64,7 +64,7 @@
       </Card>
 
       <!-- Statistics Card -->
-      <Card class="tw-shadow-xl tw-border-0 tw-bg-white/80 tw-backdrop-blur-sm tw-hover:shadow-2xl tw-transition-all tw-duration-300">
+      <Card class="tw-shadow-xl tw-border-0 tw-bg-white/80 tw-backdrop-blur-sm hover:tw-shadow-2xl tw-transition-all tw-duration-300">
         <template #header>
           <div class="tw-p-4 tw-bg-gradient-to-r tw-from-green-500 tw-to-emerald-600 tw-text-white tw-rounded-t-lg">
             <div class="tw-flex tw-items-center tw-gap-3">
@@ -97,7 +97,7 @@
     </div>
 
     <!-- Location Management Section -->
-    <Card class="tw-shadow-xl tw-border-0 tw-bg-white/80 tw-backdrop-blur-sm tw-hover:shadow-2xl tw-transition-all tw-duration-300">
+    <Card class="tw-shadow-xl tw-border-0 tw-bg-white/80 tw-backdrop-blur-sm hover:tw-shadow-2xl tw-transition-all tw-duration-300">
       <template #header>
         <div class="tw-p-4 tw-bg-gradient-to-r tw-from-purple-500 tw-to-pink-600 tw-text-white tw-rounded-t-lg">
           <div class="tw-flex tw-justify-between tw-items-center">

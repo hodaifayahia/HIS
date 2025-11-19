@@ -556,6 +556,7 @@ CREATE TABLE `bon_commend_items` (
   `source_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'service_demand',
   `source_id` bigint unsigned DEFAULT NULL,
   `confirmed_at` timestamp NULL DEFAULT NULL,
+  `is_required_approval` tinyint(1) NOT NULL DEFAULT '0',
   `bon_commend_items` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `price` decimal(10,2) NOT NULL,
   `unit` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -3081,8 +3082,9 @@ CREATE TABLE `remises` (
   `requester_id` bigint unsigned DEFAULT NULL,
   `approver_id` bigint unsigned DEFAULT NULL,
   `amount` decimal(10,2) DEFAULT NULL,
+  
   `percentage` decimal(5,2) DEFAULT NULL,
-  `status` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'pending-approval, approved, declined',
+  `status` varchar(255) COLLATE utf8mb4_unicode_ci   DEFAULT NULL COMMENT 'pending-approval, approved, declined',
   `policy_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'par-clinic, par-doctor, par-personel',
   `justification` text COLLATE utf8mb4_unicode_ci,
   `type` enum('fixed','percentage') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'fixed',

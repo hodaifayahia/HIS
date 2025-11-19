@@ -593,67 +593,69 @@ const formatCurrency = (amount) => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Enhanced PrimeVue Overrides */
 :deep(.p-inputtext),
 :deep(.p-inputtextarea),
 :deep(.p-dropdown),
 :deep(.p-inputnumber-input) {
-  @apply rounded-lg tw-border-2 tw-border-gray-200 tw-shadow-sm tw-transition-all tw-duration-200 focus:tw-ring-4 focus:tw-ring-blue-500/20 focus:tw-border-blue-500 focus:tw-shadow-md;
+  @apply tw-rounded-lg tw-border-2 tw-border-gray-200 tw-shadow-sm tw-transition-all tw-duration-200 focus:tw-ring-4 focus:tw-ring-blue-500/20 focus:tw-border-blue-500 focus:tw-shadow-md;
 }
 
 :deep(.p-inputtext:hover),
 :deep(.p-inputtextarea:hover),
 :deep(.p-dropdown:not(.p-disabled):hover),
 :deep(.p-inputnumber-input:hover) {
-  @apply border-gray-300 tw-shadow-md;
+  @apply tw-border-gray-300 tw-shadow-md;
 }
 
 :deep(.p-dropdown-panel) {
-  @apply rounded-lg tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden;
+  @apply tw-rounded-lg tw-shadow-lg tw-border tw-border-gray-100 tw-overflow-hidden;
 }
 
 :deep(.p-dropdown-panel .p-dropdown-item) {
-  @apply p-3 tw-transition-all tw-duration-150 tw-text-sm;
+  @apply tw-p-3 tw-transition-all tw-duration-150 tw-text-sm;
 }
 
 :deep(.p-dropdown-panel .p-dropdown-item:hover) {
-  @apply bg-blue-50;
+  @apply tw-bg-blue-50;
 }
 
 :deep(.p-dropdown-panel .p-dropdown-items-wrapper) {
-  @apply max-h-40 tw-overflow-y-auto;
+  @apply tw-max-h-40 tw-overflow-y-auto;
 }
 
 :deep(.p-button) {
-  @apply font-semibold tw-border-0 tw-shadow-sm tw-transition-all tw-duration-200 tw-text-sm;
+  @apply tw-font-semibold tw-border-0 tw-shadow-sm tw-transition-all tw-duration-200 tw-text-sm;
 }
 
 :deep(.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider) {
-  @apply bg-gradient-to-r tw-from-blue-500 tw-to-indigo-500;
+  @apply tw-bg-gradient-to-r tw-from-blue-500 tw-to-indigo-500;
 }
 
 :deep(.p-inputswitch .p-inputswitch-slider) {
-  @apply transition-all tw-duration-300 tw-shadow-sm;
+  @apply tw-transition-all tw-duration-300 tw-shadow-sm;
 }
 
 :deep(.p-password-input) {
-  @apply w-full;
+  @apply tw-w-full;
 }
 
 /* Custom scrollbar for dropdown */
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar) {
-  @apply w-1.5;
+  @apply tw-w-1.5;
 }
 
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar-track) {
-  @apply bg-gray-100;
+  @apply tw-bg-gray-100;
 }
 
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar-thumb) {
-  @apply bg-gray-300 tw-rounded-full;
+  @apply tw-bg-gray-300 tw-rounded-full;
 }
 
 :deep(.p-dropdown-items-wrapper::-webkit-scrollbar-thumb:hover) {
-  @apply bg-gray-400;
+  @apply tw-bg-gray-400;
 }
 </style>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use \Log;
 use App\Http\Resources\AppointmentResource;
 use App\Http\Resources\PatientResource;
 use App\Models\Appointment;
@@ -9,7 +10,6 @@ use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Log;
 
 class PatientController extends Controller
 {
@@ -20,12 +20,12 @@ class PatientController extends Controller
     {
         $page = $request->get('page', 1);
         $cacheKey = "patients_list_page_{$page}";
-
+        
         // Cache patients list for 10 minutes (600 seconds)
         $patients = Cache::remember($cacheKey, 600, function () {
             return Patient::paginate(10);
         });
-
+    
         return [
             'data' => PatientResource::collection($patients),
             'meta' => [
@@ -38,13 +38,12 @@ class PatientController extends Controller
             ],
         ];
     }
-
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
     {
-
+        
         $validatedData = $request->validate([
             'Firstname' => 'required|string|max:255',
             'Lastname' => 'required|string|max:255',
@@ -54,28 +53,28 @@ class PatientController extends Controller
             'dateOfBirth' => 'nullable|date|string',
             'Idnum' => 'nullable|string|max:20', // Assuming ID can be up to 20 characters long
         ]);
-
+    
         $patient = Patient::create([
             'Firstname' => $validatedData['Firstname'],
             'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
-            'gender' => $validatedData['gender'] == 'male' ? 1 : 0, // Convert to integer
+            'gender' => $validatedData['gender'] =='male' ? 1 : 0, // Convert to integer
             'dateOfBirth' => $validatedData['dateOfBirth'] ?? null, // Handle optional date
             'Parent' => $validatedData['Parent'] ?? null, // Handle optional date
             'Idnum' => $validatedData['Idnum'] ?? null, // Handle optional ID number
             'created_by' => Auth::id(), // Assuming you're using Laravel's built-in authentication
         ]);
-
+       
         // Clear cache when new patient is created
         Cache::flush(); // Or use Cache::tags(['patients'])->flush() if using cache tags
-
+    
         return new PatientResource($patient);
     }
-
-    public function update(Request $request, $patientid)
+    
+    public function update(Request $request,  $patientid)
     {
         $validatedData = $request->validate([
-            'Firstname' => 'required|string|max:255',
+           'Firstname' => 'required|string|max:255',
             'Lastname' => 'required|string|max:255',
             'Parent' => 'nullable|string',
             'phone' => 'nullable|string',
@@ -83,8 +82,8 @@ class PatientController extends Controller
             'dateOfBirth' => 'nullable|date|string',
             'Idnum' => 'nullable|string|max:20',
         ]);
-        $patient = Patient::find($patientid);
-
+         $patient = Patient::find($patientid);
+    
         $patient->update([
             'Firstname' => $validatedData['Firstname'],
             'Lastname' => $validatedData['Lastname'],
@@ -98,10 +97,9 @@ class PatientController extends Controller
         // Clear patient-related cache when updated
         Cache::forget("patient_{$patientid}");
         Cache::flush(); // Clear all pagination cache
-
+    
         return new PatientResource($patient);
     }
-
     public function search(Request $request)
     {
         $searchTerm = $request->query('query');
@@ -116,8 +114,8 @@ class PatientController extends Controller
         }
 
         // Create cache key based on search term
-        $cacheKey = 'patient_search_'.md5($searchTerm);
-
+        $cacheKey = "patient_search_" . md5($searchTerm);
+        
         return Cache::remember($cacheKey, 300, function () use ($searchTerm) {
             // Normalize slashes to dashes
             $searchTerm = str_replace('/', '-', $searchTerm);
@@ -127,26 +125,28 @@ class PatientController extends Controller
                 $searchTerm = date('Y-m-d', strtotime($searchTerm));
             }
 
-            $patients = Patient::where(function ($query) use ($searchTerm) {
-                $searchTermLower = strtolower($searchTerm);
+          $patients = Patient::where(function($query) use ($searchTerm) {
+            $searchTermLower = strtolower($searchTerm);
 
-                $query->whereRaw('LOWER(Firstname) LIKE ?', ["%{$searchTermLower}%"])
-                    ->orWhereRaw('LOWER(Lastname) LIKE ?', ["%{$searchTermLower}%"])
-                    ->orWhereRaw("LOWER(CONCAT(Firstname, ' ', Lastname)) LIKE ?", ["%{$searchTermLower}%"])
-                    ->orWhereRaw('LOWER(Parent) LIKE ?', ["%{$searchTermLower}%"])
-                    ->orWhereRaw('LOWER(Idnum) LIKE ?', ["%{$searchTermLower}%"])
-                    ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$searchTermLower}%"])
-                    ->orWhereRaw("DATE_FORMAT(dateOfBirth, '%Y-%m-%d') LIKE ?", ["%{$searchTermLower}%"])
-                    ->orWhereHas('consultations', function ($query) use ($searchTermLower) {
-                        $query->whereRaw('LOWER(codebash) LIKE ?', ["%{$searchTermLower}%"]);
-                    });
-            })
-                ->orderBy('created_at', 'desc')
-                ->get();
+            $query->whereRaw("LOWER(Firstname) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(Lastname) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(CONCAT(Firstname, ' ', Lastname)) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(Parent) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(Idnum) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(phone) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("DATE_FORMAT(dateOfBirth, '%Y-%m-%d') LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereHas('consultations', function ($query) use ($searchTermLower) {
+                    $query->whereRaw("LOWER(codebash) LIKE ?", ["%{$searchTermLower}%"]);
+                });
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
+
 
             return PatientResource::collection($patients);
         });
     }
+
 
     /**
      * Show the form for editing the specified resource.
@@ -155,10 +155,10 @@ class PatientController extends Controller
     {
         // Log the received PatientId for debugging
         Log::info('Received PatientId:', ['PatientId' => $PatientId]);
-
+    
         // Cache key for patient appointments
         $cacheKey = "patient_appointments_{$PatientId}";
-
+        
         // Cache for 5 minutes (300 seconds)
         $appointments = Cache::remember($cacheKey, 300, function () use ($PatientId) {
             return Appointment::with(['patient', 'doctor.user'])
@@ -166,18 +166,18 @@ class PatientController extends Controller
                 ->orderBy('appointment_date', 'desc')
                 ->paginate(15);
         });
-
+    
         // Check if any appointments were found
         if ($appointments->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No appointments found for the given patient.',
+                'message' => 'No appointments found for the given patient.'
             ], 404);
         }
-
+    
         // Add custom data or perform additional operations here if required
         $totalAppointments = $appointments->total(); // Total count of appointments
-
+    
         // If you need to pass additional metadata to the frontend:
         $metaData = [
             'total' => $totalAppointments,
@@ -187,20 +187,19 @@ class PatientController extends Controller
             'from' => $appointments->firstItem(),
             'to' => $appointments->lastItem(),
         ];
-
+    
         // Use a custom resource collection which includes the metadata
         return AppointmentResource::collection($appointments)->additional(['meta' => $metaData]);
     }
-
-    public function SpecificPatient($patientid)
+    public function SpecificPatient( $patientid)
     {
         // Cache specific patient for 10 minutes
         $cacheKey = "patient_{$patientid}";
-
+        
         $patient = Cache::remember($cacheKey, 600, function () use ($patientid) {
             return Patient::find($patientid);
         });
-
+        
         return new PatientResource($patient);
     }
 
@@ -211,17 +210,17 @@ class PatientController extends Controller
     {
         $patient = Patient::find($patientid);
         $patient->delete();
-
+        
         // Clear cache when patient is deleted
         Cache::forget("patient_{$patientid}");
         Cache::forget("patient_appointments_{$patientid}");
         Cache::flush(); // Clear all patient lists cache
-
+        
         return response()->json([
             'message' => 'Patient deleted successfully',
         ], 200); // Return 200 OK
     }
-
+        
     public function bulkDestroy(Request $request)
     {
         $request->validate([
@@ -232,7 +231,7 @@ class PatientController extends Controller
         try {
             $patientIds = $request->input('ids');
             Patient::whereIn('id', $patientIds)->delete();
-
+            
             // Clear cache for deleted patients
             foreach ($patientIds as $id) {
                 Cache::forget("patient_{$id}");

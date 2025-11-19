@@ -1,6 +1,6 @@
 <script setup>
 // KEEPING ALL EXISTING SCRIPT EXACTLY AS IS - NO CHANGES TO FUNCTIONALITY
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useToast } from 'primevue/usetoast'
 import DataTable from 'primevue/datatable'
@@ -86,6 +86,38 @@ const assignmentForm = reactive({
 })
 
 const formErrors = ref({})
+
+// Product Selection Dialog State - NEW
+const showProductSelectionDialog = ref(false)
+const productSelectionTab = ref(0) // 0 = Stock, 1 = Pharmacy
+const availableStockProducts = ref([])
+const availablePharmacyProducts = ref([])
+const selectedStockProduct = ref(null)
+const selectedPharmacyProduct = ref(null)
+const productSelectionQuantity = ref(1)
+const productSelectionUnit = ref('unit') // 'unit' or 'box'
+const loadingProducts = ref(false)
+const selectedItemForProductSelection = ref(null) // Track which item is being edited
+
+// Pagination state for infinite scroll
+const stockProductsPagination = reactive({
+  page: 1,
+  totalPages: 1,
+  loading: false,
+  hasMore: true,
+  searchQuery: ''
+})
+
+const pharmacyProductsPagination = reactive({
+  page: 1,
+  totalPages: 1,
+  loading: false,
+  hasMore: true,
+  searchQuery: ''
+})
+
+// Service demand pharmacy order flag
+const serviceDemandIsPharmacyOrder = ref(false)
 
 // NEW UI ENHANCEMENTS (additions only)
 const activeTab = ref(0)
@@ -210,7 +242,9 @@ const fetchServiceDemand = async () => {
 
     if (response.data.success) {
       serviceDemand.value = response.data.data
+      serviceDemandIsPharmacyOrder.value = response.data.data.is_pharmacy_order || (route.query.is_pharmacy_order === 'true')
 
+      
       // Initialize workflow status from localStorage or current status
       const storedStatus = getWorkflowStatusFromStorage()
       if (storedStatus && ['factureprofram', 'boncommend'].includes(storedStatus)) {
@@ -249,9 +283,24 @@ const fetchSuppliers = async () => {
   }
 }
 
-const fetchSupplierPricingData = async (productId) => {
+const fetchSupplierPricingData = async (productId, isPharmacy = false) => {
+  // Skip if no product ID
+  if (!productId) {
+    console.warn('No product ID provided for supplier pricing data')
+    return {}
+  }
+
+  // Skip pricing data for pharmacy products (they don't have supplier pricing)
+  if (isPharmacy) {
+    console.log('Pharmacy products do not have supplier pricing data')
+    return {}
+  }
+
   try {
-    const response = await axios.get(`/api/products/${productId}/supplier-pricing`)
+    // Only fetch pricing data for stock products
+    const endpoint = `/api/products/${productId}/supplier-pricing`
+    
+    const response = await axios.get(endpoint)
     if (response.data.success) {
       // Store pricing data by supplier ID for easy lookup
       const pricingBySupplier = {}
@@ -264,14 +313,16 @@ const fetchSupplierPricingData = async (productId) => {
   } catch (err) {
     console.error('Error fetching supplier pricing data:', err)
 
-    // Show specific error message from backend
-    const errorMessage = err.response?.data?.message || err.message || 'Failed to load supplier pricing data'
-    toast.add({
-      severity: 'error',
-      summary: 'Error Loading Pricing Data',
-      detail: errorMessage,
-      life: 5000
-    })
+    // Show specific error message from backend (but only if it's a real error, not 404)
+    if (err.response?.status !== 404) {
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to load supplier pricing data'
+      toast.add({
+        severity: 'error',
+        summary: 'Error Loading Pricing Data',
+        detail: errorMessage,
+        life: 5000
+      })
+    }
     return {}
   }
 }
@@ -305,13 +356,22 @@ const showSupplierDialog = async (product) => {
   assignmentForm.notes = ''
   formErrors.value = {}
 
-  // Fetch pricing data for this product
+  // Determine product type and fetch appropriate pricing data
   loadingSupplierData.value = true
   try {
-    const pricingData = await fetchSupplierPricingData(product.product?.id)
-    supplierPricingData.value = pricingData
+    const isPharmacy = !!product.pharmacy_product_id
+    const productId = isPharmacy ? product.pharmacy_product_id : product.product_id
+    
+    if (!productId) {
+      console.warn('No product ID found for pricing data')
+      supplierPricingData.value = {}
+    } else {
+      const pricingData = await fetchSupplierPricingData(productId, isPharmacy)
+      supplierPricingData.value = pricingData
+    }
   } catch (error) {
     console.error('Error loading supplier pricing data:', error)
+    supplierPricingData.value = {}
   } finally {
     loadingSupplierData.value = false
   }
@@ -463,8 +523,16 @@ const saveProforma = async () => {
           }
         }
 
+        // Get product ID from either stock product or pharmacy product
+        const productId = product.product?.id || product.pharmacy_product?.id || product.product_id || product.pharmacy_product_id
+        
+        if (!productId) {
+          console.warn('Warning: Could not find product ID for item:', product)
+          return
+        }
+
         supplierGroups[supplierId].products.push({
-          product_id: product.product.id,
+          product_id: productId,
           quantity: assignment.assigned_quantity,
           price: 0,
           unit: assignment.unit || 'Unit'
@@ -580,8 +648,16 @@ const saveBonCommend = async () => {
           }
         }
 
+        // Get product ID from either stock product or pharmacy product
+        const productId = product.product?.id || product.pharmacy_product?.id || product.product_id || product.pharmacy_product_id
+        
+        if (!productId) {
+          console.warn('Warning: Could not find product ID for item:', product)
+          return
+        }
+
         supplierGroups[supplierId].products.push({
-          product_id: product.product.id,
+          product_id: productId,
           quantity: assignment.assigned_quantity,
           price: 0,
           unit: assignment.unit || 'Unit'
@@ -720,7 +796,537 @@ const refreshData = async () => {
   })
 }
 
+// Product Selection Methods - NEW
+const openProductSelectionDialog = async (item = null) => {
+  selectedItemForProductSelection.value = item
+  
+  selectedStockProduct.value = null
+  selectedPharmacyProduct.value = null
+  productSelectionQuantity.value = 1
+  
+  // Initialize pagination states
+  stockProductsPagination.page = 1
+  stockProductsPagination.totalPages = 1
+  stockProductsPagination.loading = false
+  stockProductsPagination.hasMore = true
+  stockProductsPagination.searchQuery = ''
+  
+  pharmacyProductsPagination.page = 1
+  pharmacyProductsPagination.totalPages = 1
+  pharmacyProductsPagination.loading = false
+  pharmacyProductsPagination.hasMore = true
+  pharmacyProductsPagination.searchQuery = ''
+  
+  // Clear existing products
+  availableStockProducts.value = []
+  availablePharmacyProducts.value = []
+  
+  loadingProducts.value = true
+  
+  try {
+    // Determine if we should load pharmacy or stock products
+    // If is_pharmacy_order is true, load pharmacy products, otherwise stock products
+    const isPharmacyOrder = item?.is_pharmacy_order ?? serviceDemandIsPharmacyOrder.value
+    
+    if (isPharmacyOrder) {
+      await loadPharmacyProducts()
+    } else {
+      await loadStockProducts()
+    }
+  } catch (error) {
+    console.error('Error loading products:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load products',
+      life: 3000
+    })
+  } finally {
+    loadingProducts.value = false
+  }
+  
+  showProductSelectionDialog.value = true
+  
+  // Attach scroll listeners after a short delay to ensure DOM is ready
+  nextTick(() => {
+    setTimeout(() => {
+      attachScrollListeners()
+    }, 500)
+  })
+}
+
+const closeProductSelectionDialog = () => {
+  showProductSelectionDialog.value = false
+  selectedStockProduct.value = null
+  selectedPharmacyProduct.value = null
+  productSelectionQuantity.value = 1
+  productSelectionUnit.value = 'unit'
+  selectedItemForProductSelection.value = null
+  
+  // Clean up scroll listeners when closing dialog
+  removeScrollListeners()
+}
+
+// Paginated loading functions for infinite scroll
+const loadStockProducts = async (searchQuery = '', append = false) => {
+  // Prevent duplicate loading
+  if (stockProductsPagination.loading) {
+    console.log('📦 Stock products already loading, skipping...')
+    return
+  }
+  
+  stockProductsPagination.loading = true
+  
+  console.log(`📦 Loading stock products - Page: ${stockProductsPagination.page}, Append: ${append}, Search: "${searchQuery}"`)
+  
+  try {
+    const params = {
+      type: 'stock',
+      page: stockProductsPagination.page,
+      per_page: 50,
+      search: searchQuery || stockProductsPagination.searchQuery || ''
+    }
+    
+    const response = await axios.get('/api/service-demands/meta/products', { params })
+    
+    if (response.data.success) {
+      const newProducts = response.data.data || []
+      console.log(`✅ Loaded ${newProducts.length} stock products. Total now: ${append ? availableStockProducts.value.length + newProducts.length : newProducts.length}`)
+      
+      if (append) {
+        // Prevent duplicate entries by checking IDs
+        const existingIds = new Set(availableStockProducts.value.map(p => p.id))
+        const uniqueNewProducts = newProducts.filter(p => !existingIds.has(p.id))
+        availableStockProducts.value = [...availableStockProducts.value, ...uniqueNewProducts]
+      } else {
+        availableStockProducts.value = newProducts
+      }
+      
+      // Update pagination info
+      stockProductsPagination.totalPages = response.data.last_page || 1
+      stockProductsPagination.hasMore = stockProductsPagination.page < stockProductsPagination.totalPages
+      console.log(`📊 Pagination - Current: ${stockProductsPagination.page}, Total: ${stockProductsPagination.totalPages}, HasMore: ${stockProductsPagination.hasMore}`)
+    }
+  } catch (error) {
+    console.error('Error loading stock products:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load stock products',
+      life: 3000
+    })
+  } finally {
+    stockProductsPagination.loading = false
+  }
+}
+
+const loadPharmacyProducts = async (searchQuery = '', append = false) => {
+  // Prevent duplicate loading
+  if (pharmacyProductsPagination.loading) {
+    console.log('💊 Pharmacy products already loading, skipping...')
+    return
+  }
+  
+  pharmacyProductsPagination.loading = true
+  
+  console.log(`💊 Loading pharmacy products - Page: ${pharmacyProductsPagination.page}, Append: ${append}, Search: "${searchQuery}"`)
+  
+  try {
+    const params = {
+      page: pharmacyProductsPagination.page,
+      per_page: 50,
+      search: searchQuery || pharmacyProductsPagination.searchQuery || ''
+    }
+
+    const response = await axios.get('/api/pharmacy/products', { params })
+
+    if (response.data.success) {
+      const newProducts = response.data.data || []
+      console.log(`✅ Loaded ${newProducts.length} pharmacy products. Total now: ${append ? availablePharmacyProducts.value.length + newProducts.length : newProducts.length}`)
+      
+      if (append) {
+        // Prevent duplicate entries by checking IDs
+        const existingIds = new Set(availablePharmacyProducts.value.map(p => p.id))
+        const uniqueNewProducts = newProducts.filter(p => !existingIds.has(p.id))
+        availablePharmacyProducts.value = [...availablePharmacyProducts.value, ...uniqueNewProducts]
+      } else {
+        availablePharmacyProducts.value = newProducts
+      }
+      
+      // Update pagination info
+      pharmacyProductsPagination.totalPages = response.data.last_page || 1
+      pharmacyProductsPagination.hasMore = pharmacyProductsPagination.page < pharmacyProductsPagination.totalPages
+      console.log(`📊 Pagination - Current: ${pharmacyProductsPagination.page}, Total: ${pharmacyProductsPagination.totalPages}, HasMore: ${pharmacyProductsPagination.hasMore}`)
+    }
+  } catch (error) {
+    console.error('Error loading pharmacy products:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to load pharmacy products',
+      life: 3000
+    })
+  } finally {
+    pharmacyProductsPagination.loading = false
+  }
+}
+
+// Refs for dropdowns
+const pharmacyDropdownRef = ref(null)
+const stockDropdownRef = ref(null)
+const attachedScrollHandlers = new Map() // Track which panels have listeners attached
+let scrollDebounceTimer = null
+
+// Debounced scroll handlers for infinite scroll in dropdowns
+const onStockProductsScroll = async (event) => {
+  // When user scrolls to the bottom of the list
+  if (event && event.target) {
+    const scrollTop = event.target.scrollTop
+    const scrollHeight = event.target.scrollHeight
+    const clientHeight = event.target.clientHeight
+    
+    // Calculate scroll percentage
+    const scrollPercentage = ((scrollTop + clientHeight) / scrollHeight) * 100
+    
+    // If scrolled to bottom (within 50px or 85%), load more with debounce
+    if (scrollHeight - scrollTop - clientHeight < 50 || scrollPercentage > 85) {
+      if (stockProductsPagination.hasMore && !stockProductsPagination.loading) {
+        // Clear existing timer
+        if (scrollDebounceTimer) {
+          clearTimeout(scrollDebounceTimer)
+        }
+        
+        // Debounce to prevent multiple rapid calls
+        scrollDebounceTimer = setTimeout(async () => {
+          console.log('📦 Stock products: Loading next page', stockProductsPagination.page + 1, `at ${scrollPercentage.toFixed(1)}%`)
+          stockProductsPagination.page++
+          await loadStockProducts(stockProductsPagination.searchQuery, true)
+        }, 300)
+      }
+    }
+  }
+}
+
+const onPharmacyProductsScroll = async (event) => {
+  // When user scrolls to the bottom of the list
+  if (event && event.target) {
+    const scrollTop = event.target.scrollTop
+    const scrollHeight = event.target.scrollHeight
+    const clientHeight = event.target.clientHeight
+    
+    // Calculate scroll percentage
+    const scrollPercentage = ((scrollTop + clientHeight) / scrollHeight) * 100
+    
+    // If scrolled to bottom (within 50px or 85%), load more with debounce
+    if (scrollHeight - scrollTop - clientHeight < 50 || scrollPercentage > 85) {
+      if (pharmacyProductsPagination.hasMore && !pharmacyProductsPagination.loading) {
+        // Clear existing timer
+        if (scrollDebounceTimer) {
+          clearTimeout(scrollDebounceTimer)
+        }
+        
+        // Debounce to prevent multiple rapid calls
+        scrollDebounceTimer = setTimeout(async () => {
+          console.log('💊 Pharmacy products: Loading next page', pharmacyProductsPagination.page + 1, `at ${scrollPercentage.toFixed(1)}%`)
+          pharmacyProductsPagination.page++
+          await loadPharmacyProducts(pharmacyProductsPagination.searchQuery, true)
+        }, 300)
+      }
+    }
+  }
+}
+
+// Attach scroll listeners to dropdown panels
+const attachScrollListeners = async () => {
+  console.log('🔗 Attaching scroll listeners...')
+  
+  // Remove any existing listeners first
+  removeScrollListeners()
+  
+  // Use nextTick and setTimeout to ensure DOM is ready
+  await nextTick()
+  
+  // Try multiple times with increasing delays to catch the DOM when it's ready
+  const attemptAttach = (delay = 200, maxAttempts = 5, currentAttempt = 1) => {
+    setTimeout(() => {
+      // Try multiple selector patterns for PrimeVue dropdown panels
+      const selectors = [
+        '.p-dropdown-panel .p-dropdown-items-wrapper',
+        '.p-dropdown-panel .p-virtualscroller',
+        '.p-dropdown-items-wrapper',
+        '[role="listbox"]'
+      ]
+      
+      let foundPanel = false
+      
+      for (const selector of selectors) {
+        const panels = document.querySelectorAll(selector)
+        
+        panels.forEach(panel => {
+          // Check if this is a visible panel and not already tracked
+          const isVisible = panel.offsetParent !== null
+          
+          if (isVisible && !attachedScrollHandlers.has(panel)) {
+            console.log(`✅ Found visible dropdown panel (${selector}) on attempt ${currentAttempt}`)
+            foundPanel = true
+            
+            // Determine which type based on current state
+            const isPharmacyOrder = selectedItemForProductSelection.value?.is_pharmacy_order ?? serviceDemandIsPharmacyOrder.value
+            
+            // Create debounced scroll handler
+            let scrollTimer = null
+            const scrollHandler = (e) => {
+              // Clear previous timer
+              if (scrollTimer) clearTimeout(scrollTimer)
+              
+              // Debounce scroll event
+              scrollTimer = setTimeout(async () => {
+                const scrollTop = e.target.scrollTop
+                const scrollHeight = e.target.scrollHeight
+                const clientHeight = e.target.clientHeight
+                
+                const scrollPercentage = ((scrollTop + clientHeight) / scrollHeight) * 100
+                
+                // If scrolled to bottom (within 50px or 85%), load more
+                if (scrollHeight - scrollTop - clientHeight < 50 || scrollPercentage > 85) {
+                  if (isPharmacyOrder) {
+                    if (pharmacyProductsPagination.hasMore && !pharmacyProductsPagination.loading) {
+                      console.log('� Pharmacy: Triggering load at', scrollPercentage.toFixed(1) + '%')
+                      pharmacyProductsPagination.page++
+                      await loadPharmacyProducts(pharmacyProductsPagination.searchQuery, true)
+                    }
+                  } else {
+                    if (stockProductsPagination.hasMore && !stockProductsPagination.loading) {
+                      console.log('📦 Stock: Triggering load at', scrollPercentage.toFixed(1) + '%')
+                      stockProductsPagination.page++
+                      await loadStockProducts(stockProductsPagination.searchQuery, true)
+                    }
+                  }
+                }
+              }, 200) // 200ms debounce
+            }
+            
+            // Attach the listener with passive option for better performance
+            panel.addEventListener('scroll', scrollHandler, { passive: true })
+            attachedScrollHandlers.set(panel, scrollHandler)
+            console.log('🎯 Scroll listener attached successfully')
+          }
+        })
+        
+        if (foundPanel) break
+      }
+      
+      // Retry if panel not found and haven't exceeded max attempts
+      if (!foundPanel && currentAttempt < maxAttempts) {
+        console.log(`🔄 Panel not found, retrying (attempt ${currentAttempt + 1}/${maxAttempts})...`)
+        attemptAttach(delay + 100, maxAttempts, currentAttempt + 1)
+      } else if (!foundPanel) {
+        console.warn('⚠️ Could not find dropdown panel after maximum attempts')
+      }
+    }, delay)
+  }
+  
+  attemptAttach(200)
+}
+
+// Remove scroll listeners
+const removeScrollListeners = () => {
+  console.log('Removing scroll listeners...')
+  attachedScrollHandlers.forEach((handler, panel) => {
+    panel.removeEventListener('scroll', handler)
+  })
+  attachedScrollHandlers.clear()
+}
+
+// Lazy load handlers for infinite scroll - these are called by virtualScroller
+const onStockProductsLazyLoad = async (event) => {
+  // event.first = starting index, event.last = ending index
+  // Only load more if we're near the end and have more pages
+  if (event && event.last >= availableStockProducts.value.length - 10) {
+    if (stockProductsPagination.hasMore && !stockProductsPagination.loading) {
+      stockProductsPagination.page++
+      await loadStockProducts(stockProductsPagination.searchQuery, true)
+    }
+  }
+}
+
+const onPharmacyProductsLazyLoad = async (event) => {
+  // event.first = starting index, event.last = ending index
+  // Only load more if we're near the end and have more pages
+  if (event && event.last >= availablePharmacyProducts.value.length - 10) {
+    if (pharmacyProductsPagination.hasMore && !pharmacyProductsPagination.loading) {
+      pharmacyProductsPagination.page++
+      await loadPharmacyProducts(pharmacyProductsPagination.searchQuery, true)
+    }
+  }
+}
+
+// Search handlers with debouncing - Note: Dropdown filter event uses 'value' property
+let stockSearchDebounce = null
+let pharmacySearchDebounce = null
+
+const onStockProductsSearch = async (event) => {
+  const searchQuery = event?.value || ''
+  console.log('🔍 Stock search query:', searchQuery)
+  
+  stockProductsPagination.searchQuery = searchQuery
+  stockProductsPagination.page = 1
+  stockProductsPagination.hasMore = true
+  
+  // Clear existing debounce timer
+  if (stockSearchDebounce) {
+    clearTimeout(stockSearchDebounce)
+  }
+  
+  // Debounce search to prevent excessive API calls
+  stockSearchDebounce = setTimeout(async () => {
+    console.log('🔍 Executing stock search for:', searchQuery)
+    await loadStockProducts(searchQuery, false)
+  }, 500)
+}
+
+const onPharmacyProductsSearch = async (event) => {
+  const searchQuery = event?.value || ''
+  console.log('🔍 Pharmacy search query:', searchQuery)
+  
+  pharmacyProductsPagination.searchQuery = searchQuery
+  pharmacyProductsPagination.page = 1
+  pharmacyProductsPagination.hasMore = true
+  
+  // Clear existing debounce timer
+  if (pharmacySearchDebounce) {
+    clearTimeout(pharmacySearchDebounce)
+  }
+  
+  // Debounce search to prevent excessive API calls
+  pharmacySearchDebounce = setTimeout(async () => {
+    console.log('🔍 Executing pharmacy search for:', searchQuery)
+    await loadPharmacyProducts(searchQuery, false)
+  }, 500)
+}
+
+const addSelectedProductToOrder = async () => {
+  // Determine which product is selected based on the service demand type
+  const isPharmacyOrder = selectedItemForProductSelection?.is_pharmacy_order ?? serviceDemandIsPharmacyOrder.value
+  const selectedProduct = isPharmacyOrder ? selectedPharmacyProduct.value : selectedStockProduct.value
+
+  if (!selectedProduct || productSelectionQuantity.value < 1) {
+    toast.add({
+      severity: 'warning',
+      summary: 'Warning',
+      detail: 'Please select a product and enter a quantity',
+      life: 3000
+    })
+    return
+  }
+
+  // Add product to the service demand items
+  try {
+    const payload = {
+      product_id: isPharmacyOrder ? null : selectedProduct.id,
+      pharmacy_product_id: isPharmacyOrder ? selectedProduct.id : null,
+      quantity: productSelectionQuantity.value,
+      unit: productSelectionUnit.value,
+      quantity_by_box: productSelectionUnit.value === 'box',
+      notes: `Added from product selection (${productSelectionUnit.value})`
+    }
+
+    // Make API call to add item to service demand
+    const response = await axios.post(
+      `/api/service-demands/${route.params.id}/items`,
+      payload
+    )
+
+    if (response.data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: `Product "${selectedProduct.name}" added to order`,
+        life: 3000
+      })
+      closeProductSelectionDialog()
+      await fetchServiceDemand()
+    }
+  } catch (error) {
+    console.error('Error adding product:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: error.response?.data?.message || 'Failed to add product to order',
+      life: 3000
+    })
+  }
+}
+
 // ALL EXISTING UTILITY FUNCTIONS - UNCHANGED
+// Helper function to get product name from either product or pharmacy_product
+// Handles both nested objects (item.pharmacy_product/item.product) and direct product objects
+const getProductName = (item) => {
+  if (!item) return 'No Product'
+  
+  // Check for nested pharmacy_product object
+  if (item.pharmacy_product) {
+    return item.pharmacy_product.name || item.pharmacy_product.generic_name || item.pharmacy_product.brand_name || 'Unnamed Pharmacy Product'
+  }
+  
+  // Check for nested product object
+  if (item.product) {
+    return item.product.name || item.product.designation || 'Unnamed Product'
+  }
+  
+  // Handle direct pharmacy product (has pharmacy_product_id)
+  if (item.pharmacy_product_id && (item.name || item.generic_name || item.brand_name)) {
+    return item.name || item.generic_name || item.brand_name || 'Unnamed Pharmacy Product'
+  }
+  
+  // Handle direct stock product (has product_id or code_interne)
+  if ((item.product_id || item.code_interne) && (item.name || item.designation)) {
+    return item.name || item.designation || 'Unnamed Product'
+  }
+  
+  // Fallback: check for any name-like property
+  if (item.name) return item.name
+  if (item.designation) return item.designation
+  if (item.generic_name) return item.generic_name
+  if (item.brand_name) return item.brand_name
+  
+  return 'No Product'
+}
+
+// Helper function to get product code from either product or pharmacy_product
+// Handles both nested objects and direct product objects
+const getProductCode = (item) => {
+  if (!item) return 'N/A'
+  
+  // Check for nested pharmacy_product object
+  if (item.pharmacy_product) {
+    return item.pharmacy_product.sku || item.pharmacy_product.barcode || 'N/A'
+  }
+  
+  // Check for nested product object
+  if (item.product) {
+    return item.product.code_interne || item.product.code || 'N/A'
+  }
+  
+  // Handle direct pharmacy product (has pharmacy_product_id or sku/barcode)
+  if (item.pharmacy_product_id || item.sku || item.barcode) {
+    return item.sku || item.barcode || 'N/A'
+  }
+  
+  // Handle direct stock product (has product_id or code_interne/code)
+  if (item.product_id || item.code_interne || item.code) {
+    return item.code_interne || item.code || 'N/A'
+  }
+  
+  // Fallback: check for any code-like property
+  if (item.sku) return item.sku
+  if (item.barcode) return item.barcode
+  if (item.code_interne) return item.code_interne
+  if (item.code) return item.code
+  
+  return 'N/A'
+}
+
 const getAssignmentStatus = (product) => {
   const assignmentCount = product.fournisseur_assignments?.length || 0
   if (assignmentCount === 0) return 'Not Assigned'
@@ -759,6 +1365,15 @@ const getStatusIcon = (status) => {
     'boncommend': 'pi pi-truck'
   }
   return iconMap[status] || 'pi pi-circle'
+}
+
+// Function to get row class for product type color coding
+const getProductRowClass = (data) => {
+  if (data.pharmacy_product_id) {
+    return 'pharmacy-product-row'
+  } else {
+    return 'stock-product-row'
+  }
 }
 
 const formatDate = (date) => {
@@ -989,7 +1604,11 @@ const getTypeSeverity = (type) => {
 
 // ALL EXISTING PRICING HISTORY FUNCTIONS - UNCHANGED
 const viewSupplierHistory = async (supplier) => {
-  if (!selectedProduct.value?.product?.id) {
+  // Determine product type and get correct product ID
+  const isPharmacy = !!selectedProduct.value?.pharmacy_product_id
+  const productId = isPharmacy ? selectedProduct.value?.pharmacy_product_id : selectedProduct.value?.product_id
+
+  if (!productId) {
     toast.add({
       severity: 'warn',
       summary: 'Warning',
@@ -999,31 +1618,79 @@ const viewSupplierHistory = async (supplier) => {
     return
   }
 
+  // Both pharmacy and stock products can now show history
   selectedHistorySupplier.value = supplier
-  selectedHistoryProduct.value = selectedProduct.value.product
+  selectedHistoryProduct.value = selectedProduct.value
   historyDialog.value = true
 
-  await fetchSupplierHistory(selectedProduct.value.product.id, supplier.id)
+  await fetchSupplierHistory(productId, supplier?.id, isPharmacy)
 }
 
-const fetchSupplierHistory = async (productId, supplierId) => {
+const fetchSupplierHistory = async (productId, supplierId, isPharmacy = false) => {
   try {
     loadingHistory.value = true
-    const response = await axios.get(`/api/products/${productId}/supplier/${supplierId}/history`)
+    
+    // Choose the appropriate endpoint based on product type
+    let endpoint
+    if (isPharmacy) {
+      // Pharmacy products have their own pricing history endpoint (movement history)
+      endpoint = `/api/pharmacy-products/${productId}/pricing-history`
+    } else {
+      // Stock products use supplier pricing history
+      endpoint = `/api/products/${productId}/supplier/${supplierId}/history`
+    }
+    
+    const response = await axios.get(endpoint)
 
     if (response.data.success) {
-      pricingHistoryData.value = response.data.data
+      // For pharmacy products, format the movement history data
+      if (isPharmacy && response.data.data) {
+        const pharmacyData = response.data.data
+        // Transform pharmacy movement history to match the expected format
+        pricingHistoryData.value = pharmacyData.movement_history?.map(item => ({
+          id: item.movement_id,
+          order_date: item.created_at,
+          movement_type: item.movement_type,
+          status: item.status,
+          providing_service: item.providing_service,
+          requesting_service: item.requesting_service,
+          requested_quantity: item.requested_quantity,
+          approved_quantity: item.approved_quantity,
+          executed_quantity: item.executed_quantity,
+          provided_quantity: item.provided_quantity,
+          received_quantity: item.received_quantity,
+          notes: item.notes,
+          // Add current pricing info
+          current_unit_cost: pharmacyData.current_pricing?.unit_cost,
+          current_selling_price: pharmacyData.current_pricing?.selling_price,
+          current_markup: pharmacyData.current_pricing?.markup_percentage,
+        })) || []
+      } else {
+        // Stock product history
+        pricingHistoryData.value = response.data.data || []
+      }
     } else {
       throw new Error(response.data.message || 'Failed to fetch history')
     }
   } catch (error) {
-    console.error('Error fetching supplier history:', error)
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Failed to load pricing history',
-      life: 3000
-    })
+    console.error('Error fetching history:', error)
+    
+    // Show warning if no history found
+    if (error.response?.status === 404) {
+      toast.add({
+        severity: 'info',
+        summary: 'No History',
+        detail: `No ${isPharmacy ? 'movement' : 'pricing'} history found for this product`,
+        life: 3000
+      })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: 'Failed to load history',
+        life: 3000
+      })
+    }
     pricingHistoryData.value = []
   } finally {
     loadingHistory.value = false
@@ -1085,7 +1752,9 @@ const exportHistory = () => {
     const link = document.createElement('a')
     const url = URL.createObjectURL(blob)
     link.setAttribute('href', url)
-    link.setAttribute('download', `pricing_history_${selectedHistoryProduct.value?.name}_${selectedHistorySupplier.value?.company_name}_${new Date().toISOString().split('T')[0]}.csv`)
+    const productName = getProductName(selectedHistoryProduct.value)
+    const supplierName = selectedHistorySupplier.value?.company_name || 'unknown'
+    link.setAttribute('download', `pricing_history_${productName}_${supplierName}_${new Date().toISOString().split('T')[0]}.csv`)
     link.style.visibility = 'hidden'
     document.body.appendChild(link)
     link.click()
@@ -1125,17 +1794,31 @@ onMounted(async () => {
     fetchSuppliers()
   ])
 })
+
+// Watch for dialog visibility to attach scroll listeners
+watch(showProductSelectionDialog, async (newVal) => {
+  if (newVal) {
+    // Dialog opened - attach scroll listeners after a delay
+    await nextTick()
+    setTimeout(() => {
+      attachScrollListeners()
+    }, 500)
+  } else {
+    // Dialog closed - remove scroll listeners
+    removeScrollListeners()
+  }
+})
 </script>
 
 <template>
-  <div class="service-demand-detail tw-min-h-screen tw-bg-gradient-to-br tw-from-indigo-50 tw-via-purple-50 tw-to-pink-50">
+  <div class="service-demand-detail tw-min-h-screen tw-bg-gray-50">
     <!-- Enhanced Loading State -->
     <div v-if="loading" class="tw-flex tw-justify-center tw-items-center tw-min-h-screen">
       <div class="tw-text-center">
         <div class="tw-relative tw-inline-flex">
-          <div class="tw-w-24 tw-h-24 tw-bg-gradient-to-tr tw-from-purple-400 tw-to-pink-400 tw-rounded-full tw-animate-ping tw-absolute tw-opacity-75"></div>
-          <div class="tw-w-24 tw-h-24 tw-bg-gradient-to-tr tw-from-purple-500 tw-to-pink-500 tw-rounded-full tw-animate-pulse tw-flex tw-items-center tw-justify-center">
-            <i class="pi pi-shopping-cart tw-text-white tw-text-3xl"></i>
+          <div class="tw-w-24 tw-h-24 tw-bg-gray-200 tw-rounded-full tw-animate-ping tw-absolute tw-opacity-75"></div>
+          <div class="tw-w-24 tw-h-24 tw-bg-gray-300 tw-rounded-full tw-animate-pulse tw-flex tw-items-center tw-justify-center">
+            <i class="pi pi-shopping-cart tw-text-gray-700 tw-text-3xl"></i>
           </div>
         </div>
         <p class="tw-mt-4 tw-text-lg tw-font-medium tw-text-gray-700">Loading Service Demand...</p>
@@ -1145,7 +1828,7 @@ onMounted(async () => {
     <!-- Main Content -->
     <div v-else-if="serviceDemand" class="tw-container tw-mx-auto tw-px-4 tw-py-6">
       <!-- Modern Header Section -->
-      <div class="tw-bg-gradient-to-r tw-from-indigo-600 tw-to-indigo-600   tw-rounded-2xl tw-shadow-2xl tw-p-8 tw-mb-8 tw-text-white tw-relative tw-overflow-hidden">
+      <div class="tw-bg-gray-800 tw-rounded-2xl tw-shadow-2xl tw-p-8 tw-mb-8 tw-text-white tw-relative tw-overflow-hidden">
         <!-- Background Pattern -->
         <div class="tw-absolute tw-inset-0 tw-opacity-10">
           <div class="tw-absolute tw-transform tw-rotate-45 tw--right-20 tw--top-20 tw-w-80 tw-h-80 tw-bg-white tw-rounded-full"></div>
@@ -1224,7 +1907,7 @@ onMounted(async () => {
       <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-4 tw-gap-6 tw-mb-8">
         <Card class="tw-border-0 tw-shadow-xl hover:tw-shadow-2xl tw-transition-all tw-duration-300 tw-transform hover:tw--translate-y-1">
           <template #content>
-            <div class="tw-bg-gradient-to-br tw-from-blue-500 tw-to-blue-600 tw-rounded-xl tw-p-6 tw-text-white">
+            <div class="tw-bg-gray-700 tw-rounded-xl tw-p-6 tw-text-white">
               <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
                 <i class="pi pi-building tw-text-4xl tw-opacity-80"></i>
                 <Tag :value="serviceDemand.status" :severity="getStatusSeverity(serviceDemand.status)" />
@@ -1237,7 +1920,7 @@ onMounted(async () => {
 
         <Card class="tw-border-0 tw-shadow-xl hover:tw-shadow-2xl tw-transition-all tw-duration-300 tw-transform hover:tw--translate-y-1">
           <template #content>
-            <div class="tw-bg-gradient-to-br tw-from-green-500 tw-to-green-600 tw-rounded-xl tw-p-6 tw-text-white">
+            <div class="tw-bg-gray-700 tw-rounded-xl tw-p-6 tw-text-white">
               <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
                 <i class="pi pi-calendar tw-text-4xl tw-opacity-80"></i>
                 <i class="pi pi-clock tw-text-xl tw-opacity-60"></i>
@@ -1250,7 +1933,7 @@ onMounted(async () => {
 
         <Card class="tw-border-0 tw-shadow-xl hover:tw-shadow-2xl tw-transition-all tw-duration-300 tw-transform hover:tw--translate-y-1">
           <template #content>
-            <div class="tw-bg-gradient-to-br tw-from-purple-500 tw-to-purple-600 tw-rounded-xl tw-p-6 tw-text-white">
+            <div class="tw-bg-gray-700 tw-rounded-xl tw-p-6 tw-text-white">
               <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
                 <i class="pi pi-box tw-text-4xl tw-opacity-80"></i>
                 <Badge :value="serviceDemand.items?.length || 0" severity="danger" class="tw-scale-125" />
@@ -1263,7 +1946,7 @@ onMounted(async () => {
 
         <Card class="tw-border-0 tw-shadow-xl hover:tw-shadow-2xl tw-transition-all tw-duration-300 tw-transform hover:tw--translate-y-1">
           <template #content>
-            <div class="tw-bg-gradient-to-br tw-from-orange-500 tw-to-orange-600 tw-rounded-xl tw-p-6 tw-text-white">
+            <div class="tw-bg-gray-700 tw-rounded-xl tw-p-6 tw-text-white">
               <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
                 <i class="pi pi-chart-line tw-text-4xl tw-opacity-80"></i>
                 <ProgressBar :value="assignmentProgress" :showValue="false" class="tw-w-20" />
@@ -1284,7 +1967,7 @@ onMounted(async () => {
           </div>
         </template>
         <template #content>
-          <div class="tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-rounded-xl tw-p-6">
+          <div class="tw-bg-gray-50 tw-rounded-xl tw-p-6">
             <p class="tw-text-gray-700 tw-leading-relaxed">{{ serviceDemand.notes }}</p>
           </div>
         </template>
@@ -1299,6 +1982,21 @@ onMounted(async () => {
             <Badge :value="serviceDemand.items?.length || 0" class="tw-ml-2" severity="info" />
           </template>
 
+          <!-- Add Product Button Section -->
+          <div class="tw-flex tw-items-center tw-justify-between tw-mb-6 tw-p-4 tw-bg-gray-50 tw-rounded-xl tw-border tw-border-gray-200">
+            <div>
+              <h3 class="tw-text-lg tw-font-bold tw-text-gray-900">📦 Products in Order</h3>
+              <p class="tw-text-sm tw-text-gray-600 tw-mt-1">{{ serviceDemand.items?.length || 0 }} product(s) added</p>
+            </div>
+            <Button
+              @click="openProductSelectionDialog(null)"
+              icon="pi pi-plus"
+              label="Add Product"
+              class="tw-bg-green-600 tw-text-white tw-border-0 tw-rounded-xl tw-px-4 tw-py-2"
+              severity="success"
+            />
+          </div>
+
           <!-- Enhanced Products Table -->
           <DataTable 
             :value="serviceDemand.items"
@@ -1310,7 +2008,8 @@ onMounted(async () => {
             currentPageReportTemplate="Showing {first} to {last} of {totalRecords} products"
             :rowsPerPageOptions="[5, 10, 20, 50]"
             dataKey="id"
-            class="tw-border-0"
+            class="tw-border-0 enhanced-products-table"
+            :rowClass="getProductRowClass"
           >
             <!-- Expander Column -->
             <Column :expander="true" style="width: 3rem" />
@@ -1320,16 +2019,22 @@ onMounted(async () => {
               <template #body="{ data }">
                 <div class="tw-flex tw-items-center tw-gap-3">
                   <Avatar 
-                    :label="data.product?.name?.charAt(0)" 
-                    class="tw-bg-gray-400 tw-text-white"
+                    :label="getProductName(data).charAt(0)" 
+                    :class="data.pharmacy_product ? 'tw-bg-purple-500 tw-text-white' : 'tw-bg-indigo-500 tw-text-white'"
                     shape="circle"
                     size="large"
                   />
                   <div>
-                    <div class="tw-font-semibold tw-text-gray-900 tw-text-lg">{{ data.product?.name }}</div>
+                    <div class="tw-font-semibold tw-text-gray-900 tw-text-lg">{{ getProductName(data) }}</div>
                     <div class="tw-text-sm tw-text-gray-500">
-                      <i class="pi pi-tag tw-mr-1 tw-text-xs"></i>
-                      Code: {{ data.product?.code || 'N/A' }}
+                      <i :class="data.pharmacy_product ? 'pi pi-pills' : 'pi pi-tag'" class="tw-mr-1 tw-text-xs"></i>
+                      {{ data.pharmacy_product ? 'SKU' : 'Code' }}: {{ getProductCode(data) }}
+                      <span v-if="data.pharmacy_product" class="tw-ml-2 tw-px-2 tw-py-0.5 tw-bg-purple-100 tw-text-purple-700 tw-rounded-full tw-text-xs tw-font-medium">
+                        Pharmacy
+                      </span>
+                      <span v-else class="tw-ml-2 tw-px-2 tw-py-0.5 tw-bg-indigo-100 tw-text-indigo-700 tw-rounded-full tw-text-xs tw-font-medium">
+                        Stock
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1532,7 +2237,7 @@ onMounted(async () => {
 >
   <!-- Custom Header with Gradient -->
   <template #header>
-    <div class="tw-bg-gradient-to-r tw-from-indigo-600 tw-via-purple-600 tw-to-pink-600 tw--m-8 tw-p-6 tw-rounded-t-xl">
+    <div class="tw-bg-gray-800 tw--m-8 tw-p-6 tw-rounded-t-xl">
       <div class="tw-flex tw-items-center tw-justify-between">
         <div class="tw-flex tw-items-center tw-gap-4">
           <div class="tw-bg-white/20 tw-backdrop-blur tw-p-3 tw-rounded-xl">
@@ -1541,9 +2246,15 @@ onMounted(async () => {
           <div>
             <h2 class="tw-text-2xl tw-font-bold tw-text-white">Assign Suppliers</h2>
             <div class="tw-text-white/90 tw-mt-1">
-              <span class="tw-font-medium">{{ selectedProduct?.product?.name || 'Product' }}</span>
+              <i :class="selectedProduct?.pharmacy_product ? 'pi pi-pills' : 'pi pi-box'" class="tw-mr-2"></i>
+              <span class="tw-font-medium">{{ selectedProduct ? getProductName(selectedProduct) : 'Product' }}</span>
+              <span v-if="selectedProduct?.pharmacy_product" class="tw-ml-2 tw-px-2 tw-py-0.5 tw-bg-purple-300 tw-text-purple-900 tw-rounded-full tw-text-xs tw-font-semibold">
+                Pharmacy
+              </span>
+              <span v-else class="tw-ml-2 tw-px-2 tw-py-0.5 tw-bg-indigo-300 tw-text-indigo-900 tw-rounded-full tw-text-xs tw-font-semibold">
+                Stock
+              </span>
               <span v-if="selectedProduct?.quantity" class="tw-ml-3">
-                <i class="pi pi-box tw-mr-1"></i>
                 <span class="tw-bg-white/20 tw-px-2 tw-py-1 tw-rounded-full tw-text-sm">
                   {{ selectedProduct.quantity }} {{ selectedProduct.quantity_by_box ? 'Boxes' : 'Units' }} required
                 </span>
@@ -1578,23 +2289,26 @@ onMounted(async () => {
   <!-- Main Content -->
   <div v-else class="tw-space-y-6 tw-p-2">
     <!-- Product Summary Card -->
-    <Card class="tw-border-0 tw-shadow-lg tw-bg-gradient-to-r tw-from-blue-50 tw-via-purple-50 tw-to-pink-50">
+    <Card class="tw-border-0 tw-shadow-lg tw-bg-gray-50">
       <template #content>
         <div class="tw-flex tw-items-center tw-justify-between">
           <div class="tw-flex tw-items-center tw-gap-4">
             <Avatar 
-              :label="selectedProduct?.product?.name?.charAt(0)" 
-              class="tw-bg-gradient-to-r tw-from-purple-500 tw-to-pink-500 tw-text-white"
+              :label="selectedProduct ? getProductName(selectedProduct).charAt(0) : 'P'" 
+              :class="selectedProduct?.pharmacy_product ? 'tw-bg-gradient-to-r tw-from-purple-500 tw-to-pink-500 tw-text-white' : 'tw-bg-gradient-to-r tw-from-indigo-500 tw-to-blue-500 tw-text-white'"
               size="xlarge"
               shape="circle"
             />
             <div>
-              <p class="tw-text-xs tw-text-gray-500 tw-uppercase tw-tracking-wider">Product Details</p>
-              <h3 class="tw-text-xl tw-font-bold tw-text-gray-900">{{ selectedProduct?.product?.name }}</h3>
+              <p class="tw-text-xs tw-text-gray-500 tw-uppercase tw-tracking-wider">
+                <i :class="selectedProduct?.pharmacy_product ? 'pi pi-pills' : 'pi pi-box'" class="tw-mr-1"></i>
+                {{ selectedProduct?.pharmacy_product ? 'Pharmacy Product Details' : 'Stock Product Details' }}
+              </p>
+              <h3 class="tw-text-xl tw-font-bold tw-text-gray-900">{{ selectedProduct ? getProductName(selectedProduct) : 'Product' }}</h3>
               <div class="tw-flex tw-items-center tw-gap-4 tw-mt-2">
                 <span class="tw-text-sm tw-text-gray-600">
                   <i class="pi pi-tag tw-mr-1"></i>
-                  Code: {{ selectedProduct?.product?.code || 'N/A' }}
+                  {{ selectedProduct?.pharmacy_product ? 'SKU' : 'Code' }}: {{ selectedProduct ? getProductCode(selectedProduct) : 'N/A' }}
                 </span>
                 <Badge :value="`${selectedProduct?.quantity || 0} ${selectedProduct?.quantity_by_box ? 'Boxes' : 'Units'}`" severity="info" />
               </div>
@@ -1724,7 +2438,7 @@ onMounted(async () => {
 
     <!-- Selected Suppliers Summary -->
     <transition name="slide-down">
-      <Card v-if="assignmentForm.fournisseur_ids.length > 0" class="tw-border-0 tw-shadow-lg tw-bg-gradient-to-br tw-from-purple-50 tw-to-pink-50">
+      <Card v-if="assignmentForm.fournisseur_ids.length > 0" class="tw-border-0 tw-shadow-lg tw-bg-gray-50">
         <template #title>
           <div class="tw-flex tw-items-center tw-gap-2">
             <i class="pi pi-check-circle tw-text-green-600"></i>
@@ -1890,7 +2604,7 @@ onMounted(async () => {
           :disabled="!assignmentForm.fournisseur_ids?.length || !assignmentForm.quantity || assignmentForm.quantity <= 0"
           label="Assign Suppliers"
           icon="pi pi-check"
-          class="p-button-primary tw-bg-gradient-to-r tw-from-purple-600 tw-to-pink-600 tw-border-0"
+          class="p-button-primary tw-bg-purple-600 tw-border-0"
         />
       </div>
     </div>
@@ -1909,18 +2623,29 @@ onMounted(async () => {
 >
   <!-- Custom Header with Gradient -->
   <template #header>
-    <div class="tw-bg-gradient-to-r tw-from-blue-600 tw-via-indigo-600 tw-to-purple-600 tw--m-8 tw-p-6 tw-rounded-t-xl">
+    <div :class="selectedProduct?.pharmacy_product_id 
+      ? 'tw-bg-gray-800'
+      : 'tw-bg-gray-800'" 
+      class="tw--m-8 tw-p-6 tw-rounded-t-xl">
       <div class="tw-flex tw-items-center tw-justify-between">
         <div class="tw-flex tw-items-center tw-gap-4">
-          <div class="tw-bg-white/20 tw-backdrop-blur tw-p-3 tw-rounded-xl">
+          <div :class="selectedProduct?.pharmacy_product_id 
+            ? 'tw-bg-purple-500/20'
+            : 'tw-bg-blue-500/20'" 
+            class="tw-backdrop-blur tw-p-3 tw-rounded-xl">
             <i class="pi pi-chart-line tw-text-2xl tw-text-white"></i>
           </div>
           <div>
             <h2 class="tw-text-2xl tw-font-bold tw-text-white">Pricing History Analytics</h2>
             <div class="tw-text-white/90 tw-mt-1 tw-flex tw-items-center tw-gap-3">
-              <span class="tw-bg-white/20 tw-px-3 tw-py-1 tw-rounded-full tw-text-sm">
+              <span class="tw-bg-white/20 tw-px-3 tw-py-1 tw-rounded-full tw-text-sm tw-flex tw-items-center tw-gap-2">
                 <i class="pi pi-box tw-mr-1"></i>
-                {{ selectedHistoryProduct?.name || 'Product' }}
+                {{ selectedHistoryProduct ? getProductName(selectedHistoryProduct) : 'Product' }}
+                <Badge 
+                  :value="selectedProduct?.pharmacy_product_id ? 'PHARMACY' : 'STOCK'" 
+                  :severity="selectedProduct?.pharmacy_product_id ? 'danger' : 'info'"
+                  class="tw-ml-2 tw-text-xs"
+                />
               </span>
               <i class="pi pi-arrow-right tw-text-white/60"></i>
               <span class="tw-bg-white/20 tw-px-3 tw-py-1 tw-rounded-full tw-text-sm">
@@ -1957,7 +2682,7 @@ onMounted(async () => {
   <!-- Main Content -->
   <div v-else class="tw-space-y-6 tw-p-2">
     <!-- Supplier Info Card -->
-    <Card class="tw-border-0 tw-shadow-lg tw-bg-gradient-to-r tw-from-blue-50 tw-via-indigo-50 tw-to-purple-50">
+    <Card class="tw-border-0 tw-shadow-lg tw-bg-gray-50">
       <template #content>
         <div class="tw-flex tw-items-center tw-justify-between">
           <div class="tw-flex tw-items-center tw-gap-4">
@@ -2052,7 +2777,7 @@ onMounted(async () => {
               @click="applyHistoryFilters"
               label="Apply"
               icon="pi pi-check"
-              class="tw-bg-gradient-to-r tw-from-indigo-600 tw-to-purple-600 tw-border-0"
+              class="tw-bg-indigo-600 tw-border-0"
             />
             <Button 
               @click="clearHistoryFilters"
@@ -2171,14 +2896,15 @@ onMounted(async () => {
           <Column field="order_type" header="Type" :sortable="true" class="tw-min-w-[120px]">
             <template #body="{ data }">
               <Tag 
-                :value="data.order_type || 'Receipt'" 
-                :severity="data.order_type === 'proforma' ? 'info' : data.order_type === 'purchase_order' ? 'warning' : 'success'"
-                :icon="data.order_type === 'proforma' ? 'pi pi-file' : 'pi pi-check'"
+                :value="data.movement_type || data.order_type || 'Receipt'" 
+                :severity="(data.movement_type || data.order_type) === 'transfer' ? 'warning' : (data.order_type === 'proforma' ? 'info' : (data.order_type === 'purchase_order' ? 'warning' : 'success'))"
+                :icon="data.movement_type ? 'pi pi-arrows-h' : (data.order_type === 'proforma' ? 'pi pi-file' : 'pi pi-check')"
               />
             </template>
           </Column>
 
-          <Column field="price" header="Unit Price" :sortable="true" class="tw-min-w-[140px]">
+          <!-- Show pricing for stock products -->
+          <Column v-if="!selectedProduct?.pharmacy_product_id" field="price" header="Unit Price" :sortable="true" class="tw-min-w-[140px]">
             <template #body="{ data }">
               <div class="tw-flex tw-items-center tw-justify-between">
                 <span class="tw-font-bold tw-text-green-700 tw-text-lg">
@@ -2198,19 +2924,62 @@ onMounted(async () => {
             </template>
           </Column>
 
-          <Column field="quantity" header="Quantity" :sortable="true" class="tw-min-w-[100px]">
+          <!-- Show pharmacy product current pricing info -->
+          <Column v-if="selectedProduct?.pharmacy_product_id" header="Current Pricing" class="tw-min-w-[200px]">
             <template #body="{ data }">
-              <div class="tw-text-center">
-                <Badge :value="data.quantity" severity="info" class="tw-px-3 tw-py-1" />
+              <div class="tw-flex tw-flex-col tw-gap-1">
+                <div class="tw-text-sm">
+                  <span class="tw-text-gray-600">Cost:</span>
+                  <span class="tw-font-bold tw-text-green-700 tw-ml-2">{{ formatCurrency(data.current_unit_cost) }}</span>
+                </div>
+                <div class="tw-text-sm">
+                  <span class="tw-text-gray-600">Price:</span>
+                  <span class="tw-font-bold tw-text-blue-700 tw-ml-2">{{ formatCurrency(data.current_selling_price) }}</span>
+                </div>
               </div>
             </template>
           </Column>
 
-          <Column field="total_amount" header="Total Amount" :sortable="true" class="tw-min-w-[150px]">
+          <Column field="quantity" header="Quantity" :sortable="true" class="tw-min-w-[100px]">
+            <template #body="{ data }">
+              <div class="tw-text-center">
+                <Badge :value="data.executed_quantity || data.quantity || 0" severity="info" class="tw-px-3 tw-py-1" />
+              </div>
+            </template>
+          </Column>
+
+          <!-- Show services for pharmacy products -->
+          <Column v-if="selectedProduct?.pharmacy_product_id" header="Services" class="tw-min-w-[180px]">
+            <template #body="{ data }">
+              <div class="tw-flex tw-flex-col tw-gap-1 tw-text-sm">
+                <div v-if="data.providing_service" class="tw-flex tw-items-center tw-gap-1">
+                  <i class="pi pi-arrow-circle-right tw-text-green-600 tw-text-xs"></i>
+                  <span class="tw-text-gray-600">{{ data.providing_service }}</span>
+                </div>
+                <div v-if="data.requesting_service" class="tw-flex tw-items-center tw-gap-1">
+                  <i class="pi pi-arrow-circle-left tw-text-blue-600 tw-text-xs"></i>
+                  <span class="tw-text-gray-600">{{ data.requesting_service }}</span>
+                </div>
+              </div>
+            </template>
+          </Column>
+
+          <!-- Show total amount for stock products -->
+          <Column v-if="!selectedProduct?.pharmacy_product_id" field="total_amount" header="Total Amount" :sortable="true" class="tw-min-w-[150px]">
             <template #body="{ data }">
               <div class="tw-font-bold tw-text-blue-700 tw-text-lg tw-text-center">
                 {{ formatCurrency((parseFloat(data.price) || 0) * (parseInt(data.quantity) || 0)) }}
               </div>
+            </template>
+          </Column>
+
+          <!-- Status column for pharmacy products -->
+          <Column v-if="selectedProduct?.pharmacy_product_id" field="status" header="Status" class="tw-min-w-[120px]">
+            <template #body="{ data }">
+              <Tag 
+                :value="data.status" 
+                :severity="data.status === 'completed' ? 'success' : (data.status === 'pending' ? 'warning' : 'info')"
+              />
             </template>
           </Column>
 
@@ -2269,6 +3038,353 @@ onMounted(async () => {
   </template>
 </Dialog>
 
+<!-- Product Selection Dialog - NEW -->
+<Dialog
+  v-model:visible="showProductSelectionDialog"
+  modal
+  :header="'Add Product to Order'"
+  :style="{ width: '75rem' }"
+  :closable="true"
+  class="tw-rounded-2xl tw-shadow-2xl"
+>
+  <div class="tw-space-y-8 tw-p-4">
+    <!-- Conditional Content - Show appropriate form based on is_pharmacy_order -->
+    <!-- Pharmacy Products Section - Show when is_pharmacy_order is true -->
+    <div v-if="!selectedItemForProductSelection ? serviceDemandIsPharmacyOrder : selectedItemForProductSelection.is_pharmacy_order">
+      <div class="tw-flex tw-items-center tw-gap-3 tw-mb-6">
+        <div class="tw-w-12 tw-h-12 tw-bg-purple-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+          <i class="pi pi-pills tw-text-white tw-text-xl"></i>
+        </div>
+        <div>
+          <div class="tw-flex tw-items-center tw-gap-2">
+            <div class="tw-font-bold tw-text-xl tw-text-gray-800">Pharmacy Products</div>
+            <Badge value="PHARMACY" severity="danger" class="tw-bg-purple-600 tw-text-white tw-font-bold tw-border-0" />
+          </div>
+          <div class="tw-text-sm tw-text-gray-500 tw-flex tw-items-center tw-gap-2">
+            <i class="pi pi-info-circle tw-text-purple-400"></i>
+            {{ availablePharmacyProducts.length }} products loaded{{ pharmacyProductsPagination.hasMore ? ' (more available)' : '' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="tw-space-y-6">
+        <!-- Selection Form Card -->
+        <Card class="tw-bg-gray-50 tw-border-0 tw-shadow-lg">
+          <template #content>
+            <div class="tw-space-y-6">
+              <!-- Product Selection Dropdown -->
+              <div>
+                <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+                  <i class="pi pi-search tw-mr-2 tw-text-purple-600"></i>
+                  Select Pharmacy Product <span class="tw-text-red-500">*</span>
+                </label>
+                <Dropdown
+                  ref="pharmacyDropdownRef"
+                  v-model="selectedPharmacyProduct"
+                  :options="availablePharmacyProducts"
+                  :optionLabel="(option) => option.name || option.generic_name || option.brand_name || 'Unnamed Product'"
+                  :optionValue="null"
+                  placeholder="Search and select a pharmacy product..."
+                  filter
+                  filterBy="name,sku,generic_name,brand_name"
+                  :disabled="loadingProducts"
+                  @filter="onPharmacyProductsSearch"
+                  @show="attachScrollListeners"
+                  @hide="removeScrollListeners"
+                  class="tw-w-full tw-border-2 tw-border-purple-200 focus:tw-border-purple-400"
+                >
+                  <template #option="{ option }">
+                    <div class="tw-p-2">
+                      <div class="tw-font-medium tw-text-gray-900">{{ option.name || option.generic_name || option.brand_name || 'Unnamed Product' }}</div>
+                      <div class="tw-text-xs tw-text-gray-500 tw-mt-1">SKU: {{ option.sku || 'N/A' }}</div>
+                    </div>
+                  </template>
+                  <template #value="slotProps">
+                    <div v-if="slotProps.value" class="tw-text-sm">
+                      <span class="tw-font-medium">{{ slotProps.value.name || slotProps.value.generic_name || slotProps.value.brand_name || 'Unnamed Product' }}</span>
+                    </div>
+                  </template>
+                  <template v-if="pharmacyProductsPagination.hasMore" #footer>
+                    <div class="tw-p-3 tw-text-center tw-border-t tw-border-gray-200">
+                      <span v-if="pharmacyProductsPagination.loading" class="tw-text-sm tw-text-gray-600">
+                        <i class="pi pi-spin pi-spinner tw-mr-2"></i>Loading more products...
+                      </span>
+                      <span v-else class="tw-text-sm tw-text-gray-500">Scroll to load more</span>
+                    </div>
+                  </template>
+                </Dropdown>
+              </div>
+
+              <!-- Quantity and Unit Row -->
+              <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+                <!-- Quantity Input -->
+                <div>
+                  <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+                    <i class="pi pi-hashtag tw-mr-2 tw-text-purple-600"></i>
+                    Quantity <span class="tw-text-red-500">*</span>
+                  </label>
+                  <InputNumber
+                    v-model="productSelectionQuantity"
+                    :min="1"
+                    :max="999"
+                    class="tw-w-full tw-border-2 tw-border-purple-200 focus:tw-border-purple-400"
+                    showButtons
+                    buttonLayout="horizontal"
+                    incrementButtonIcon="pi pi-plus"
+                    decrementButtonIcon="pi pi-minus"
+                  />
+                </div>
+
+                <!-- Unit Selection -->
+                <div>
+                  <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+                    <i class="pi pi-tag tw-mr-2 tw-text-purple-600"></i>
+                    Unit Type <span class="tw-text-red-500">*</span>
+                  </label>
+                  <Dropdown
+                    v-model="productSelectionUnit"
+                    :options="[
+                      { label: 'Unit', value: 'unit', icon: 'pi pi-minus' },
+                      { label: 'Box', value: 'box', icon: 'pi pi-box' }
+                    ]"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select unit type..."
+                    class="tw-w-full tw-border-2 tw-border-purple-200 focus:tw-border-purple-400"
+                  >
+                    <template #option="{ option }">
+                      <div class="tw-flex tw-items-center tw-gap-3">
+                        <i :class="option.icon" class="tw-text-lg tw-text-purple-600"></i>
+                        <span class="tw-font-medium">{{ option.label }}</span>
+                      </div>
+                    </template>
+                    <template #value="slotProps">
+                      <div v-if="slotProps.value" class="tw-flex tw-items-center tw-gap-2">
+                        <i :class="slotProps.value === 'unit' ? 'pi pi-minus' : 'pi pi-box'" class="tw-text-lg tw-text-purple-600"></i>
+                        <span class="tw-font-medium">{{ slotProps.value === 'unit' ? 'Unit' : 'Box' }}</span>
+                      </div>
+                    </template>
+                  </Dropdown>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+
+        <!-- Product Info Card -->
+        <Card v-if="selectedPharmacyProduct" class="tw-bg-gray-50 tw-border-0 tw-shadow-lg">
+          <template #content>
+            <div class="tw-relative tw-z-10">
+              <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
+                <h4 class="tw-text-lg tw-font-bold tw-text-gray-800 tw-flex tw-items-center tw-gap-2">
+                  <i class="pi pi-pills tw-text-purple-600"></i>
+                  Product Details
+                </h4>
+                <Badge value="PHARMACY PRODUCT" severity="danger" class="tw-bg-purple-600 tw-text-white tw-font-bold tw-border-0" />
+              </div>
+              <div class="tw-space-y-3">
+                <div class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">SKU:</span>
+                  <Tag :value="selectedPharmacyProduct.sku" severity="danger" class="tw-bg-purple-100 tw-text-purple-800 tw-border-purple-200" />
+                </div>
+                <div class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Generic Name:</span>
+                  <span class="tw-font-semibold tw-text-gray-800">{{ selectedPharmacyProduct.generic_name || 'N/A' }}</span>
+                </div>
+                <div class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Unit:</span>
+                  <Badge :value="selectedPharmacyProduct.unit_of_measure || 'pieces'" class="tw-bg-pink-100 tw-text-pink-800 tw-border-pink-200" />
+                </div>
+                <div v-if="selectedPharmacyProduct.brand_name" class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Brand:</span>
+                  <span class="tw-font-semibold tw-text-gray-800">{{ selectedPharmacyProduct.brand_name }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+    </div>
+
+    <!-- Stock Products Section - Show when is_pharmacy_order is false -->
+    <div v-else>
+      <div class="tw-flex tw-items-center tw-gap-3 tw-mb-6">
+        <div class="tw-w-12 tw-h-12 tw-bg-indigo-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+          <i class="pi pi-box tw-text-white tw-text-xl"></i>
+        </div>
+        <div>
+          <div class="tw-flex tw-items-center tw-gap-2">
+            <div class="tw-font-bold tw-text-xl tw-text-gray-800">Stock Products</div>
+            <Badge value="STOCK" severity="info" class="tw-bg-indigo-600 tw-text-white tw-font-bold tw-border-0" />
+          </div>
+          <div class="tw-text-sm tw-text-gray-500 tw-flex tw-items-center tw-gap-2">
+            <i class="pi pi-info-circle tw-text-indigo-400"></i>
+            {{ availableStockProducts.length }} products loaded{{ stockProductsPagination.hasMore ? ' (more available)' : '' }}
+          </div>
+        </div>
+      </div>
+
+      <div class="tw-space-y-6">
+        <!-- Selection Form Card -->
+        <Card class="tw-bg-gray-50 tw-border-0 tw-shadow-lg">
+          <template #content>
+            <div class="tw-space-y-6">
+              <!-- Product Selection Dropdown -->
+              <div>
+                <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+                  <i class="pi pi-search tw-mr-2 tw-text-indigo-600"></i>
+                  Select Stock Product <span class="tw-text-red-500">*</span>
+                </label>
+                <Dropdown
+                  ref="stockDropdownRef"
+                  v-model="selectedStockProduct"
+                  :options="availableStockProducts"
+                  :optionLabel="(option) => option.name || option.designation || 'Unnamed Product'"
+                  :optionValue="null"
+                  placeholder="Search and select a stock product..."
+                  filter
+                  filterBy="name,code_interne,designation,forme"
+                  :disabled="loadingProducts"
+                  @filter="onStockProductsSearch"
+                  @show="attachScrollListeners"
+                  @hide="removeScrollListeners"
+                  class="tw-w-full tw-border-2 tw-border-indigo-200 focus:tw-border-indigo-400"
+                >
+                  <template #option="{ option }">
+                    <div class="tw-p-2">
+                      <div class="tw-font-medium tw-text-gray-900">{{ option.name || option.designation || 'Unnamed Product' }}</div>
+                      <div class="tw-text-xs tw-text-gray-500 tw-mt-1">Code: {{ option.code_interne || option.code || 'N/A' }}</div>
+                    </div>
+                  </template>
+                  <template #value="slotProps">
+                    <div v-if="slotProps.value" class="tw-text-sm">
+                      <span class="tw-font-medium">{{ slotProps.value.name || slotProps.value.designation || 'Unnamed Product' }}</span>
+                    </div>
+                  </template>
+                  <template v-if="stockProductsPagination.hasMore" #footer>
+                    <div class="tw-p-3 tw-text-center tw-border-t tw-border-gray-200">
+                      <span v-if="stockProductsPagination.loading" class="tw-text-sm tw-text-gray-600">
+                        <i class="pi pi-spin pi-spinner tw-mr-2"></i>Loading more products...
+                      </span>
+                      <span v-else class="tw-text-sm tw-text-gray-500">Scroll to load more</span>
+                    </div>
+                  </template>
+                </Dropdown>
+              </div>
+
+              <!-- Quantity and Unit Row -->
+              <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+                <!-- Quantity Input -->
+                <div>
+                  <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+                    <i class="pi pi-hashtag tw-mr-2 tw-text-indigo-600"></i>
+                    Quantity <span class="tw-text-red-500">*</span>
+                  </label>
+                  <InputNumber
+                    v-model="productSelectionQuantity"
+                    :min="1"
+                    :max="999"
+                    class="tw-w-full tw-border-2 tw-border-indigo-200 focus:tw-border-indigo-400"
+                    showButtons
+                    buttonLayout="horizontal"
+                    incrementButtonIcon="pi pi-plus"
+                    decrementButtonIcon="pi pi-minus"
+                  />
+                </div>
+
+                <!-- Unit Selection -->
+                <div>
+                  <label class="tw-block tw-text-sm tw-font-semibold tw-text-gray-700 tw-mb-3">
+                    <i class="pi pi-tag tw-mr-2 tw-text-indigo-600"></i>
+                    Unit Type <span class="tw-text-red-500">*</span>
+                  </label>
+                  <Dropdown
+                    v-model="productSelectionUnit"
+                    :options="[
+                      { label: 'Unit', value: 'unit', icon: 'pi pi-minus' },
+                      { label: 'Box', value: 'box', icon: 'pi pi-box' }
+                    ]"
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Select unit type..."
+                    class="tw-w-full tw-border-2 tw-border-indigo-200 focus:tw-border-indigo-400"
+                  >
+                    <template #option="{ option }">
+                      <div class="tw-flex tw-items-center tw-gap-3">
+                        <i :class="option.icon" class="tw-text-lg tw-text-indigo-600"></i>
+                        <span class="tw-font-medium">{{ option.label }}</span>
+                      </div>
+                    </template>
+                    <template #value="slotProps">
+                      <div v-if="slotProps.value" class="tw-flex tw-items-center tw-gap-2">
+                        <i :class="slotProps.value === 'unit' ? 'pi pi-minus' : 'pi pi-box'" class="tw-text-lg tw-text-indigo-600"></i>
+                        <span class="tw-font-medium">{{ slotProps.value === 'unit' ? 'Unit' : 'Box' }}</span>
+                      </div>
+                    </template>
+                  </Dropdown>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+
+        <!-- Product Info Card -->
+        <Card v-if="selectedStockProduct" class="tw-bg-gray-50 tw-border-0 tw-shadow-lg">
+          <template #content>
+            <div class="tw-relative tw-z-10">
+              <div class="tw-flex tw-items-center tw-justify-between tw-mb-4">
+                <h4 class="tw-text-lg tw-font-bold tw-text-gray-800 tw-flex tw-items-center tw-gap-2">
+                  <i class="pi pi-box tw-text-indigo-600"></i>
+                  Product Details
+                </h4>
+                <Badge value="STOCK PRODUCT" severity="info" class="tw-bg-indigo-600 tw-text-white tw-font-bold tw-border-0" />
+              </div>
+              <div class="tw-space-y-3">
+                <div class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Product Code:</span>
+                  <Tag :value="selectedStockProduct.code_interne || selectedStockProduct.code" severity="info" class="tw-bg-indigo-100 tw-text-indigo-800 tw-border-indigo-200" />
+                </div>
+                <div class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Category:</span>
+                  <span class="tw-font-semibold tw-text-gray-800">{{ selectedStockProduct.category || 'N/A' }}</span>
+                </div>
+                <div class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Unit:</span>
+                  <Badge :value="selectedStockProduct.unit || 'pieces'" class="tw-bg-blue-100 tw-text-blue-800 tw-border-blue-200" />
+                </div>
+                <div v-if="selectedStockProduct.designation" class="tw-flex tw-justify-between tw-items-center tw-p-3 tw-bg-white/60 tw-rounded-lg tw-backdrop-blur-sm">
+                  <span class="tw-text-gray-600 tw-font-medium">Designation:</span>
+                  <span class="tw-font-semibold tw-text-gray-800">{{ selectedStockProduct.designation }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </Card>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dialog Footer -->
+  <template #footer>
+    <div class="tw-flex tw-justify-end tw-gap-4 tw-p-4 tw-bg-gray-50 tw-rounded-b-2xl">
+      <Button
+        label="Cancel"
+        icon="pi pi-times"
+        class="tw-bg-white tw-text-gray-700 tw-border-2 tw-border-gray-300 hover:tw-bg-gray-50 tw-rounded-xl tw-px-6 tw-py-3 tw-font-semibold tw-transition-all tw-duration-200"
+        @click="closeProductSelectionDialog"
+      />
+      <Button
+        :label="(!selectedItemForProductSelection ? serviceDemandIsPharmacyOrder : selectedItemForProductSelection.is_pharmacy_order) ? 'Add Pharmacy Product' : 'Add Stock Product'"
+        icon="pi pi-check"
+        :class="(!selectedItemForProductSelection ? serviceDemandIsPharmacyOrder : selectedItemForProductSelection.is_pharmacy_order) 
+          ? 'tw-bg-purple-600 hover:tw-bg-purple-700 tw-text-white tw-border-0 tw-rounded-xl tw-px-6 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200'
+          : 'tw-bg-indigo-600 hover:tw-bg-indigo-700 tw-text-white tw-border-0 tw-rounded-xl tw-px-6 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200'"
+        @click="addSelectedProductToOrder"
+        :loading="loadingProducts"
+      />
+    </div>
+  </template>
+</Dialog>
 
     </div>
 

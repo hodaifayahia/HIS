@@ -441,6 +441,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 @keyframes slideIn {
   from {
     transform: translateY(-20px);
@@ -456,7 +458,7 @@ onMounted(() => {
 :deep(.p-dropdown),
 :deep(.p-inputnumber-input),
 :deep(.p-inputtextarea) {
-  @apply rounded-xl tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
+  @apply rounded-xl border border-gray-300 transition-all duration-200;
 }
 
 :deep(.p-dropdown:not(.p-disabled):hover),
@@ -468,7 +470,7 @@ onMounted(() => {
 :deep(.p-dropdown:not(.p-disabled).p-focus),
 :deep(.p-inputnumber-input:focus),
 :deep(.p-inputtextarea:focus) {
-  @apply border-emerald-500 tw-shadow-md tw-shadow-emerald-500/25;
+  @apply border-emerald-500 shadow-md shadow-emerald-500/25;
 }
 
 :deep(.p-invalid) {
@@ -476,11 +478,11 @@ onMounted(() => {
 }
 
 :deep(.p-invalid:focus) {
-  @apply shadow-md tw-shadow-red-500/25;
+  @apply shadow-md shadow-red-500/25;
 }
 
 :deep(.p-button) {
-  @apply rounded-lg tw-font-medium tw-transition-all tw-duration-200;
+  @apply rounded-lg font-medium transition-all duration-200;
 }
 
 :deep(.p-button:hover) {
@@ -488,22 +490,22 @@ onMounted(() => {
 }
 
 :deep(.p-button:disabled) {
-  @apply scale-100 tw-cursor-not-allowed tw-opacity-50;
+  @apply scale-100 cursor-not-allowed opacity-50;
 }
 
 :deep(.p-inputgroup-addon) {
-  @apply bg-gray-100 tw-border-gray-300 tw-text-emerald-500 tw-font-semibold tw-rounded-r-lg;
+  @apply bg-gray-100 border-gray-300 text-emerald-500 font-semibold rounded-r-lg;
 }
 
 :deep(.p-dropdown-panel) {
-  @apply rounded-xl tw-border-none tw-shadow-2xl;
+  @apply rounded-xl border-none shadow-2xl;
 }
 
 :deep(.p-dropdown-item) {
-  @apply rounded-md tw-mx-2 tw-my-0.5 tw-transition-all tw-duration-200;
+  @apply rounded-md mx-2 my-0.5 transition-all duration-200;
 }
 
 :deep(.p-dropdown-item:hover) {
-  @apply bg-gray-100 tw-translate-x-0.5;
+  @apply bg-gray-100 translate-x-0.5;
 }
 </style>

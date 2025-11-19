@@ -43,6 +43,15 @@ class Product extends Model
         return $this->hasMany(Inventory::class);
     }
 
+    /**
+     * Get the first inventory for this product (singular relationship)
+     * Useful for accessing inventory via $product->inventory
+     */
+    public function inventory()
+    {
+        return $this->hasOne(Inventory::class);
+    }
+
     public function inventorieswithPharmacieStock(){
         return $this->hasMany(PharmacyInventory::class);
     }

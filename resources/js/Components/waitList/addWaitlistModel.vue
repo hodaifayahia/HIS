@@ -287,74 +287,76 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+@reference "../../../../resources/css/app.css";
+
 /* PrimeVue Dialog Customizations */
 :deep(.p-dialog) {
-  @apply font-sans;
+  @apply tw-font-sans;
 }
 
 :deep(.p-dialog-header) {
-  @apply bg-gradient-to-r tw-from-blue-600 tw-to-blue-700 tw-text-white;
+  @apply tw-bg-gradient-to-r tw-from-blue-600 tw-to-blue-700 tw-text-white;
 }
 
 :deep(.p-dialog-title) {
-  @apply font-bold tw-text-lg;
+  @apply tw-font-bold tw-text-lg;
 }
 
 :deep(.p-dialog-header-icon) {
-  @apply text-white hover:tw-bg-blue-800;
+  @apply tw-text-white hover:tw-bg-blue-800;
 }
 
 :deep(.p-dialog-content) {
-  @apply p-6;
+  @apply tw-p-6;
 }
 
 /* Form Input Styling */
 :deep(.p-dropdown) {
-  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
 }
 
 :deep(.p-dropdown:not(.p-disabled):hover) {
-  @apply border-blue-400;
+  @apply tw-border-blue-400;
 }
 
 :deep(.p-textarea) {
-  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
 }
 
 :deep(.p-textarea:hover) {
-  @apply border-blue-400;
+  @apply tw-border-blue-400;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
-  @apply bg-blue-600 tw-border-blue-600;
+  @apply tw-bg-blue-600 tw-border-blue-600;
 }
 
 /* Button Styling */
 :deep(.p-button.p-button-primary) {
-  @apply bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600 hover:tw-border-blue-700;
+  @apply tw-bg-blue-600 hover:tw-bg-blue-700 tw-border-blue-600 hover:tw-border-blue-700;
 }
 
 :deep(.p-button.p-button-secondary) {
-  @apply text-gray-600 tw-border-gray-300 hover:tw-bg-gray-50;
+  @apply tw-text-gray-600 tw-border-gray-300 hover:tw-bg-gray-50;
 }
 
 /* Error States */
 :deep(.p-invalid) {
-  @apply border-red-500 focus:tw-border-red-500 focus:tw-ring-red-200;
+  @apply tw-border-red-500 focus:tw-border-red-500 focus:tw-ring-red-200;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   :deep(.p-dialog) {
-    @apply m-4;
+    @apply tw-m-4;
   }
   
   :deep(.p-dialog-content) {
-    @apply p-4;
+    @apply tw-p-4;
   }
 }
 </style>

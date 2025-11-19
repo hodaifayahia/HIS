@@ -1,5 +1,39 @@
 <template>
   <form @submit.prevent="handleSubmit" class="tw-space-y-6">
+    <!-- Pharmacy / Stock Selection -->
+    <div>
+      <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-3">
+        Demand Type <span class="tw-text-red-500">*</span>
+      </label>
+      <div class="tw-flex tw-gap-6">
+        <div class="tw-flex tw-items-center">
+          <input 
+            type="radio"
+            id="type-stock"
+            v-model="formData.is_pharmacy_order"
+            :value="false"
+            class="tw-w-4 tw-h-4 tw-text-blue-600 tw-cursor-pointer"
+          />
+          <label for="type-stock" class="tw-ml-2 tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-cursor-pointer">
+            <i class="pi pi-box tw-mr-2"></i>Stock Products
+          </label>
+        </div>
+        <div class="tw-flex tw-items-center">
+          <input 
+            type="radio"
+            id="type-pharmacy"
+            v-model="formData.is_pharmacy_order"
+            :value="true"
+            class="tw-w-4 tw-h-4 tw-text-green-600 tw-cursor-pointer"
+          />
+          <label for="type-pharmacy" class="tw-ml-2 tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-cursor-pointer">
+            <i class="pi pi-heart tw-mr-2"></i>Pharmacy Products
+          </label>
+        </div>
+      </div>
+      <small v-if="errors.is_pharmacy_order" class="p-error">{{ errors.is_pharmacy_order[0] }}</small>
+    </div>
+
     <!-- Service Selection -->
     <div class="tw-grid tw-grid-cols-1 tw-gap-4">
       <div>
@@ -108,7 +142,8 @@ const emit = defineEmits(['save', 'cancel'])
 const formData = reactive({
   service_id: null,
   expected_date: null,
-  notes: ''
+  notes: '',
+  is_pharmacy_order: false
 })
 
 const errors = ref({})
@@ -134,7 +169,8 @@ const handleSubmit = () => {
   const submitData = {
     service_id: formData.service_id,
     expected_date: formData.expected_date ? formatDateForAPI(formData.expected_date) : null,
-    notes: formData.notes || null
+    notes: formData.notes || null,
+    is_pharmacy_order: formData.is_pharmacy_order
   }
 
   emit('save', submitData)
@@ -158,6 +194,7 @@ const resetForm = () => {
   formData.service_id = null
   formData.expected_date = null
   formData.notes = ''
+  formData.is_pharmacy_order = false
   errors.value = {}
 }
 
@@ -167,6 +204,7 @@ watch(() => props.demand, (newDemand) => {
     formData.service_id = newDemand.service_id
     formData.expected_date = newDemand.expected_date ? new Date(newDemand.expected_date) : null
     formData.notes = newDemand.notes || ''
+    formData.is_pharmacy_order = newDemand.is_pharmacy_order || false
   } else {
     resetForm()
   }

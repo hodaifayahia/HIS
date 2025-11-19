@@ -344,7 +344,7 @@
                       table: 'tw-w-full',
                       thead: 'tw-bg-gray-50',
                       tbody: 'tw-divide-y tw-divide-gray-100',
-                      row: 'tw-hover:bg-gray-50 tw-transition-colors',
+                      row: 'hover:tw-bg-gray-50 tw-transition-colors',
                       headerCell: 'tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider',
                       bodyCell: 'tw-px-4 tw-py-3 tw-whitespace-nowrap'
                     }"
@@ -475,7 +475,7 @@
                           <textarea
                             v-model="data.confirmation_notes"
                             rows="2"
-                            class="tw-w-full tw-px-2 tw-py-1 tw-text-xs tw-border tw-border-gray-300 tw-rounded tw-focus:ring-1 tw-focus:ring-blue-500 tw-focus:border-blue-500"
+                            class="tw-w-full tw-px-2 tw-py-1 tw-text-xs tw-border tw-border-gray-300 tw-rounded focus:tw-ring-1 focus:tw-ring-blue-500 focus:tw-border-blue-500"
                             placeholder="Add notes..."
                           ></textarea>
                         </div>
@@ -667,7 +667,7 @@
                     table: 'tw-w-full',
                     thead: 'tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100',
                     tbody: 'tw-divide-y tw-divide-gray-100',
-                    row: 'tw-hover:bg-blue-50/40 tw-transition-all tw-duration-200',
+                    row: 'hover:tw-bg-blue-50/40 tw-transition-all tw-duration-200',
                     column: 'tw-px-6 tw-py-4',
                     headerCell: 'tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-bold tw-text-gray-700 tw-uppercase tw-tracking-wider tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-border-b tw-border-gray-200',
                     bodyCell: 'tw-px-6 tw-py-4 tw-whitespace-nowrap',
@@ -894,7 +894,7 @@
             <tr
               v-for="selection in selectedItemForView.selected_inventory"
               :key="selection.id"
-              class="tw-hover:bg-gray-50"
+              class="hover:tw-bg-gray-50"
             >
               <td class="tw-px-4 tw-py-3">
                  <div class="tw-flex tw-items-center tw-gap-3">
@@ -1013,7 +1013,7 @@
               table: 'tw-w-full',
               thead: 'tw-bg-gray-50',
               tbody: 'tw-divide-y tw-divide-gray-100',
-              row: 'tw-hover:bg-gray-50 tw-transition-colors',
+              row: 'hover:tw-bg-gray-50 tw-transition-colors',
               headerCell: 'tw-px-4 tw-py-3 tw-text-left tw-text-xs tw-font-medium tw-text-gray-500 tw-uppercase tw-tracking-wider',
               bodyCell: 'tw-px-4 tw-py-3 tw-whitespace-nowrap'
             }"
@@ -1069,7 +1069,7 @@
                     min="0"
                     :max="data.sender_quantity || data.requested_quantity"
                     step="0.01"
-                    class="tw-w-20 tw-px-2 tw-py-1 tw-text-sm tw-border tw-border-gray-300 tw-rounded tw-focus:ring-1 tw-focus:ring-blue-500 tw-focus:border-blue-500"
+                    class="tw-w-20 tw-px-2 tw-py-1 tw-text-sm tw-border tw-border-gray-300 tw-rounded focus:tw-ring-1 focus:tw-ring-blue-500 focus:tw-border-blue-500"
                   />
                   <span class="tw-text-xs tw-text-gray-500">{{ data.unit }}</span>
                 </div>
@@ -1159,7 +1159,7 @@
             type="number"
             min="0"
             :max="selectedProductForManque.requested_quantity"
-            class="tw-flex-1 tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-blue-500"
+            class="tw-flex-1 tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500"
             placeholder="Enter received quantity"
           />
           <span class="tw-text-sm tw-text-gray-500">
@@ -1178,7 +1178,7 @@
         <textarea
           v-model="manqueNotes"
           rows="3"
-          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-blue-500"
+          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-md focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500"
           placeholder="Add notes about the shortage..."
         ></textarea>
       </div>

@@ -78,7 +78,7 @@
               <InputText
                 v-model="filters.search"
                 placeholder="Patient name or phone..."
-                class="tw-w-full tw-px-4 tw-py-2.5 tw-border tw-border-slate-300 tw-rounded-lg tw-focus:outline-none tw-focus:ring-2 tw-focus:ring-blue-500"
+                class="tw-w-full tw-px-4 tw-py-2.5 tw-border tw-border-slate-300 tw-rounded-lg focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-blue-500"
                 @input="debounceSearch"
               />
               <i class="bi bi-search tw-absolute tw-right-3 tw-top-10 tw-text-slate-400"></i>

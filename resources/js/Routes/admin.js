@@ -11,17 +11,16 @@ const adminRoutes = [{
     children: [
         {
             path: 'appointments',
-            name: 'admin.appointments',
             children: [
                 {
-                    path: 'patient',
+                    path: 'patients',
                     name: 'admin.patient',
                     component: () => import('../Pages/Patient/PatientList.vue'),
-                    meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'doctor', 'receptionist', 'secretary'] }, // Override parent meta to allow more roles
                 },
+             
                 {
                     path: 'patient/appointments/:id',
-                    name: 'admin.patient.appointments',
+                    name: 'admin.patient.portal',
                     component: () => import('../Pages/Patient/PatientPortalPage.vue'),
                     meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'doctor', 'receptionist', 'secretary'] }, // Override parent meta to allow more roles
                     props: true,    
@@ -47,6 +46,11 @@ const adminRoutes = [{
                     name: 'admin.modality-appointment.details',
                     component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentDetails.vue'),
                     props: true,
+                },
+                   {
+                    path: 'thepatients',
+                    name: 'admin.patient.patients',
+                    component: () => import('../Pages/Patient/PatientList.vue'),
                 },
                 {
                     path: 'users',
@@ -137,7 +141,7 @@ const adminRoutes = [{
                 },
                 {
                     path: ':id/:specializationId',
-                    name: 'admin.appointments.list',
+                    name: 'admin.appointments',
                     component: () => import('../Pages/Appointments/ListAppointment.vue'),
                 },
             ],
@@ -245,6 +249,14 @@ const adminRoutes = [{
                     props: true,
                 },
             ],
+        },
+
+        // --- PURCHASING BLOCK ---
+        {
+            path: 'purchasing/consignments',
+            name: 'admin.purchasing.consignments',
+            component: () => import('../Components/Purchasing/ConsignmentDashboard.vue'),
+            meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'pharmacy', 'stock_manager'] },
         },
 
         // --- NEW/MODIFIED CONFIGURATION BLOCK ---

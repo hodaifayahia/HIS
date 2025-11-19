@@ -1138,15 +1138,20 @@ export default {
           this.selectedProduct = response.data.data;
           // You can fetch stats separately if needed
           // this.productStats = response.data.stats;
+        } else {
+          throw new Error(response.data.message || 'Product not found');
         }
       } catch (error) {
         console.error('Error fetching product details:', error);
+        const errorMessage = error.response?.data?.message || error.message || 'Failed to load product details';
         this.toast.add({
           severity: 'error',
           summary: 'Error',
-          detail: 'Failed to load product details',
-          life: 3000
+          detail: errorMessage,
+          life: 5000
         });
+        // Close the modal on error
+        this.selectedProduct = null;
       }
     },
     async refreshProducts() {
@@ -1159,12 +1164,42 @@ export default {
       });
     },
     editProduct(product) {
-      this.editingProduct = { ...product };
+      // Deep copy all product data to ensure proper binding
+      this.editingProduct = {
+        id: product.id || null,
+        name: product.name || '',
+        description: product.description || '',
+        category: product.category || '',
+        is_clinical: product.is_clinical || false,
+        code_pch: product.code_pch || '',
+        designation: product.designation || '',
+        type_medicament: product.type_medicament || '',
+        forme: product.forme || '',
+        boite_de: product.boite_de || null,
+        nom_commercial: product.nom_commercial || '',
+        source: product.source || 'stock',
+        code: product.code || '',
+        medication_type: product.medication_type || '',
+        is_controlled_substance: product.is_controlled_substance || false,
+        requires_prescription: product.requires_prescription || false,
+        minimum_stock_level: product.minimum_stock_level || 0,
+        critical_stock_level: product.critical_stock_level || 0,
+        units_per_package: product.units_per_package || 1,
+        unit_of_measure: product.unit_of_measure || '',
+        dosage_form: product.dosage_form || '',
+        is_active: product.is_active !== undefined ? product.is_active : true,
+        status: product.status || 'active'
+      };
+      
       // Sync product name for medication products
       if (this.editingProduct.category === 'Medication') {
         this.syncEditProductName();
       }
-      this.showEditProductModal = true;
+      
+      // Show modal
+      this.$nextTick(() => {
+        this.showEditProductModal = true;
+      });
     },
     confirmDelete(product) {
       this.confirm.require({

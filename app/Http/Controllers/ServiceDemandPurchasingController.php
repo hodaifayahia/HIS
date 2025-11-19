@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ServiceDemand\ListServiceDemandRequest;
+use App\Http\Requests\ServiceDemand\StoreServiceDemandRequest;
+use App\Http\Requests\ServiceDemand\UpdateServiceDemandRequest;
 use App\Http\Resources\ServiceDemandItemResource;
 use App\Models\CONFIGURATION\Service;
 use App\Models\BonCommend;
@@ -13,6 +16,13 @@ use App\Models\PharmacyProduct;
 use App\Models\ServiceDemandItemFournisseur;
 use App\Models\ServiceDemendPurchcing;
 use App\Models\ServiceDemendPurchcingItem;
+use App\Services\Purchsing\order\ServiceDemandListService;
+use App\Services\Purchsing\order\ServiceDemandService;
+use App\Services\Purchsing\order\ServiceDemandItemService;
+use App\Services\Purchsing\order\ServiceDemandStatusService;
+use App\Services\Purchsing\order\ServiceDemandFournisseurService;
+use App\Services\Purchsing\order\ServiceDemandDataService;
+use App\Services\Purchsing\order\ServiceDemandAnalyticsService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,47 +31,16 @@ use Illuminate\Support\Facades\Log;
 
 class ServiceDemandPurchasingController extends Controller
 {
-    public function index(Request $request)
+    public function index(ListServiceDemandRequest $request)
     {
         try {
-            $query = ServiceDemendPurchcing::with(['service', 'items.product', 'items.pharmacyProduct', 'creator']);
-
-            // Get current user
-            $currentUser = Auth::user();
-
-            // If user is not admin, filter by created_by
-            if ($currentUser && !in_array($currentUser->role, ['admin', 'SuperAdmin'])) {
-                $query->where('created_by', $currentUser->id);
-            }
-
-            // Filter by status if provided
-            if ($request->has('status')) {
-                $query->where('status', $request->status);
-            }
-
-            // Filter by service if provided
-            if ($request->has('service_id')) {
-                $query->where('service_id', $request->service_id);
-            }
-
-            // Search by demand code or notes
-            if ($request->has('search')) {
-                $search = $request->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('demand_code', 'like', "%{$search}%")
-                        ->orWhere('notes', 'like', "%{$search}%");
-                });
-            }
-
-            $demands = $query->orderBy('created_at', 'desc')->paginate(15);
-
-            // Transform items using ServiceDemandItemResource
-            $demands->getCollection()->transform(function ($demand) {
-                $demand->items = $demand->items->map(function ($item) {
-                    return new ServiceDemandItemResource($item);
-                });
-                return $demand;
-            });
+            $serviceDemandListService = new ServiceDemandListService();
+            
+            // Get validated filters
+            $filters = $request->validated();
+            
+            // Get demands using service
+            $demands = $serviceDemandListService->getAll($filters);
 
             return response()->json([
                 'success' => true,
@@ -78,35 +57,19 @@ class ServiceDemandPurchasingController extends Controller
         }
     }
 
-    public function store(Request $request)
+    public function store(StoreServiceDemandRequest $request)
     {
-        $request->validate([
-            'service_id' => 'nullable|exists:services,id',
-            'expected_date' => 'nullable|date|after_or_equal:today',
-            'notes' => 'nullable|string',
-        ]);
-
         try {
-            DB::beginTransaction();
-
-            $demand = ServiceDemendPurchcing::create([
-                'service_id' => $request->service_id,
-                'expected_date' => $request->expected_date,
-                'notes' => $request->notes,
-                'status' => 'draft',
-                'created_by' => Auth::id(),
-            ]);
-
-            DB::commit();
+            $service = new ServiceDemandService();
+            $demand = $service->create($request->validated());
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->load(['service', 'items.product', 'items.pharmacyProduct', 'creator']),
+                'data' => $demand,
                 'message' => 'Demand created successfully',
             ]);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error creating demand: '.$e->getMessage());
 
             return response()->json([
@@ -118,43 +81,21 @@ class ServiceDemandPurchasingController extends Controller
 
     public function show($id)
     {
-
         try {
-
-            $demand = ServiceDemendPurchcing::with([
-                'service',
-                'items.product',
-                'items.pharmacyProduct',
-                'creator',
-                'items.fournisseurAssignments.fournisseur:id,company_name,contact_person,email,phone',
-                'items.fournisseurAssignments.assignedBy:id,name',
-            ])
-                ->findOrFail($id);
-
-            // Check authorization: only creator or admin can view
-            $currentUser = Auth::user();
-            if ($currentUser && !in_array($currentUser->role, ['admin', 'SuperAdmin'])) {
-                if ($demand->created_by !== $currentUser->id) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Unauthorized to view this demand',
-                    ], 403);
-                }
-            }
+            $service = new ServiceDemandService();
+            $demand = $service->getById($id);
 
             // Transform items using ServiceDemandItemResource
             $demand->items = $demand->items->map(function ($item) {
                 return new ServiceDemandItemResource($item);
             });
 
-            // Load bon commends through service demand relationship instead of item method
-            // This avoids complex queries that may fail
+            // Load bon commends through service demand relationship
             if ($demand->id) {
                 $bonCommends = BonCommend::where('service_demand_purchasing_id', $demand->id)
                     ->with(['fournisseur:id,company_name', 'creator:id,name', 'items'])
                     ->get();
                 
-                // Attach bon commends to demand
                 $demand->bonCommends = $bonCommends;
             }
 
@@ -163,14 +104,22 @@ class ServiceDemandPurchasingController extends Controller
                 'data' => $demand,
             ]);
 
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            Log::warning('Demand not found with ID: '.$id);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Demand not found',
-            ], 404);
         } catch (\Exception $e) {
+            if (strpos($e->getMessage(), 'not found') !== false) {
+                Log::warning('Demand not found');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Demand not found',
+                ], 404);
+            }
+
+            if (strpos($e->getMessage(), 'Unauthorized') !== false) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to view this demand',
+                ], 403);
+            }
+
             Log::error('Error fetching demand: '.$e->getMessage());
 
             return response()->json([
@@ -180,34 +129,15 @@ class ServiceDemandPurchasingController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateServiceDemandRequest $request, $id)
     {
-        $request->validate([
-            'service_id' => 'required|exists:services,id',
-            'expected_date' => 'nullable|date|after_or_equal:today',
-            'notes' => 'nullable|string',
-        ]);
-
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            // Only allow updates if status is draft
-            if ($demand->status !== 'draft') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot update demand that has been sent',
-                ], 403);
-            }
-
-            $demand->update([
-                'service_id' => $request->service_id,
-                'expected_date' => $request->expected_date,
-                'notes' => $request->notes,
-            ]);
+            $service = new ServiceDemandService();
+            $demand = $service->update($id, $request->validated());
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->load(['service', 'items.product', 'items.pharmacyProduct']),
+                'data' => $demand,
                 'message' => 'Demand updated successfully',
             ]);
 
@@ -224,17 +154,8 @@ class ServiceDemandPurchasingController extends Controller
     public function destroy($id)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            // Only allow deletion if status is draft
-            if ($demand->status !== 'draft') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot delete demand that has been sent',
-                ], 403);
-            }
-
-            $demand->delete();
+            $service = new ServiceDemandService();
+            $service->delete($id);
 
             return response()->json([
                 'success' => true,
@@ -253,8 +174,9 @@ class ServiceDemandPurchasingController extends Controller
 
     public function addItem(Request $request, $id)
     {
-        $request->validate([
-            'product_id' => 'required',
+        $validatedData = $request->validate([
+            'product_id' => 'nullable|required_without:pharmacy_product_id',
+            'pharmacy_product_id' => 'nullable|required_without:product_id',
             'quantity' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'quantity_by_box' => 'nullable|boolean',
@@ -262,57 +184,8 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            // Only allow adding items if status is draft
-            if ($demand->status !== 'draft') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot add items to demand that has been sent',
-                ], 403);
-            }
-
-            // Determine whether the provided product_id is a stock Product or a PharmacyProduct
-            $productId = $request->product_id;
-            $isStockProduct = Product::find($productId);
-            $isPharmacyProduct = PharmacyProduct::find($productId);
-
-            if (! $isStockProduct && ! $isPharmacyProduct) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Provided product_id was not found in products or pharmacy_products',
-                ], 422);
-            }
-
-            // Check if product already exists in demand (either stock or pharmacy)
-            if ($isStockProduct) {
-                $existingItem = $demand->items()->where('product_id', $productId)->first();
-            } else {
-                $existingItem = $demand->items()->where('pharmacy_product_id', $productId)->first();
-            }
-            if ($existingItem) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Product already exists in this demand',
-                ], 409);
-            }
-
-            $itemData = [
-                'service_demand_purchasing_id' => $demand->id,
-                'quantity' => $request->quantity,
-                'unit_price' => $request->unit_price,
-                'quantity_by_box' => $request->quantity_by_box ?? false,
-                'notes' => $request->notes,
-            ];
-
-            if ($isStockProduct) {
-                $itemData['product_id'] = $productId;
-            } else {
-                $itemData['pharmacy_product_id'] = $productId;
-            }
-
-            $item = ServiceDemendPurchcingItem::create($itemData);
-            $item->load('product', 'pharmacyProduct');
+            $service = new ServiceDemandItemService();
+            $item = $service->addItem($id, $validatedData);
 
             return response()->json([
                 'success' => true,
@@ -332,7 +205,7 @@ class ServiceDemandPurchasingController extends Controller
 
     public function updateItem(Request $request, $id, $itemId)
     {
-        $request->validate([
+        $validatedData = $request->validate([
             'quantity' => 'required|integer|min:1',
             'unit_price' => 'nullable|numeric|min:0',
             'quantity_by_box' => 'nullable|boolean',
@@ -340,27 +213,12 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            $demand = ServiceDemendPurchcing::with('items.product', 'items.pharmacyProduct')->findOrFail($id);
-            $item = $demand->items()->findOrFail($itemId);
-
-            // Only allow updates if status is draft
-            if ($demand->status !== 'draft') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot update items for demand that has been sent',
-                ], 403);
-            }
-
-            $item->update([
-                'quantity' => $request->quantity,
-                'unit_price' => $request->unit_price,
-                'quantity_by_box' => $request->quantity_by_box ?? false,
-                'notes' => $request->notes,
-            ]);
+            $service = new ServiceDemandItemService();
+            $item = $service->updateItem($id, $itemId, $validatedData);
 
             return response()->json([
                 'success' => true,
-                'data' => $item->load('product', 'pharmacyProduct'),
+                'data' => $item,
                 'message' => 'Item updated successfully',
             ]);
 
@@ -377,18 +235,8 @@ class ServiceDemandPurchasingController extends Controller
     public function removeItem($id, $itemId)
     {
         try {
-            $demand = ServiceDemendPurchcing::with(['service', 'items.product', 'items.pharmacyProduct'])->findOrFail($id);
-            $item = $demand->items()->findOrFail($itemId);
-
-            // Only allow removal if status is draft
-            if ($demand->status !== 'draft') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot remove items from demand that has been sent',
-                ], 403);
-            }
-
-            $item->delete();
+            $service = new ServiceDemandItemService();
+            $service->removeItem($id, $itemId);
 
             return response()->json([
                 'success' => true,
@@ -408,29 +256,12 @@ class ServiceDemandPurchasingController extends Controller
     public function send($id)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            // Only allow sending if status is draft
-            if ($demand->status !== 'draft') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Demand has already been sent',
-                ], 403);
-            }
-
-            // Check if demand has items
-            if ($demand->items()->count() === 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot send demand without items',
-                ], 400);
-            }
-
-            $demand->update(['status' => 'sent']);
+            $service = new ServiceDemandService();
+            $demand = $service->send($id);
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->load(['service', 'items.product', 'items.pharmacyProduct']),
+                'data' => $demand,
                 'message' => 'Demand sent successfully',
             ]);
 
@@ -447,10 +278,8 @@ class ServiceDemandPurchasingController extends Controller
     public function getServices()
     {
         try {
-            $services = Service::where('is_active', true)
-                ->select('id', 'name', 'service_abv as service_code', 'description')
-                ->orderBy('name')
-                ->get();
+            $dataService = new ServiceDemandDataService();
+            $services = $dataService->getServices();
 
             return response()->json([
                 'success' => true,
@@ -469,79 +298,40 @@ class ServiceDemandPurchasingController extends Controller
 
     public function getProducts(Request $request)
     {
-        // Support returning pharmacy products when requested
-        if ($request->get('mode') === 'pharmacy' || $request->get('module_type') === 'pharmacy') {
-            $ppQuery = \App\Models\PharmacyProduct::query();
+        try {
+            $dataService = new ServiceDemandDataService();
+            $type = $request->get('type');
+            $search = $request->get('search', '');
+            $page = $request->get('page', 1);
+            $perPage = $request->get('per_page', 50);
 
-            if ($request->has('search')) {
-                $search = $request->search;
-                $ppQuery->where(function ($q) use ($search) {
-                    $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%")
-                        ->orWhere('brand_name', 'like', "%{$search}%");
-                });
-            }
-
-            $pharmacyProducts = $ppQuery->select('id', 'name', 'sku as product_code', 'brand_name as nom_commercial', 'unit_of_measure as unit')
-                ->where('is_active', 1)
-                ->orderBy('name')
-                ->get();
+            $result = $dataService->getProducts($type, $search, $page, $perPage);
 
             return response()->json([
                 'success' => true,
-                'data' => $pharmacyProducts,
+                'data' => $result['data'],
+                'current_page' => $result['current_page'],
+                'last_page' => $result['last_page'],
+                'per_page' => $result['per_page'],
+                'total' => $result['total'],
+                'meta' => $result['meta'],
             ]);
+
+        } catch (\Exception $e) {
+            Log::error('Error fetching products: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch products',
+            ], 500);
         }
-
-        // else return stock products
-        $query = Product::query();
-
-        // Filter by service if provided
-        if ($request->has('service_id')) {
-            // Add logic to filter products by service if there's a relationship
-            // This depends on your product-service relationship structure
-        }
-
-        // Search by product name or code
-        if ($request->has('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code_interne', 'like', "%{$search}%")
-                    ->orWhere('designation', 'like', "%{$search}%");
-            });
-        }
-
-        $products = $query->select('id', 'name', 'code_interne as product_code', 'designation', 'forme as unit', 'nom_commercial')
-            ->whereIn('status', ['In Stock', 'Available', 'Active'])
-            ->orderBy('name')
-            ->get();
-
-        return response()->json([
-            'success' => true,
-            'data' => $products,
-        ]);
-
-        // } catch (\Exception $e) {
-        //     Log::error('Error fetching products: ' . $e->getMessage());
-        //     return response()->json([
-        //         'success' => false,
-        //         'message' => 'Failed to fetch products'
-        //     ], 500);
-        // }
     }
 
     public function getStats()
     {
         try {
-            $stats = [
-                'total_demands' => ServiceDemendPurchcing::count(),
-                'draft_demands' => ServiceDemendPurchcing::where('status', 'draft')->count(),
-                'sent_demands' => ServiceDemendPurchcing::where('status', 'sent')->count(),
-                'approved_demands' => ServiceDemendPurchcing::where('status', 'approved')->count(),
-                'rejected_demands' => ServiceDemendPurchcing::where('status', 'rejected')->count(),
-                'total_items' => ServiceDemendPurchcingItem::count(),
-            ];
+            $dataService = new ServiceDemandDataService();
+            $stats = $dataService->getStats();
 
             return response()->json([
                 'success' => true,
@@ -561,128 +351,18 @@ class ServiceDemandPurchasingController extends Controller
     public function getSuggestions(Request $request)
     {
         try {
-            // Critical low stock items (quantity <= 5)
-            $criticalLowStock = collect();
-
-            // Low stock items (quantity <= 20 but > 5)
-            $lowStock = collect();
-
-            // Expiring soon items (expiry within 30 days)
-            $expiringSoon = collect();
-
-            // Expired items
-            $expired = collect();
-
-            // Controlled substances (flagged items)
-            $controlledSubstances = collect();
-
-            // Fetch stock data from inventory/service-stock endpoint
-            try {
-                // Use DB queries to get stock information
-                $stockItems = DB::table('inventories')
-                    ->join('products', 'inventories.product_id', '=', 'products.id')
-                    ->leftJoin('stockages', 'inventories.stockage_id', '=', 'stockages.id')
-                    ->select(
-                        'products.id as product_id',
-                        'products.name as product_name',
-                        'products.forme',
-                        'products.code_interne as product_code',
-                        'inventories.total_units as quantity',
-                        'inventories.expiry_date',
-                        'inventories.batch_number',
-                        'stockages.name as stockage_name'
-                    )
-                    ->where('inventories.total_units', '>', 0)
-                    ->get();
-
-                foreach ($stockItems as $item) {
-                    $quantity = (int) $item->quantity;
-                    $productData = [
-                        'product_id' => $item->product_id,
-                        'product' => [
-                            'id' => $item->product_id,
-                            'name' => $item->product_name,
-                            'forme' => $item->forme,
-                            'product_code' => $item->product_code,
-                        ],
-                        'current_stock' => $quantity,
-                        'suggested_quantity' => max(50, $quantity * 2), // Suggest double current stock or minimum 50
-                        'suggested_price' => null,
-                        'reason' => '',
-                        'stockage_name' => $item->stockage_name,
-                        'batch_number' => $item->batch_number,
-                        'expiry_date' => $item->expiry_date,
-                    ];
-
-                    // Critical low stock
-                    if ($quantity <= 5) {
-                        $productData['reason'] = 'Critical low stock';
-                        $productData['suggested_quantity'] = max(100, $quantity * 5);
-                        $criticalLowStock->push($productData);
-                    }
-                    // Low stock
-                    elseif ($quantity <= 20) {
-                        $productData['reason'] = 'Low stock';
-                        $productData['suggested_quantity'] = max(50, $quantity * 3);
-                        $lowStock->push($productData);
-                    }
-
-                    // Check expiry dates
-                    if ($item->expiry_date) {
-                        $expiryDate = Carbon::parse($item->expiry_date);
-                        $now = Carbon::now();
-                        $thirtyDaysFromNow = $now->copy()->addDays(30);
-
-                        // Expired items
-                        if ($expiryDate->lte($now)) {
-                            $productData['reason'] = 'Expired stock needs replacement';
-                            $productData['suggested_quantity'] = max(50, $quantity);
-                            $expired->push($productData);
-                        }
-                        // Expiring soon
-                        elseif ($expiryDate->lte($thirtyDaysFromNow)) {
-                            $productData['reason'] = 'Expiring soon, replacement needed';
-                            $productData['suggested_quantity'] = max(30, $quantity);
-                            $expiringSoon->push($productData);
-                        }
-                    }
-
-                    // Controlled substances (example: check for specific keywords or categories)
-                    if (stripos($item->product_name, 'morphine') !== false ||
-                        stripos($item->product_name, 'opioid') !== false ||
-                        stripos($item->product_name, 'narcotic') !== false) {
-                        $productData['reason'] = 'Controlled substance monitoring';
-                        $controlledSubstances->push($productData);
-                    }
-                }
-
-                // Remove duplicates by product_id and take unique items
-                $criticalLowStock = $criticalLowStock->unique('product_id')->values();
-                $lowStock = $lowStock->unique('product_id')->values();
-                $expiringSoon = $expiringSoon->unique('product_id')->values();
-                $expired = $expired->unique('product_id')->values();
-                $controlledSubstances = $controlledSubstances->unique('product_id')->values();
-
-            } catch (\Exception $e) {
-                Log::warning('Error fetching stock data for suggestions: '.$e->getMessage());
-                // Continue with empty collections
-            }
+            $dataService = new ServiceDemandDataService();
+            $suggestions = $dataService->getSuggestions();
 
             return response()->json([
                 'success' => true,
                 'data' => [
-                    'critical_low' => $criticalLowStock,
-                    'low_stock' => $lowStock,
-                    'expiring_soon' => $expiringSoon,
-                    'expired' => $expired,
-                    'controlled_substances' => $controlledSubstances,
-                    'counts' => [
-                        'critical_low' => $criticalLowStock->count(),
-                        'low_stock' => $lowStock->count(),
-                        'expiring_soon' => $expiringSoon->count(),
-                        'expired' => $expired->count(),
-                        'controlled_substances' => $controlledSubstances->count(),
-                    ],
+                    'critical_low' => $suggestions['critical_low'],
+                    'low_stock' => $suggestions['low_stock'],
+                    'expiring_soon' => $suggestions['expiring_soon'],
+                    'expired' => $suggestions['expired'],
+                    'controlled_substances' => $suggestions['controlled_substances'],
+                    'counts' => $suggestions['counts'],
                 ],
             ]);
 
@@ -710,51 +390,8 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($demandId);
-            $item = $demand->items()->findOrFail($itemId);
-
-            // Check if item status allows assignment
-            if ($item->status !== 'pending') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Can only assign fournisseurs to pending items',
-                ], 400);
-            }
-
-            // Check if this fournisseur is already assigned to this item
-            $existingAssignment = ServiceDemandItemFournisseur::where([
-                'service_demand_purchasing_item_id' => $itemId,
-                'fournisseur_id' => $request->fournisseur_id,
-            ])->first();
-
-            if ($existingAssignment) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'This supplier is already assigned to this item',
-                ], 400);
-            }
-
-            // Check if total assigned quantity doesn't exceed item quantity
-            $totalAssigned = $item->fournisseurAssignments->sum('assigned_quantity');
-            if ($totalAssigned + $request->assigned_quantity > $item->quantity) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Assigned quantity exceeds remaining item quantity',
-                ], 400);
-            }
-
-            $assignment = ServiceDemandItemFournisseur::create([
-                'service_demand_purchasing_item_id' => $itemId,
-                'fournisseur_id' => $request->fournisseur_id,
-                'assigned_quantity' => $request->assigned_quantity,
-                'unit_price' => $request->unit_price,
-                'unit' => $request->unit ?? ($item->product->unit ?? $item->pharmacyProduct->unit ?? 'unit'),
-                'notes' => $request->notes,
-                'assigned_by' => Auth::id(),
-                'status' => 'pending',
-            ]);
-
-            $assignment->load(['fournisseur:id,company_name,contact_person,email,phone', 'assignedBy:id,name']);
+            $service = new ServiceDemandFournisseurService();
+            $assignment = $service->assignFournisseur($demandId, $itemId, $request->validated());
 
             return response()->json([
                 'success' => true,
@@ -788,70 +425,18 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
-
-            $demand = ServiceDemendPurchcing::with(['items.product','items.pharmacyProduct'])->findOrFail($demandId);
-            $createdAssignments = [];
-            $errors = [];
-
-            foreach ($request->assignments as $assignmentData) {
-                try {
-                    $item = $demand->items()->findOrFail($assignmentData['item_id']);
-
-                    // Check if item status allows assignment
-                    if ($item->status !== 'pending') {
-                        $errors[] = "Item ".($item->product->name ?? $item->pharmacyProduct->name ?? 'Unknown')." is not in pending status";
-
-                        continue;
-                    }
-
-                    // Check for existing assignment
-                    $existingAssignment = ServiceDemandItemFournisseur::where([
-                        'service_demand_purchasing_item_id' => $assignmentData['item_id'],
-                        'fournisseur_id' => $assignmentData['fournisseur_id'],
-                    ])->first();
-
-                    if ($existingAssignment) {
-                        $errors[] = "Supplier already assigned to item ".($item->product->name ?? $item->pharmacyProduct->name ?? 'Unknown');
-
-                        continue;
-                    }
-
-                    // Check quantity constraints
-                    $totalAssigned = $item->fournisseurAssignments->sum('assigned_quantity');
-                   
-
-                    $assignment = ServiceDemandItemFournisseur::create([
-                        'service_demand_purchasing_item_id' => $assignmentData['item_id'],
-                        'fournisseur_id' => $assignmentData['fournisseur_id'],
-                        'assigned_quantity' => $assignmentData['assigned_quantity'],
-                        'unit_price' => $assignmentData['unit_price'] ?? null,
-                        'unit' => $assignmentData['unit'] ?? ($item->product->unit ?? $item->pharmacyProduct->unit ?? 'unit'),
-                        'notes' => $assignmentData['notes'] ?? null,
-                        'assigned_by' => Auth::id(),
-                        'status' => 'pending',
-                    ]);
-
-                    $assignment->load(['fournisseur:id,company_name,contact_person,email,phone', 'assignedBy:id,name']);
-                    $createdAssignments[] = $assignment;
-
-                } catch (\Exception $e) {
-                    $errors[] = 'Failed to assign item: '.$e->getMessage();
-                }
-            }
-
-            DB::commit();
+            $service = new ServiceDemandFournisseurService();
+            $result = $service->bulkAssignFournisseurs($demandId, $request->assignments);
 
             return response()->json([
-                'success' => count($createdAssignments) > 0,
-                'data' => $createdAssignments,
-                'errors' => $errors,
-                'message' => count($createdAssignments).' assignments created successfully'.
-                            (count($errors) > 0 ? ', with '.count($errors).' errors' : ''),
-            ], count($createdAssignments) > 0 ? 201 : 400);
+                'success' => count($result['assignments']) > 0,
+                'data' => $result['assignments'],
+                'errors' => $result['errors'],
+                'message' => count($result['assignments']).' assignments created successfully'.
+                            (count($result['errors']) > 0 ? ', with '.count($result['errors']).' errors' : ''),
+            ], count($result['assignments']) > 0 ? 201 : 400);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error bulk assigning fournisseurs: '.$e->getMessage());
 
             return response()->json([
@@ -875,34 +460,8 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            $assignment = ServiceDemandItemFournisseur::where([
-                'id' => $assignmentId,
-                'service_demand_purchasing_item_id' => $itemId,
-            ])->firstOrFail();
-
-            $item = $assignment->item;
-
-            // Check quantity constraints (excluding current assignment)
-            $totalAssigned = $item->fournisseurAssignments()
-                ->where('id', '!=', $assignmentId)
-                ->sum('assigned_quantity');
-
-            if ($totalAssigned + $request->assigned_quantity > $item->quantity) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Updated quantity exceeds item quantity',
-                ], 400);
-            }
-
-            $assignment->update([
-                'assigned_quantity' => $request->assigned_quantity,
-                'unit_price' => $request->unit_price,
-                'unit' => $request->unit ?? $assignment->unit,
-                'notes' => $request->notes,
-                'status' => $request->status ?? $assignment->status,
-            ]);
-
-            $assignment->load(['fournisseur:id,company_name,contact_person,email,phone', 'assignedBy:id,name']);
+            $service = new ServiceDemandFournisseurService();
+            $assignment = $service->updateFournisseurAssignment($demandId, $itemId, $assignmentId, $request->validated());
 
             return response()->json([
                 'success' => true,
@@ -926,20 +485,8 @@ class ServiceDemandPurchasingController extends Controller
     public function removeFournisseurAssignment($demandId, $itemId, $assignmentId)
     {
         try {
-            $assignment = ServiceDemandItemFournisseur::where([
-                'id' => $assignmentId,
-                'service_demand_purchasing_item_id' => $itemId,
-            ])->firstOrFail();
-
-            // Check if assignment can be removed
-            if ($assignment->status === 'received') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot remove received assignments',
-                ], 400);
-            }
-
-            $assignment->delete();
+            $service = new ServiceDemandFournisseurService();
+            $service->removeFournisseurAssignment($demandId, $itemId, $assignmentId);
 
             return response()->json([
                 'success' => true,
@@ -968,65 +515,8 @@ class ServiceDemandPurchasingController extends Controller
         ]);
 
         try {
-            DB::beginTransaction();
-
-            $demand = ServiceDemendPurchcing::findOrFail($demandId);
-
-            // Verify all assignments belong to the specified fournisseur and demand
-            $assignments = ServiceDemandItemFournisseur::with(['item.product','item.pharmacyProduct'])
-                ->whereIn('id', $request->assignment_ids)
-                ->where('fournisseur_id', $request->fournisseur_id)
-                ->whereHas('item', function ($query) use ($demandId) {
-                    $query->where('service_demand_purchasing_id', $demandId);
-                })
-                ->get();
-
-            if ($assignments->count() !== count($request->assignment_ids)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Some assignments not found or do not belong to the specified supplier',
-                ], 400);
-            }
-
-            // Create facture proforma
-            $facture = FactureProforma::create([
-                'fournisseur_id' => $request->fournisseur_id,
-                'service_demand_purchasing_id' => $demandId,
-                'created_by' => Auth::id(),
-                'status' => 'draft',
-            ]);
-
-                // Create facture proforma products from assignments
-                foreach ($assignments as $assignment) {
-                    $fpData = [
-                        'factureproforma_id' => $facture->id,
-                        'quantity' => $assignment->assigned_quantity,
-                        'price' => $assignment->unit_price ?? 0,
-                        'unit' => $assignment->unit ?? ($assignment->item->product->unit ?? $assignment->item->pharmacyProduct->unit ?? 'unit'),
-                    ];
-
-                    if (! empty($assignment->item->product_id)) {
-                        $fpData['product_id'] = $assignment->item->product_id;
-                    } elseif (! empty($assignment->item->pharmacy_product_id)) {
-                        // store pharmacy product id when product_id is not present
-                        $fpData['pharmacy_product_id'] = $assignment->item->pharmacy_product_id;
-                    }
-
-                    FactureProformaProduct::create($fpData);
-
-                    // Update assignment status
-                    $assignment->update(['status' => 'ordered']);
-                }
-
-            DB::commit();
-
-            $facture->load([
-                'fournisseur:id,company_name,contact_person,email,phone',
-                'serviceDemand.service:id,name',
-                'creator:id,name',
-                'products.product:id,name,product_code',
-                'products.pharmacyProduct:id,name,sku',
-            ]);
+            $service = new ServiceDemandFournisseurService();
+            $facture = $service->createFactureProformaFromAssignments($demandId, $request->fournisseur_id, $request->assignment_ids);
 
             return response()->json([
                 'success' => true,
@@ -1035,7 +525,6 @@ class ServiceDemandPurchasingController extends Controller
             ], 201);
 
         } catch (\Exception $e) {
-            DB::rollBack();
             Log::error('Error creating facture proforma from assignments: '.$e->getMessage());
 
             return response()->json([
@@ -1051,10 +540,8 @@ class ServiceDemandPurchasingController extends Controller
     public function getFournisseurs()
     {
         try {
-            $fournisseurs = Fournisseur::select('id', 'company_name', 'contact_person', 'email', 'phone')
-                ->where('is_active', true)
-                ->orderBy('company_name')
-                ->get();
+            $dataService = new ServiceDemandDataService();
+            $fournisseurs = $dataService->getFournisseurs();
 
             return response()->json([
                 'success' => true,
@@ -1077,56 +564,8 @@ class ServiceDemandPurchasingController extends Controller
     public function getAssignmentSummary($demandId)
     {
         try {
-            $demand = ServiceDemendPurchcing::with([
-                'items.product:id,name,product_code',
-                'items.pharmacyProduct:id,name,sku',
-                'items.fournisseurAssignments.fournisseur:id,company_name',
-            ])->findOrFail($demandId);
-
-            $summary = [
-                'demand_id' => $demand->id,
-                'demand_code' => $demand->demand_code,
-                'total_items' => $demand->items->count(),
-                'fully_assigned_items' => 0,
-                'partially_assigned_items' => 0,
-                'unassigned_items' => 0,
-                'assignments_by_supplier' => [],
-            ];
-
-            $supplierAssignments = [];
-
-            foreach ($demand->items as $item) {
-                $totalAssigned = $item->fournisseurAssignments->sum('assigned_quantity');
-
-                if ($totalAssigned === 0) {
-                    $summary['unassigned_items']++;
-                } elseif ($totalAssigned >= $item->quantity) {
-                    $summary['fully_assigned_items']++;
-                } else {
-                    $summary['partially_assigned_items']++;
-                }
-
-                // Group by supplier
-                foreach ($item->fournisseurAssignments as $assignment) {
-                    $supplierId = $assignment->fournisseur_id;
-
-                    if (! isset($supplierAssignments[$supplierId])) {
-                        $supplierAssignments[$supplierId] = [
-                            'supplier_id' => $supplierId,
-                            'supplier_name' => $assignment->fournisseur->company_name,
-                            'total_items' => 0,
-                            'total_quantity' => 0,
-                            'total_amount' => 0,
-                        ];
-                    }
-
-                    $supplierAssignments[$supplierId]['total_items']++;
-                    $supplierAssignments[$supplierId]['total_quantity'] += $assignment->assigned_quantity;
-                    $supplierAssignments[$supplierId]['total_amount'] += $assignment->total_amount;
-                }
-            }
-
-            $summary['assignments_by_supplier'] = array_values($supplierAssignments);
+            $service = new ServiceDemandFournisseurService();
+            $summary = $service->getAssignmentSummary($demandId);
 
             return response()->json([
                 'success' => true,
@@ -1149,25 +588,12 @@ class ServiceDemandPurchasingController extends Controller
     public function updateToFactureProforma(Request $request, $id)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            // Validate current status allows transition
-            if (! in_array($demand->status, ['sent', 'approved'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Demand must be sent or approved to create proforma',
-                ], 403);
-            }
-
-            $demand->update([
-                'status' => 'factureprofram',
-                'proforma_confirmed' => false,
-                'proforma_confirmed_at' => null,
-            ]);
+            $service = new ServiceDemandStatusService();
+            $demand = $service->updateToFactureProforma($id);
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
+                'data' => $demand,
                 'message' => 'Service demand updated to proforma status successfully',
             ]);
 
@@ -1187,25 +613,12 @@ class ServiceDemandPurchasingController extends Controller
     public function updateToBonCommend(Request $request, $id)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            // Validate current status allows transition
-            if (! in_array($demand->status, ['factureprofram', 'approved', 'sent'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Demand must be in proforma, approved, or sent status to create bon commend',
-                ], 403);
-            }
-
-            $demand->update([
-                'status' => 'boncommend',
-                'boncommend_confirmed' => false,
-                'boncommend_confirmed_at' => null,
-            ]);
+            $service = new ServiceDemandStatusService();
+            $demand = $service->updateToBonCommend($id);
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
+                'data' => $demand,
                 'message' => 'Service demand updated to bon commend status successfully',
             ]);
 
@@ -1225,16 +638,12 @@ class ServiceDemandPurchasingController extends Controller
     public function confirmProforma(Request $request, $id)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            $demand->update([
-                'proforma_confirmed' => true,
-                'proforma_confirmed_at' => now(),
-            ]);
+            $service = new ServiceDemandStatusService();
+            $demand = $service->confirmProforma($id);
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
+                'data' => $demand,
                 'message' => 'Proforma confirmed successfully',
             ]);
 
@@ -1254,16 +663,12 @@ class ServiceDemandPurchasingController extends Controller
     public function confirmBonCommend(Request $request, $id)
     {
         try {
-            $demand = ServiceDemendPurchcing::findOrFail($id);
-
-            $demand->update([
-                'boncommend_confirmed' => true,
-                'boncommend_confirmed_at' => now(),
-            ]);
+            $service = new ServiceDemandStatusService();
+            $demand = $service->confirmBonCommend($id);
 
             return response()->json([
                 'success' => true,
-                'data' => $demand->fresh()->load(['service', 'items.product', 'items.pharmacyProduct']),
+                'data' => $demand,
                 'message' => 'Bon commend confirmed successfully',
             ]);
 
@@ -1283,31 +688,8 @@ class ServiceDemandPurchasingController extends Controller
     public function getDetailedSupplierHistory($productId, $supplierId)
     {
         try {
-            // Get pricing history from bon_entree_items (actual purchase prices)
-            $pricingHistory = DB::table('bon_entree_items')
-                ->join('bon_entrees', 'bon_entree_items.bon_entree_id', '=', 'bon_entrees.id')
-                ->join('bon_receptions', 'bon_entrees.bon_reception_id', '=', 'bon_receptions.id')
-                ->join('fournisseurs', 'bon_receptions.fournisseur_id', '=', 'fournisseurs.id')
-                ->select([
-                    'bon_entree_items.id',
-                    'bon_entree_items.purchase_price as price',
-                    'bon_entree_items.quantity',
-                    'bon_entree_items.remarks as notes',
-                    'bon_entrees.created_at as order_date',
-                    'bon_entrees.bon_entree_code as document_reference',
-                    'bon_entree_items.created_at',
-                    DB::raw("'entree' as order_type"),
-                    'fournisseurs.company_name as supplier_name',
-                    'bon_entree_items.batch_number',
-                    'bon_entree_items.expiry_date',
-                    'bon_entrees.status',
-                ])
-                ->where('bon_entree_items.product_id', $productId)
-                ->where('bon_receptions.fournisseur_id', $supplierId)
-                ->where('bon_entree_items.purchase_price', '>', 0)
-                ->whereIn('bon_entrees.status', ['Draft', 'Validated', 'Transferred'])
-                ->orderBy('bon_entrees.created_at', 'desc')
-                ->get();
+            $analyticsService = new ServiceDemandAnalyticsService();
+            $pricingHistory = $analyticsService->getDetailedSupplierHistory($productId, $supplierId);
 
             return response()->json([
                 'success' => true,
@@ -1330,126 +712,13 @@ class ServiceDemandPurchasingController extends Controller
     public function getSupplierPricingForProduct($productId)
     {
         try {
-            // Get pricing history from bon_entree_items (actual purchase prices)
-            $pricingHistory = DB::table('bon_entree_items as bei')
-                ->join('bon_entrees as be', 'bei.bon_entree_id', '=', 'be.id')
-                ->join('bon_receptions as br', 'be.bon_reception_id', '=', 'br.id')
-                ->join('fournisseurs as f', 'br.fournisseur_id', '=', 'f.id')
-                ->join('products as p', 'bei.product_id', '=', 'p.id')
-                ->where('bei.product_id', $productId)
-                ->where('bei.purchase_price', '>', 0) // Only include records with valid prices
-                ->select(
-                    'f.id as supplier_id',
-                    'f.company_name',
-                    'f.contact_person',
-                    'bei.purchase_price as price',
-                    'bei.quantity as quantity',
-                    'be.created_at as order_date',
-                    'bei.created_at',
-                    'be.status as entree_status'
-                )
-                ->orderBy('bei.created_at', 'desc')
-                ->get();
-
-            // Calculate supplier statistics from bon_entree_items data
-            $supplierStats = [];
-            foreach ($pricingHistory as $record) {
-                $supplierId = $record->supplier_id;
-
-                if (! isset($supplierStats[$supplierId])) {
-                    $supplierStats[$supplierId] = [
-                        'supplier_id' => $supplierId,
-                        'company_name' => $record->company_name,
-                        'contact_person' => $record->contact_person,
-                        'prices' => [],
-                        'quantities' => [],
-                        'order_dates' => [],
-                        'total_orders' => 0,
-                        'last_price' => null,
-                        'average_price' => 0,
-                        'min_price' => null,
-                        'max_price' => null,
-                        'price_trend' => 'stable', // increasing, decreasing, stable
-                        'reliability_score' => 0,
-                    ];
-                }
-
-                $supplierStats[$supplierId]['prices'][] = $record->price;
-                $supplierStats[$supplierId]['quantities'][] = $record->quantity;
-                $supplierStats[$supplierId]['order_dates'][] = $record->order_date;
-                $supplierStats[$supplierId]['total_orders']++;
-            }
-
-            // Calculate final statistics for each supplier
-            foreach ($supplierStats as $supplierId => &$stats) {
-                if (count($stats['prices']) > 0) {
-                    $stats['last_price'] = $stats['prices'][0]; // First price (most recent)
-                    $stats['average_price'] = round(array_sum($stats['prices']) / count($stats['prices']), 2);
-                    $stats['min_price'] = min($stats['prices']);
-                    $stats['max_price'] = max($stats['prices']);
-
-                    // Calculate price trend
-                    if (count($stats['prices']) >= 2) {
-                        $recentPrices = array_slice($stats['prices'], 0, 3); // Last 3 orders
-                        $oldPrices = array_slice($stats['prices'], -3); // First 3 orders
-
-                        $recentAvg = array_sum($recentPrices) / count($recentPrices);
-                        $oldAvg = array_sum($oldPrices) / count($oldPrices);
-
-                        if ($recentAvg > $oldAvg * 1.05) {
-                            $stats['price_trend'] = 'increasing';
-                        } elseif ($recentAvg < $oldAvg * 0.95) {
-                            $stats['price_trend'] = 'decreasing';
-                        }
-                    }
-
-                    // Calculate reliability score (0-100)
-                    $consistencyScore = 0;
-                    if (count($stats['prices']) > 1) {
-                        $priceVariation = ($stats['max_price'] - $stats['min_price']) / $stats['average_price'];
-                        $consistencyScore = max(0, 100 - ($priceVariation * 100));
-                    } else {
-                        $consistencyScore = 50; // Neutral score for single order
-                    }
-
-                    $orderFrequencyScore = min(100, $stats['total_orders'] * 10); // Max 100 for 10+ orders
-
-                    $stats['reliability_score'] = round(($consistencyScore + $orderFrequencyScore) / 2);
-                }
-            }
-
-            // Convert to array and sort by average price (lowest first) then by reliability
-            $finalData = array_values($supplierStats);
-            usort($finalData, function ($a, $b) {
-                // First sort by having pricing data
-                if (empty($a['prices']) && ! empty($b['prices'])) {
-                    return 1;
-                }
-                if (! empty($a['prices']) && empty($b['prices'])) {
-                    return -1;
-                }
-
-                // Then by average price (lower is better)
-                if ($a['average_price'] != $b['average_price']) {
-                    return $a['average_price'] <=> $b['average_price'];
-                }
-
-                // Finally by reliability score (higher is better)
-                return $b['reliability_score'] <=> $a['reliability_score'];
-            });
+            $analyticsService = new ServiceDemandAnalyticsService();
+            $result = $analyticsService->getSupplierPricingForProduct($productId);
 
             return response()->json([
                 'success' => true,
-                'data' => $finalData,
-                'summary' => [
-                    'total_suppliers' => count($finalData),
-                    'suppliers_with_history' => count(array_filter($finalData, fn ($s) => ! empty($s['prices']))),
-                    'best_price' => ! empty($finalData) && ! empty($finalData[0]['prices']) ? $finalData[0]['average_price'] : null,
-                    'price_range' => [
-                        'min' => ! empty($finalData) ? min(array_filter(array_column($finalData, 'min_price'))) : null,
-                        'max' => ! empty($finalData) ? max(array_filter(array_column($finalData, 'max_price'))) : null,
-                    ],
-                ],
+                'data' => $result['suppliers'],
+                'summary' => $result['summary'],
             ]);
 
         } catch (\Exception $e) {
@@ -1468,72 +737,8 @@ class ServiceDemandPurchasingController extends Controller
     public function getSupplierRatings()
     {
         try {
-            $suppliers = Fournisseur::where('is_active', true)->get();
-            $ratings = [];
-
-            foreach ($suppliers as $supplier) {
-                // Get performance metrics from bon receptions
-                $receptionStats = DB::table('bon_receptions as br')
-                    ->join('bon_reception_items as bri', 'br.id', '=', 'bri.bon_reception_id')
-                    ->where('br.fournisseur_id', $supplier->id)
-                    ->whereNotNull('br.date_reception')
-                    ->selectRaw('
-                        COUNT(DISTINCT br.id) as total_orders,
-                        AVG(bri.unit_price) as avg_price,
-                        COUNT(CASE WHEN br.status = "completed" THEN 1 END) as completed_orders,
-                        COUNT(CASE WHEN bri.quantity_received >= bri.quantity_ordered THEN 1 END) as full_deliveries,
-                        COUNT(bri.id) as total_items
-                    ')
-                    ->first();
-
-                // Calculate ratings
-                $totalOrders = $receptionStats->total_orders ?? 0;
-                $onTimeDelivery = $totalOrders > 0 ? (($receptionStats->completed_orders ?? 0) / $totalOrders) * 100 : 0;
-                $qualityScore = $totalOrders > 0 ? (($receptionStats->full_deliveries ?? 0) / ($receptionStats->total_items ?? 1)) * 100 : 0;
-
-                // Base rating calculation (1-5 stars)
-                $baseRating = 3.0; // Start with neutral rating
-
-                if ($totalOrders > 0) {
-                    // Adjust rating based on performance
-                    if ($onTimeDelivery >= 95) {
-                        $baseRating += 1.5;
-                    } elseif ($onTimeDelivery >= 85) {
-                        $baseRating += 1.0;
-                    } elseif ($onTimeDelivery >= 70) {
-                        $baseRating += 0.5;
-                    } elseif ($onTimeDelivery < 50) {
-                        $baseRating -= 1.0;
-                    }
-
-                    if ($qualityScore >= 95) {
-                        $baseRating += 0.5;
-                    } elseif ($qualityScore < 70) {
-                        $baseRating -= 0.5;
-                    }
-
-                    // Order frequency bonus
-                    if ($totalOrders >= 50) {
-                        $baseRating += 0.3;
-                    } elseif ($totalOrders >= 20) {
-                        $baseRating += 0.2;
-                    } elseif ($totalOrders >= 10) {
-                        $baseRating += 0.1;
-                    }
-                }
-
-                // Cap rating between 1 and 5
-                $finalRating = max(1.0, min(5.0, $baseRating));
-
-                $ratings[$supplier->id] = [
-                    'rating' => round($finalRating, 1),
-                    'total_orders' => $totalOrders,
-                    'on_time_delivery' => round($onTimeDelivery),
-                    'quality_score' => round($qualityScore),
-                    'avg_price' => $receptionStats->avg_price ?? null,
-                    'performance_tier' => $this->getPerformanceTier($finalRating, $totalOrders),
-                ];
-            }
+            $analyticsService = new ServiceDemandAnalyticsService();
+            $ratings = $analyticsService->getSupplierRatings();
 
             return response()->json([
                 'success' => true,
@@ -1600,5 +805,113 @@ class ServiceDemandPurchasingController extends Controller
                 'message' => 'Failed to add workflow note',
             ], 500);
         }
+    }
+
+    /**
+     * Get pricing history for pharmacy products
+     * Pharmacy products track their own pricing in the pharmacy_products table
+     */
+    public function getPharmacyProductPricingHistory($productId)
+    {
+        try {
+            // Validate productId
+            if (!$productId || $productId === 'undefined' || !is_numeric($productId)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid or missing pharmacy product ID',
+                    'data' => [],
+                ], 400);
+            }
+
+            // Get the pharmacy product
+            $pharmacyProduct = \App\Models\PharmacyProduct::find($productId);
+            
+            if (!$pharmacyProduct) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pharmacy product not found',
+                    'data' => [],
+                ], 404);
+            }
+
+            // Get pricing history from pharmacy_stock_movements (internal transfers/purchases)
+            $pricingHistory = \DB::table('pharmacy_stock_movement_items as psmi')
+                ->join('pharmacy_stock_movements as psm', 'psmi.pharmacy_movement_id', '=', 'psm.id')
+                ->leftJoin('services as providing', 'psm.providing_service_id', '=', 'providing.id')
+                ->leftJoin('services as requesting', 'psm.requesting_service_id', '=', 'requesting.id')
+                ->where('psmi.product_id', $productId) // Fixed: column is 'product_id' not 'pharmacy_product_id'
+                ->select(
+                    'psm.id as movement_id',
+                    'psm.status as movement_type',
+                    'psm.status',
+                    'psm.created_at',
+                    'psm.updated_at',
+                    'providing.name as providing_service',
+                    'requesting.name as requesting_service',
+                    'psmi.requested_quantity',
+                    'psmi.approved_quantity',
+                    'psmi.executed_quantity',
+                    'psmi.provided_quantity',
+                    'psmi.notes'
+                )
+                ->orderBy('psm.created_at', 'desc')
+                ->limit(100)
+                ->get();
+
+            // Get current pricing from the product itself
+            $currentPricing = [
+                'unit_cost' => $pharmacyProduct->unit_cost,
+                'selling_price' => $pharmacyProduct->selling_price,
+                'markup_percentage' => $pharmacyProduct->markup_percentage,
+            ];
+
+            // Calculate statistics
+            $totalMovements = $pricingHistory->count();
+            $totalQuantityMoved = $pricingHistory->sum('executed_quantity');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'product' => [
+                        'id' => $pharmacyProduct->id,
+                        'name' => $pharmacyProduct->name ?? $pharmacyProduct->generic_name ?? $pharmacyProduct->brand_name,
+                        'generic_name' => $pharmacyProduct->generic_name,
+                        'brand_name' => $pharmacyProduct->brand_name,
+                        'sku' => $pharmacyProduct->sku,
+                        'barcode' => $pharmacyProduct->barcode,
+                    ],
+                    'current_pricing' => $currentPricing,
+                    'movement_history' => $pricingHistory,
+                    'statistics' => [
+                        'total_movements' => $totalMovements,
+                        'total_quantity_moved' => $totalQuantityMoved,
+                        'average_quantity_per_movement' => $totalMovements > 0 ? round($totalQuantityMoved / $totalMovements, 2) : 0,
+                    ],
+                ],
+                'message' => 'Pharmacy product pricing history retrieved successfully',
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error fetching pharmacy product pricing history: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch pharmacy product pricing history',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate a unique facture proforma code.
+     * Format: FP-YYYY-MM-DD-XXXX (e.g., FP-2025-11-04-0001)
+     */
+    private function generateFactureProformaCode(): string
+    {
+        $prefix = 'FP';
+        $date = now()->format('Y-m-d');
+        $sequence = \App\Models\FactureProforma::whereDate('created_at', today())->count() + 1;
+
+        return $prefix.'-'.$date.'-'.sprintf('%04d', $sequence);
     }
 }

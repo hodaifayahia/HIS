@@ -29,7 +29,7 @@ class BonCommendController extends Controller
      */
     public function index(Request $request)
     {
-        try {
+        // try {
             $filters = $request->only(['status', 'fournisseur_id', 'search', 'date_from', 'date_to']);
             $bonCommends = $this->bonCommendService->getAllBonCommends($filters);
 
@@ -43,14 +43,14 @@ class BonCommendController extends Controller
                     'total' => $bonCommends->total(),
                 ],
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error fetching bon commends: '.$e->getMessage());
+        // } catch (\Exception $e) {
+        //     Log::error('Error fetching bon commends: '.$e->getMessage());
 
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to fetch bon commends',
-            ], 500);
-        }
+        //     return response()->json([
+        //         'status' => 'error',
+        //         'message' => 'Failed to fetch bon commends',
+        //     ], 500);
+        // }
     }
 
     public function confirmWorkflow(Request $request, $id)

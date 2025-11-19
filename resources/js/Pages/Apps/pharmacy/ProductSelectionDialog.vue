@@ -165,7 +165,7 @@
               <tr
                 v-for="item in filteredInventory"
                 :key="item.id"
-                class="tw-hover:tw-bg-gray-50 tw-transition-colors"
+                class="hover:tw-bg-gray-50 tw-transition-colors"
               >
                 <td class="tw-px-3 tw-py-3 tw-whitespace-nowrap">
                   <input

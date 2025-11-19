@@ -77,7 +77,7 @@
               <tr 
                 v-for="purchase in purchaseHistory" 
                 :key="purchase.id"
-                class="tw-border-b tw-border-gray-100 tw-hover:tw-bg-gray-50"
+                class="tw-border-b tw-border-gray-100 hover:tw-bg-gray-50"
               >
                 <td class="tw-py-3 tw-px-4">
                   <div class="tw-text-sm">

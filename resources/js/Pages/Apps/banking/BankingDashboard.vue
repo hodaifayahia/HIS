@@ -748,12 +748,12 @@ onMounted(async () => {
 <style scoped>
 /* Scoped CSS overrides for PrimeVue components, using `@apply` for Tailwind classes */
 :deep(.p-card-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 :deep(.p-card-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 :deep(.p-calendar) {
-  @apply w-full;
+  @apply tw-w-full;
 }
 </style>

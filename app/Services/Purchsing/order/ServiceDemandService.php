@@ -6,6 +6,7 @@ use App\Models\ServiceDemendPurchcing;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ServiceDemandService
 {
@@ -26,7 +27,7 @@ class ServiceDemandService
 
             // Check authorization: only creator or admin can view
             $currentUser = Auth::user();
-            if ($currentUser && ! in_array($currentUser->role, ['admin', 'SuperAdmin'])) {
+            if ($currentUser && !in_array($currentUser->role, ['admin', 'SuperAdmin'])) {
                 if ($demand->created_by !== $currentUser->id) {
                     throw new \Exception('Unauthorized to view this demand');
                 }
@@ -146,9 +147,9 @@ class ServiceDemandService
             $serviceDemand = ServiceDemendPurchcing::findOrFail($id);
 
             // Add the note to existing notes or create new
-            $existingNotes = $serviceDemand->notes ? $serviceDemand->notes."\n" : '';
-            $newNote = now()->format('Y-m-d H:i:s').' - '.$note;
-            $serviceDemand->notes = $existingNotes.$newNote;
+            $existingNotes = $serviceDemand->notes ? $serviceDemand->notes . "\n" : '';
+            $newNote = now()->format('Y-m-d H:i:s') . ' - ' . $note;
+            $serviceDemand->notes = $existingNotes . $newNote;
             $serviceDemand->save();
 
             return $serviceDemand->notes;

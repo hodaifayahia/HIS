@@ -3,34 +3,26 @@ import { ref, watch, onMounted } from 'vue'
 import axios from 'axios';
 import { useToastr } from '../../Components/toster';
 import PatientModel from "../../Components/PatientModel.vue";
+// Removed PatientPortal import as we're now using a separate page
 import { Bootstrap5Pagination } from 'laravel-vue-pagination';
 import { useSweetAlert } from '../../Components/useSweetAlert';
-import { useAuthStore } from '../../stores/auth';
+import { useAuthStore } from '../../stores/auth'; // Import your Pinia store
 import { storeToRefs } from 'pinia';
+const authStore = useAuthStore(); // Use the Pinia store
+const { user } = storeToRefs(authStore); // Get reactive user reference
+const swal = useSweetAlert();
 import { useRouter } from 'vue-router';
 
-// PrimeVue imports
-import DataTable from 'primevue/datatable';
-import Column from 'primevue/column';
-import InputText from 'primevue/inputtext';
-import Button from 'primevue/button';
-import FileUpload from 'primevue/fileupload';
-import Paginator from 'primevue/paginator';
-import ProgressSpinner from 'primevue/progressspinner';
-import Message from 'primevue/message';
-
-const authStore = useAuthStore();
-const { user } = storeToRefs(authStore);
-const swal = useSweetAlert();
-const router = useRouter();
 
 const props = defineProps({
+   
     isconsultation: {
         type: Boolean,
         default: false,
     },
 });
 
+const router = useRouter();
 const Patient = ref([])
 const loading = ref(false)
 const error = ref(null)
@@ -40,38 +32,35 @@ const file = ref(null);
 const errorMessage = ref('');
 const successMessage = ref('');
 const fileInput = ref(null);
+
 const isModalOpen = ref(false);
+// Removed PatientPortal state variables as we're now using a separate page
 const selectedPatient = ref([]);
 const pagiante = ref([]);
-const currentPage = ref(0);
-const totalRecords = ref(0);
-const rowsPerPage = ref(10);
 
 const emit = defineEmits(['import-complete', 'delete', 'close', 'patientsUpdate']);
 
+// --- NEW: State to track if consultation page has been navigated to ---
 const hasNavigatedToConsultation = ref(false);
 
+// Function to fetch patient data from the API
 const getPatient = async (page = 1) => {
     try {
         loading.value = true;
-        console.log('Fetching patients from /api/patients?page=' + page);
-        const response = await axios.get(`/api/patients?page=${page}`);
-        console.log('Patient API Response:', response.data);
-        Patient.value = response.data.data || response.data;
-        pagiante.value = response.data.meta;
-        totalRecords.value = response.data.meta?.total || 0;
-        
-        console.log('Loaded patients:', Patient.value);
-        console.log('Pagination Meta:', pagiante.value);
+        const response = await axios.get(`/api/patients?page=${page}`); // Pass the page parameter
+        Patient.value = response.data.data || response.data; // Adjust based on your API response structure
+        pagiante.value = response.data.meta; // Ensure this matches the meta data from the backend
+
+        console.log('Pagination Meta:', pagiante.value); // Debugging: Check the meta data
     } catch (error) {
         console.error('Error fetching Patient:', error);
-        error.value = error.response?.data?.message || error.message || 'Failed to load Patient';
-        console.error('Error details:', error.response?.data);
+        error.value = error.response?.data?.message || 'Failed to load Patient';
     } finally {
         loading.value = false;
     }
 };
 
+// Debounced search function to prevent excessive API calls
 const debouncedSearch = (() => {
     let timeout;
     return () => {
@@ -85,13 +74,17 @@ const debouncedSearch = (() => {
             } catch (error) {
                 toaster.error('Failed to search users');
                 console.error('Error searching users:', error);
+            } finally {
+                // No specific final actions needed for search currently
             }
-        }, 300);
+        }, 300); // 300ms delay
     };
 })();
 
+// Watch for search query changes and trigger debounced search
 watch(searchQuery, debouncedSearch);
 
+// Placeholder functions for search input focus/blur, if they perform any UI actions
 const onSearchFocus = () => {
     // console.log('Search input focused');
 };
@@ -100,14 +93,16 @@ const onSearchBlur = () => {
     // console.log('Search input blurred');
 };
 
+// Placeholder function for performSearch, assuming debouncedSearch handles the actual search
 const performSearch = () => {
-    debouncedSearch();
+    debouncedSearch(); // Trigger the debounced search immediately on button click
 };
 
+// Function to export patient data to an Excel file
 const exportUsers = async () => {
     try {
         const response = await axios.get('/api/export/Patients', {
-            responseType: 'blob',
+            responseType: 'blob', // Ensure the response is treated as a binary file
         });
 
         const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -115,31 +110,33 @@ const exportUsers = async () => {
 
         const link = document.createElement('a');
         link.href = downloadUrl;
-        link.download = 'Patients.xlsx';
+        link.download = 'Patients.xlsx'; // The name of the file
         document.body.appendChild(link);
         link.click();
-        link.remove();
+        link.remove(); // Clean up
     } catch (error) {
         console.error('Failed to export Patients:', error);
         toaster.error('Failed to export patients.');
     }
 };
 
+// Function to upload an Excel/CSV file for patient import
 const uploadFile = async () => {
     if (!file.value) {
         errorMessage.value = 'Please select a file.';
         return;
     }
 
+    // Add file type validation
     const allowedTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'application/vnd.ms-excel',
-        'text/csv',
-        'application/csv',
-        'text/x-csv',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // xlsx
+        'application/vnd.ms-excel', // xls
+        'text/csv', // csv
+        'application/csv', // some systems use this mime type for CSV
+        'text/x-csv', // another possible CSV mime type
     ];
 
-    console.log('File type:', file.value.type);
+    console.log('File type:', file.value.type); // Debug line
 
     if (!allowedTypes.includes(file.value.type)) {
         errorMessage.value = 'Please upload a CSV or Excel file (xlsx, csv)';
@@ -163,7 +160,7 @@ const uploadFile = async () => {
             successMessage.value = response.data.message;
             errorMessage.value = '';
             emit('import-complete');
-            getPatient();
+            getPatient(); // Refresh patient list after successful import
             toaster.success('Patients imported successfully!');
         } else {
             errorMessage.value = response.data.message;
@@ -178,43 +175,52 @@ const uploadFile = async () => {
     } finally {
         loading.value = false;
         if (fileInput.value) {
-            fileInput.value.value = '';
+            fileInput.value.value = ''; // Clear file input
         }
     }
 };
 
+// Handler for file input change
 const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
     if (selectedFile) {
-        console.log('Selected file type:', selectedFile.type);
+        console.log('Selected file type:', selectedFile.type); // Debug line
         file.value = selectedFile;
         errorMessage.value = '';
         successMessage.value = '';
     }
 };
 
+// Function to open the patient modal (for add/edit)
 const openModal = (patient = null) => {
     selectedPatient.value = patient ? { ...patient } : {};
     isModalOpen.value = true;
 };
 
+// Function to close the patient modal
 const closeModal = () => {
     isModalOpen.value = false;
 };
+
+// Removed PatientPortal functions as we're now using a separate page
 
 const handlePatientUpdated = () => {
     getPatient();
 };
 
+// Function to refresh the patient list
 const refreshPatient = async () => {
     await getPatient();
 };
 
+// Function to navigate to the patient's appointments page
 const goToPatientAppointmentsPage = (patientId) => {
     router.push({ name: 'admin.patient.appointments', params: { id: patientId } });
+    // Reset the state when navigating away to a different view
     hasNavigatedToConsultation.value = false;
 };
 
+// Function to navigate to the consultation page
 const GotoConsulatoinpage = (appointment) => {
     console.log('Navigating to consultation page for appointment:', appointment.doctor_id);
 
@@ -226,29 +232,25 @@ const GotoConsulatoinpage = (appointment) => {
             doctorId: appointment.doctor_id
         }
     });
+    // --- NEW: Set state to true after navigating to consultation ---
     hasNavigatedToConsultation.value = true;
 };
 
+// New function to handle patient row clicks conditionally based on role
 const handlePatientRowClick = (patient) => {
-    console.log('Patient row clicked:', patient);
-    console.log('User role:', user.value?.role);
-    console.log('Navigating to patient appointments with ID:', patient.id);
-    
-    const routeName = user.value?.role === 'doctor' 
-        ? 'doctor.patient.appointments' 
-        : 'admin.patient.appointments';
-    
-    console.log('Using route:', routeName);
-    
-    router.push({ 
-        name: routeName, 
-        params: { id: patient.id } 
-    }).catch(err => {
-        console.error('Navigation error:', err);
-        toaster.error('Failed to navigate to patient page: ' + err.message);
-    });
+    if (user.value.role === 'doctor') {
+        GotoConsulatoinpage(patient);
+    } else {
+        // Navigate to the new patient portal page
+        router.push({ 
+            name: 'admin.patient.portal', 
+            params: { id: patient.id } 
+        });
+    }
 };
 
+
+// Function to delete a patient
 const deletePatient = async (id) => {
     try {
         const result = await swal.fire({
@@ -263,7 +265,7 @@ const deletePatient = async (id) => {
         if (result.isConfirmed) {
             await axios.delete(`/api/patients/${id}`);
             toaster.success('Patient deleted successfully');
-            refreshPatient();
+            refreshPatient(); // Refresh the list after deletion
             swal.fire(
                 'Deleted!',
                 'Patient has been deleted.',
@@ -289,242 +291,215 @@ const deletePatient = async (id) => {
     }
 };
 
-const onPageChange = (event) => {
-    currentPage.value = event.page;
-    getPatient(event.page + 1);
-};
-
+// Fetch patients on component mount
 onMounted(() => {
-    console.log('PatientListItem component mounted');
     getPatient();
+    // --- NEW: Reset state on component mount ---
     hasNavigatedToConsultation.value = false;
 })
 </script>
 
 <template>
-    <div class="tw-space-y-6">
-        <!-- Search and Actions Bar -->
-        <div class="tw-bg-white tw-rounded-xl tw-shadow-lg tw-p-6">
-            <div class="tw-flex tw-flex-col tw-lg:flex-row tw-gap-4">
-                <!-- Search Box -->
-                <div class="tw-flex-1">
-                    <div class="tw-relative">
-                        <InputText 
-                            v-model="searchQuery"
-                            placeholder="Search patients by name, ID, phone, or CodeBash"
-                            class="tw-w-full tw-pl-12 tw-pr-4 tw-py-3 tw-rounded-lg tw-border tw-border-gray-300 tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent"
-                            @focus="onSearchFocus"
-                            @blur="onSearchBlur"
-                        />
-                        <i class="pi pi-search tw-absolute tw-left-4 tw-top-3.5 tw-text-gray-400"></i>
-                    </div>
-                </div>
-                
-                <!-- Action Buttons -->
-                <div class="tw-flex tw-gap-3 tw-items-center">
-                    <Button 
-                        v-if="!isconsultation"
-                        label="Add Patient" 
-                        icon="pi pi-plus"
-                        class="tw-bg-gradient-to-r tw-from-blue-500 tw-to-blue-600 tw-text-white tw-px-5 tw-py-2.5 tw-rounded-lg tw-hover:from-blue-600 tw-hover:to-blue-700 tw-transition-all tw-shadow-md"
-                        @click="openModal"
-                    />
-                </div>
-            </div>
+    <div class="appointment-page">
+        <div class="content">
+            <div class="container-fluid">
+                <div class="row">
 
-            <!-- Import/Export Section -->
-            <div v-if="!isconsultation" class="tw-mt-6 tw-pt-6 tw-border-t tw-border-gray-200">
-                <div class="tw-flex tw-flex-col tw-md:flex-row tw-justify-between tw-items-center tw-gap-4">
-                    <div class="tw-flex tw-items-center tw-gap-4">
-                        <input 
-                            ref="fileInput" 
-                            type="file" 
-                            accept=".csv,.xlsx" 
-                            @change="handleFileChange"
-                            class="tw-hidden"
-                            id="fileUpload"
-                        >
-                        <label for="fileUpload" class="tw-cursor-pointer tw-bg-gray-100 tw-text-gray-700 tw-px-4 tw-py-2.5 tw-rounded-lg tw-hover:bg-gray-200 tw-transition-colors tw-flex tw-items-center tw-gap-2">
-                            <i class="pi pi-upload"></i>
-                            <span>{{ file ? file.name : 'Choose File' }}</span>
-                        </label>
-                        
-                        <Button 
-                            label="Import Patients" 
-                            icon="pi pi-file-import"
-                            :disabled="loading || !file"
-                            class="tw-bg-green-500 tw-text-white tw-hover:bg-green-600"
-                            @click="uploadFile"
-                        />
-                        
-                        <Button 
-                            label="Export Excel" 
-                            icon="pi pi-file-export"
-                            class="tw-bg-purple-500 tw-text-white tw-hover:bg-purple-600"
-                            @click="exportUsers"
-                        />
-                    </div>
-                </div>
-                
-                <!-- Messages -->
-                <Message v-if="errorMessage" severity="error" :closable="true" class="tw-mt-4">
-                    {{ errorMessage }}
-                </Message>
-                <Message v-if="successMessage" severity="success" :closable="true" class="tw-mt-4">
-                    {{ successMessage }}
-                </Message>
-            </div>
-        </div>
+                    <div class="col-lg-12">
+                        <div class="search-wrapper mb-2">
+                            <input type="text" class="form-control premium-search" v-model="searchQuery"
+                                placeholder="Search patients by name, ID, or phone ,or CodeBash" @focus="onSearchFocus"
+                                @blur="onSearchBlur" />
+                            <button class="search-button" @click="performSearch">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
 
-        <!-- Data Table Card -->
-        <div class="tw-bg-white tw-rounded-xl tw-shadow-lg tw-overflow-hidden">
-            <div v-if="loading" class="tw-flex tw-justify-center tw-items-center tw-h-64">
-                <ProgressSpinner />
-            </div>
-            
-            <Message v-else-if="error" severity="error" class="tw-m-4">
-                {{ error }}
-            </Message>
-            
-            <div v-else class="tw-overflow-x-auto">
-                <table class="tw-w-full">
-                    <thead class="tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50">
-                        <tr>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">#</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">Parent Name</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">Gender</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">First Name</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">Last Name</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">ID Number</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">Date of Birth</th>
-                            <th class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">Phone</th>
-                            <th v-if="!isconsultation" class="tw-px-6 tw-py-4 tw-text-left tw-text-xs tw-font-medium tw-text-gray-700 tw-uppercase tw-tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="tw-bg-white tw-divide-y tw-divide-gray-200">
-                        <tr v-if="Patient.length === 0">
-                            <td :colspan="isconsultation ? 8 : 9" class="tw-text-center tw-py-12 tw-text-gray-500">
-                                <i class="pi pi-inbox tw-text-4xl tw-text-gray-300 tw-mb-3 tw-block"></i>
-                                No patients found
-                            </td>
-                        </tr>
-                        <tr 
-                            v-for="(patient, index) in Patient" 
-                            :key="patient.id"
-                            @click="handlePatientRowClick(patient)"
-                            class="tw-hover:bg-blue-50 tw-cursor-pointer tw-transition-colors tw-duration-150"
-                        >
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ index + 1 }}</td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.Parent }}</td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap">
-                                <span :class="[
-                                    'tw-inline-flex tw-px-2 tw-py-1 tw-text-xs tw-font-semibold tw-rounded-full',
-                                    patient.gender === 'Male' ? 'tw-bg-blue-100 tw-text-blue-800' : 'tw-bg-pink-100 tw-text-pink-800'
-                                ]">
-                                    {{ patient.gender }}
-                                </span>
-                            </td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.first_name }}</td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.last_name }}</td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.Idnum }}</td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.dateOfBirth }}</td>
-                            <td class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-text-gray-900">{{ patient.phone }}</td>
-                            <td v-if="!isconsultation" class="tw-px-6 tw-py-4 tw-whitespace-nowrap tw-text-sm tw-font-medium">
-                                <div class="tw-flex tw-gap-2">
-                                    <Button 
-                                        icon="pi pi-pencil"
-                                        class="tw-p-2 tw-bg-blue-100 tw-text-blue-600 tw-hover:bg-blue-200 tw-rounded-lg tw-transition-colors"
-                                        @click.stop="openModal(patient)"
-                                    />
-                                    <Button 
-                                        v-if="user?.role == 'admin' || user?.role == 'SuperAdmin'"
-                                        icon="pi pi-trash"
-                                        class="tw-p-2 tw-bg-red-100 tw-text-red-600 tw-hover:bg-red-200 tw-rounded-lg tw-transition-colors"
-                                        @click.stop="deletePatient(patient.id)"
-                                    />
+                            <div class="d-flex flex-wrap gap-2 align-items-center">
+                                <button v-if="!isconsultation"
+                                    class="btn btn-primary btn-sm d-flex align-items-center gap-1 px-3 mb-4 py-2"
+                                    title="Add Patient" @click="openModal">
+                                    <i class="fas fa-plus-circle"></i>
+                                    <span>Add Patient</span>
+                                </button>
+
+                            </div>
+                            
+                            <div class="d-flex flex-column align-items-end">
+                                <div v-if="!isconsultation" class="d-flex flex-column align-items-center">
+
+                                    <div class="custom-file mb-3 " style="width: 200px; margin-left: 160px;">
+                                        <label for="fileUpload" class="btn btn-primary w-100 premium-file-button">
+                                            <i class="fas fa-file-upload mr-2"></i> Choose File
+                                        </label>
+                                        <input ref="fileInput" type="file" accept=".csv,.xlsx" @change="handleFileChange"
+                                            class="custom-file-input d-none" id="fileUpload">
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center ml-5 pl-5 ">
+                                        <button @click="uploadFile" :disabled="loading || !file"
+                                            class="btn btn-success mr-2 ml-5">
+                                            Import Users
+                                        </button>
+                                        <button @click="exportUsers" class="btn btn-primary">
+                                            Export File
+                                        </button>
+                                    </div>
+                                    <div v-if="errorMessage" class="alert alert-danger mt-2" role="alert">
+                                        {{ errorMessage }}
+                                    </div>
+                                    <div v-if="successMessage" class="alert alert-success mt-2" role="alert">
+                                        {{ successMessage }}
+                                    </div>
+
                                 </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            
-            <!-- Pagination -->
-            <div class="tw-p-4 tw-border-t tw-border-gray-200">
-                <Paginator 
-                    :rows="rowsPerPage" 
-                    :totalRecords="totalRecords"
-                    :rowsPerPageOptions="[10, 20, 30, 50]"
-                    @page="onPageChange"
-                    class="tw-flex tw-justify-center"
-                />
+                            </div>
+
+                        </div>
+
+                        <div class="card shadow-sm">
+                            <div class="card-body">
+                                <div v-if="error" class="alert alert-danger" role="alert">
+                                  {{ error }}
+                                </div>
+
+                                <table v-else class="table table-hover ">
+                                    <thead class="table-primary">
+                                        <tr>
+                                            <th scope="col">#</th>
+                                            <th scope="col">Parent Name</th>
+                                            <th scope="col">Gender</th>
+                                            <th scope="col">First Name</th>
+                                            <th scope="col">Last Name</th>
+                                            <th scope="col">Identification Number</th>
+                                            <th scope="col">Date of Birth</th>
+                                            <th scope="col">Phone</th>
+                                            <th v-if="!isconsultation" scope="col">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+
+                                        <tr v-if="Patient.length === 0">
+                                            <td :colspan="isconsultation ? 8 : 9" class="text-center">No Patient found</td>
+                                        </tr>
+                                        <tr v-for="(patient, index) in Patient" :key="patient.id"
+                                            @click="handlePatientRowClick(patient)" style="cursor: pointer;">
+                                            <td>{{ index + 1 }}</td>
+                                            <td>{{ patient.Parent }}</td>
+                                            <td>{{ patient.gender }}</td>
+                                            <td>{{ patient.first_name }}</td>
+                                            <td>{{ patient.last_name }}</td>
+                                            <td>{{ patient.Idnum }}</td>
+                                            <td>{{ patient.dateOfBirth }}</td>
+                                            <td>{{ patient.phone }}</td>
+                                            <td v-if="!isconsultation">
+                                                <button @click.stop="openModal(patient)"
+                                                    class="btn btn-sm btn-outline-primary me-2">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button v-if="role == 'admin' || role == 'SuperAdmin'"
+                                                    @click.stop="deletePatient(patient.id)"
+                                                    class="btn btn-sm btn-outline-danger ml-1">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="m-4">
+                                <Bootstrap5Pagination :data="pagiante" :limit="5"
+                                    @pagination-change-page="(page) => getPatient(page)" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <PatientModel :show-modal="isModalOpen" :spec-data="selectedPatient" @close="closeModal"
+            @patientsUpdate="refreshPatient" />
     </div>
 
-    <!-- Patient Modal -->
-    <PatientModel 
-        :show-modal="isModalOpen" 
-        :spec-data="selectedPatient" 
-        @close="closeModal"
-        @patientsUpdate="refreshPatient" 
-    />
+    <!-- Removed PatientPortal modal as we're now using a separate page -->
 </template>
 
 <style scoped>
-/* Enhanced animations */
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
+/* ... Your existing styles ... */
+
+.search-wrapper {
+    display: flex;
+    align-items: center;
+    border: 2px solid #007BFF;
+    /* Blue border for a premium feel */
+    border-radius: 50px;
+    /* Rounded corners for a modern look */
+    overflow: hidden;
+    /* Ensures the border-radius applies to children */
+    transition: all 0.3s ease;
+    /* Smooth transition for focus/blur effects */
+}
+
+.premium-search {
+    border: none;
+    /* Remove default border */
+    border-radius: 50px 0 0 50px;
+    /* Round only left corners */
+    flex-grow: 1;
+    /* Expand to fill available space */
+    padding: 10px 15px;
+    /* Adequate padding for text */
+    font-size: 16px;
+    /* Clear, readable text size */
+    outline: none;
+    /* Remove the outline on focus */
+}
+
+.premium-search:focus {
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+    /* Focus effect */
+}
+
+.search-button {
+    border: none;
+    background: #007BFF;
+    /* Blue background for the search button */
+    color: white;
+    padding: 10px 20px;
+    border-radius: 0 50px 50px 0;
+    /* Round only right corners */
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.3s ease;
+    /* Smooth transition for hover effect */
+}
+
+.search-button:hover {
+    background: #0056b3;
+    /* Darker blue on hover */
+}
+
+.search-button i {
+    margin-right: 5px;
+    /* Space between icon and text */
+}
+
+/* Optional: Animation for focus */
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
     }
 }
 
-.tw-bg-white {
-    animation: fadeInUp 0.4s ease-out;
-}
-
-/* PrimeVue Customizations */
-:deep(.p-paginator) {
-    @apply bg-transparent tw-border-0;
-}
-
-:deep(.p-paginator .p-paginator-pages .p-paginator-page) {
-    @apply min-w-[2.5rem] tw-h-10 tw-mx-1 tw-rounded-lg tw-border tw-border-gray-300 tw-text-gray-700 hover:tw-bg-blue-50 hover:tw-border-blue-500 hover:tw-text-blue-600 tw-transition-all;
-}
-
-:deep(.p-paginator .p-paginator-pages .p-paginator-page.p-highlight) {
-    @apply bg-blue-500 tw-text-white tw-border-blue-500 hover:tw-bg-blue-600;
-}
-
-:deep(.p-inputtext:focus) {
-    @apply outline-none tw-ring-2 tw-ring-blue-500 tw-border-transparent;
-}
-
-:deep(.p-button) {
-    @apply font-medium tw-transition-all tw-duration-200;
-}
-
-/* Table row hover effect */
-tbody tr {
-    transition: all 0.2s ease;
-}
-
-tbody tr:hover {
-    transform: translateX(4px);
-}
-
-/* Loading spinner customization */
-:deep(.p-progress-spinner) {
-    width: 50px;
-    height: 50px;
-}
-
-:deep(.p-progress-spinner-circle) {
-    stroke: #3b82f6;
+.search-wrapper:focus-within {
+    animation: pulse 1s;
 }
 </style>

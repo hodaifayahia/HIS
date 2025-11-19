@@ -202,7 +202,7 @@
                   <div
                     v-for="appointment in recentAppointments.slice(0, 5)"
                     :key="appointment.id"
-                    class="tw-p-3 tw-border tw-border-gray-200 tw-rounded-lg tw-hover:bg-gray-50 tw-cursor-pointer"
+                    class="tw-p-3 tw-border tw-border-gray-200 tw-rounded-lg hover:tw-bg-gray-50 tw-cursor-pointer"
                     @click="viewAppointment(appointment)"
                   >
                     <div class="tw-flex tw-justify-between tw-items-start">

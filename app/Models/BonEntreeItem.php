@@ -13,6 +13,7 @@ class BonEntreeItem extends Model
     protected $fillable = [
         'bon_entree_id',
         'product_id',
+        'pharmacy_product_id', // For pharmacy products
         'in_stock_id',
         'storage_name',
         'batch_number',
@@ -27,6 +28,7 @@ class BonEntreeItem extends Model
         'qte_by_box',
         'remarks',
         'created_by',
+        'sub_items', // JSON array of batch-level details
     ];
 
     protected $casts = [
@@ -38,6 +40,7 @@ class BonEntreeItem extends Model
         'boite_de' => 'integer',
         'quantity' => 'integer',
         'qte_by_box' => 'integer',
+        'sub_items' => 'array', // Cast JSON to array
     ];
 
     // Relationships
@@ -49,6 +52,11 @@ class BonEntreeItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function pharmacyProduct(): BelongsTo
+    {
+        return $this->belongsTo(PharmacyProduct::class, 'pharmacy_product_id');
     }
 
     public function inStock(): BelongsTo
@@ -133,41 +141,188 @@ class BonEntreeItem extends Model
             ]);
         }
 
-        // Create or update inventory record
-        $inventory = \App\Models\Inventory::where([
-            'product_id' => $this->product_id,
-            'stockage_id' => $stockage->id,
-            'batch_number' => $this->batch_number,
-        ])->first();
+        // Check if this is a pharmacy product or regular product
+        if ($this->pharmacy_product_id) {
+            // Handle pharmacy products - transfer to pharmacy inventory
+            $this->transferPharmacyProductToStock($stockage);
+        } else if ($this->product_id) {
+            // Handle regular products - transfer to regular inventory
+            // CRITICAL: Process sub_items if they exist
+            // Each sub_item represents a different batch with unique batch_number, expiry_date, serial_number
+            if (!empty($this->sub_items) && is_array($this->sub_items)) {
+                foreach ($this->sub_items as $subItem) {
+                    $this->createOrUpdateInventoryRecord(
+                        $stockage->id,
+                        $subItem['quantity'] ?? 0,
+                        $subItem['purchase_price'] ?? $this->purchase_price,
+                        $subItem['batch_number'] ?? null,
+                        $subItem['expiry_date'] ?? null,
+                        $subItem['serial_number'] ?? null,
+                        $subItem['unit'] ?? $this->product->unit ?? 'units'
+                    );
+                }
+            } else {
+                // No sub_items: Process the main item as a single inventory record
+                $this->createOrUpdateInventoryRecord(
+                    $stockage->id,
+                    $this->quantity,
+                    $this->purchase_price,
+                    $this->batch_number,
+                    $this->expiry_date,
+                    $this->serial_number,
+                    $this->product->unit ?? 'units'
+                );
+            }
+        } else {
+            throw new \Exception('BonEntreeItem must have either product_id or pharmacy_product_id');
+        }
 
-        if ($inventory) {
-            // Update existing inventory
-            $inventory->increment('quantity', $this->quantity);
-            $inventory->increment('total_units', $this->quantity);
-            $inventory->update([
-                'purchase_price' => $this->purchase_price,
-                'expiry_date' => $this->expiry_date,
-                'serial_number' => $this->serial_number,
-                'location' => $this->storage_name ?: $stockage->location,
+        return true;
+    }
+
+    /**
+     * Transfer pharmacy product to pharmacy stock
+     */
+    private function transferPharmacyProductToStock($stockage)
+    {
+        // Get or create pharmacy stockage for this service
+        $pharmacyStockage = \App\Models\PharmacyStockage::where('service_id', $stockage->service_id)
+            ->where('type', 'warehouse')
+            ->first();
+
+        if (!$pharmacyStockage) {
+            // Create a default pharmacy stockage for this service
+            $pharmacyStockage = \App\Models\PharmacyStockage::create([
+                'name' => $stockage->service->name . ' - Pharmacy Stock',
+                'description' => 'Default pharmacy stock location for ' . $stockage->service->name,
+                'type' => 'warehouse',
+                'location' => 'Main Warehouse',
+                'service_id' => $stockage->service_id,
+            ]);
+        }
+
+        // Process pharmacy inventory similar to regular inventory
+        $pharmacyInventory = \App\Models\PharmacyInventory::where('pharmacy_product_id', $this->pharmacy_product_id)
+            ->where('pharmacy_stockage_id', $pharmacyStockage->id)
+            ->where('batch_number', $this->batch_number ?? '')
+            ->whereRaw('DATE(expiry_date) <=> DATE(?) IS TRUE', [$this->expiry_date])
+            ->first();
+
+        if ($pharmacyInventory) {
+            // Merge quantities
+            $oldQuantity = $pharmacyInventory->quantity;
+            $newTotalQuantity = $oldQuantity + $this->quantity;
+
+            $pharmacyInventory->update([
+                'quantity' => $newTotalQuantity,
+                'total_units' => ($pharmacyInventory->total_units ?? 0) + $this->quantity,
+                'expiry_date' => $this->expiry_date ?? $pharmacyInventory->expiry_date,
+                'location' => $this->storage_name ?: $pharmacyInventory->location,
+            ]);
+
+            \Log::info('Pharmacy inventory merged', [
+                'pharmacy_product_id' => $this->pharmacy_product_id,
+                'batch_number' => $this->batch_number,
+                'old_quantity' => $oldQuantity,
+                'added_quantity' => $this->quantity,
+                'new_total_quantity' => $newTotalQuantity,
             ]);
         } else {
-            // Create new inventory record
-            $inventory = \App\Models\Inventory::create([
-                'product_id' => $this->product_id,
-                'stockage_id' => $stockage->id,
+            // Create new pharmacy inventory record
+            $pharmacyInventory = \App\Models\PharmacyInventory::create([
+                'pharmacy_product_id' => $this->pharmacy_product_id,
+                'pharmacy_stockage_id' => $pharmacyStockage->id,
                 'quantity' => $this->quantity,
                 'total_units' => $this->quantity,
-                'unit' => $this->product->unit ?? 'units',
+                'unit' => 'box',
                 'batch_number' => $this->batch_number,
                 'serial_number' => $this->serial_number,
                 'purchase_price' => $this->purchase_price,
                 'expiry_date' => $this->expiry_date,
-                'location' => $this->storage_name ?: $stockage->location,
+                'location' => $this->storage_name,
+            ]);
+
+            \Log::info('New pharmacy inventory record created', [
+                'pharmacy_product_id' => $this->pharmacy_product_id,
+                'batch_number' => $this->batch_number,
+                'quantity' => $this->quantity,
             ]);
         }
 
-        // Update the bon entree item with the inventory reference
-        $this->update(['in_stock_id' => $inventory->id]);
+        return $pharmacyInventory;
+    }
+
+    /**
+     * Create or update inventory record with batch-level details
+     * This ensures each unique batch (batch_number + expiry_date) gets its own inventory record
+     */
+    private function createOrUpdateInventoryRecord(
+        $stockageId,
+        $quantity,
+        $purchasePrice,
+        $batchNumber = null,
+        $expiryDate = null,
+        $serialNumber = null,
+        $unit = 'units'
+    ) {
+        // Find matching inventory based on CRITICAL criteria:
+        // 1. Same product
+        // 2. Same stockage
+        // 3. Same batch number (if provided)
+        // 4. Same expiry date (if provided)
+        // 5. Same purchase price (for consistency)
+        // This ensures we only merge quantities for identical stock items
+        $inventory = \App\Models\Inventory::where('product_id', $this->product_id)
+            ->where('stockage_id', $stockageId)
+            ->where('purchase_price', $purchasePrice)
+            ->where('batch_number', $batchNumber ?? '')
+            ->whereRaw('DATE(expiry_date) <=> DATE(?) IS TRUE', [$expiryDate])
+            ->first();
+
+        if ($inventory) {
+            // ✅ FOUND MATCHING INVENTORY: Merge quantities instead of creating duplicate
+            $oldQuantity = $inventory->quantity;
+            $newTotalQuantity = $oldQuantity + $quantity;
+
+            $inventory->update([
+                'quantity' => $newTotalQuantity,
+                'total_units' => ($inventory->total_units ?? 0) + $quantity,
+                'expiry_date' => $expiryDate ?? $inventory->expiry_date,
+                'location' => $this->storage_name ?: $inventory->location,
+            ]);
+
+            \Log::info('Inventory merged for batch', [
+                'product_id' => $this->product_id,
+                'batch_number' => $batchNumber,
+                'expiry_date' => $expiryDate,
+                'old_quantity' => $oldQuantity,
+                'added_quantity' => $quantity,
+                'new_total_quantity' => $newTotalQuantity,
+                'inventory_id' => $inventory->id,
+            ]);
+        } else {
+            // ❌ NO MATCHING INVENTORY: Create new inventory record
+            $inventory = \App\Models\Inventory::create([
+                'product_id' => $this->product_id,
+                'stockage_id' => $stockageId,
+                'quantity' => $quantity,
+                'total_units' => $quantity,
+                'unit' => $unit,
+                'batch_number' => $batchNumber,
+                'serial_number' => $serialNumber,
+                'purchase_price' => $purchasePrice,
+                'expiry_date' => $expiryDate,
+                'location' => $this->storage_name,
+            ]);
+
+            \Log::info('New inventory record created for batch', [
+                'product_id' => $this->product_id,
+                'batch_number' => $batchNumber,
+                'expiry_date' => $expiryDate,
+                'quantity' => $quantity,
+                'inventory_id' => $inventory->id,
+            ]);
+        }
 
         return $inventory;
     }

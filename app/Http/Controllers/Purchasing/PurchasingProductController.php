@@ -26,25 +26,50 @@ class PurchasingProductController extends \App\Http\Controllers\Controller
     public function index(Request $request): JsonResponse
     {
         try {
+            // Get pagination parameters
+            $page = (int) $request->query('page', 1);
+            $perPage = (int) $request->query('per_page', 20);
+            
+            // Validate pagination parameters
+            $page = max(1, $page);
+            $perPage = max(1, min($perPage, 100)); // Max 100 per page
+            
             // Determine which endpoint was called
             $path = $request->path();
             
             if (str_contains($path, 'pharmacy-products')) {
                 // Pharmacy products only
                 $products = $this->service->getPharmacyProducts($request->all());
+                return response()->json([
+                    'success' => true,
+                    'data' => $products,
+                    'count' => count($products),
+                ]);
             } elseif (str_contains($path, 'purchasing/products')) {
-                // Combined from both tables
-                $products = $this->service->getProductsFromBothTables($request->all());
+                // Combined from both tables with pagination
+                $result = $this->service->getProductsFromBothTables($request->all(), $page, $perPage);
+                
+                return response()->json([
+                    'success' => true,
+                    'data' => $result['data'],
+                    'pagination' => [
+                        'total' => $result['total'],
+                        'per_page' => $result['per_page'],
+                        'current_page' => $result['current_page'],
+                        'last_page' => $result['last_page'],
+                        'has_more' => $result['has_more'],
+                    ],
+                    'count' => count($result['data']),
+                ]);
             } else {
                 // Stock products only (default)
                 $products = $this->service->getStockProducts($request->all());
+                return response()->json([
+                    'success' => true,
+                    'data' => $products,
+                    'count' => count($products),
+                ]);
             }
-
-            return response()->json([
-                'success' => true,
-                'data' => $products,
-                'count' => count($products),
-            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -112,22 +137,33 @@ class PurchasingProductController extends \App\Http\Controllers\Controller
      * Display the specified product
      * GET /api/products/{id} (stock)
      * GET /api/pharmacy-products/{id} (pharmacy)
+     * GET /api/purchasing/products/{id} (combined)
      */
     public function show($id): JsonResponse
     {
         try {
+            // Validate that ID is numeric
+            if (!is_numeric($id) || $id <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid product ID',
+                ], 400);
+            }
+
+            $id = (int) $id;
+
             // Try to find in stock table first
-            $product = Product::find($id);
+            $product = Product::where('id', $id)->first();
             
             if (!$product) {
                 // Try pharmacy table
-                $product = PharmacyProduct::find($id);
+                $product = PharmacyProduct::where('id', $id)->first();
             }
 
             if (!$product) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Product not found',
+                    'message' => "No query results for model [Product] {$id}",
                 ], 404);
             }
 
@@ -158,8 +194,14 @@ class PurchasingProductController extends \App\Http\Controllers\Controller
                 'category' => 'nullable|string',
                 'quantity' => 'nullable|integer|min:0',
                 'unit_price' => 'nullable|numeric|min:0',
-                'code_interne' => 'nullable|string',
+                'code_interne' => 'nullable|integer',
+                'code_pch' => 'nullable|string',
+                'designation' => 'nullable|string',
+                'type_medicament' => 'nullable|string',
                 'forme' => 'nullable|string',
+                'boite_de' => 'nullable|integer',
+                'nom_commercial' => 'nullable|string',
+                'is_clinical' => 'nullable|boolean',
                 'generic_name' => 'nullable|string',
                 'brand_name' => 'nullable|string',
                 'source' => 'nullable|in:stock,pharmacy',

@@ -608,7 +608,7 @@ const loadServices = async () => {
 
 const loadBonEntrees = async (supplierId) => {
   try {
-    const response = await axios.get('/api/bon-entrees', {
+    const response = await axios.get('/api/purchasing/bon-entrees', {
       params: { fournisseur_id: supplierId, status: 'validated' }
     })
     // if (response.data.status === 'success') {
@@ -782,15 +782,13 @@ watch(() => props.mode, (newMode) => {
 </script>
 
 <style scoped>
+@reference "../../../../css/app.css";
 :deep(.p-card) {
-  @apply shadow-sm tw-border-0;
 }
 
 :deep(.p-card-title) {
-  @apply text-base tw-font-semibold;
 }
 
 :deep(.p-tabview-nav) {
-  @apply bg-gray-50;
 }
 </style>

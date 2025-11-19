@@ -452,6 +452,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /*
  * Minimal CSS is needed when using Tailwind.
  * All custom classes have been removed from the template.
@@ -473,60 +475,60 @@ onMounted(() => {
 :deep(.p-dropdown),
 :deep(.p-inputnumber-input),
 :deep(.p-inputtextarea) {
-  @apply rounded-lg tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
+  @apply tw-rounded-lg tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
 }
 
 :deep(.p-inputtext:hover),
 :deep(.p-dropdown:not(.p-disabled):hover),
 :deep(.p-inputnumber-input:hover),
 :deep(.p-inputtextarea:hover) {
-  @apply border-blue-500;
+  @apply tw-border-blue-500;
 }
 
 :deep(.p-inputtext:focus),
 :deep(.p-dropdown:not(.p-disabled).p-focus),
 :deep(.p-inputnumber-input:focus),
 :deep(.p-inputtextarea:focus) {
-  @apply border-blue-500 tw-shadow-md tw-shadow-blue-500/25;
+  @apply tw-border-blue-500 tw-shadow-md tw-shadow-blue-500/25;
 }
 
 :deep(.p-invalid) {
-  @apply border-red-500;
+  @apply tw-border-red-500;
 }
 
 :deep(.p-invalid:focus) {
-  @apply shadow-md tw-shadow-red-500/25;
+  @apply tw-shadow-md tw-shadow-red-500/25;
 }
 
 :deep(.p-button) {
-  @apply rounded-lg tw-font-medium tw-transition-all tw-duration-200;
+  @apply tw-rounded-lg tw-font-medium tw-transition-all tw-duration-200;
 }
 
 :deep(.p-button:hover) {
-  @apply scale-105;
+  @apply tw-scale-105;
 }
 
 :deep(.p-button:disabled) {
-  @apply scale-100 tw-cursor-not-allowed tw-opacity-50;
+  @apply tw-scale-100 tw-cursor-not-allowed tw-opacity-50;
 }
 
 :deep(.p-inputswitch.p-inputswitch-checked .p-inputswitch-slider) {
-  @apply bg-green-500;
+  @apply tw-bg-green-500;
 }
 
 :deep(.p-inputgroup-addon) {
-  @apply bg-gray-100 tw-border tw-border-gray-300 tw-text-blue-700 tw-font-semibold tw-rounded-r-lg;
+  @apply tw-bg-gray-100 tw-border tw-border-gray-300 tw-text-blue-700 tw-font-semibold tw-rounded-r-lg;
 }
 
 :deep(.p-dropdown-panel) {
-  @apply rounded-xl tw-border-none tw-shadow-2xl;
+  @apply tw-rounded-xl tw-border-none tw-shadow-2xl;
 }
 
 :deep(.p-dropdown-item) {
-  @apply rounded-md tw-mx-2 tw-my-0.5 tw-transition-all tw-duration-200;
+  @apply tw-rounded-md tw-mx-2 tw-my-0.5 tw-transition-all tw-duration-200;
 }
 
 :deep(.p-dropdown-item:hover) {
-  @apply bg-gray-100 tw-translate-x-0.5;
+  @apply tw-bg-gray-100 tw-translate-x-0.5;
 }
 </style>

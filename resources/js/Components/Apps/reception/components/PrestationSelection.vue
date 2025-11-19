@@ -1198,7 +1198,7 @@ watch(selectedDoctorInternal, () => {
     transform: none !important;
   }
   
-  .tw-group:hover {
+  .group:tw-hover {
     transform: none !important;
   }
 }

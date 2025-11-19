@@ -219,5 +219,7 @@ const confirmRemoveItem = (itemId) => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* All styles are now handled by Tailwind CSS classes. */
 </style>

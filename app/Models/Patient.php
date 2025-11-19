@@ -14,24 +14,55 @@ class Patient extends Model
 
     protected $fillable = [
         'Firstname',
-        'phone',
         'Lastname',
         'Parent',
+        'phone',
+        'fax_number',
+        'email',
+        'address',
+        'city',
+        'postal_code',
         'Idnum',
-        'age',
-        'gender',
-        'weight',
-        'created_by',
+        'identity_document_type',
+        'identity_issued_on',
+        'identity_issued_by',
+        'passport_number',
+        'professional_badge_number',
+        'foreigner_card_number',
+        'nss',
         'dateOfBirth',
+        'birth_place',
+        'is_birth_place_presumed',
+        'additional_ids',
+        'gender',
+        'age',
+        'height',
+        'weight',
+        'blood_group',
+        'marital_status',
+        'mother_firstname',
+        'mother_lastname',
         'balance',
         'is_faithful',
+        'created_by',
+        'firstname_ar',
+        'lastname_ar',
+        'other_clinical_info',
     ];
 
     protected $casts = [
         'age' => 'integer',
+        'height' => 'decimal:2',
         'weight' => 'decimal:2',
         'balance' => 'decimal:2',
         'is_faithful' => 'boolean',
+        'is_birth_place_presumed' => 'boolean',
+        'additional_ids' => 'json',
+        'dateOfBirth' => 'date',
+        'identity_issued_on' => 'date',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     // Add 'fullname' to the $appends array
@@ -89,6 +120,11 @@ class Patient extends Model
     public function surgical()
     {
         return $this->hasMany(Surgical::class);
+    }
+
+    public function ficheNavettes()
+    {
+        return $this->hasMany(\App\Models\Reception\ficheNavette::class, 'patient_id');
     }
 
     public function user()

@@ -542,6 +542,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
+@reference "../../../../../resources/css/app.css";
+
 :deep(.p-dialog) {
   max-height: 90vh;
 }
@@ -552,10 +554,10 @@ onMounted(() => {
 }
 
 :deep(.p-inputnumber-input) {
-  @apply text-sm;
+  @apply tw-text-sm;
 }
 
 :deep(.p-dropdown-label) {
-  @apply text-sm;
+  @apply tw-text-sm;
 }
 </style>

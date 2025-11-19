@@ -797,6 +797,8 @@ const handleApplyRemise = async (data: any) => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Base Card Styles - Using Flexbox Layout */
 .item-card {
   margin-bottom: 1rem;

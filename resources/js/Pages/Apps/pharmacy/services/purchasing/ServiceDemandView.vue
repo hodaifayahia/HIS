@@ -1647,6 +1647,8 @@ export default {
 </script>
 
 <style scoped>
+@reference "../../../../../../../resources/css/app.css";
+
 /* Custom animations */
 @keyframes pulse {
   0%, 100% {
@@ -1663,11 +1665,11 @@ export default {
 
 /* DataTable enhancements */
 :deep(.p-datatable) {
-  @apply border-0 tw-rounded-lg;
+  @apply tw-border-0 tw-rounded-lg;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
+  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-text-gray-700 tw-font-semibold tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
@@ -1676,16 +1678,16 @@ export default {
 
 /* Card styling */
 :deep(.p-card) {
-  @apply rounded-xl;
+  @apply tw-rounded-xl;
 }
 
 :deep(.p-card-title) {
-  @apply text-xl tw-font-bold tw-text-gray-800;
+  @apply tw-text-xl tw-font-bold tw-text-gray-800;
 }
 
 /* TabView */
 :deep(.p-tabview-nav) {
-  @apply bg-gradient-to-r tw-from-gray-50 tw-to-gray-100;
+  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100;
 }
 
 :deep(.p-tabview-nav-link) {
@@ -1693,26 +1695,26 @@ export default {
 }
 
 :deep(.p-tabview-nav-link.p-highlight) {
-  @apply bg-white tw-border-blue-600;
+  @apply tw-bg-white tw-border-blue-600;
 }
 
 /* Timeline customization */
 :deep(.p-timeline .p-timeline-event-connector) {
-  @apply bg-gradient-to-b tw-from-blue-200 tw-to-indigo-200;
+  @apply tw-bg-gradient-to-b tw-from-blue-200 tw-to-indigo-200;
 }
 
 /* Button hover effects */
 .p-button {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 .p-button:hover:not(:disabled) {
-  @apply transform tw-scale-105;
+  @apply tw-transform tw-scale-105;
 }
 
 /* Tag styles */
 .p-tag {
-  @apply font-medium tw-capitalize;
+  @apply tw-font-medium tw-capitalize;
 }
 
 /* Print styles */

@@ -4,7 +4,6 @@ import axios from 'axios';
 import { useRouter, useRoute } from 'vue-router';
 import { useSweetAlert } from '../../Components/useSweetAlert';
 import AddWaitlistModal from '../../Components/waitList/addWaitlistModel.vue';
-import AppointmentFormWaitlist from '../../Components/appointments/appointmentFormWaitlist.vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
@@ -38,8 +37,6 @@ const loading = ref(false);
 const searchTerm = ref('');
 const selectedDoctor = ref(null);
 const selectedImportance = ref(null);
-const showAppointmentModal = ref(false);
-const selectedWaitlistForAppointment = ref(null);
 
 const fetchWaitlists = async (filters = {}) => {
   loading.value = true;
@@ -57,25 +54,9 @@ const fetchWaitlists = async (filters = {}) => {
 const fetchImportanceOptions = async () => {
   try {
     const response = await axios.get('/api/importance-enum');
-    // Convert object to array if needed
-    if (Array.isArray(response.data)) {
-      importanceOptions.value = response.data;
-    } else {
-      // Convert enum object to array format
-      importanceOptions.value = Object.entries(response.data).map(([key, value]) => ({
-        label: value.label || key,
-        value: parseInt(value.value || key),
-        color: value.color || 'info',
-        icon: value.icon || 'pi pi-info-circle'
-      }));
-    }
+    importanceOptions.value = response.data;
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch importance options', life: 3000 });
-    // Fallback to default options
-    importanceOptions.value = [
-      { label: 'Urgent', value: 0, color: 'danger', icon: 'pi pi-exclamation-triangle' },
-      { label: 'Normal', value: 1, color: 'info', icon: 'pi pi-info-circle' }
-    ];
   }
 };
 
@@ -112,9 +93,18 @@ const deleteWaitlist = async (id) => {
 };
 
 const moveToAppointments = async (waitlist) => {
-  // For general waitlist, show modal to select date/time
-  selectedWaitlistForAppointment.value = waitlist;
-  showAppointmentModal.value = true;
+  try {
+    await axios.post(`/api/waitlists/${waitlist.id}/add-to-appointments`, {
+      doctor_id: waitlist.doctor_id,
+      waitlist_id: waitlist.id,
+      patient_id: waitlist.patient_id,
+      notes: waitlist.notes,
+    });
+    toast.add({ severity: 'success', summary: 'Success', detail: 'Patient moved to appointments successfully', life: 3000 });
+    fetchWaitlists(currentFilter.value);
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to move patient to appointments', life: 3000 });
+  }
 };
 
 const updateImportance = async (waitlist, importance) => {
@@ -147,17 +137,6 @@ const handleUpdate = () => {
   fetchWaitlists(currentFilter.value);
 };
 
-const handleAppointmentSaved = () => {
-  showAppointmentModal.value = false;
-  selectedWaitlistForAppointment.value = null;
-  fetchWaitlists(currentFilter.value);
-};
-
-const closeAppointmentModal = () => {
-  showAppointmentModal.value = false;
-  selectedWaitlistForAppointment.value = null;
-};
-
 const applyFilters = () => {
   const filters = {};
   if (selectedDoctor.value) filters.doctor_id = selectedDoctor.value.id;
@@ -177,31 +156,26 @@ const clearFilters = () => {
 };
 
 const getImportanceSeverity = (importance) => {
-  // Backend enum: 0 = Urgent (danger), 1 = Normal (primary/info)
-  if (importance === 0) return 'danger';
-  if (importance === 1) return 'info';
+  // Handle the specific mapping: 0 = Normal (info), 1 = Urgent (danger)
+  if (importance === 0) return 'info';
+  if (importance === 1) return 'danger';
   
-  // Fallback to options array if available and is an array
-  if (Array.isArray(importanceOptions.value)) {
-    const option = importanceOptions.value.find(opt => opt.value === importance);
-    if (option) return option.color;
+  // Fallback to options array if available
+  const option = importanceOptions.value.find(opt => opt.value === importance);
+  if (!option) return 'info';
+  
+  switch (option.color) {
+    case 'danger': return 'danger';
+    case 'warning': return 'warning';
+    case 'success': return 'success';
+    case 'primary': return 'info';
+    default: return 'info';
   }
-  
-  return 'info';
 };
 
 const getImportanceLabel = (importance) => {
-  // Backend enum: 0 = Urgent, 1 = Normal
-  if (importance === 0) return 'Urgent';
-  if (importance === 1) return 'Normal';
-  
-  // Fallback to options array if available and is an array
-  if (Array.isArray(importanceOptions.value)) {
-    const option = importanceOptions.value.find(opt => opt.value === importance);
-    if (option) return option.label;
-  }
-  
-  return 'Unknown';
+  const option = importanceOptions.value.find(opt => opt.value === importance);
+  return option ? option.label : 'Unknown';
 };
 
 const formatDate = (dateString) => {
@@ -484,54 +458,44 @@ onMounted(() => {
       @save="handleSave"
       @update="handleUpdate" 
     />
-
-    <!-- Appointment Form Modal -->
-    <AppointmentFormWaitlist
-      v-if="selectedWaitlistForAppointment"
-      :showModal="showAppointmentModal"
-      :waitlist="selectedWaitlistForAppointment"
-      :editMode="!!selectedWaitlistForAppointment.appointmentId"
-      @close="closeAppointmentModal"
-      @appointmentUpdated="handleAppointmentSaved"
-    />
   </div>
 </template>
 
 <style scoped>
 /* Custom PrimeVue overrides */
 :deep(.p-datatable) {
-  @apply rounded-lg tw-overflow-hidden;
+  @apply tw-rounded-lg tw-overflow-hidden;
 }
 
 :deep(.p-datatable-header) {
-  @apply bg-gray-50 tw-border-b tw-border-gray-200;
+  @apply tw-bg-gray-50 tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-thead > tr > th) {
-  @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
+  @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-tbody > tr:hover) {
-  @apply bg-blue-50;
+  @apply tw-bg-blue-50;
 }
 
 :deep(.p-button) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-card) {
-  @apply border-0;
+  @apply tw-border-0;
 }
 
 :deep(.p-toolbar) {
-  @apply border-0 tw-bg-transparent;
+  @apply tw-border-0 tw-bg-transparent;
 }
 
 :deep(.p-dropdown) {
-  @apply w-full;
+  @apply tw-w-full;
 }
 
 :deep(.p-inputtext) {
-  @apply w-full;
+  @apply tw-w-full;
 }
 </style>

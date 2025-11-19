@@ -998,27 +998,29 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply bg-gradient-to-r tw-from-gray-100 tw-to-gray-50 tw-text-gray-800 tw-font-bold tw-text-sm tw-border-b-2 tw-border-gray-200;
+  @apply tw-bg-gradient-to-r tw-from-gray-100 tw-to-gray-50 tw-text-gray-800 tw-font-bold tw-text-sm tw-border-b-2 tw-border-gray-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  @apply bg-indigo-50;
+  @apply tw-bg-indigo-50;
 }
 
 :deep(.p-paginator) {
-  @apply bg-gradient-to-r tw-from-gray-50 tw-to-white tw-border-t tw-border-gray-200 tw-py-4;
+  @apply tw-bg-gradient-to-r tw-from-gray-50 tw-to-white tw-border-t tw-border-gray-200 tw-py-4;
 }
 
 :deep(.p-dialog .p-dialog-header) {
-  @apply bg-gradient-to-r tw-from-indigo-600 tw-to-purple-600 tw-text-white tw-rounded-t-2xl;
+  @apply tw-bg-gradient-to-r tw-from-indigo-600 tw-to-purple-600 tw-text-white tw-rounded-t-2xl;
 }
 
 :deep(.p-dialog .p-dialog-content) {
-  @apply rounded-b-2xl;
+  @apply tw-rounded-b-2xl;
 }
 </style>

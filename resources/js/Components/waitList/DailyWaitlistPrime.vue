@@ -422,9 +422,10 @@ onMounted(() => {
       v-if="selectedWaitlistForAppointment"
       :showModal="showAppointmentModal"
       :waitlist="selectedWaitlistForAppointment"
+      :isDaily="isDaily"
       :editMode="!!selectedWaitlistForAppointment.appointmentId"
       @close="closeAppointmentModal"
-      @appointmentUpdated="handleAppointmentSaved"
+      @saved="handleAppointmentSaved"
     />
   </div>
 </template>
@@ -432,30 +433,30 @@ onMounted(() => {
 <style scoped>
 /* Custom PrimeVue overrides */
 :deep(.p-datatable) {
-  @apply rounded-lg tw-overflow-hidden;
+  @apply tw-rounded-lg tw-overflow-hidden;
 }
 
 :deep(.p-datatable-header) {
-  @apply bg-gray-50 tw-border-b tw-border-gray-200;
+  @apply tw-bg-gray-50 tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-thead > tr > th) {
-  @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
+  @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-tbody > tr:hover) {
-  @apply bg-blue-50;
+  @apply tw-bg-blue-50;
 }
 
 :deep(.p-button) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-card) {
-  @apply border-0;
+  @apply tw-border-0;
 }
 
 :deep(.p-toolbar) {
-  @apply border-0 tw-bg-transparent;
+  @apply tw-border-0 tw-bg-transparent;
 }
 </style>

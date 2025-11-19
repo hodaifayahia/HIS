@@ -812,75 +812,75 @@ onMounted(() => {
 <style scoped>
 /* Enhanced styling */
 :deep(.p-card) {
-  @apply border-0 tw-shadow-sm;
+  @apply tw-border-0 tw-shadow-sm;
 }
 
 :deep(.p-card-body) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-card-content) {
-  @apply p-6;
+  @apply tw-p-6;
 }
 
 :deep(.p-inputtext) {
-  @apply border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
+  @apply tw-border-gray-200 tw-rounded-lg tw-focus:tw-border-blue-500 tw-focus:tw-ring-2 tw-focus:tw-ring-blue-200 tw-focus:tw-ring-opacity-50;
 }
 
 :deep(.p-multiselect), :deep(.p-dropdown) {
-  @apply border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
+  @apply tw-border-gray-200 tw-rounded-lg tw-focus:tw-border-blue-500 tw-focus:tw-ring-2 tw-focus:tw-ring-blue-200 tw-focus:tw-ring-opacity-50;
 }
 
 :deep(.p-button) {
-  @apply rounded-lg tw-font-medium;
+  @apply tw-rounded-lg tw-font-medium;
 }
 
 :deep(.p-datatable) {
-  @apply border-0 tw-shadow-none;
+  @apply tw-border-0 tw-shadow-none;
 }
 
 :deep(.p-datatable .p-datatable-thead > tr > th) {
-  @apply bg-gray-50 tw-border-gray-200 tw-text-gray-700 tw-font-semibold tw-text-sm;
+  @apply tw-bg-gray-50 tw-border-gray-200 tw-text-gray-700 tw-font-semibold tw-text-sm;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply border-gray-100 hover:tw-bg-blue-25;
+  @apply tw-border-gray-100 hover:tw-bg-blue-25;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  @apply bg-blue-50;
+  @apply tw-bg-blue-50;
 }
 
 :deep(.p-tag) {
-  @apply font-medium tw-text-xs;
+  @apply tw-font-medium tw-text-xs;
 }
 
 :deep(.p-paginator) {
-  @apply border-0 tw-bg-white;
+  @apply tw-border-0 tw-bg-white;
 }
 
 :deep(.p-checkbox .p-checkbox-box) {
-  @apply border-gray-300 tw-rounded tw-w-4 tw-h-4;
+  @apply tw-border-gray-300 tw-rounded tw-w-4 tw-h-4;
 }
 
 :deep(.p-checkbox .p-checkbox-box.p-highlight) {
-  @apply bg-blue-500 tw-border-blue-500;
+  @apply tw-bg-blue-500 tw-border-blue-500;
 }
 
 :deep(.p-divider) {
-  @apply my-4;
+  @apply tw-my-4;
 }
 
 :deep(.p-divider.p-divider-horizontal:before) {
-  @apply border-gray-200;
+  @apply tw-border-gray-200;
 }
 
 :deep(.p-tooltip .p-tooltip-text) {
-  @apply bg-gray-800 tw-text-white tw-rounded-lg tw-px-3 tw-py-2 tw-text-sm tw-shadow-lg;
+  @apply tw-bg-gray-800 tw-text-white tw-rounded-lg tw-px-3 tw-py-2 tw-text-sm tw-shadow-lg;
 }
 
 :deep(.p-skeleton) {
-  @apply bg-gray-200;
+  @apply tw-bg-gray-200;
 }
 
 /* Custom scrollbar styling */
@@ -889,15 +889,15 @@ onMounted(() => {
 }
 
 .tw-overflow-y-auto::-webkit-scrollbar-track {
-  @apply bg-gray-100 tw-rounded-full;
+  @apply tw-bg-gray-100 tw-rounded-full;
 }
 
 .tw-overflow-y-auto::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 tw-rounded-full;
+  @apply tw-bg-gray-300 tw-rounded-full;
 }
 
 .tw-overflow-y-auto::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-400;
+  @apply tw-bg-gray-400;
 }
 
 /* Animation classes */
@@ -918,11 +918,11 @@ onMounted(() => {
 
 /* Enhanced hover effects */
 .tw-group:hover .tw-opacity-0 {
-  @apply opacity-100;
+  @apply tw-opacity-100;
 }
 
 /* Blue-25 custom class since it's not in standard Tailwind */
-.tw-bg-blue-25 {
+.tw-bg-blue-50 {
   background-color: #f8fafc;
 }
 </style>

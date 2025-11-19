@@ -314,7 +314,7 @@ watch(
               appendTo="self"
               iconDisplay="input"
               class="tw-w-full"
-              inputClass="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+              inputClass="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
               placeholder="Select a date"
             />
           </div>
@@ -338,7 +338,7 @@ watch(
                   :name="'morningStartTime-' + index"
                   :value="dateInfo.morningStartTime"
                   @input="(e) => handleChange(index, 'morningStartTime', e)"
-                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200 tw-bg-white"
+                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200 tw-bg-white"
                 />
               </div>
               <div class="tw-space-y-2">
@@ -351,7 +351,7 @@ watch(
                   :name="'morningEndTime-' + index"
                   :value="dateInfo.morningEndTime"
                   @input="(e) => handleChange(index, 'morningEndTime', e)"
-                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200 tw-bg-white"
+                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200 tw-bg-white"
                 />
               </div>
               <div class="tw-space-y-2">
@@ -365,7 +365,7 @@ watch(
                   :min="0"
                   :disabled="props.patients_based_on_time"
                   class="tw-w-full"
-                  inputClass="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                  inputClass="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                   :showButtons="true"
                   buttonLayout="horizontal"
                 />
@@ -390,7 +390,7 @@ watch(
                   :name="'afternoonStartTime-' + index"
                   :value="dateInfo.afternoonStartTime"
                   @input="(e) => handleChange(index, 'afternoonStartTime', e)"
-                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200 tw-bg-white"
+                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200 tw-bg-white"
                 />
               </div>
               <div class="tw-space-y-2">
@@ -403,7 +403,7 @@ watch(
                   :name="'afternoonEndTime-' + index"
                   :value="dateInfo.afternoonEndTime"
                   @input="(e) => handleChange(index, 'afternoonEndTime', e)"
-                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200 tw-bg-white"
+                  class="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200 tw-bg-white"
                 />
               </div>
               <div class="tw-space-y-2">
@@ -417,7 +417,7 @@ watch(
                   :min="0"
                   :disabled="props.patients_based_on_time"
                   class="tw-w-full"
-                  inputClass="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200"
+                  inputClass="tw-w-full tw-px-4 tw-py-3 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
                   :showButtons="true"
                   buttonLayout="horizontal"
                 />
@@ -455,33 +455,35 @@ watch(
 </template>
 
 <style scoped>
+@reference "../../../../resources/css/app.css";
+
 /* Custom PrimeVue component overrides */
 :deep(.p-card) {
-  @apply transition-all tw-duration-300 hover:tw-shadow-xl;
+  @apply tw-transition-all tw-duration-300 hover:tw-shadow-xl;
 }
 
 :deep(.p-card-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-card-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-inputnumber-input) {
-  @apply bg-white;
+  @apply tw-bg-white;
 }
 
 :deep(.p-calendar-w-btn .p-inputtext) {
-  @apply pr-12;
+  @apply tw-pr-12;
 }
 
 :deep(.p-calendar .p-button) {
-  @apply bg-blue-500 tw-border-blue-500 hover:tw-bg-blue-600;
+  @apply tw-bg-blue-500 tw-border-blue-500 hover:tw-bg-blue-600;
 }
 
 :deep(.p-button.p-button-outlined.p-button-danger) {
-  @apply border-red-500 tw-text-red-500 hover:tw-bg-red-500 hover:tw-text-white;
+  @apply tw-border-red-500 tw-text-red-500 hover:tw-bg-red-500 hover:tw-text-white;
 }
 
 /* Animation classes */
@@ -502,14 +504,14 @@ watch(
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply tw-bg-gray-100;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 tw-rounded-full;
+  @apply tw-bg-gray-400 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply tw-bg-gray-500;
 }
 </style>

@@ -203,6 +203,8 @@ const formatTime = (timeString) => {
 </template>
 
 <style scoped>
+@reference "../../../../resources/css/app.css";
+
 .appointments-table-container {
   background: white;
   border-radius: 8px;
@@ -212,51 +214,51 @@ const formatTime = (timeString) => {
 
 /* Status badge styles */
 .status-primary {
-  @apply bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
 }
 
 .status-success {
-  @apply bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
 }
 
 .status-danger {
-  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-warning {
-  @apply bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
 }
 
 .status-info {
-  @apply bg-cyan-100 tw-text-cyan-800 tw-border tw-border-cyan-200;
+  @apply tw-bg-cyan-100 tw-text-cyan-800 tw-border tw-border-cyan-200;
 }
 
 /* PrimeVue severity mappings */
 .severity-primary {
-  @apply bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
 }
 
 .severity-secondary {
-  @apply bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
+  @apply tw-bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
 }
 
 .severity-success {
-  @apply bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
 }
 
 .severity-info {
-  @apply bg-cyan-100 tw-text-cyan-800 tw-border tw-border-cyan-200;
+  @apply tw-bg-cyan-100 tw-text-cyan-800 tw-border tw-border-cyan-200;
 }
 
 .severity-warning {
-  @apply bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
 }
 
 .severity-danger {
-  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .severity-contrast {
-  @apply bg-gray-900 tw-text-white tw-border tw-border-gray-700;
+  @apply tw-bg-gray-900 tw-text-white tw-border tw-border-gray-700;
 }
 </style>

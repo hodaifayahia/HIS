@@ -351,7 +351,7 @@ onMounted(() => {
                 <InputText 
                   v-model="searchQuery" 
                   placeholder="Rechercher..." 
-                  class="tw-w-full tw-rounded-xl tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none tw-focus:tw-ring-2 tw-focus:tw-ring-blue-500"
+                  class="tw-w-full tw-rounded-xl tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none focus:tw-ring-2 focus:tw-ring-blue-500"
                   @keyup.enter="onSearch"
                 />
               </span>
@@ -598,13 +598,13 @@ onMounted(() => {
               <div class="tw-flex tw-gap-1 tw-items-center tw-justify-center">
                 <Button 
                   icon="pi pi-list" 
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 tw-hover:!tw-bg-blue-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 hover:tw-!tw-bg-blue-100"
                   v-tooltip.top="'Voir les services'"
                   @click.stop="openItemsPage(data)"
                 />
                 <Button 
                   icon="pi pi-pencil" 
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-gray-500 tw-hover:!tw-bg-gray-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-gray-500 hover:tw-!tw-bg-gray-100"
                   v-tooltip.top="'Modifier'"
                   @click.stop="editFiche(data)"
                 />
@@ -617,7 +617,7 @@ onMounted(() => {
                 />
                 <Button 
                   icon="pi pi-trash" 
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-red-500 tw-hover:!tw-bg-red-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-red-500 hover:tw-!tw-bg-red-100"
                   v-tooltip.top="'Supprimer'"
                   @click.stop="confirmDelete(data)"
                 />

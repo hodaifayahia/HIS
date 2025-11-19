@@ -324,7 +324,7 @@ onMounted(() => {
                 <InputText 
                   v-model="searchQuery" 
                   placeholder="Search..." 
-                  class="tw-w-full tw-rounded-xl tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none tw-focus:tw-ring-2 tw-focus:tw-ring-blue-500"
+                  class="tw-w-full tw-rounded-xl tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none focus:tw-ring-2 focus:tw-ring-blue-500"
                   @keyup.enter="onSearch"
                 />
               </span>
@@ -556,14 +556,14 @@ onMounted(() => {
                   class="p-button-rounded p-button-text p-button-sm tw-text-lg"
                   :class="[
                     data.patient && data.patient.is_faithful === false
-                      ? '!tw-text-green-600 tw-hover:!tw-bg-green-100'
-                      : '!tw-text-orange-600 tw-hover:!tw-bg-orange-100'
+                      ? '!tw-text-green-600 hover:tw-!tw-bg-green-100'
+                      : '!tw-text-orange-600 hover:tw-!tw-bg-orange-100'
                   ]"
                   v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Unfaithful' : 'Mark as Faithful'"
                   @click.stop="togglePatientFaithful(data)" />
                 <Button 
                   icon="pi pi-list" 
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 tw-hover:!tw-bg-blue-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 hover:tw-!tw-bg-blue-100"
                   v-tooltip.top="'View services'"
                   @click.stop="openItemsPage(data)"
                 />

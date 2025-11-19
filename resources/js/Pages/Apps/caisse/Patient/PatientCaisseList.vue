@@ -851,8 +851,8 @@ const onPassingCreated = (passing) => {
                     class="p-button-rounded p-button-text p-button-sm tw-text-lg"
                     :class="[
                       data.patient && data.patient.is_faithful === false
-                        ? '!tw-text-green-600 tw-hover:!tw-bg-green-100'
-                        : '!tw-text-orange-600 tw-hover:!tw-bg-orange-100'
+                        ? '!tw-text-green-600 hover:tw-!tw-bg-green-100'
+                        : '!tw-text-orange-600 hover:tw-!tw-bg-orange-100'
                     ]"
                     v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Unfaithful' : 'Mark as Faithful'"
                     @click.stop="togglePatientFaithful(data)" />
@@ -923,21 +923,21 @@ const onPassingCreated = (passing) => {
 
 /* PrimeVue Overrides */
 :deep(.p-card-header) {
-    @apply p-0;
+    @apply tw-p-0;
 }
 :deep(.p-card-content) {
-    @apply p-0;
+    @apply tw-p-0;
 }
 :deep(.p-datatable-thead tr th) {
-    @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
+    @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
 }
 :deep(.p-datatable-tbody tr td) {
-    @apply text-gray-800;
+    @apply tw-text-gray-800;
 }
 :deep(.p-datatable-tbody tr:hover) {
-    @apply bg-blue-50;
+    @apply tw-bg-blue-50;
 }
 :deep(.p-datatable .p-paginator-bottom) {
-    @apply p-4 tw-border-t-0;
+    @apply tw-p-4 tw-border-t-0;
 }
 </style>

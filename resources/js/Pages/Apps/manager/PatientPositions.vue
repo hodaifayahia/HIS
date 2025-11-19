@@ -293,18 +293,18 @@ onMounted(async () => {
 
 <style scoped>
 :deep(.p-card-header) {
-    @apply p-0;
+    @apply tw-p-0;
 }
 :deep(.p-card-content) {
-    @apply p-0;
+    @apply tw-p-0;
 }
 :deep(.p-datatable-thead tr th) {
-    @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
+    @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-text-sm;
 }
 :deep(.p-datatable-tbody tr td) {
-    @apply text-gray-800;
+    @apply tw-text-gray-800;
 }
 :deep(.p-datatable-tbody tr:hover) {
-    @apply bg-blue-50;
+    @apply tw-bg-blue-50;
 }
 </style>

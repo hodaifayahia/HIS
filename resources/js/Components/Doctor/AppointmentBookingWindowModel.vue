@@ -351,13 +351,12 @@ defineExpose({
                 id="yearSelect"
                 v-model="selectedYear"
                 :options="years"
-                appendTo="self"
                 :disabled="disabled"
                 class="tw-w-full"
                 panelClass="tw-shadow-lg tw-border tw-border-gray-200 tw-rounded-lg"
                 :pt="{
                   root: 'tw-w-full',
-                  input: 'tw-px-4 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-transparent tw-transition-all tw-duration-200',
+                  input: 'tw-px-4 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200',
                   trigger: 'tw-px-3 tw-text-gray-500'
                 }"
               />
@@ -430,10 +429,9 @@ defineExpose({
               <div class="tw-max-h-80 tw-overflow-y-auto tw-p-2">
                 <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-2">
                   <button
-                    type="button"
                     v-for="month in monthsForSelectedYear"
                     :key="month.value"
-                    @click.stop="toggleMonthSelection(month)"
+                    @click="toggleMonthSelection(month)"
                     :disabled="month.isPastMonth || disabled"
                     class="tw-flex tw-items-center tw-justify-between tw-p-3 tw-rounded-lg tw-border tw-transition-all tw-duration-200 tw-text-left"
                     :class="{
@@ -509,83 +507,83 @@ defineExpose({
 <style scoped>
 /* Custom PrimeVue component overrides */
 :deep(.p-card) {
-  @apply transition-all tw-duration-300;
+  @apply tw-transition-all tw-duration-300;
 }
 
 :deep(.p-card-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-card-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-dropdown) {
-  @apply w-full;
+  @apply tw-w-full;
 }
 
 :deep(.p-dropdown .p-dropdown-trigger) {
-  @apply text-gray-500;
+  @apply tw-text-gray-500;
 }
 
 :deep(.p-dropdown .p-dropdown-label) {
-  @apply text-gray-700;
+  @apply tw-text-gray-700;
 }
 
 :deep(.p-dropdown:not(.p-disabled):hover) {
-  @apply border-blue-400;
+  @apply tw-border-blue-400;
 }
 
 :deep(.p-dropdown:not(.p-disabled).p-focus) {
-  @apply border-blue-500 tw-ring-2 tw-ring-blue-200;
+  @apply tw-border-blue-500 tw-ring-2 tw-ring-blue-200;
 }
 
 :deep(.p-button) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-button.p-button-outlined.p-button-success) {
-  @apply border-green-500 tw-text-green-600 hover:tw-bg-green-500 hover:tw-text-white;
+  @apply tw-border-green-500 tw-text-green-600 hover:tw-bg-green-500 hover:tw-text-white;
 }
 
 :deep(.p-button.p-button-outlined.p-button-danger) {
-  @apply border-red-500 tw-text-red-600 hover:tw-bg-red-500 hover:tw-text-white;
+  @apply tw-border-red-500 tw-text-red-600 hover:tw-bg-red-500 hover:tw-text-white;
 }
 
 :deep(.p-button.p-button-sm) {
-  @apply px-3 tw-py-1 tw-text-sm;
+  @apply tw-px-3 tw-py-1 tw-text-sm;
 }
 
 :deep(.p-badge) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-badge.p-badge-success) {
-  @apply bg-green-500 tw-text-white;
+  @apply tw-bg-green-500 tw-text-white;
 }
 
 :deep(.p-badge.p-badge-info) {
-  @apply bg-blue-500 tw-text-white;
+  @apply tw-bg-blue-500 tw-text-white;
 }
 
 :deep(.p-chip) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-chip .p-chip-remove-icon) {
-  @apply text-gray-500 hover:tw-text-red-500;
+  @apply tw-text-gray-500 hover:tw-text-red-500;
 }
 
 :deep(.p-message) {
-  @apply rounded-lg tw-border-l-4;
+  @apply tw-rounded-lg tw-border-l-4;
 }
 
 :deep(.p-message.p-message-error) {
-  @apply bg-red-50 tw-border-red-500 tw-text-red-700;
+  @apply tw-bg-red-50 tw-border-red-500 tw-text-red-700;
 }
 
 :deep(.p-message.p-message-info) {
-  @apply bg-blue-50 tw-border-blue-500 tw-text-blue-700;
+  @apply tw-bg-blue-50 tw-border-blue-500 tw-text-blue-700;
 }
 
 /* Custom animations */
@@ -599,34 +597,36 @@ defineExpose({
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-100 tw-rounded-full;
+  @apply tw-bg-gray-100 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-400 tw-rounded-full;
+  @apply tw-bg-gray-400 tw-rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply tw-bg-gray-500;
 }
 
 /* Focus styles for accessibility */
 button:focus {
-  @apply outline-none tw-ring-2 tw-ring-blue-500 tw-ring-offset-2;
+  @apply tw-outline-none tw-ring-2 tw-ring-blue-500 tw-ring-offset-2;
 }
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
   :deep(.tw-grid-cols-1.sm\:tw-grid-cols-2.lg\:tw-grid-cols-3) {
-    @apply grid-cols-1;
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
   
   :deep(.tw-flex-col.sm\:tw-flex-row) {
-    @apply flex-col;
+    display: flex;
+    flex-direction: column;
   }
   
   :deep(.tw-space-y-3.sm\:tw-space-y-0) {
-    @apply space-y-3;
+    row-gap: 0.75rem;
   }
 }
 

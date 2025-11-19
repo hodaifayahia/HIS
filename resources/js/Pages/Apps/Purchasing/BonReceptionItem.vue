@@ -942,15 +942,17 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+@reference "../../../../../resources/css/app.css";
+
 :deep(.p-card) {
-  @apply shadow-sm tw-border-0;
+  @apply tw-shadow-sm tw-border-0;
 }
 
 :deep(.p-card-title) {
-  @apply text-base tw-font-semibold;
+  @apply tw-text-base tw-font-semibold;
 }
 
 :deep(.p-tabview-nav) {
-  @apply bg-gray-50;
+  @apply tw-bg-gray-50;
 }
 </style>

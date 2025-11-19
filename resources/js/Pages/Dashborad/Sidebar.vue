@@ -208,7 +208,7 @@ const playNotificationSound = () => {
                         </li>
 
                         <li class="nav-item">
-                            <router-link to="/admin/appointments/Roles" active-class="active" class="nav-link">
+                            <router-link to="/admin/appointments/roles" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-user-cog"></i> <p>Roles</p>
                             </router-link>
                         </li>
@@ -261,7 +261,7 @@ const playNotificationSound = () => {
                         </li>
                     </template>
                      <li class="nav-item">
-                            <router-link to="/admin/appointments/patient" active-class="active" class="nav-link">
+                            <router-link to="/admin/appointments/thepatients" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-user-injured"></i>
                                 <p>Patient</p>
                             </router-link>

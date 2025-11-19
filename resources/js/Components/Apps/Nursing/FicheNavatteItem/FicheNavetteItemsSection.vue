@@ -452,6 +452,8 @@ const handleNursingItemsCreation = async () => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Enhanced Tab Navigation Styling */
 :deep(.enhanced-tab-view) {
   background: transparent;

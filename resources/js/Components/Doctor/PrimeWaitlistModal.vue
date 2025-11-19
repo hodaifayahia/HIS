@@ -479,50 +479,50 @@ onMounted(() => {
 <style scoped>
 /* Custom styles for PrimeVue components with Tailwind */
 :deep(.p-dialog) {
-  @apply rounded-xl tw-shadow-2xl;
+  @apply tw-rounded-xl tw-shadow-2xl;
 }
 
 :deep(.p-dialog-header) {
-  @apply bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-border-b tw-border-gray-200;
+  @apply tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-dialog-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-datatable) {
-  @apply border-0;
+  @apply tw-border-0;
 }
 
 :deep(.p-datatable-header) {
-  @apply bg-gray-50 tw-border-b tw-border-gray-200;
+  @apply tw-bg-gray-50 tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-thead > tr > th) {
-  @apply bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
+  @apply tw-bg-gray-100 tw-text-gray-700 tw-font-semibold tw-border-b tw-border-gray-200;
 }
 
 :deep(.p-datatable-tbody > tr:hover) {
-  @apply bg-blue-50;
+  @apply tw-bg-blue-50;
 }
 
 :deep(.p-button) {
-  @apply transition-all tw-duration-200;
+  @apply tw-transition-all tw-duration-200;
 }
 
 :deep(.p-button:hover) {
-  @apply transform tw-scale-105;
+  @apply tw-transform tw-scale-105;
 }
 
 :deep(.p-tag) {
-  @apply px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium;
+  @apply tw-px-3 tw-py-1 tw-rounded-full tw-text-xs tw-font-medium;
 }
 
 :deep(.p-dropdown) {
-  @apply border tw-border-gray-300 tw-rounded-md;
+  @apply tw-border tw-border-gray-300 tw-rounded-md;
 }
 
 :deep(.p-paginator) {
-  @apply bg-gray-50 tw-border-t tw-border-gray-200;
+  @apply tw-bg-gray-50 tw-border-t tw-border-gray-200;
 }
 </style>

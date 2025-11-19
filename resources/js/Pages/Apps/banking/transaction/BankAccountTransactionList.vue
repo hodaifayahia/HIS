@@ -1961,6 +1961,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Scoped CSS overrides for PrimeVue components, using `@apply` for Tailwind classes */
 :deep(.p-datatable .p-datatable-thead > tr > th) {
   background-color: #f9fafb;

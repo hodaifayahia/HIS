@@ -951,6 +951,8 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+@reference "../../../resources/css/app.css";
+
 .toggle-buttons {
   display: flex;
   gap: 10px;
@@ -1163,56 +1165,56 @@ onMounted(async () => {
 
 /* Status Badge Classes */
 .status-scheduled {
-  @apply bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
 }
 
 .status-confirmed {
-  @apply bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
 }
 
 .status-canceled {
-  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-cancelled {
-  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-pending {
-  @apply bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
 }
 
 .status-done {
-  @apply bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
+  @apply tw-bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
 }
 
 .status-onworking {
-  @apply bg-orange-100 tw-text-orange-800 tw-border tw-border-orange-200;
+  @apply tw-bg-orange-100 tw-text-orange-800 tw-border tw-border-orange-200;
 }
 
 /* PrimeVue severity mapping to Tailwind classes */
 .status-primary {
-  @apply bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
+  @apply tw-bg-blue-100 tw-text-blue-800 tw-border tw-border-blue-200;
 }
 
 .status-success {
-  @apply bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
+  @apply tw-bg-green-100 tw-text-green-800 tw-border tw-border-green-200;
 }
 
 .status-danger {
-  @apply bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
+  @apply tw-bg-red-100 tw-text-red-800 tw-border tw-border-red-200;
 }
 
 .status-warning {
-  @apply bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
+  @apply tw-bg-yellow-100 tw-text-yellow-800 tw-border tw-border-yellow-200;
 }
 
 .status-info {
-  @apply bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
+  @apply tw-bg-indigo-100 tw-text-indigo-800 tw-border tw-border-indigo-200;
 }
 
 .status-secondary {
-  @apply bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
+  @apply tw-bg-gray-100 tw-text-gray-800 tw-border tw-border-gray-200;
 }
 
 @media (max-width: 768px) {

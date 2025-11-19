@@ -28,78 +28,78 @@ const purchasingRoutes = [{
         {
             path: 'facture-proforma-list',
             name: 'purchasing.facture-proforma-list',
-            component: () => import('../Pages/Apps/Purchasing/FactureProformaList.vue'),
+            component: () => import('../Pages/Apps/Purchasing/FactureProforma/FactureProformaList.vue'),
         },
         {
             path: 'facture-proforma/create',
             name: 'purchasing.facture-proforma.create',
-            component: () => import('../Pages/Apps/Purchasing/FactureProformaCreate.vue'),
+            component: () => import('../Components/Apps/Purchasing/FactureProforma/FactureProformaCreate.vue'),
         },
         {
             path: 'facture-proforma/:id/edit',
             name: 'purchasing.facture-proforma.edit',
-            component: () => import('../Pages/Apps/Purchasing/FactureProformaItem.vue'),
+            component: () => import('../Pages/Apps/Purchasing/FactureProforma/FactureProformaItem.vue'),
             props: (route) => ({ proformaId: parseInt(route.params.id) })
         },
         {
             path: 'bon-commend-list',
             name: 'purchasing.bon-commend-list',
-            component: () => import('../Pages/Apps/Purchasing/BonCommendList.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonCommend/BonCommendList.vue'),
         },
         {
             path: 'bon-commend/create',
             name: 'purchasing.bon-commend.create',
-            component: () => import('../Pages/Apps/Purchasing/BonCommendCreate.vue'),
+            component: () => import('../Components/Apps/Purchasing/BonCommend/BonCommendCreate.vue'),
         },
         {
             path: 'bon-commend/:id/edit',
             name: 'purchasing.bon-commend.edit',
-            component: () => import('../Pages/Apps/Purchasing/BonCommendItem.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonCommend/BonCommendItem.vue'),
             props: (route) => ({ bonCommendId: parseInt(route.params.id) })
         },
         {
             path: 'bon-receptions',
             name: 'purchasing.bon-receptions.index',
-            component: () => import('../Pages/Apps/Purchasing/BonReceptionList.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonReception/BonReceptionList.vue'),
         },
         {
             path: 'bon-receptions/create',
             name: 'purchasing.bon-receptions.create',
-            component: () => import('../Pages/Apps/Purchasing/BonReceptionCreate.vue'),
+            component: () => import('../Components/Apps/Purchasing/BonReception/BonReceptionCreate.vue'),
         },
         {
             path: 'bon-receptions/:id',
             name: 'purchasing.bon-receptions.show',
-            component: () => import('../Pages/Apps/Purchasing/BonReceptionItem.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonReception/BonReceptionItem.vue'),
             props: (route) => ({ bonReceptionId: parseInt(route.params.id) })
         },
         {
             path: 'bon-receptions/:id/edit',
             name: 'purchasing.bon-receptions.edit',
-            component: () => import('../Pages/Apps/Purchasing/BonReceptionItem.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonReception/BonReceptionItem.vue'),
             props: (route) => ({ bonReceptionId: parseInt(route.params.id) })
         },
           // Bon Entrée Routes
         {
             path: 'bon-entrees',
             name: 'purchasing.bon-entrees.index',
-            component: () => import('../Pages/Apps/Purchasing/BonEntreeList.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonEntree/BonEntreeList.vue'),
         },
         {
             path: 'bon-entrees/create',
             name: 'purchasing.bon-entrees.create',
-            component: () => import('../Pages/Apps/Purchasing/BonEntreeCreate.vue'),
+            component: () => import('../Components/Apps/Purchasing/BonEntree/BonEntreeCreate.vue'),
         },
         {
             path: 'bon-entrees/:id',
             name: 'purchasing.bon-entrees.show',
-            component: () => import('../Pages/Apps/Purchasing/BonEntreeList.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonEntree/BonEntreeList.vue'),
             props: (route) => ({ bonEntreeId: parseInt(route.params.id) })
         },
         {
             path: 'bon-entrees/:id/edit',
             name: 'purchasing.bon-entrees.edit',
-            component: () => import('../Pages/Apps/Purchasing/BonEntreeEdit.vue'),
+            component: () => import('../Pages/Apps/Purchasing/BonEntree/BonEntreeEdit.vue'),
             props: (route) => ({ id: parseInt(route.params.id) })
         },
         // Bon Retour Routes
@@ -125,12 +125,6 @@ const purchasingRoutes = [{
             component: () => import('../Pages/Apps/Purchasing/BonRetourListItem.vue'),
             props: (route) => ({ bonRetourId: parseInt(route.params.id), mode: 'edit' })
         },
-        // Consignment Routes
-        {
-            path: 'consignments',
-            name: 'purchasing.consignments',
-            component: () => import('../Components/Purchasing/ConsignmentDashboard.vue'),
-        },
         // Product History Route
         {
             path: 'products/:productId/history',
@@ -153,6 +147,17 @@ const purchasingRoutes = [{
             path: 'product-approval-settings',
             name: 'purchasing.product-approval-settings',
             component: () => import('../Pages/Apps/Purchasing/ProductApprovalSettings.vue'),
+        },
+          // Consignment Management Routes
+        {
+            path: 'consignments',
+            name: 'purchasing.consignments.index',
+            component: () => import('../Components/Purchasing/ConsignmentDashboard.vue'),
+        },  // Consignment Management Routes
+        {
+            path: 'consignments',
+            name: 'purchasing.consignments.index',
+            component: () => import('../Components/Purchasing/ConsignmentDashboard.vue'),
         },
         // Future: Fournisseurs management
         {

@@ -333,11 +333,11 @@ onMounted(() => {
 <style scoped>
 /* Custom styles for the demo component */
 .p-accordion .p-accordion-header-link {
-    @apply font-medium;
+    @apply tw-font-medium;
 }
 
 .p-accordion .p-accordion-content {
-    @apply pt-4;
+    @apply tw-pt-4;
 }
 
 /* Console output styling */
@@ -348,11 +348,11 @@ onMounted(() => {
 /* Responsive grid adjustments */
 @media (max-width: 768px) {
     .grid-cols-3 {
-        @apply grid-cols-1;
+        @apply tw-grid-cols-1;
     }
     
     .md\:grid-cols-2 {
-        @apply grid-cols-1;
+        @apply tw-grid-cols-1;
     }
 }
 </style>

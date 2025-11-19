@@ -70,25 +70,25 @@ const pharmacyRoutes = [
         path: 'service-demands/create',
         name: 'pharmacy.service-demands.create',
         component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
-        props: (route) => ({ mode: 'create', ...route.params }),
+        props: (route) => ({ mode: 'create', ...route.params })
       },
       {
         path: 'service-demands/create/:demandId',
         name: 'pharmacy.service-demands.create.edit',
         component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
-        props: (route) => ({ mode: 'create', ...route.params }),
+        props: (route) => ({ mode: 'create', ...route.params })
       },
       {
         path: 'service-demands/edit/:demandId',
         name: 'pharmacy.service-demands.edit',
         component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
-        props: (route) => ({ mode: 'edit', demandId: route.params.demandId }),
+        props: (route) => ({ mode: 'edit', demandId: route.params.demandId })
       },
       {
         path: 'service-demands/view/:demandId',
         name: 'pharmacy.service-demands.view',
         component: () => import('../Pages/Apps/pharmacy/services/purchasing/ServiceDemandCreate.vue'),
-        props: (route) => ({ mode: 'view', demandId: route.params.demandId }),
+        props: (route) => ({ mode: 'view', demandId: route.params.demandId })
       },
       {
         path: 'movements',
@@ -131,25 +131,18 @@ const pharmacyRoutes = [
         path: 'product-reserves/:reserveId/products',
         name: 'pharmacy.product-reserves.products',
         component: () => import('../Pages/Apps/pharmacy/ProductReserve/ReserveProducts.vue'),
-        props: (route) => ({ reserveId: route.params.reserveId }),
+        props: (route) => ({ reserveId: route.params.reserveId })
       },
       {
         path: 'service-groups',
         name: 'pharmacy.service-groups',
         component: () => import('../Pages/Apps/pharmacy/ServiceGroups/ServiceGroupList.vue'),
       },
-      {
-        path: 'external-prescriptions',
-        name: 'pharmacy.external-prescriptions',
-        component: () => import('../Pages/Apps/ExternalPrescriptions/ExternalPrescriptionList.vue'),
-        meta: { role: ['doctor', 'admin', 'SuperAdmin'] },
-      },
-      {
-        path: 'external-prescriptions/:id',
-        name: 'pharmacy.external-prescriptions.detail',
-        component: () => import('../Pages/Apps/ExternalPrescriptions/ExternalPrescriptionDetail.vue'),
-        props: (route) => ({ prescriptionId: route.params.id }),
-      },
+      // {
+      //   path: 'selling-settings',
+      //   name: 'pharmacy.selling-settings',
+      //   component: () => import('../Pages/Apps/pharmacy/SellingSettings/ServiceGroupList.'),
+      // }
     ],
   },
 ];

@@ -27,8 +27,8 @@ class ServiceDemandItemService
 
             // Determine whether the provided product_id is a stock Product or a PharmacyProduct
             $productId = $itemData['product_id'] ?? $itemData['pharmacy_product_id'] ?? null;
-            $isStockProduct = $itemData['product_id'] ? Product::find($itemData['product_id']) : null;
-            $isPharmacyProduct = $itemData['pharmacy_product_id'] ? PharmacyProduct::find($itemData['pharmacy_product_id']) : null;
+            $isStockProduct = isset($itemData['product_id']) ? Product::find($itemData['product_id']) : null;
+            $isPharmacyProduct = isset($itemData['pharmacy_product_id']) ? PharmacyProduct::find($itemData['pharmacy_product_id']) : null;
 
             if (! $isStockProduct && ! $isPharmacyProduct) {
                 throw new \Exception('Provided product_id or pharmacy_product_id was not found');

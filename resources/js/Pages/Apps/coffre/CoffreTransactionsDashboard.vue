@@ -313,70 +313,70 @@ onMounted(() => {
 
 /* PrimeVue Tabs */
 :deep(.p-tabview-nav) {
-  @apply bg-gray-100 tw-rounded-t-2xl tw-p-4;
+  @apply tw-bg-gray-100 tw-rounded-t-2xl tw-p-4;
 }
 
 :deep(.p-tabview-nav-link) {
-  @apply text-lg tw-font-semibold tw-text-gray-700 tw-px-6 tw-py-3 tw-transition-colors tw-duration-200 tw-rounded-lg;
+  @apply tw-text-lg tw-font-semibold tw-text-gray-700 tw-px-6 tw-py-3 tw-transition-colors tw-duration-200 tw-rounded-lg;
 }
 
 :deep(.p-tabview-nav-link:hover) {
-  @apply bg-gray-200 tw-text-gray-900;
+  @apply tw-bg-gray-200 tw-text-gray-900;
 }
 
 :deep(.p-tabview-nav-link.p-highlight) {
-  @apply bg-white tw-text-blue-600 tw-shadow-md;
+  @apply tw-bg-white tw-text-blue-600 tw-shadow-md;
 }
 
 /* PrimeVue Card */
 :deep(.p-card) {
-  @apply rounded-2xl tw-shadow-xl;
+  @apply tw-rounded-2xl tw-shadow-xl;
 }
 
 :deep(.p-card-body) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 /* PrimeVue DataTable */
 :deep(.p-datatable-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 :deep(.p-datatable-thead > tr > th) {
-  @apply bg-gray-100 tw-text-gray-600 tw-font-semibold tw-text-sm tw-uppercase tw-p-4;
+  @apply tw-bg-gray-100 tw-text-gray-600 tw-font-semibold tw-text-sm tw-uppercase tw-p-4;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply transition-colors tw-duration-200;
+  @apply tw-transition-colors tw-duration-200;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
-  @apply bg-gray-50;
+  @apply tw-bg-gray-50;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr > td) {
-  @apply p-4 tw-border-b tw-border-gray-200;
+  @apply tw-p-4 tw-border-b tw-border-gray-200;
 }
 
 /* PrimeVue Buttons */
 .p-button-primary {
-  @apply bg-blue-600 tw-border-blue-600 tw-text-white hover:tw-bg-blue-700 focus:tw-ring-blue-500;
+  @apply tw-bg-blue-600 tw-border-blue-600 tw-text-white hover:tw-tw-bg-blue-700 focus:tw-tw-ring-blue-500;
 }
 
 .p-button-secondary {
-  @apply bg-gray-200 tw-border-gray-200 tw-text-gray-800 hover:tw-bg-gray-300 focus:tw-ring-gray-300;
+  @apply tw-bg-gray-200 tw-border-gray-200 tw-text-gray-800 hover:tw-tw-bg-gray-300 focus:tw-tw-ring-gray-300;
 }
 
 .p-button-danger {
-  @apply bg-red-600 tw-border-red-600 tw-text-white hover:tw-bg-red-700 focus:tw-ring-red-500;
+  @apply tw-bg-red-600 tw-border-red-600 tw-text-white hover:tw-tw-bg-red-700 focus:tw-tw-ring-red-500;
 }
 
 /* PrimeVue Inputs */
 :deep(.p-inputtext) {
-  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-blue-500 tw-shadow-sm;
+  @apply tw-border-gray-300 focus:tw-tw-border-blue-500 focus:tw-tw-ring-blue-500 tw-shadow-sm;
 }
 
 :deep(.p-dropdown) {
-  @apply border-gray-300 focus:tw-border-blue-500 focus:tw-ring-blue-500 tw-shadow-sm;
+  @apply tw-border-gray-300 focus:tw-tw-border-blue-500 focus:tw-tw-ring-blue-500 tw-shadow-sm;
 }
 </style>

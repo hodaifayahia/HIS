@@ -50,7 +50,7 @@
                 <InputText
                   v-model="searchQuery"
                   placeholder="Search products..."
-                  class="tw-w-80 tw-pl-10 tw-pr-4 tw-py-3 tw-border-2 tw-border-gray-200 tw-rounded-xl tw-focus:border-blue-500 tw-transition-all tw-duration-300"
+                  class="tw-w-80 tw-pl-10 tw-pr-4 tw-py-3 tw-border-2 tw-border-gray-200 tw-rounded-xl focus:tw-border-blue-500 tw-transition-all tw-duration-300"
                   @input="onSearchInput"
                 />
                 <i class="pi pi-search tw-absolute tw-left-3 tw-top-1/2 tw-transform -tw-translate-y-1/2 tw-text-gray-400"></i>
@@ -58,13 +58,13 @@
               <Button
                 label="Add Product"
                 icon="pi pi-plus"
-                class="p-button-primary tw-px-6 tw-py-3 tw-rounded-xl tw-shadow-lg tw-hover:shadow-xl tw-transition-all tw-duration-300"
+                class="p-button-primary tw-px-6 tw-py-3 tw-rounded-xl tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300"
                 @click="$refs.addProductModal.openModal()"
               />
               <Button
                 label="Export All"
                 icon="pi pi-download"
-                class="p-button-success tw-px-6 tw-py-3 tw-rounded-xl tw-shadow-lg tw-hover:shadow-xl tw-transition-all tw-duration-300"
+                class="p-button-success tw-px-6 tw-py-3 tw-rounded-xl tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300"
                 @click="exportStock"
               />
             </div>
@@ -75,7 +75,7 @@
 
     <!-- Stock Summary Cards -->
     <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-4 tw-gap-6 tw-mb-8">
-      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-blue-50 tw-to-blue-100 tw-hover:shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
+      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-blue-50 tw-to-blue-100 hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
         <template #content>
           <div class="tw-flex tw-items-center tw-justify-between">
             <div>
@@ -89,7 +89,7 @@
         </template>
       </Card>
 
-      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-green-50 tw-to-green-100 tw-hover:shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
+      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-green-50 tw-to-green-100 hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
         <template #content>
           <div class="tw-flex tw-items-center tw-justify-between">
             <div>
@@ -103,7 +103,7 @@
         </template>
       </Card>
 
-      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-purple-50 tw-to-purple-100 tw-hover:shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
+      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-purple-50 tw-to-purple-100 hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
         <template #content>
           <div class="tw-flex tw-items-center tw-justify-between">
             <div>
@@ -117,7 +117,7 @@
         </template>
       </Card>
 
-      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-red-50 tw-to-red-100 tw-hover:shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
+      <Card class="tw-shadow-lg tw-border-0 tw-bg-gradient-to-br tw-from-red-50 tw-to-red-100 hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-transform hover:tw-scale-105">
         <template #content>
           <div class="tw-flex tw-items-center tw-justify-between">
             <div>

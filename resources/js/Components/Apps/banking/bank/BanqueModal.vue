@@ -408,6 +408,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /*
  * Scoped CSS to be replaced by Tailwind.
  * All custom classes have been removed from the template.
@@ -428,38 +430,38 @@ onMounted(() => {
 :deep(.p-inputtext),
 :deep(.p-inputnumber-input),
 :deep(.p-inputtextarea) {
-  @apply rounded-lg tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
+  @apply tw-rounded-lg tw-border tw-border-gray-300 tw-transition-all tw-duration-200;
 }
 
 :deep(.p-inputtext:hover),
 :deep(.p-inputnumber-input:hover),
 :deep(.p-inputtextarea:hover) {
-  @apply border-indigo-500;
+  @apply tw-border-indigo-500;
 }
 
 :deep(.p-inputtext:focus),
 :deep(.p-inputnumber-input:focus),
 :deep(.p-inputtextarea:focus) {
-  @apply border-indigo-500 tw-shadow-md tw-shadow-indigo-500/25;
+  @apply tw-border-indigo-500 tw-shadow-md tw-shadow-indigo-500/25;
 }
 
 :deep(.p-invalid) {
-  @apply border-red-500;
+  @apply tw-border-red-500;
 }
 
 :deep(.p-invalid:focus) {
-  @apply shadow-md tw-shadow-red-500/25;
+  @apply tw-shadow-md tw-shadow-red-500/25;
 }
 
 :deep(.p-button) {
-  @apply rounded-lg tw-font-medium tw-transition-all tw-duration-200;
+  @apply tw-rounded-lg tw-font-medium tw-transition-all tw-duration-200;
 }
 
 :deep(.p-button:hover) {
-  @apply scale-105;
+  @apply tw-scale-105;
 }
 
 :deep(.p-button:disabled) {
-  @apply scale-100 tw-cursor-not-allowed tw-opacity-50;
+  @apply tw-scale-100 tw-cursor-not-allowed tw-opacity-50;
 }
 </style>

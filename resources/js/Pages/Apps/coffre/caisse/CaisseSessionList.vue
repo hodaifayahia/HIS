@@ -755,28 +755,28 @@ onMounted(() => {
 /* Scoped CSS overrides for PrimeVue components, now cleaner with Tailwind classes */
 /* Table styling */
 .datatable-header th {
-  @apply bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-none tw-text-sm;
+  @apply tw-bg-gray-50 tw-text-gray-700 tw-font-semibold tw-border-none tw-text-sm;
 }
 .datatable-row:hover {
-  @apply bg-amber-50;
+  @apply tw-bg-amber-50;
 }
 
 /* Card styling */
 :deep(.p-card-header) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 :deep(.p-card-content) {
-  @apply p-0;
+  @apply tw-p-0;
 }
 
 /* Custom classes for conditional styling */
 .variance-positive {
-  @apply text-emerald-500;
+  @apply tw-text-emerald-500;
 }
 .variance-negative {
-  @apply text-red-500;
+  @apply tw-text-red-500;
 }
 .variance-neutral {
-  @apply text-gray-500;
+  @apply tw-text-gray-500;
 }
 </style>

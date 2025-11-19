@@ -2,123 +2,150 @@
   <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-blue-50 tw-via-indigo-50 tw-to-purple-50 tw-p-6">
     <Toast position="top-right" />
 
-    <!-- Header -->
-    <StockHeader 
-      title="Stock Dashboard"
-      subtitle="Overview of your stock management system"
-      :show-new-button="false"
-    />
+    <!-- Header Section -->
+    <div class="tw-mb-8">
+      <StockHeader 
+        title="Stock Dashboard"
+        subtitle="Comprehensive overview of your pharmacy stock management system"
+        :show-new-button="false"
+      />
+      
+      <!-- Quick Stats Summary -->
+      <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-4 tw-mt-6">
+        <Card class="tw-bg-white/80 tw-backdrop-blur-sm tw-border tw-border-white/20">
+          <template #content>
+            <div class="tw-flex tw-items-center tw-justify-between">
+              <div>
+                <p class="tw-text-sm tw-text-gray-600 tw-font-medium">Active Movements</p>
+                <p class="tw-text-2xl tw-font-bold tw-text-blue-600">{{ (stats.draft || 0) + (stats.requesting_pending || 0) + (stats.providing_pending || 0) }}</p>
+              </div>
+              <i class="pi pi-refresh tw-text-2xl tw-text-blue-500"></i>
+            </div>
+          </template>
+        </Card>
+
+        <Card class="tw-bg-white/80 tw-backdrop-blur-sm tw-border tw-border-white/20">
+          <template #content>
+            <div class="tw-flex tw-items-center tw-justify-between">
+              <div>
+                <p class="tw-text-sm tw-text-gray-600 tw-font-medium">Completed Today</p>
+                <p class="tw-text-2xl tw-font-bold tw-text-green-600">{{ stats.executed || 0 }}</p>
+              </div>
+              <i class="pi pi-check-circle tw-text-2xl tw-text-green-500"></i>
+            </div>
+          </template>
+        </Card>
+
+        <Card class="tw-bg-white/80 tw-backdrop-blur-sm tw-border tw-border-white/20">
+          <template #content>
+            <div class="tw-flex tw-items-center tw-justify-between">
+              <div>
+                <p class="tw-text-sm tw-text-gray-600 tw-font-medium">Critical Alerts</p>
+                <p class="tw-text-2xl tw-font-bold tw-text-red-600">{{ (stats.controlled_substances_pending || 0) + (stats.prescription_required_pending || 0) }}</p>
+              </div>
+              <i class="pi pi-exclamation-triangle tw-text-2xl tw-text-red-500"></i>
+            </div>
+          </template>
+        </Card>
+      </div>
+    </div>
 
     <!-- Stats Cards -->
     <StockStatsCards :stats="stats" view-type="dashboard" />
 
     <!-- Quick Actions -->
-    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-6 tw-mt-8">
-      <!-- Requests Card -->
-      <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-shadow tw-cursor-pointer" @click="navigateToRequests">
-        <template #content>
-          <div class="tw-text-center tw-p-4">
-            <i class="pi pi-send tw-text-4xl tw-text-blue-500 tw-mb-4"></i>
-            <h3 class="tw-text-xl tw-font-semibold tw-mb-2">Mes Demandes</h3>
-            <p class="tw-text-gray-600">Créer et gérer vos demandes de transfert de stock</p>
-          </div>
-        </template>
-      </Card>
+    <div class="tw-mt-8">
+      <h2 class="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-6 tw-flex tw-items-center">
+        <i class="pi pi-bolt tw-text-yellow-500 tw-mr-3"></i>
+        Quick Actions
+      </h2>
+      
+      <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 lg:tw-grid-cols-3 xl:tw-grid-cols-4 tw-gap-6">
+        <!-- Requests Card -->
+        <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-cursor-pointer tw-border-l-4 tw-border-blue-500 tw-bg-white/90 tw-backdrop-blur-sm hover:tw-scale-105" @click="navigateToRequests">
+          <template #content>
+            <div class="tw-text-center tw-p-6">
+              <div class="tw-bg-blue-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                <i class="pi pi-send tw-text-3xl tw-text-blue-600"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-mb-2 tw-text-gray-800">Mes Demandes</h3>
+              <p class="tw-text-gray-600 tw-text-sm tw-leading-relaxed">Créer et gérer vos demandes de transfert de stock</p>
+              <Badge :value="stats.requesting_pending || 0" severity="info" class="tw-mt-3" />
+            </div>
+          </template>
+        </Card>
 
-      <!-- Approvals Card -->
-      <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-shadow tw-cursor-pointer" @click="navigateToApprovals">
-        <template #content>
-          <div class="tw-text-center tw-p-4">
-            <i class="pi pi-check-circle tw-text-4xl tw-text-green-500 tw-mb-4"></i>
-            <h3 class="tw-text-xl tw-font-semibold tw-mb-2">Approbations</h3>
-            <p class="tw-text-gray-600">Examiner et approuver les demandes de transfert</p>
-          </div>
-        </template>
-      </Card>
+        <!-- Approvals Card -->
+        <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-cursor-pointer tw-border-l-4 tw-border-green-500 tw-bg-white/90 tw-backdrop-blur-sm hover:tw-scale-105" @click="navigateToApprovals">
+          <template #content>
+            <div class="tw-text-center tw-p-6">
+              <div class="tw-bg-green-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                <i class="pi pi-check-circle tw-text-3xl tw-text-green-600"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-mb-2 tw-text-gray-800">Approbations</h3>
+              <p class="tw-text-gray-600 tw-text-sm tw-leading-relaxed">Examiner et approuver les demandes de transfert</p>
+              <Badge :value="stats.providing_pending || 0" severity="warning" class="tw-mt-3" />
+            </div>
+          </template>
+        </Card>
 
-      <!-- Products Card -->
-      <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-shadow tw-cursor-pointer" @click="navigateToProducts">
-        <template #content>
-          <div class="tw-text-center tw-p-4">
-            <i class="pi pi-box tw-text-4xl tw-text-purple-500 tw-mb-4"></i>
-            <h3 class="tw-text-xl tw-font-semibold tw-mb-2">Produits</h3>
-            <p class="tw-text-gray-600">Gérer la liste des produits</p>
-          </div>
-        </template>
-      </Card>
+        <!-- Products Card -->
+        <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-cursor-pointer tw-border-l-4 tw-border-purple-500 tw-bg-white/90 tw-backdrop-blur-sm hover:tw-scale-105" @click="navigateToProducts">
+          <template #content>
+            <div class="tw-text-center tw-p-6">
+              <div class="tw-bg-purple-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                <i class="pi pi-box tw-text-3xl tw-text-purple-600"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-mb-2 tw-text-gray-800">Produits</h3>
+              <p class="tw-text-gray-600 tw-text-sm tw-leading-relaxed">Gérer la liste des produits et inventaire</p>
+              <Badge :value="productCategories.length" severity="success" class="tw-mt-3" />
+            </div>
+          </template>
+        </Card>
 
-      <!-- Services Card -->
-      <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-shadow tw-cursor-pointer" @click="navigateToServices">
-        <template #content>
-          <div class="tw-text-center tw-p-4">
-            <i class="pi pi-building tw-text-4xl tw-text-orange-500 tw-mb-4"></i>
-            <h3 class="tw-text-xl tw-font-semibold tw-mb-2">Services</h3>
-            <p class="tw-text-gray-600">Gérer les services et leurs stocks</p>
-          </div>
-        </template>
-      </Card>
+        <!-- Services Card -->
+        <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-cursor-pointer tw-border-l-4 tw-border-orange-500 tw-bg-white/90 tw-backdrop-blur-sm hover:tw-scale-105" @click="navigateToServices">
+          <template #content>
+            <div class="tw-text-center tw-p-6">
+              <div class="tw-bg-orange-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                <i class="pi pi-building tw-text-3xl tw-text-orange-600"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-mb-2 tw-text-gray-800">Services</h3>
+              <p class="tw-text-gray-600 tw-text-sm tw-leading-relaxed">Gérer les services et leurs stocks</p>
+            </div>
+          </template>
+        </Card>
 
-      <!-- Stockages Card -->
-      <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-shadow tw-cursor-pointer" @click="navigateToStockages">
-        <template #content>
-          <div class="tw-text-center tw-p-4">
-            <i class="pi pi-warehouse tw-text-4xl tw-text-teal-500 tw-mb-4"></i>
-            <h3 class="tw-text-xl tw-font-semibold tw-mb-2">Stockages</h3>
-            <p class="tw-text-gray-600">Gérer les lieux de stockage</p>
-          </div>
-        </template>
-      </Card>
+        <!-- Stockages Card -->
+        <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-cursor-pointer tw-border-l-4 tw-border-indigo-500 tw-bg-white/90 tw-backdrop-blur-sm hover:tw-scale-105" @click="navigateToStockages">
+          <template #content>
+            <div class="tw-text-center tw-p-6">
+              <div class="tw-bg-indigo-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                <i class="pi pi-warehouse tw-text-3xl tw-text-indigo-600"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-mb-2 tw-text-gray-800">Stockages</h3>
+              <p class="tw-text-gray-600 tw-text-sm tw-leading-relaxed">Gérer les lieux de stockage</p>
+            </div>
+          </template>
+        </Card>
 
-      <!-- Movements Card -->
-      <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-shadow tw-cursor-pointer" @click="navigateToMovements">
-        <template #content>
-          <div class="tw-text-center tw-p-4">
-            <i class="pi pi-history tw-text-4xl tw-text-indigo-500 tw-mb-4"></i>
-            <h3 class="tw-text-xl tw-font-semibold tw-mb-2">Historique</h3>
-            <p class="tw-text-gray-600">Voir l'historique complet des mouvements</p>
-          </div>
-        </template>
-      </Card>
+        <!-- Movements Card -->
+        <Card class="tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-300 tw-cursor-pointer tw-border-l-4 tw-border-teal-500 tw-bg-white/90 tw-backdrop-blur-sm hover:tw-scale-105" @click="navigateToMovements">
+          <template #content>
+            <div class="tw-text-center tw-p-6">
+              <div class="tw-bg-teal-100 tw-w-16 tw-h-16 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-4">
+                <i class="pi pi-history tw-text-3xl tw-text-teal-600"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-mb-2 tw-text-gray-800">Historique</h3>
+              <p class="tw-text-gray-600 tw-text-sm tw-leading-relaxed">Voir l'historique complet des mouvements</p>
+              <Badge :value="stockMovements.length" severity="info" class="tw-mt-3" />
+            </div>
+          </template>
+        </Card>
+      </div>
     </div>
 
-    <!-- New Sections for Dashboard Data -->
-    <div class="tw-mt-8 tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6">
-      <!-- Inventory Summary -->
-      <Card class="tw-shadow-lg">
-        <template #title>Inventory Summary</template>
-        <template #content>
-          <InventorySummary :summary="inventorySummary" />
-        </template>
-      </Card>
-
-      <!-- Product Categories -->
-      <Card class="tw-shadow-lg">
-        <template #title>Product Categories</template>
-        <template #content>
-          <ProductCategories :categories="productCategories" />
-        </template>
-      </Card>
-    </div>
-
-    <div class="tw-mt-6 tw-grid tw-grid-cols-1">
-      <!-- Expiring Items -->
-      <Card class="tw-shadow-lg">
-        <template #title>Expiring Items</template>
-        <template #content>
-          <ExpiringItems :items="expiringItems" />
-        </template>
-      </Card>
-    </div>
-
-    <div class="tw-mt-6 tw-grid tw-grid-cols-1">
-      <!-- Stock Movement History -->
-      <Card class="tw-shadow-lg">
-        <template #title>Stock Movement History</template>
-        <template #content>
-          <StockMovementHistory :movements="stockMovements" />
-        </template>
-      </Card>
-    </div>
+ 
   </div>
 </template>
 
@@ -128,6 +155,7 @@ import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import Card from 'primevue/card';
 import Toast from 'primevue/toast';
+import Badge from 'primevue/badge';
 
 import axios from 'axios';
 
@@ -149,7 +177,8 @@ export default {
     ExpiringItems,
     StockMovementHistory,
     Card,
-    Toast
+    Toast,
+    Badge
   },
   setup() {
     const router = useRouter();
@@ -178,20 +207,20 @@ export default {
       }
     };
 
-    const loadInventorySummary = async () => {
-      try {
-        const response = await axios.get('/api/pharmacy/inventory/summary');
-        console.log('Inventory Summary API Response:', response.data);
-        inventorySummary.value = response.data.data || [];
-      } catch (error) {
-        console.error('Failed to load inventory summary:', error);
-        toast.add({
-          severity: 'error',
-          summary: 'Error',
-          detail: 'Failed to load inventory summary'
-        });
-      }
-    };
+    // const loadInventorySummary = async () => {
+    //   try {
+    //     const response = await axios.get('/api/pharmacy/inventory/summary');
+    //     console.log('Inventory Summary API Response:', response.data);
+    //     inventorySummary.value = response.data.data || [];
+    //   } catch (error) {
+    //     console.error('Failed to load inventory summary:', error);
+    //     toast.add({
+    //       severity: 'error',
+    //       summary: 'Error',
+    //       detail: 'Failed to load inventory summary'
+    //     });
+    //   }
+    // };
 
     const loadProductCategories = async () => {
       try {
@@ -265,7 +294,7 @@ export default {
     // Lifecycle
     onMounted(() => {
       loadStats();
-      loadInventorySummary();
+      // loadInventorySummary();
       loadProductCategories();
       loadExpiringItems();
       loadStockMovements();

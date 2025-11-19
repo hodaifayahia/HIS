@@ -394,7 +394,7 @@ onMounted(() => {
               <span class="p-input-icon-left tw-w-full md:tw-max-w-xs">
                 <i class="pi pi-search" />
                 <InputText v-model="searchQuery" placeholder="Search..."
-                  class="tw-w-full tw-rounded-lg tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none tw-focus:tw-ring-2 tw-focus:tw-ring-blue-500"
+                  class="tw-w-full tw-rounded-lg tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none focus:tw-ring-2 focus:tw-ring-blue-500"
                   @keyup.enter="onSearch" />
               </span>
               <div class="tw-flex tw-items-center tw-gap-2">
@@ -530,26 +530,26 @@ onMounted(() => {
             <template #body="{ data }">
               <div class="tw-flex tw-gap-1 tw-items-center tw-justify-center">
                 <Button v-if="data.status === 'pending'" icon="pi pi-user-check"
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-green-600 tw-hover:!tw-bg-green-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-green-600 hover:tw-!tw-bg-green-100"
                   v-tooltip.top="'Mark as Arrived'" @click.stop="markAsArrived(data)" />
                 <Button 
                   :icon="data.patient && data.patient.is_faithful === false ? 'pi pi-check' : 'pi pi-times'"
                   :class="[
                     'p-button-rounded p-button-text p-button-sm',
                     data.patient && data.patient.is_faithful === false 
-                      ? '!tw-text-green-600 tw-hover:!tw-bg-green-100' 
-                      : '!tw-text-orange-600 tw-hover:!tw-bg-orange-100'
+                      ? '!tw-text-green-600 hover:tw-!tw-bg-green-100' 
+                      : '!tw-text-orange-600 hover:tw-!tw-bg-orange-100'
                   ]"
                   v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Faithful' : 'Mark as Unfaithful'"
                   @click.stop="togglePatientFaithful(data)" />
                 <Button icon="pi pi-list"
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 tw-hover:!tw-bg-blue-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 hover:tw-!tw-bg-blue-100"
                   v-tooltip.top="'View Services'" @click.stop="openItemsPage(data)" />
                 <Button icon="pi pi-pencil"
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-gray-500 tw-hover:!tw-bg-gray-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-gray-500 hover:tw-!tw-bg-gray-100"
                   v-tooltip.top="'Edit'" @click.stop="editFiche(data)" />
                 <Button icon="pi pi-trash"
-                  class="p-button-rounded p-button-text p-button-sm !tw-text-red-500 tw-hover:!tw-bg-red-100"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-red-500 hover:tw-!tw-bg-red-100"
                   v-tooltip.top="'Delete'" @click.stop="confirmDelete(data)" />
               </div>
             </template>

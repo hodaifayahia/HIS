@@ -17,7 +17,7 @@ class ProductController extends \App\Http\Controllers\Controller
     {
         $quantityByBox = $request->boolean('quantity_by_box', false);
         $user = auth()->user();
-        
+
         // OPTIMIZED: Limit per_page to prevent performance issues
         $requestedPerPage = $request->get('per_page', 10);
         $perPage = min($requestedPerPage, 100); // Maximum 100 items per page
@@ -27,7 +27,7 @@ class ProductController extends \App\Http\Controllers\Controller
         $query = Product::select([
             'id', 'name', 'code_interne', 'category', 'type_medicament', 'boite_de',
             'is_clinical', 'is_request_approval', 'forme', 'status', 'designation',
-            'code_pch', 'nom_commercial', 'created_at'
+            'code_pch', 'nom_commercial', 'created_at',
         ]);
 
         // Filter by user's assigned services (only admin/SuperAdmin see all)
@@ -68,7 +68,10 @@ class ProductController extends \App\Http\Controllers\Controller
         // OPTIMIZED: Only load inventories for paginated products
         $paginatedProducts->load(['inventories' => function ($q) {
             $q->select('id', 'product_id', 'stockage_id', 'quantity', 'unit', 'expiry_date', 'batch_number')
-              ->with('stockage:id,name,service_id');
+                ->with(['stockage' => function ($sq) {
+                    $sq->select('id', 'name', 'service_id')
+                        ->with('service:id,name');
+                }]);
         }]);
 
         // Process only the paginated products
@@ -91,6 +94,7 @@ class ProductController extends \App\Http\Controllers\Controller
                     if (! $product->alerts || empty($product->alerts)) {
                         return false;
                     }
+
                     return collect($alertFilters)->contains(function ($filter) use ($product) {
                         return collect($product->alerts)->contains('type', $filter);
                     });
@@ -101,6 +105,12 @@ class ProductController extends \App\Http\Controllers\Controller
         return response()->json([
             'success' => true,
             'data' => $processedProducts->values(),
+            // Root-level pagination for backward compatibility
+            'current_page' => (int) $paginatedProducts->currentPage(),
+            'last_page' => $paginatedProducts->lastPage(),
+            'per_page' => $perPage,
+            'total' => $paginatedProducts->total(),
+            // Detailed meta object
             'meta' => [
                 'current_page' => (int) $paginatedProducts->currentPage(),
                 'last_page' => $paginatedProducts->lastPage(),
@@ -146,7 +156,7 @@ class ProductController extends \App\Http\Controllers\Controller
             });
             $totalQuantity = $totalUnits;
             $displayUnit = $product->forme ?? 'units';
-            $inventoryDisplay = $totalQuantity . ' ' . $displayUnit;
+            $inventoryDisplay = $totalQuantity.' '.$displayUnit;
         }
 
         // Simplified inventory by location (lazy load stockage only if needed)
@@ -154,7 +164,7 @@ class ProductController extends \App\Http\Controllers\Controller
         if ($inventories->isNotEmpty() && $inventories->count() <= 10) {
             $inventoryByLocation = $inventories->groupBy(function ($inventory) {
                 return $inventory->stockage->service->name ?? $inventory->stockage->name ?? 'Unknown Location';
-            })->map(function ($locationInventories) use ($boiteDe, $quantityByBox, $product) {
+            })->map(function ($locationInventories) use ($boiteDe, $quantityByBox) {
                 $locationQuantity = $locationInventories->sum('quantity');
                 $locationUnits = $locationInventories->sum(function ($inv) use ($boiteDe) {
                     return $inv->quantity * $boiteDe;
@@ -203,7 +213,7 @@ class ProductController extends \App\Http\Controllers\Controller
     private function calculateProductAlerts($product, $inventories, $totalQuantity, $displayUnit, $boiteDe, $quantityByBox)
     {
         $alerts = [];
-        
+
         // Use product fields as thresholds
         $lowStockThreshold = $product->minimum_stock_level ?? 10;
         $criticalStockThreshold = $product->critical_stock_level ?? 5;
@@ -295,6 +305,94 @@ class ProductController extends \App\Http\Controllers\Controller
         }
 
         return $counts;
+    }
+
+    /**
+     * Get paginated products for infinite scroll (optimized for bulk operations)
+     */
+    public function paginated(Request $request)
+    {
+        $quantityByBox = $request->boolean('quantity_by_box', false);
+        $user = auth()->user();
+
+        // OPTIMIZED: Limit per_page to prevent performance issues
+        $requestedPerPage = $request->get('per_page', 15);
+        $perPage = min($requestedPerPage, 100); // Maximum 100 items per page
+        $currentPage = $request->get('page', 1);
+
+        // OPTIMIZED: Select only necessary columns
+        $query = Product::select([
+            'id', 'name', 'code_interne', 'category', 'type_medicament', 'boite_de',
+            'is_clinical', 'is_request_approval', 'forme', 'status', 'designation',
+            'code_pch', 'nom_commercial', 'created_at',
+        ]);
+
+        // Filter by user's assigned services (only admin/SuperAdmin see all)
+        if ($user && ! $user->hasRole(['admin', 'SuperAdmin'])) {
+            $userServices = $user->services ?? [];
+            if (! empty($userServices)) {
+                $query->whereHas('inventories.stockage', function ($q) use ($userServices) {
+                    $q->whereIn('service_id', $userServices);
+                });
+            }
+        }
+
+        // OPTIMIZED: Simplified search - use indexes on common fields
+        if ($request->has('search') && ! empty($request->search)) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('code_interne', 'like', "%{$search}%")
+                    ->orWhere('designation', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by category
+        if ($request->has('category') && ! empty($request->category)) {
+            $query->where('category', $request->category);
+        }
+
+        // Filter by clinical status
+        if ($request->has('is_clinical')) {
+            $query->where('is_clinical', $request->boolean('is_clinical'));
+        }
+
+        // CRITICAL: Paginate at DATABASE level BEFORE processing
+        $paginatedProducts = $query
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $currentPage);
+
+        // OPTIMIZED: Only load inventories for paginated products
+        $paginatedProducts->load(['inventories' => function ($q) {
+            $q->select('id', 'product_id', 'stockage_id', 'quantity', 'unit', 'expiry_date', 'batch_number')
+                ->with(['stockage' => function ($sq) {
+                    $sq->select('id', 'name', 'service_id')
+                        ->with('service:id,name');
+                }]);
+        }]);
+
+        // Process only the paginated products
+        $processedProducts = $paginatedProducts->map(function ($product) use ($quantityByBox, $user) {
+            return $this->processProductData($product, $quantityByBox, $user);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $processedProducts->values(),
+            // Pagination info
+            'current_page' => (int) $paginatedProducts->currentPage(),
+            'last_page' => $paginatedProducts->lastPage(),
+            'per_page' => $perPage,
+            'total' => $paginatedProducts->total(),
+            'meta' => [
+                'current_page' => (int) $paginatedProducts->currentPage(),
+                'last_page' => $paginatedProducts->lastPage(),
+                'per_page' => $perPage,
+                'total' => $paginatedProducts->total(),
+                'from' => $paginatedProducts->firstItem(),
+                'to' => $paginatedProducts->lastItem(),
+            ],
+        ]);
     }
 
     /**
@@ -974,26 +1072,26 @@ class ProductController extends \App\Http\Controllers\Controller
     {
         try {
             $product = Product::with(['inventories.stockage.service'])->findOrFail($productId);
-            
+
             // Get global settings
             $globalSettings = \App\Models\ProductGlobalSetting::getAllSettingsForProduct($productId);
-            
+
             // Calculate stock summary
             $totalQuantity = $product->inventories->sum(function ($inventory) use ($product) {
                 return $inventory->quantity * ($product->boite_de ?? 1);
             });
-            
+
             $totalValue = $product->inventories->sum(function ($inventory) {
                 return $inventory->quantity * ($inventory->unit_price ?? 0);
             });
-            
+
             $lowStockThreshold = $globalSettings['min_quantity_all_services']['threshold'] ?? 10;
             $criticalStockThreshold = $globalSettings['critical_stock_threshold']['threshold'] ?? 5;
-            
+
             // Get stock details by location
             $locations = $product->inventories->map(function ($inventory) use ($product, $lowStockThreshold) {
                 $quantity = $inventory->quantity * ($product->boite_de ?? 1);
-                
+
                 return [
                     'id' => $inventory->id,
                     'stockage_id' => $inventory->stockage_id,
@@ -1009,7 +1107,7 @@ class ProductController extends \App\Http\Controllers\Controller
                     'unit' => $inventory->unit ?? $product->forme ?? 'units',
                 ];
             });
-            
+
             // Calculate alerts
             $alerts = [
                 'low_stock' => $totalQuantity <= $lowStockThreshold && $totalQuantity > $criticalStockThreshold,
@@ -1021,7 +1119,7 @@ class ProductController extends \App\Http\Controllers\Controller
                     return $inv->expiry_date && now()->gt($inv->expiry_date);
                 })->count(),
             ];
-            
+
             return response()->json([
                 'success' => true,
                 'product' => [
@@ -1044,11 +1142,11 @@ class ProductController extends \App\Http\Controllers\Controller
                 'alerts' => $alerts,
                 'global_settings' => $globalSettings,
             ]);
-            
+
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to load stock details: ' . $e->getMessage(),
+                'message' => 'Failed to load stock details: '.$e->getMessage(),
             ], 500);
         }
     }

@@ -403,13 +403,15 @@ const closeModal = () => {
 </template>
 
 <style scoped>
+@reference "../../../../../resources/css/app.css";
+
 :deep(.p-dialog-header) {
-    @apply bg-blue-600 tw-text-white;
+    @apply tw-bg-blue-600 tw-text-white;
 }
 :deep(.p-dialog-title) {
-    @apply text-white;
+    @apply tw-text-white;
 }
 :deep(.p-dialog-header-icon) {
-    @apply text-white;
+    @apply tw-text-white;
 }
 </style>

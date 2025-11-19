@@ -1772,6 +1772,8 @@ const getPackageReceptionDetails = () => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Package Replacement Dialog Styles */
 .package-replacement-dialog {
   padding: 1rem;

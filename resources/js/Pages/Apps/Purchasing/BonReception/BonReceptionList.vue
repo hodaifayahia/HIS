@@ -98,7 +98,7 @@
                 v-model="filters.search"
                 placeholder="Search receipts..."
                 @keyup.enter="applyFilters"
-                class="tw-pl-10 tw-pr-4 tw-py-3 tw-border tw-border-slate-300 tw-rounded-lg tw-focus:ring-2 tw-focus:ring-blue-500 tw-focus:border-blue-500 tw-transition-all tw-duration-200 tw-shadow-sm hover:tw-shadow-md"
+                class="tw-pl-10 tw-pr-4 tw-py-3 tw-border tw-border-slate-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-blue-500 tw-transition-all tw-duration-200 tw-shadow-sm hover:tw-shadow-md"
               />
             </div>
 

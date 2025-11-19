@@ -113,11 +113,13 @@ const handleMethodChange = (event) => {
 </script>
 
 <style scoped>
+@reference "../../../../resources/css/app.css";
+
 /*
   The `p-invalid` class is provided by PrimeVue.
   We apply Tailwind's border-red-500 to it for consistent styling.
 */
 .p-invalid {
-  @apply border-red-500;
+  @apply tw-border-red-500;
 }
 </style>
