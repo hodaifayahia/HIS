@@ -5,7 +5,7 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
     server: {
         host: '0.0.0.0',
-        port: 5173,
+        port: 5174,
         strictPort: true,
         watch: {
             usePolling: true, // Enable polling for Docker volumes
@@ -17,7 +17,7 @@ export default defineConfig({
         },
         hmr: { 
             host: '10.47.0.26',
-            port: 5173,
+            port: 5174,
             protocol: 'ws',
         }
     },

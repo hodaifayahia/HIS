@@ -11,24 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('admission_billing_records', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('admission_id')->constrained('admissions')->onDelete('cascade');
-            $table->foreignId('procedure_id')->nullable()->constrained('admission_procedures')->onDelete('set null');
-            $table->enum('item_type', ['procedure', 'service', 'nursing_care']);
-            $table->text('description')->nullable();
-            $table->decimal('amount', 12, 2)->default(0);
-            $table->boolean('is_paid')->default(false);
-            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->softDeletes();
-            $table->timestamps();
+        if (!Schema::hasTable('admission_billing_records')) {
+            Schema::create('admission_billing_records', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('admission_id')->constrained('admissions')->onDelete('cascade');
+                $table->foreignId('procedure_id')->nullable()->constrained('admission_procedures')->onDelete('set null');
+                $table->enum('item_type', ['procedure', 'service', 'nursing_care']);
+                $table->text('description')->nullable();
+                $table->decimal('amount', 12, 2)->default(0);
+                $table->boolean('is_paid')->default(false);
+                $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+                $table->softDeletes();
+                $table->timestamps();
 
-            // Indexes
-            $table->index('admission_id');
-            $table->index('item_type');
-            $table->index('is_paid');
-            $table->index('created_at');
-        });
+                // Indexes
+                $table->index('admission_id');
+                $table->index('item_type');
+                $table->index('is_paid');
+                $table->index('created_at');
+            });
+        }
     }
 
     /**

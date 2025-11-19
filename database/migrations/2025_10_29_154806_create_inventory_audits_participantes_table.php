@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('inventory_audits_participantes', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('inventory_audit_id')->constrained('inventory_audits')->onDelete('cascade');
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            $table->string('status')->nullable();
-            $table->boolean('is_participant')->default(false);
-            $table->boolean('is_able_to_see')->default(false);
-            $table->timestamps();
-        });
+        // Schema::create('inventory_audits_participantes', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->foreignId('inventory_audit_id')->constrained('inventory_audits')->onDelete('cascade');
+        //     $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
+        //     $table->string('status')->nullable();
+        //     $table->boolean('is_participant')->default(false);
+        //     $table->boolean('is_able_to_see')->default(false);
+        //     $table->timestamps();
+        // });
     }
 
     /**

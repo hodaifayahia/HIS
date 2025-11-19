@@ -7,35 +7,35 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('product_reserves', function (Blueprint $table) {
-            $table->id();
+        // Schema::create('product_reserves', function (Blueprint $table) {
+        //     $table->id();
 
-            // Core relations
-            $table->foreignId('product_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignId('pharmacy_product_id')->nullable()->constrained()->cascadeOnDelete();
-            $table->foreignId('reserved_by')->constrained('users')->cascadeOnDelete();
+        //     // Core relations
+        //     $table->foreignId('product_id')->nullable()->constrained()->cascadeOnDelete();
+        //     $table->foreignId('pharmacy_product_id')->nullable()->constrained()->cascadeOnDelete();
+        //     $table->foreignId('reserved_by')->constrained('users')->cascadeOnDelete();
 
-            // Reservation data
-            $table->string('reservation_code')->unique();
-            $table->unsignedInteger('quantity');
-            $table->timestamp('reserved_at');
-            $table->timestamp('expires_at')->nullable();
+        //     // Reservation data
+        //     $table->string('reservation_code')->unique();
+        //     $table->unsignedInteger('quantity');
+        //     $table->timestamp('reserved_at');
+        //     $table->timestamp('expires_at')->nullable();
 
-            // Workflow
-            $table->string('status')->default('pending');
+        //     // Workflow
+        //     $table->string('status')->default('pending');
 
-            $table->timestamp('fulfilled_at')->nullable();
-            $table->timestamp('cancelled_at')->nullable();
-            $table->string('cancel_reason')->nullable();
+        //     $table->timestamp('fulfilled_at')->nullable();
+        //     $table->timestamp('cancelled_at')->nullable();
+        //     $table->string('cancel_reason')->nullable();
 
-            // Misc
-            $table->string('source')->nullable();
-            $table->text('reservation_notes')->nullable();
-            $table->json('meta')->nullable();
+        //     // Misc
+        //     $table->string('source')->nullable();
+        //     $table->text('reservation_notes')->nullable();
+        //     $table->json('meta')->nullable();
 
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        //     $table->timestamps();
+        //     $table->softDeletes();
+        // });
     }
 
     public function down(): void

@@ -11,7 +11,7 @@ case $1 in
         sleep 2
         echo "✅ All services started!"
         echo "📱 Application: http://localhost:9000"
-        echo "🔄 Vite HMR: http://localhost:5173"
+        echo "🔄 Vite HMR: http://localhost:5174"
         echo "💾 Frontend changes will auto-reload (no build needed)!"
         ;;
     "stop")
@@ -47,12 +47,12 @@ case $1 in
         
         # Start Reverb WebSocket server
         echo "🔌 Starting Reverb WebSocket server..."
-        docker exec -d his-laravel.test-1 bash -c "cd /var/www/html && php artisan reverb:start --port=5207 > /var/www/html/storage/logs/reverb.log 2>&1 &"
+        docker exec -d his-laravel.test-1 bash -c "cd /var/www/html && php artisan reverb:start --port=5208 > /var/www/html/storage/logs/reverb.log 2>&1 &"
         
         echo "✅ All services restarted!"
         echo "📱 Application: http://localhost:8080"
-        echo "🔄 Vite HMR: http://localhost:5173"
-        echo "🔌 Reverb: ws://localhost:5207"
+        echo "🔄 Vite HMR: http://localhost:5174"
+        echo "🔌 Reverb: ws://localhost:5208"
         ;;
     "status")
         ./health-check.sh
@@ -103,7 +103,7 @@ case $1 in
         
         # Start Reverb
         echo "🔌 Starting Reverb WebSocket server..."
-        docker exec -d his-laravel.test-1 bash -c "cd /var/www/html && php artisan reverb:start --port=5207 > /var/www/html/storage/logs/reverb.log 2>&1 &"
+        docker exec -d his-laravel.test-1 bash -c "cd /var/www/html && php artisan reverb:start --port=5208 > /var/www/html/storage/logs/reverb.log 2>&1 &"
         
         # Start Laravel Test (if exists)
         if docker exec his-laravel.test-1 test -f "artisan"; then
@@ -116,8 +116,8 @@ case $1 in
         echo "✅ Full development stack started!"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "📱 Application:  http://localhost:8080"
-        echo "🔄 Vite HMR:     http://localhost:5173"
-        echo "🔌 Reverb:       ws://localhost:5207"
+        echo "🔄 Vite HMR:     http://localhost:5174"
+        echo "🔌 Reverb:       ws://localhost:5208"
         echo "⚙️  Queue:        Running in background"
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo ""

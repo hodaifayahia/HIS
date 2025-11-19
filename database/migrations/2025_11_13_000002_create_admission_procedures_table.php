@@ -11,7 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('admission_procedures', function (Blueprint $table) {
+        if (!Schema::hasTable('admission_procedures')) {
+            Schema::create('admission_procedures', function (Blueprint $table) {
             $table->id();
             $table->foreignId('admission_id')->constrained('admissions')->onDelete('cascade');
             $table->foreignId('prestation_id')->nullable()->constrained('prestations')->onDelete('set null');
@@ -32,7 +33,8 @@ return new class extends Migration
             $table->index('admission_id');
             $table->index('status');
             $table->index('created_at');
-        });
+            });
+        }
     }
 
     /**

@@ -11,9 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('reserves', function (Blueprint $table) {
-            $table->boolean('is_pharmacy_reserve')->default(false)->after('status');
-        });
+        if (!Schema::hasColumn('reserves', 'is_pharmacy_reserve')) {
+            Schema::table('reserves', function (Blueprint $table) {
+                $table->boolean('is_pharmacy_reserve')->default(false)->after('status');
+            });
+        }
     }
 
     /**

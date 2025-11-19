@@ -11,38 +11,51 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('inventory_audit_recounts', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('inventory_audit_id')->constrained('inventory_audits')->onDelete('cascade');
-            $table->foreignId('participant_id')->constrained('users')->onDelete('cascade');
-            $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
-            $table->string('product_type')->default('stock');
-            $table->boolean('is_recount_mode')->default(true);
-            $table->boolean('show_other_counts')->default(false);
-            $table->decimal('original_quantity', 15, 2)->nullable();
-            $table->decimal('recount_quantity', 15, 2)->nullable();
-            $table->timestamp('recounted_at')->nullable();
-            $table->timestamps();
+        if (!Schema::hasTable('inventory_audit_recounts')) {
+            Schema::create('inventory_audit_recounts', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('inventory_audit_id')->constrained('inventory_audits')->onDelete('cascade');
+                $table->foreignId('participant_id')->constrained('users')->onDelete('cascade');
+                $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
+                $table->string('product_type')->default('stock');
+                $table->boolean('is_recount_mode')->default(true);
+                $table->boolean('show_other_counts')->default(false);
+                $table->decimal('original_quantity', 15, 2)->nullable();
+                $table->decimal('recount_quantity', 15, 2)->nullable();
+                $table->timestamp('recounted_at')->nullable();
+                $table->timestamps();
 
-            // Unique constraint: one recount record per audit/participant/product
-            $table->unique(['inventory_audit_id', 'participant_id', 'product_id', 'product_type'], 'unique_recount_record');
-            
-            // Indexes for performance
-            $table->index(['inventory_audit_id', 'participant_id']);
-            $table->index(['inventory_audit_id', 'product_id']);
-        });
+                // Unique constraint: one recount record per audit/participant/product
+                $table->unique(['inventory_audit_id', 'participant_id', 'product_id', 'product_type'], 'unique_recount_record');
+                
+                // Indexes for performance
+                $table->index(['inventory_audit_id', 'participant_id']);
+                $table->index(['inventory_audit_id', 'product_id']);
+            });
+        }
 
         // Add recount tracking fields to participants table
-        Schema::table('inventory_audits_participantes', function (Blueprint $table) {
-            $table->boolean('is_in_recount_mode')->default(false)->after('status');
-            $table->integer('recount_products_count')->default(0)->after('is_in_recount_mode');
-        });
+        if (Schema::hasTable('inventory_audits_participantes') && 
+            !Schema::hasColumn('inventory_audits_participantes', 'is_in_recount_mode')) {
+            Schema::table('inventory_audits_participantes', function (Blueprint $table) {
+                $table->boolean('is_in_recount_mode')->default(false)->after('status');
+                $table->integer('recount_products_count')->default(0)->after('is_in_recount_mode');
+            });
+        }
 
         // Add original quantity tracking to product counts
-        Schema::table('inventory_audits_product', function (Blueprint $table) {
-            $table->decimal('original_quantity', 15, 2)->nullable()->after('actual_quantity');
-            $table->boolean('is_recount')->default(false)->after('original_quantity');
-        });
+        if (Schema::hasTable('inventory_audits_product')) {
+            if (!Schema::hasColumn('inventory_audits_product', 'original_quantity')) {
+                Schema::table('inventory_audits_product', function (Blueprint $table) {
+                    $table->decimal('original_quantity', 15, 2)->nullable()->after('actual_quantity');
+                });
+            }
+            if (!Schema::hasColumn('inventory_audits_product', 'is_recount')) {
+                Schema::table('inventory_audits_product', function (Blueprint $table) {
+                    $table->boolean('is_recount')->default(false)->after('original_quantity');
+                });
+            }
+        }
     }
 
     /**

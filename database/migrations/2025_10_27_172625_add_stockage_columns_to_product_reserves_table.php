@@ -11,15 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('product_reserves', function (Blueprint $table) {
-            $table->unsignedBigInteger('stockage_id')->nullable()->after('pharmacy_product_id');
-            $table->unsignedBigInteger('pharmacy_stockage_id')->nullable()->after('stockage_id');
-            $table->unsignedBigInteger('destination_service_id')->nullable()->after('pharmacy_stockage_id');
+        // Schema::table('product_reserves', function (Blueprint $table) {
+        //     $table->unsignedBigInteger('stockage_id')->nullable()->after('pharmacy_product_id');
+        //     $table->unsignedBigInteger('pharmacy_stockage_id')->nullable()->after('stockage_id');
+        //     $table->unsignedBigInteger('destination_service_id')->nullable()->after('pharmacy_stockage_id');
             
-            $table->foreign('stockage_id')->references('id')->on('stockages')->onDelete('set null');
-            $table->foreign('pharmacy_stockage_id')->references('id')->on('pharmacy_stockages')->onDelete('set null');
-            $table->foreign('destination_service_id')->references('id')->on('services')->onDelete('set null');
-        });
+        //     $table->foreign('stockage_id')->references('id')->on('stockages')->onDelete('set null');
+        //     $table->foreign('pharmacy_stockage_id')->references('id')->on('pharmacy_stockages')->onDelete('set null');
+        //     $table->foreign('destination_service_id')->references('id')->on('services')->onDelete('set null');
+        // });
     }
 
     /**

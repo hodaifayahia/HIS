@@ -11,24 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('admission_documents')) {
-            Schema::create('admission_documents', function (Blueprint $table) {
+        Schema::create('admission_discharge_tickets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('admission_id')->constrained('admissions')->onDelete('cascade');
-            $table->string('type');
-            $table->boolean('is_physical_uploaded')->default(false);
-            $table->boolean('is_digital_verified')->default(false);
-            $table->string('file_path')->nullable();
+            $table->string('ticket_number')->unique();
+            $table->foreignId('authorized_by')->nullable()->constrained('doctors')->onDelete('set null');
+            $table->dateTime('generated_at');
             $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
             $table->softDeletes();
             $table->timestamps();
 
             // Indexes
             $table->index('admission_id');
-            $table->index('type');
+            $table->index('ticket_number');
             $table->index('created_at');
-            });
-        }
+        });
     }
 
     /**
@@ -36,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('admission_documents');
+        Schema::dropIfExists('admission_discharge_tickets');
     }
 };

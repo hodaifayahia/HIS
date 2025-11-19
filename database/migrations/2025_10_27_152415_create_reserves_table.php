@@ -11,17 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('reserves', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->text('description')->nullable();
-            $table->string('status')->default('pending');
-            $table->timestamp('reserved_at')->nullable();
-            $table->unsignedBigInteger('created_by')->nullable();
-            $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
-            $table->softDeletes();
-            $table->timestamps();
-        });
+        // Schema::create('reserves', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->string('name');
+        //     $table->text('description')->nullable();
+        //     $table->string('status')->nullable()->default('pending');
+        //     $table->timestamp('reserved_at')->nullable();
+        //     $table->unsignedBigInteger('created_by')->nullable();
+        //     $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');
+        //     $table->softDeletes();
+        //     $table->timestamps();
+        // });
     }
 
     /**
