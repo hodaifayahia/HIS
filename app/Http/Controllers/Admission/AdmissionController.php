@@ -301,4 +301,35 @@ class AdmissionController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Verify file number for an admission
+     */
+    public function verifyFileNumber($id): JsonResponse
+    {
+        try {
+            $admission = Admission::findOrFail($id);
+
+            if ($admission->file_number_verified) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File number is already verified',
+                ], 422);
+            }
+
+            $admission->update(['file_number_verified' => true]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File number verified successfully',
+                'data' => new AdmissionResource($admission->fresh(['patient', 'doctor', 'companion', 'company'])),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify file number',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

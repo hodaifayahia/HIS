@@ -34,6 +34,15 @@
               Discharge
             </Button>
             <Button
+              v-if="admission && !admission.file_number_verified"
+              @click="verifyFileNumber"
+              severity="success"
+              size="small"
+              icon="pi pi-check"
+            >
+              Verify File Number
+            </Button>
+            <Button
               as-child
               severity="secondary"
               size="small"
@@ -199,6 +208,120 @@
                 </div>
               </div>
             </TabPanel>
+
+            <!-- Treatments Tab -->
+            <TabPanel>
+              <template #header>
+                <i class="pi pi-calendar tw-mr-2"></i>
+                <span>Treatments</span>
+              </template>
+              <div class="tw-space-y-4">
+                <div class="tw-flex tw-justify-between tw-items-center">
+                  <h3 class="tw-text-lg tw-font-semibold tw-text-gray-900 tw-m-0">Patient Treatments</h3>
+                  <Button
+                    icon="pi pi-plus"
+                    label="Add Treatment"
+                    @click="openAddTreatmentModal"
+                    severity="success"
+                    size="small"
+                  />
+                </div>
+
+                <DataTable
+                  :value="treatments"
+                  :loading="loadingTreatments"
+                  striped-rows
+                  paginator
+                  :rows="10"
+                  data-key="id"
+                  class="tw-text-sm"
+                  empty-message="No treatments recorded yet"
+                >
+                  <Column header="Entered At" style="width: 15%">
+                    <template #body="slotProps">
+                      <div class="tw-flex tw-items-center">
+                        <i class="pi pi-sign-in tw-mr-2 tw-text-green-600"></i>
+                        {{ formatDate(slotProps.data.entered_at) }}
+                      </div>
+                    </template>
+                  </Column>
+
+                  <Column header="Exited At" style="width: 15%">
+                    <template #body="slotProps">
+                      <div v-if="slotProps.data.exited_at" class="tw-flex tw-items-center">
+                        <i class="pi pi-sign-out tw-mr-2 tw-text-red-600"></i>
+                        {{ formatDate(slotProps.data.exited_at) }}
+                      </div>
+                      <Tag v-else severity="info" class="tw-text-xs">In Progress</Tag>
+                    </template>
+                  </Column>
+
+                  <Column header="Duration" style="width: 12%">
+                    <template #body="slotProps">
+                      <span v-if="slotProps.data.duration_minutes">
+                        {{ Math.floor(slotProps.data.duration_minutes / 60) }}h {{ slotProps.data.duration_minutes % 60 }}m
+                      </span>
+                      <span v-else class="tw-text-gray-400">-</span>
+                    </template>
+                  </Column>
+
+                  <Column field="doctor.name" header="Doctor" style="width: 20%">
+                    <template #body="slotProps">
+                      <div v-if="slotProps.data.doctor" class="tw-flex tw-items-center">
+                        <i class="pi pi-user tw-mr-2 tw-text-blue-600"></i>
+                        {{ slotProps.data.doctor.name }}
+                      </div>
+                      <span v-else class="tw-text-gray-400">-</span>
+                    </template>
+                  </Column>
+
+                  <Column field="prestation.name" header="Prestation" style="width: 20%">
+                    <template #body="slotProps">
+                      <div v-if="slotProps.data.prestation">
+                        {{ slotProps.data.prestation.name }}
+                        <span v-if="slotProps.data.prestation.code" class="tw-text-gray-500 tw-text-xs">
+                          ({{ slotProps.data.prestation.code }})
+                        </span>
+                      </div>
+                      <span v-else class="tw-text-gray-400">-</span>
+                    </template>
+                  </Column>
+
+                  <Column field="notes" header="Notes" style="width: 23%">
+                    <template #body="slotProps">
+                      <span :title="slotProps.data.notes" class="tw-truncate tw-block">
+                        {{ slotProps.data.notes || '-' }}
+                      </span>
+                    </template>
+                  </Column>
+
+                  <Column header="Actions" style="width: 10%" frozen alignFrozen="right">
+                    <template #body="slotProps">
+                      <div class="tw-flex tw-gap-2">
+                        <Button
+                          icon="pi pi-pencil"
+                          @click="editTreatment(slotProps.data)"
+                          severity="warning"
+                          size="small"
+                          text
+                          rounded
+                          v-tooltip="'Edit'"
+                        />
+                        <Button
+                          icon="pi pi-trash"
+                          @click="deleteTreatment(slotProps.data)"
+                          severity="danger"
+                          size="small"
+                          text
+                          rounded
+                          v-tooltip="'Delete'"
+                        />
+                      </div>
+                    </template>
+                  </Column>
+                </DataTable>
+              </div>
+            </TabPanel>
           </TabView>
         </template>
       </Card>
@@ -286,6 +409,136 @@
         </div>
       </template>
     </Dialog>
+
+    <!-- Add Treatment Dialog -->
+    <Dialog
+      :visible="showAddTreatmentModal"
+      @update:visible="showAddTreatmentModal = $event"
+      modal
+      :header="editingTreatment ? 'Edit Treatment' : 'Add Treatment'"
+      :style="{ width: '700px' }"
+      :closable="true"
+    >
+      <div class="tw-space-y-4">
+        <div class="tw-grid tw-grid-cols-2 tw-gap-4">
+          <div>
+            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+              Doctor <span class="tw-text-red-500">*</span>
+            </label>
+            <Dropdown
+              v-model="treatmentForm.doctor_id"
+              :options="doctors"
+              option-label="name"
+              option-value="id"
+              placeholder="Select doctor"
+              class="tw-w-full"
+              filter
+              show-clear
+            />
+          </div>
+
+          <div>
+            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+              Prestation
+            </label>
+            <Dropdown
+              v-model="treatmentForm.prestation_id"
+              :options="prestations"
+              option-label="name"
+              option-value="id"
+              placeholder="Select prestation"
+              class="tw-w-full"
+              filter
+              show-clear
+            />
+          </div>
+        </div>
+
+        <div class="tw-grid tw-grid-cols-2 tw-gap-4">
+          <div>
+            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+              Entered At <span class="tw-text-red-500">*</span>
+            </label>
+            <Calendar
+              v-model="treatmentForm.entered_at"
+              show-time
+              hour-format="24"
+              date-format="dd/mm/yy"
+              placeholder="Select entry time"
+              class="tw-w-full"
+            />
+          </div>
+
+          <div>
+            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
+              Exited At
+            </label>
+            <Calendar
+              v-model="treatmentForm.exited_at"
+              show-time
+              hour-format="24"
+              date-format="dd/mm/yy"
+              placeholder="Select exit time"
+              class="tw-w-full"
+              show-clear
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">Notes</label>
+          <Textarea
+            v-model="treatmentForm.notes"
+            rows="3"
+            placeholder="Enter notes about the treatment..."
+            class="tw-w-full"
+          />
+        </div>
+
+        <div v-if="!editingTreatment" class="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-4">
+          <div class="tw-flex tw-items-start">
+            <i class="pi pi-info-circle tw-text-blue-600 tw-mr-3 tw-mt-1"></i>
+            <div class="tw-flex-1">
+              <p class="tw-text-sm tw-font-medium tw-text-blue-900 tw-mb-2">Use Convention Management</p>
+              <p class="tw-text-xs tw-text-blue-700 tw-mb-3">
+                Select doctor and prestation through convention management system for billing purposes
+              </p>
+              <Button
+                @click="showConventionModal = true"
+                severity="info"
+                size="small"
+                icon="pi pi-link"
+                label="Open Convention Management"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="tw-flex tw-justify-end tw-gap-3">
+          <Button
+            @click="showAddTreatmentModal = false"
+            severity="secondary"
+            label="Cancel"
+          />
+          <Button
+            @click="saveTreatment"
+            :disabled="!treatmentForm.doctor_id || !treatmentForm.entered_at"
+            severity="primary"
+            :label="editingTreatment ? 'Update' : 'Save'"
+          />
+        </div>
+      </template>
+    </Dialog>
+
+    <!-- ConventionManagement Modal -->
+    <ConventionManagement
+      v-if="admission"
+      v-model:visible="showConventionModal"
+      :ficheNavetteId="admission.fiche_navette_id || null"
+      @convention-items-added="onConventionItemsAdded"
+    />
   </div>
 </template>
 
@@ -309,6 +562,9 @@ import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import ProgressSpinner from 'primevue/progressspinner'
 import Divider from 'primevue/divider'
+import Calendar from 'primevue/calendar'
+import InputText from 'primevue/inputtext'
+import ConventionManagement from '@/Components/Apps/Emergency/FicheNavatteItem/ConventionManagement.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -334,6 +590,23 @@ const newDocument = ref({
   type: '',
   file: null,
   description: '',
+})
+
+// Treatments state
+const treatments = ref([])
+const loadingTreatments = ref(false)
+const showAddTreatmentModal = ref(false)
+const showConventionModal = ref(false)
+const editingTreatment = ref(false)
+const selectedTreatment = ref(null)
+const doctors = ref([])
+const prestations = ref([])
+const treatmentForm = ref({
+  doctor_id: null,
+  prestation_id: null,
+  entered_at: null,
+  exited_at: null,
+  notes: '',
 })
 
 const formatDate = (date) => {
@@ -471,6 +744,134 @@ const deleteDocument = async (docId) => {
   }
 }
 
+const loadTreatments = async () => {
+  if (!route.params.id) return
+  loadingTreatments.value = true
+  try {
+    const response = await axios.get(`/api/admissions/${route.params.id}/treatments`)
+    treatments.value = response.data.data
+  } catch (error) {
+    notify('error', 'Failed to load treatments')
+  } finally {
+    loadingTreatments.value = false
+  }
+}
+
+const loadDoctors = async () => {
+  try {
+    const response = await axios.get('/api/doctors')
+    doctors.value = response.data.data
+  } catch (error) {
+    console.error('Failed to load doctors:', error)
+  }
+}
+
+const loadPrestations = async () => {
+  try {
+    const response = await axios.get('/api/prestations')
+    prestations.value = response.data.data
+  } catch (error) {
+    console.error('Failed to load prestations:', error)
+  }
+}
+
+const openAddTreatmentModal = () => {
+  editingTreatment.value = false
+  selectedTreatment.value = null
+  treatmentForm.value = {
+    doctor_id: null,
+    prestation_id: null,
+    entered_at: null,
+    exited_at: null,
+    notes: '',
+  }
+  showAddTreatmentModal.value = true
+  loadDoctors()
+  loadPrestations()
+}
+
+const editTreatment = (treatment) => {
+  editingTreatment.value = true
+  selectedTreatment.value = treatment
+  treatmentForm.value = {
+    doctor_id: treatment.doctor_id,
+    prestation_id: treatment.prestation_id,
+    entered_at: treatment.entered_at ? new Date(treatment.entered_at) : null,
+    exited_at: treatment.exited_at ? new Date(treatment.exited_at) : null,
+    notes: treatment.notes || '',
+  }
+  showAddTreatmentModal.value = true
+  loadDoctors()
+  loadPrestations()
+}
+
+const createTreatment = async () => {
+  try {
+    await axios.post(`/api/admissions/${route.params.id}/treatments`, treatmentForm.value)
+    notify('success', 'Treatment added successfully')
+    showAddTreatmentModal.value = false
+    loadTreatments()
+  } catch (error) {
+    notify('error', error.response?.data?.message || 'Failed to add treatment')
+  }
+}
+
+const updateTreatment = async () => {
+  try {
+    await axios.patch(
+      `/api/admissions/${route.params.id}/treatments/${selectedTreatment.value.id}`,
+      treatmentForm.value
+    )
+    notify('success', 'Treatment updated successfully')
+    showAddTreatmentModal.value = false
+    loadTreatments()
+  } catch (error) {
+    notify('error', error.response?.data?.message || 'Failed to update treatment')
+  }
+}
+
+const deleteTreatment = async (treatment) => {
+  if (!confirm('Are you sure you want to delete this treatment?')) return
+
+  try {
+    await axios.delete(`/api/admissions/${route.params.id}/treatments/${treatment.id}`)
+    notify('success', 'Treatment deleted successfully')
+    loadTreatments()
+  } catch (error) {
+    notify('error', 'Failed to delete treatment')
+  }
+}
+
+const saveTreatment = () => {
+  if (editingTreatment.value) {
+    updateTreatment()
+  } else {
+    createTreatment()
+  }
+}
+
+const onConventionItemsAdded = (data) => {
+  // Auto-populate doctor and prestation from convention selection
+  if (data.doctor_id) {
+    treatmentForm.value.doctor_id = data.doctor_id
+  }
+  if (data.prestation_id) {
+    treatmentForm.value.prestation_id = data.prestation_id
+  }
+  showConventionModal.value = false
+  showAddTreatmentModal.value = true
+}
+
+const verifyFileNumber = async () => {
+  try {
+    await axios.post(`/api/admissions/${admission.value.id}/verify-file-number`)
+    notify('success', 'File number verified successfully')
+    fetchAdmission()
+  } catch (error) {
+    notify('error', error.response?.data?.message || 'Failed to verify file number')
+  }
+}
+
 const fetchAdmission = async () => {
   loading.value = true
   try {
@@ -498,6 +899,7 @@ const dischargeAdmission = async () => {
 
 onMounted(() => {
   fetchAdmission()
+  loadTreatments()
 })
 </script>
 

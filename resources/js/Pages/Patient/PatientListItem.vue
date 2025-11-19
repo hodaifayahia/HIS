@@ -23,6 +23,7 @@ import IconField from 'primevue/iconfield';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 import TooltipDirective from 'primevue/tooltip';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
@@ -372,6 +373,7 @@ onMounted(() => {
 <template>
   <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50">
     <Toast />
+    <ConfirmDialog />
 
     <!-- Enhanced Medical-themed Header -->
     <div class="tw-bg-white tw-border-b tw-border-slate-200 tw-sticky tw-top-0 tw-z-10 tw-shadow-lg tw-backdrop-blur-sm tw-bg-white/95">

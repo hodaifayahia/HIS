@@ -152,6 +152,79 @@
         </small>
       </div>
 
+      <!-- Relation Type (if companion selected) -->
+      <Transition name="fade">
+        <div v-if="form.companion_id" class="tw-space-y-2">
+          <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+            <i class="pi pi-users tw-text-teal-600"></i>Relation Type
+          </label>
+          <Dropdown
+            v-model="form.relation_type"
+            :options="relationTypes"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select relationship"
+            class="tw-w-full"
+            showClear
+          />
+          <small v-if="errors.relation_type" class="tw-text-red-600 tw-block tw-text-xs">
+            <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.relation_type[0] }}
+          </small>
+        </div>
+      </Transition>
+
+      <!-- Company/Organisme (Optional) -->
+      <div class="tw-space-y-2">
+        <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+          <i class="pi pi-building tw-text-cyan-600"></i>Company/Insurance (Optional)
+        </label>
+        <Dropdown
+          v-model="form.company_id"
+          :options="companies"
+          optionLabel="name"
+          optionValue="id"
+          placeholder="Select company or insurance"
+          :loading="loadingCompanies"
+          class="tw-w-full"
+          filter
+          showClear
+        />
+        <small v-if="errors.company_id" class="tw-text-red-600 tw-block tw-text-xs">
+          <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.company_id[0] }}
+        </small>
+      </div>
+
+      <!-- Social Security Number -->
+      <div class="tw-space-y-2">
+        <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+          <i class="pi pi-id-card tw-text-pink-600"></i>Social Security Number
+        </label>
+        <InputText
+          v-model="form.social_security_num"
+          placeholder="Enter social security number"
+          class="tw-w-full"
+        />
+        <small v-if="errors.social_security_num" class="tw-text-red-600 tw-block tw-text-xs">
+          <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.social_security_num[0] }}
+        </small>
+      </div>
+
+      <!-- Observation/Notes -->
+      <div class="tw-space-y-2">
+        <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+          <i class="pi pi-comment tw-text-orange-600"></i>Observation/Notes
+        </label>
+        <Textarea
+          v-model="form.observation"
+          rows="3"
+          placeholder="Enter any observations or notes..."
+          class="tw-w-full"
+        />
+        <small v-if="errors.observation" class="tw-text-red-600 tw-block tw-text-xs">
+          <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.observation[0] }}
+        </small>
+      </div>
+
       <!-- Initial Prestation (Surgery Only) using PrestationSearch Component -->
       <Transition name="fade">
         <div v-if="form.type === 'surgery'" class="tw-space-y-2">
@@ -224,6 +297,8 @@ import { useRouter } from 'vue-router'
 import Dialog from 'primevue/dialog'
 import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
+import Textarea from 'primevue/textarea'
+import InputText from 'primevue/inputtext'
 import { useToastr } from '@/Components/toster'
 import { AdmissionService } from '@/services/admissionService'
 import PatientSearch from '@/Pages/Appointments/PatientSearch.vue'
@@ -258,6 +333,10 @@ const form = ref({
   type: 'nursing',
   initial_prestation_id: '',
   fiche_navette_id: '',
+  observation: '',
+  company_id: '',
+  social_security_num: '',
+  relation_type: '',
 })
 
 const loading = ref(false)
@@ -266,6 +345,9 @@ const creatingFiche = ref(false)
 const loadingDoctors = ref(false)
 
 const doctors = ref([])
+const companies = ref([])
+const relationTypes = ref([])
+const loadingCompanies = ref(false)
 
 const selectedPatient = ref(null)
 const selectedDoctor = ref(null)
@@ -296,6 +378,39 @@ const loadDoctors = async () => {
     toastr.error('Failed to load doctors')
   } finally {
     loadingDoctors.value = false
+  }
+}
+
+const loadCompanies = async () => {
+  loadingCompanies.value = true
+  try {
+    const response = await axios.get('/api/b2b/organismes')
+    companies.value = response.data.data || response.data || []
+  } catch (error) {
+    console.error('Failed to load companies:', error)
+  } finally {
+    loadingCompanies.value = false
+  }
+}
+
+const loadRelationTypes = async () => {
+  try {
+    const response = await axios.get('/api/config/relation-types')
+    relationTypes.value = response.data || []
+  } catch (error) {
+    // Fallback to hardcoded list
+    relationTypes.value = [
+      { value: 'father', label: 'Father' },
+      { value: 'mother', label: 'Mother' },
+      { value: 'spouse', label: 'Spouse' },
+      { value: 'son', label: 'Son' },
+      { value: 'daughter', label: 'Daughter' },
+      { value: 'brother', label: 'Brother' },
+      { value: 'sister', label: 'Sister' },
+      { value: 'friend', label: 'Friend' },
+      { value: 'nurse', label: 'Nurse' },
+      { value: 'escort', label: 'Escort' },
+    ]
   }
 }
 
@@ -433,6 +548,10 @@ const openModal = async (admission = null) => {
       type: admission.type,
       initial_prestation_id: admission.initial_prestation_id || '',
       fiche_navette_id: admission.fiche_navette_id || '',
+      observation: admission.observation || '',
+      company_id: admission.company_id || '',
+      social_security_num: admission.social_security_num || '',
+      relation_type: admission.relation_type || '',
     }
     
     // Set selected objects - handle different property name cases
@@ -479,6 +598,14 @@ const openModal = async (admission = null) => {
   if (doctors.value.length === 0) {
     loadDoctors()
   }
+  
+  // Load companies and relation types
+  if (companies.value.length === 0) {
+    loadCompanies()
+  }
+  if (relationTypes.value.length === 0) {
+    loadRelationTypes()
+  }
 }
 
 const closeModal = () => {
@@ -494,6 +621,10 @@ const resetForm = () => {
     type: 'nursing',
     initial_prestation_id: '',
     fiche_navette_id: '',
+    observation: '',
+    company_id: '',
+    social_security_num: '',
+    relation_type: '',
   }
   selectedPatient.value = null
   selectedDoctor.value = null

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\CONFIGURATION\Prestation;
+use App\Models\CRM\Organisme;
 use App\Models\Reception\ficheNavette;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -126,7 +127,7 @@ class Admission extends Model
      */
     public function company(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\B2B\Organisme::class, 'company_id');
+        return $this->belongsTo(Organisme::class, 'company_id');
     }
 
     /**
