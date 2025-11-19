@@ -75,6 +75,64 @@ const Patient = ref({
 
 const isEditMode = computed(() => !!props.specData?.id);
 
+// Loading state for fetching patient details
+const isLoadingPatientData = ref(false);
+
+// Function to fetch complete patient information from backend
+const fetchCompletePatientData = async (patientId) => {
+    if (!patientId) return;
+    
+    try {
+        isLoadingPatientData.value = true;
+        const response = await axios.get(`/api/patients/${patientId}`);
+        const completePatientData = response.data.data || response.data;
+        
+        // Update Patient ref with complete data from backend
+        Patient.value = {
+            id: completePatientData.id || null,
+            Firstname: completePatientData.Firstname || '',
+            Lastname: completePatientData.Lastname || '',
+            phone: completePatientData.phone || '',
+            fax_number: completePatientData.fax_number || '',
+            email: completePatientData.email || '',
+            address: completePatientData.address || '',
+            city: completePatientData.city || '',
+            postal_code: completePatientData.postal_code || '',
+            Idnum: completePatientData.Idnum || '',
+            identity_document_type: completePatientData.identity_document_type || null,
+            identity_issued_on: completePatientData.identity_issued_on || null,
+            identity_issued_by: completePatientData.identity_issued_by || '',
+            passport_number: completePatientData.passport_number || '',
+            professional_badge_number: completePatientData.professional_badge_number || '',
+            foreigner_card_number: completePatientData.foreigner_card_number || '',
+            nss: completePatientData.nss || '',
+            Parent: completePatientData.Parent || '',
+            dateOfBirth: completePatientData.dateOfBirth || null,
+            birth_place: completePatientData.birth_place || '',
+            is_birth_place_presumed: completePatientData.is_birth_place_presumed || false,
+            additional_ids: completePatientData.additional_ids || null,
+            gender: completePatientData.gender || 'male',
+            height: completePatientData.height || null,
+            weight: completePatientData.weight || null,
+            blood_group: completePatientData.blood_group || '',
+            marital_status: completePatientData.marital_status || '',
+            mother_firstname: completePatientData.mother_firstname || '',
+            mother_lastname: completePatientData.mother_lastname || '',
+            balance: completePatientData.balance || null,
+            is_faithful: completePatientData.is_faithful || false,
+            firstname_ar: completePatientData.firstname_ar || '',
+            lastname_ar: completePatientData.lastname_ar || '',
+            other_clinical_info: completePatientData.other_clinical_info || '',
+            created_by: completePatientData.created_by || null,
+        };
+    } catch (error) {
+        console.error('Error fetching patient data:', error);
+        toastr.error('Failed to load patient information');
+    } finally {
+        isLoadingPatientData.value = false;
+    }
+};
+
 // Document type options
 const documentTypes = ref([
     { label: 'National Card', value: 'national_card' },
@@ -107,43 +165,49 @@ const maritalStatuses = ref([
 watch(
     () => props.specData,
     (newValue) => {
-        Patient.value = {
-            id: newValue?.id || null,
-            Firstname: newValue?.Firstname || '',
-            Lastname: newValue?.Lastname || '',
-            phone: newValue?.phone || '',
-            fax_number: newValue?.fax_number || '',
-            email: newValue?.email || '',
-            address: newValue?.address || '',
-            city: newValue?.city || '',
-            postal_code: newValue?.postal_code || '',
-            Idnum: newValue?.Idnum || '',
-            identity_document_type: newValue?.identity_document_type || null,
-            identity_issued_on: newValue?.identity_issued_on || null,
-            identity_issued_by: newValue?.identity_issued_by || '',
-            passport_number: newValue?.passport_number || '',
-            professional_badge_number: newValue?.professional_badge_number || '',
-            foreigner_card_number: newValue?.foreigner_card_number || '',
-            nss: newValue?.nss || '',
-            Parent: newValue?.Parent || '',
-            dateOfBirth: newValue?.dateOfBirth || null,
-            birth_place: newValue?.birth_place || '',
-            is_birth_place_presumed: newValue?.is_birth_place_presumed || false,
-            additional_ids: newValue?.additional_ids || null,
-            gender: newValue?.gender || 'male',
-            height: newValue?.height || null,
-            weight: newValue?.weight || null,
-            blood_group: newValue?.blood_group || '',
-            marital_status: newValue?.marital_status || '',
-            mother_firstname: newValue?.mother_firstname || '',
-            mother_lastname: newValue?.mother_lastname || '',
-            balance: newValue?.balance || null,
-            is_faithful: newValue?.is_faithful || false,
-            firstname_ar: newValue?.firstname_ar || '',
-            lastname_ar: newValue?.lastname_ar || '',
-            other_clinical_info: newValue?.other_clinical_info || '',
-            created_by: newValue?.created_by || null,
-        };
+        if (newValue?.id) {
+            // In edit mode: fetch complete patient data from backend
+            fetchCompletePatientData(newValue.id);
+        } else {
+            // In create mode: use provided data or defaults
+            Patient.value = {
+                id: newValue?.id || null,
+                Firstname: newValue?.Firstname || '',
+                Lastname: newValue?.Lastname || '',
+                phone: newValue?.phone || '',
+                fax_number: newValue?.fax_number || '',
+                email: newValue?.email || '',
+                address: newValue?.address || '',
+                city: newValue?.city || '',
+                postal_code: newValue?.postal_code || '',
+                Idnum: newValue?.Idnum || '',
+                identity_document_type: newValue?.identity_document_type || null,
+                identity_issued_on: newValue?.identity_issued_on || null,
+                identity_issued_by: newValue?.identity_issued_by || '',
+                passport_number: newValue?.passport_number || '',
+                professional_badge_number: newValue?.professional_badge_number || '',
+                foreigner_card_number: newValue?.foreigner_card_number || '',
+                nss: newValue?.nss || '',
+                Parent: newValue?.Parent || '',
+                dateOfBirth: newValue?.dateOfBirth || null,
+                birth_place: newValue?.birth_place || '',
+                is_birth_place_presumed: newValue?.is_birth_place_presumed || false,
+                additional_ids: newValue?.additional_ids || null,
+                gender: newValue?.gender || 'male',
+                height: newValue?.height || null,
+                weight: newValue?.weight || null,
+                blood_group: newValue?.blood_group || '',
+                marital_status: newValue?.marital_status || '',
+                mother_firstname: newValue?.mother_firstname || '',
+                mother_lastname: newValue?.mother_lastname || '',
+                balance: newValue?.balance || null,
+                is_faithful: newValue?.is_faithful || false,
+                firstname_ar: newValue?.firstname_ar || '',
+                lastname_ar: newValue?.lastname_ar || '',
+                other_clinical_info: newValue?.other_clinical_info || '',
+                created_by: newValue?.created_by || null,
+            };
+        }
     },
     { immediate: true, deep: true }
 );
@@ -349,7 +413,14 @@ const submitForm = async (values) => {
         @hide="closeModal"
         class="tw-p-0"
     >
+        <!-- Loading Indicator for Edit Mode -->
+        <div v-if="isEditMode && isLoadingPatientData" class="tw-flex tw-items-center tw-justify-center tw-p-8">
+            <ProgressBar mode="indeterminate" style="height: 6px"></ProgressBar>
+            <span class="tw-ml-3 tw-text-gray-600">Loading patient information...</span>
+        </div>
+
         <Form
+            v-if="!isLoadingPatientData"
             :validation-schema="PatientSchema"
             @submit="submitForm"
             v-slot="{ errors, isSubmitting }"
