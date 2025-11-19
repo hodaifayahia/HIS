@@ -287,7 +287,6 @@ onMounted(() => {
 <template>
   <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50">
     <Toast />
-    <Tooltip />
     <ConfirmDialog />
 
     <!-- Enhanced Medical-themed Header -->
@@ -621,16 +620,16 @@ onMounted(() => {
 :deep(.doctor-table .p-datatable-header) {
   background: linear-gradient(135deg, rgb(249, 250, 251) 0%, rgb(241, 245, 249) 100%);
   border-bottom: 2px solid rgb(226, 232, 240);
-  padding: 1.5rem 2rem;
+  padding: 0.75rem 1rem;
 }
 
 :deep(.doctor-table .p-datatable-thead > tr > th) {
   background: linear-gradient(135deg, rgb(249, 250, 251) 0%, rgb(241, 245, 249) 100%);
   color: rgb(51, 65, 85);
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   border-bottom: 2px solid rgb(226, 232, 240);
-  padding: 1.25rem 1.5rem;
+  padding: 0.75rem 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   white-space: nowrap;
@@ -655,12 +654,13 @@ onMounted(() => {
 
 :deep(.doctor-table .p-datatable-tbody > tr > td) {
   border: none;
-  padding: 1.5rem 1.5rem;
+  padding: 0.75rem 0.75rem;
   color: rgb(51, 65, 85);
   vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.875rem;
 }
 
 /* Enhanced DataTable wrapper for better width handling */
@@ -675,7 +675,7 @@ onMounted(() => {
 }
 
 :deep(.doctor-table .p-datatable-table) {
-  min-width: 1200px;
+  min-width: 1000px;
   width: 100%;
 }
 
@@ -820,28 +820,35 @@ onMounted(() => {
 /* Responsive enhancements - Better large screen support */
 @media (min-width: 1440px) {
   .tw-px-4 {
-    padding-left: 2rem;
-    padding-right: 2rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
   }
-  
+
   :deep(.doctor-table .p-datatable-tbody > tr > td) {
-    padding: 1.75rem 2rem;
+    padding: 0.875rem 0.75rem;
+    font-size: 0.9rem;
   }
-  
+
   :deep(.doctor-table .p-datatable-thead > tr > th) {
-    padding: 1.5rem 2rem;
-    font-size: 0.95rem;
+    padding: 0.875rem 0.75rem;
+    font-size: 0.85rem;
   }
 }
 
 @media (max-width: 1280px) {
   .tw-px-4 {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
-  
+
   :deep(.doctor-table .p-datatable-tbody > tr > td) {
-    padding: 1.25rem 1.25rem;
+    padding: 0.625rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  :deep(.doctor-table .p-datatable-thead > tr > th) {
+    padding: 0.625rem 0.5rem;
+    font-size: 0.75rem;
   }
 }
 

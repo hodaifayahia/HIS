@@ -4,7 +4,8 @@ import DoctorModel from '../../Components/DoctorModel.vue';
 import { useRouter } from 'vue-router';
 import { useSweetAlert } from '../../Components/useSweetAlert';
 import { useAuthStore } from '../../stores/auth';
-
+import Button from 'primevue/button';
+import TooltipDirective from 'primevue/tooltip';
 import axios from 'axios';
 
 const swal = useSweetAlert();
@@ -150,28 +151,28 @@ const handleDelete = async (id) => {
 </script>
 
 <template>
-  <div class="d-flex gap-2">
-    <button 
-      class="btn btn-sm btn-outline-primary" 
-      title="Edit"
+  <div class="tw-flex tw-gap-2">
+    <Button 
+      icon="pi pi-pencil" 
+      class="p-button-rounded p-button-text p-button-sm p-button-info"
+      title="Edit Doctor"
       @click.stop="editUser"
-    >
-      <i class="fas fa-edit"></i>
-    </button>
-    <button 
-      class="btn btn-sm btn-outline-success" 
+      v-tooltip.top="'Edit Doctor'"
+    />
+    <Button 
+      icon="pi pi-copy" 
+      class="p-button-rounded p-button-text p-button-sm p-button-success"
       title="Duplicate Configuration"
       @click.stop="openDuplicateModal"
-    >
-      <i class="fas fa-copy"></i>
-    </button>
-    <button 
-      class="btn btn-sm btn-outline-danger" 
-      title="Delete"
+      v-tooltip.top="'Duplicate Configuration'"
+    />
+    <Button 
+      icon="pi pi-trash" 
+      class="p-button-rounded p-button-text p-button-sm p-button-danger"
+      title="Delete Doctor"
       @click.stop="handleDelete(doctor.id)"
-    >
-      <i class="fas fa-trash-alt"></i>
-    </button>
+      v-tooltip.top="'Delete Doctor'"
+    />
 
     <!-- Modals -->
     <Teleport to="body">

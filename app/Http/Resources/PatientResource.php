@@ -42,7 +42,8 @@ class PatientResource extends JsonResource
             'birth_place' => $this->birth_place,
             'is_birth_place_presumed' => $this->is_birth_place_presumed,
             'additional_ids' => $this->additional_ids,
-            'gender' => $this->gender,
+            'gender' => $this->gender, // This will now use the accessor to return "Male" or "Female"
+            'gender_display' => $this->gender, // Explicit display format
             'age' => $this->calculateAge(),
             'height' => $this->height,
             'weight' => $this->weight,

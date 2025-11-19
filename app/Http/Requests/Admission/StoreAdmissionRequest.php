@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admission;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAdmissionRequest extends FormRequest
 {
@@ -26,6 +27,11 @@ class StoreAdmissionRequest extends FormRequest
             'type' => 'required|in:surgery,nursing',
             'initial_prestation_id' => 'nullable|exists:prestations,id',
             'fiche_navette_id' => 'nullable|exists:fiche_navettes,id',
+            'file_number' => 'nullable|string|unique:admissions,file_number',
+            'observation' => 'nullable|string',
+            'company_id' => 'nullable|exists:organismes,id',
+            'social_security_num' => 'nullable|string|max:50',
+            'relation_type' => ['nullable', 'string', Rule::in(array_keys(config('relation_types')))],
         ];
     }
 

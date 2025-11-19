@@ -91,6 +91,23 @@ class Patient extends Model
         $this->attributes['Parent'] = $value ? Str::title($value) : null;
     }
 
+    /**
+     * Get the formatted gender attribute
+     */
+    public function getGenderAttribute($value)
+    {
+        $genderMap = [
+            0 => 'Female',
+            1 => 'Male',
+            'Female' => 'Female',
+            'Male' => 'Male',
+            'female' => 'Female',
+            'male' => 'Male',
+        ];
+
+        return $genderMap[$value] ?? 'Not Specified';
+    }
+
     public function appointments()
     {
         return $this->hasMany(Appointment::class);

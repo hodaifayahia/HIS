@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admission;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateAdmissionRequest extends FormRequest
 {
@@ -19,12 +20,24 @@ class UpdateAdmissionRequest extends FormRequest
      */
     public function rules(): array
     {
+        $admission = $this->route('admission');
+        
         return [
             'doctor_id' => 'nullable|exists:doctors,id',
             'companion_id' => 'nullable|exists:patients,id|different:patient_id',
             'status' => 'sometimes|in:admitted,in_service,document_pending,ready_for_discharge',
             'initial_prestation_id' => 'nullable|exists:prestations,id',
             'documents_verified' => 'sometimes|boolean',
+            'file_number' => [
+                'sometimes',
+                'string',
+                Rule::unique('admissions', 'file_number')->ignore($admission?->id),
+            ],
+            'observation' => 'nullable|string',
+            'company_id' => 'nullable|exists:organismes,id',
+            'social_security_num' => 'nullable|string|max:50',
+            'relation_type' => ['nullable', 'string', Rule::in(array_keys(config('relation_types')))],
+            'file_number_verified' => 'sometimes|boolean',
         ];
     }
 

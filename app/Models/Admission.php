@@ -26,12 +26,19 @@ class Admission extends Model
         'fiche_navette_id',
         'documents_verified',
         'created_by',
+        'file_number',
+        'file_number_verified',
+        'observation',
+        'company_id',
+        'social_security_num',
+        'relation_type',
     ];
 
     protected $casts = [
         'admitted_at' => 'datetime',
         'discharged_at' => 'datetime',
         'documents_verified' => 'boolean',
+        'file_number_verified' => 'boolean',
     ];
 
     /**
@@ -112,5 +119,57 @@ class Admission extends Model
     public function ficheNavette(): BelongsTo
     {
         return $this->belongsTo(ficheNavette::class, 'fiche_navette_id');
+    }
+
+    /**
+     * Get the company/organisme
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\B2B\Organisme::class, 'company_id');
+    }
+
+    /**
+     * Get admission treatments (patient movements)
+     */
+    public function treatments(): HasMany
+    {
+        return $this->hasMany(AdmissionTreatment::class);
+    }
+
+    /**
+     * Boot method to auto-generate file_number
+     */
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($admission) {
+            if (empty($admission->file_number)) {
+                $admission->file_number = self::generateFileNumber();
+            }
+        });
+    }
+
+    /**
+     * Generate unique file_number in format: YYYY/number
+     */
+    public static function generateFileNumber(): string
+    {
+        $year = date('Y');
+        $prefix = $year . '/';
+        
+        // Get the last admission file number for this year
+        $lastAdmission = self::where('file_number', 'LIKE', $prefix . '%')
+            ->orderBy('file_number', 'desc')
+            ->first();
+        
+        if ($lastAdmission && preg_match('/\/(\d+)$/', $lastAdmission->file_number, $matches)) {
+            $nextNumber = intval($matches[1]) + 1;
+        } else {
+            $nextNumber = 1;
+        }
+        
+        return $prefix . $nextNumber;
     }
 }

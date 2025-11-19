@@ -34,6 +34,20 @@ class AdmissionResource extends JsonResource
                 'name' => ($this->companion->Firstname ?? '').' '.($this->companion->Lastname ?? ''),
                 'phone' => $this->companion->phone ?? null,
             ]),
+            
+            // New fields
+            'file_number' => $this->file_number,
+            'file_number_verified' => (bool) $this->file_number_verified,
+            'observation' => $this->observation,
+            'company_id' => $this->company_id,
+            'company' => $this->whenLoaded('company', [
+                'id' => $this->company->id ?? null,
+                'name' => $this->company->name ?? null,
+            ]),
+            'social_security_num' => $this->social_security_num,
+            'relation_type' => $this->relation_type,
+            'relation_type_label' => $this->relation_type ? config('relation_types.' . $this->relation_type) : null,
+            
             'type' => $this->type,
             'type_label' => ucfirst($this->type),
             'status' => $status,
@@ -63,6 +77,7 @@ class AdmissionResource extends JsonResource
             'procedures_count' => $this->whenCounted('procedures'),
             'documents_count' => $this->whenCounted('documents'),
             'billing_records_count' => $this->whenCounted('billingRecords'),
+            'treatments_count' => $this->whenCounted('treatments'),
 
             // Procedures (only when loaded in detail view)
             'procedures' => AdmissionProcedureResource::collection($this->whenLoaded('procedures')),
@@ -72,6 +87,9 @@ class AdmissionResource extends JsonResource
 
             // Billing records (only when loaded in detail view)
             'billing_records' => AdmissionBillingRecordResource::collection($this->whenLoaded('billingRecords')),
+            
+            // Treatments (only when loaded in detail view)
+            'treatments' => AdmissionTreatmentResource::collection($this->whenLoaded('treatments')),
 
             // System fields
             'created_by' => $this->created_by,
@@ -85,6 +103,7 @@ class AdmissionResource extends JsonResource
             // Computed flags (inline for performance)
             'can_discharge' => $documentsVerified && $status !== 'ready_for_discharge',
             'is_active' => in_array($status, ['admitted', 'in_service', 'document_pending'], true),
+            'can_edit_file_number' => !$this->file_number_verified,
         ];
     }
 }
