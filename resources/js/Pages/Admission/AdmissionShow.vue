@@ -494,25 +494,6 @@
             class="tw-w-full"
           />
         </div>
-
-        <div v-if="!editingTreatment" class="tw-bg-blue-50 tw-border tw-border-blue-200 tw-rounded-lg tw-p-4">
-          <div class="tw-flex tw-items-start">
-            <i class="pi pi-info-circle tw-text-blue-600 tw-mr-3 tw-mt-1"></i>
-            <div class="tw-flex-1">
-              <p class="tw-text-sm tw-font-medium tw-text-blue-900 tw-mb-2">Use Convention Management</p>
-              <p class="tw-text-xs tw-text-blue-700 tw-mb-3">
-                Select doctor and prestation through convention management system for billing purposes
-              </p>
-              <Button
-                @click="showConventionModal = true"
-                severity="info"
-                size="small"
-                icon="pi pi-link"
-                label="Open Convention Management"
-              />
-            </div>
-          </div>
-        </div>
       </div>
 
       <template #footer>
@@ -531,14 +512,6 @@
         </div>
       </template>
     </Dialog>
-
-    <!-- ConventionManagement Modal -->
-    <ConventionManagement
-      v-if="admission"
-      v-model:visible="showConventionModal"
-      :ficheNavetteId="admission.fiche_navette_id || null"
-      @convention-items-added="onConventionItemsAdded"
-    />
   </div>
 </template>
 
@@ -564,7 +537,6 @@ import ProgressSpinner from 'primevue/progressspinner'
 import Divider from 'primevue/divider'
 import Calendar from 'primevue/calendar'
 import InputText from 'primevue/inputtext'
-import ConventionManagement from '@/Components/Apps/Emergency/FicheNavatteItem/ConventionManagement.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -596,7 +568,6 @@ const newDocument = ref({
 const treatments = ref([])
 const loadingTreatments = ref(false)
 const showAddTreatmentModal = ref(false)
-const showConventionModal = ref(false)
 const editingTreatment = ref(false)
 const selectedTreatment = ref(null)
 const doctors = ref([])
@@ -848,18 +819,6 @@ const saveTreatment = () => {
   } else {
     createTreatment()
   }
-}
-
-const onConventionItemsAdded = (data) => {
-  // Auto-populate doctor and prestation from convention selection
-  if (data.doctor_id) {
-    treatmentForm.value.doctor_id = data.doctor_id
-  }
-  if (data.prestation_id) {
-    treatmentForm.value.prestation_id = data.prestation_id
-  }
-  showConventionModal.value = false
-  showAddTreatmentModal.value = true
 }
 
 const verifyFileNumber = async () => {

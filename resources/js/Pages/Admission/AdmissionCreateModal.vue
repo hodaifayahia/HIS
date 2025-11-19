@@ -41,6 +41,40 @@
         </small>
       </div>
 
+      <!-- File Number (Auto-generated) -->
+      <div class="tw-space-y-2">
+        <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+          <i class="pi pi-file tw-text-indigo-600"></i>File Number
+          <Tag v-if="isEditMode && editingAdmission?.file_number_verified" severity="success" class="tw-ml-2">
+            <i class="pi pi-check-circle tw-mr-1"></i>Verified
+          </Tag>
+          <Tag v-else-if="isEditMode && editingAdmission" severity="warning" class="tw-ml-2">
+            <i class="pi pi-clock tw-mr-1"></i>Unverified
+          </Tag>
+        </label>
+        <div class="tw-bg-green-50 tw-border tw-border-green-200 tw-rounded-lg tw-p-3 tw-flex tw-items-center tw-gap-3">
+          <i class="pi pi-file tw-text-green-600 tw-text-xl"></i>
+          <div class="tw-flex-1">
+            <p class="tw-text-sm tw-text-green-700 tw-font-medium tw-m-0">Auto-generated File Number</p>
+            <p v-if="!isEditMode" class="tw-text-xs tw-text-green-600 tw-m-0">
+              <i class="pi pi-arrow-right tw-mr-1"></i>YYYY/number format - will be generated after saving
+            </p>
+            <p v-else-if="form.file_number" class="tw-text-sm tw-font-mono tw-text-green-900 tw-m-0 tw-font-bold">
+              {{ form.file_number }}
+            </p>
+            <p v-else class="tw-text-xs tw-text-gray-500 tw-m-0">
+              <i class="pi pi-clock tw-mr-1"></i>Not yet generated
+            </p>
+          </div>
+        </div>
+        <small v-if="isEditMode && editingAdmission?.file_number_verified" class="tw-text-green-600 tw-block tw-text-xs">
+          <i class="pi pi-lock tw-mr-1"></i>Verified file numbers cannot be edited
+        </small>
+        <small v-else-if="isEditMode" class="tw-text-amber-600 tw-block tw-text-xs">
+          <i class="pi pi-info-circle tw-mr-1"></i>Can be edited until verified
+        </small>
+      </div>
+
       <!-- Admission Type (MOVED UP) -->
       <div class="tw-space-y-3">
         <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
@@ -173,26 +207,39 @@
         </div>
       </Transition>
 
-      <!-- Company/Organisme (Optional) -->
-      <div class="tw-space-y-2">
-        <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
-          <i class="pi pi-building tw-text-cyan-600"></i>Company/Insurance (Optional)
-        </label>
-        <Dropdown
-          v-model="form.company_id"
-          :options="companies"
-          optionLabel="name"
-          optionValue="id"
-          placeholder="Select company or insurance"
-          :loading="loadingCompanies"
-          class="tw-w-full"
-          filter
-          showClear
-        />
-        <small v-if="errors.company_id" class="tw-text-red-600 tw-block tw-text-xs">
-          <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.company_id[0] }}
-        </small>
-      </div>
+      <!-- Company/Organisme (Optional) - Surgery Only -->
+      <Transition name="fade">
+        <div v-if="form.type === 'surgery'" class="tw-space-y-2">
+          <div class="tw-flex tw-items-center tw-justify-between">
+            <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+              <i class="pi pi-building tw-text-cyan-600"></i>Company/Insurance (Optional)
+            </label>
+            <Button
+              @click="showConventionModal = true"
+              severity="info"
+              size="small"
+              icon="pi pi-link"
+              label="Use Convention"
+              outlined
+              type="button"
+            />
+          </div>
+          <Dropdown
+            v-model="form.company_id"
+            :options="companies"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Select company or insurance"
+            :loading="loadingCompanies"
+            class="tw-w-full"
+            filter
+            showClear
+          />
+          <small v-if="errors.company_id" class="tw-text-red-600 tw-block tw-text-xs">
+            <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.company_id[0] }}
+          </small>
+        </div>
+      </Transition>
 
       <!-- Social Security Number -->
       <div class="tw-space-y-2">
@@ -214,16 +261,34 @@
         <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
           <i class="pi pi-comment tw-text-orange-600"></i>Observation/Notes
         </label>
-        <Textarea
+        <Dropdown
           v-model="form.observation"
-          rows="3"
-          placeholder="Enter any observations or notes..."
+          :options="observationTypes"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Select observation type"
           class="tw-w-full"
+          showClear
         />
         <small v-if="errors.observation" class="tw-text-red-600 tw-block tw-text-xs">
           <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.observation[0] }}
         </small>
       </div>
+
+      <!-- Custom Observation (when 'other' is selected) -->
+      <Transition name="fade">
+        <div v-if="form.observation === 'other'" class="tw-space-y-2">
+          <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+            <i class="pi pi-pencil tw-text-orange-600"></i>Custom Observation
+          </label>
+          <Textarea
+            v-model="customObservation"
+            rows="3"
+            placeholder="Enter custom observation..."
+            class="tw-w-full"
+          />
+        </div>
+      </Transition>
 
       <!-- Initial Prestation (Surgery Only) using PrestationSearch Component -->
       <Transition name="fade">
@@ -289,6 +354,14 @@
       </div>
     </template>
   </Dialog>
+
+  <!-- ConventionManagement Modal -->
+  <ConventionManagement
+    v-if="currentFicheNavette"
+    v-model:visible="showConventionModal"
+    :ficheNavetteId="currentFicheNavette.id"
+    @convention-items-added="onConventionItemsAdded"
+  />
 </template>
 
 <script setup>
@@ -299,11 +372,13 @@ import Button from 'primevue/button'
 import Dropdown from 'primevue/dropdown'
 import Textarea from 'primevue/textarea'
 import InputText from 'primevue/inputtext'
+import Tag from 'primevue/tag'
 import { useToastr } from '@/Components/toster'
 import { AdmissionService } from '@/services/admissionService'
 import PatientSearch from '@/Pages/Appointments/PatientSearch.vue'
 import CompanionSearch from '@/Components/CompanionSearch.vue'
 import PrestationSearch from '@/Components/PrestationSearch.vue'
+import ConventionManagement from '@/Components/Apps/Emergency/FicheNavatteItem/ConventionManagement.vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -333,6 +408,7 @@ const form = ref({
   type: 'nursing',
   initial_prestation_id: '',
   fiche_navette_id: '',
+  file_number: '',
   observation: '',
   company_id: '',
   social_security_num: '',
@@ -343,11 +419,27 @@ const loading = ref(false)
 const errors = ref({})
 const creatingFiche = ref(false)
 const loadingDoctors = ref(false)
+const showConventionModal = ref(false)
 
 const doctors = ref([])
 const companies = ref([])
 const relationTypes = ref([])
 const loadingCompanies = ref(false)
+
+const observationTypes = ref([
+  { value: 'Hotellerie', label: 'Hotellerie' },
+  { value: 'Hotellerie pour MAPA (Holter Tensionnel)', label: 'Hotellerie pour MAPA (Holter Tensionnel)' },
+  { value: 'Hotellerie Holter ECG', label: 'Hotellerie Holter ECG' },
+  { value: 'Non Hospit. - Admis(e) & Sortie par Pavillon des Urgences', label: 'Non Hospit. - Admis(e) & Sortie par Pavillon des Urgences' },
+  { value: 'Non Hospit. - Admis(e), Opéré(e), Réglé(e) & Sortie par Pavillon des Urgences', label: 'Non Hospit. - Admis(e), Opéré(e), Réglé(e) & Sortie par Pavillon des Urgences' },
+  { value: 'Non Hospit. - Evacuation - *vers autre(s) structure(s)*', label: 'Non Hospit. - Evacuation - *vers autre(s) structure(s)*' },
+  { value: 'Sortie Contre Avis Médical', label: 'Sortie Contre Avis Médical' },
+  { value: 'Non Hospit. - Sortie Contre Avis Médical', label: 'Non Hospit. - Sortie Contre Avis Médical' },
+  { value: 'P. E. C. (Voir Direction)', label: 'P. E. C. (Voir Direction)' },
+  { value: 'other', label: 'Other (Custom)' },
+])
+
+const customObservation = ref('')
 
 const selectedPatient = ref(null)
 const selectedDoctor = ref(null)
@@ -497,6 +589,25 @@ const onTypeChange = () => {
   }
 }
 
+const onConventionItemsAdded = (data) => {
+  // Auto-populate from convention selection
+  if (data.doctor_id && doctors.value.length > 0) {
+    form.value.doctor_id = data.doctor_id
+    selectedDoctor.value = doctors.value.find(d => d.id === data.doctor_id) || null
+  }
+  if (data.prestation_id && form.value.type === 'surgery') {
+    form.value.initial_prestation_id = data.prestation_id
+    selectedPrestation.value = data.prestation || null
+    if (selectedPrestation.value) {
+      prestationSearchValue.value = selectedPrestation.value.name
+    }
+  }
+  if (data.company_id) {
+    form.value.company_id = data.company_id
+  }
+  showConventionModal.value = false
+}
+
 const submitForm = async () => {
   errors.value = {}
   loading.value = true
@@ -504,13 +615,19 @@ const submitForm = async () => {
   try {
     let response
     
+    // Use custom observation if 'other' is selected
+    const formData = { ...form.value }
+    if (formData.observation === 'other') {
+      formData.observation = customObservation.value
+    }
+    
     if (isEditMode.value && editingAdmission.value) {
       // Update existing admission
-      response = await AdmissionService.updateAdmission(editingAdmission.value.id, form.value)
+      response = await AdmissionService.updateAdmission(editingAdmission.value.id, formData)
       toastr.success('Admission updated successfully')
     } else {
       // Create new admission
-      response = await AdmissionService.createAdmission(form.value)
+      response = await AdmissionService.createAdmission(formData)
       toastr.success('Admission created successfully')
     }
     
@@ -548,6 +665,7 @@ const openModal = async (admission = null) => {
       type: admission.type,
       initial_prestation_id: admission.initial_prestation_id || '',
       fiche_navette_id: admission.fiche_navette_id || '',
+      file_number: admission.file_number || '',
       observation: admission.observation || '',
       company_id: admission.company_id || '',
       social_security_num: admission.social_security_num || '',
@@ -581,13 +699,17 @@ const openModal = async (admission = null) => {
     prestationSearchValue.value = selectedPrestation.value ? 
       selectedPrestation.value.name : ''
     
-    companionSearchValue.value = selectedCompanion.value ? 
-      `${selectedCompanion.value.first_name} ${selectedCompanion.value.last_name}` : ''
-    
-    // Set current fiche navette if exists
-    currentFicheNavette.value = admission.fiche_navette || null
-    
-  } else {
+  companionSearchValue.value = selectedCompanion.value ? 
+    `${selectedCompanion.value.first_name} ${selectedCompanion.value.last_name}` : ''
+  
+  // Set current fiche navette if exists
+  currentFicheNavette.value = admission.fiche_navette || null
+  
+  // Check if observation is a custom value (not in predefined list)
+  if (admission.observation && !observationTypes.value.find(o => o.value === admission.observation)) {
+    customObservation.value = admission.observation
+    form.value.observation = 'other'
+  }  } else {
     // Create mode
     isEditMode.value = false
     editingAdmission.value = null
@@ -621,6 +743,7 @@ const resetForm = () => {
     type: 'nursing',
     initial_prestation_id: '',
     fiche_navette_id: '',
+    file_number: '',
     observation: '',
     company_id: '',
     social_security_num: '',
@@ -631,6 +754,7 @@ const resetForm = () => {
   selectedPrestation.value = null
   selectedCompanion.value = null
   currentFicheNavette.value = null
+  customObservation.value = ''
   patientSearchValue.value = ''
   companionSearchValue.value = ''
   prestationSearchValue.value = ''

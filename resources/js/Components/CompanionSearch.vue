@@ -3,6 +3,7 @@ import { ref, onMounted, watch } from 'vue';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import { useToastr } from '@/Components/toster';
+import PatientModel from '@/Components/PatientModel.vue';
 
 // PrimeVue Components
 import InputText from 'primevue/inputtext';
@@ -34,6 +35,8 @@ const companions = ref([]);
 const isLoading = ref(false);
 const searchQuery = ref('');
 const selectedCompanion = ref(null);
+const isModalOpen = ref(false);
+const isEditMode = ref(false);
 
 const op = ref();
 const searchInputRef = ref(null);
@@ -43,6 +46,25 @@ watch(() => props.modelValue, (newValue) => {
         searchQuery.value = newValue;
     }
 }, { immediate: true });
+
+const openModal = (edit = false) => {
+    isModalOpen.value = true;
+    isEditMode.value = edit;
+    if (!edit) {
+        selectedCompanion.value = null;
+    }
+};
+
+const closeModal = () => {
+    isModalOpen.value = false;
+    isEditMode.value = false;
+};
+
+const handleCompanionAdded = (newCompanion) => {
+    closeModal();
+    selectCompanion(newCompanion);
+    toastr.success(isEditMode.value ? 'Companion updated successfully' : 'Companion added successfully');
+};
 
 const resetSearch = () => {
     searchQuery.value = '';
@@ -140,24 +162,43 @@ const onInputFocus = (event) => {
 
 <template>
     <div class="tw-w-full">
-        <!-- Search Input Section -->
-        <div class="tw-flex-1 tw-relative">
-            <div class="tw-flex tw-items-center tw-gap-2">
-                <InputText
-                    ref="searchInputRef"
-                    v-model="searchQuery"
-                    @input="handleSearch"
-                    :placeholder="placeholder || 'Search companion by name or phone...'"
-                    class="tw-w-full"
-                    @focus="onInputFocus"
-                    :disabled="disabled"
-                    :readonly="readonly"
+        <div class="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-mb-2">
+            <!-- Search Input Section -->
+            <div class="tw-flex-1 tw-relative">
+                <div class="tw-flex tw-items-center tw-gap-2">
+                    <InputText
+                        ref="searchInputRef"
+                        v-model="searchQuery"
+                        @input="handleSearch"
+                        :placeholder="placeholder || 'Search companion by name or phone...'"
+                        class="tw-w-full"
+                        @focus="onInputFocus"
+                        :disabled="disabled"
+                        :readonly="readonly"
+                    />
+                    <Button
+                        v-if="searchQuery"
+                        icon="pi pi-times"
+                        class="p-button-secondary p-button-text tw-ml-auto"
+                        @click="resetSearch"
+                    />
+                </div>
+            </div>
+
+            <!-- Action Buttons Section -->
+            <div class="tw-flex tw-gap-2 tw-justify-end">
+                <Button
+                    v-if="selectedCompanion"
+                    label="Edit Companion"
+                    icon="pi pi-user-edit"
+                    class="p-button-secondary p-button-sm tw-rounded-full"
+                    @click="openModal(true)"
                 />
                 <Button
-                    v-if="searchQuery"
-                    icon="pi pi-times"
-                    class="p-button-secondary p-button-text tw-ml-auto"
-                    @click="resetSearch"
+                    label="Add New Companion"
+                    icon="pi pi-user-plus"
+                    class="p-button-primary p-button-sm tw-rounded-full"
+                    @click="openModal(false)"
                 />
             </div>
         </div>
@@ -239,6 +280,14 @@ const onInputFocus = (event) => {
                 </div>
             </template>
         </OverlayPanel>
+
+        <!-- Companion Modal -->
+        <PatientModel
+            :show-modal="isModalOpen"
+            :spec-data="selectedCompanion"
+            @close="closeModal"
+            @specUpdate="handleCompanionAdded"
+        />
     </div>
 </template>
 
