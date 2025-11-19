@@ -333,8 +333,8 @@ const moreInfo = (contract) => {
                         <template #body="slotProps">
                             <span
                                 :class="['status-tag', {
-                                    active: slotProps.data.status === 'Active',
-                                    pending: slotProps.data.status === 'Pending',
+                                    active: slotProps.data.status === 'active',
+                                    pending: slotProps.data.status === 'pending',
                                     expired: slotProps.data.status === 'Terminated'
                                 }]"
                             >

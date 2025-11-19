@@ -2,94 +2,87 @@
 
 namespace App\Services\B2B;
 
-use App\Models\B2B\Avenant;
 use App\Models\B2B\Annex;
-use App\Models\B2B\PrestationPricing; // Ensure this is correctly imported
+use App\Models\B2B\Avenant;
+use App\Models\B2B\Convention; // Ensure this is correctly imported
 use App\Models\B2B\ConventionDetail;
-use App\Models\B2B\Convention;
-use Illuminate\Support\Facades\DB;
+use App\Models\B2B\PrestationPricing;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class AvenantService
 {
     /**
      * Duplicates all latest prestations and agreement details for a convention
-     * and creates a new Avenant with 'head' = 'yes' (first avenant for the convention).
+     * and creates a new Avenant with 'head' = true (first avenant for the convention).
      *
-     * @param int $conventionId
-     * @param int|null $creatorId User ID of the creator (optional, but good for tracking)
-     * @return array
+     * @param  int|null  $creatorId  User ID of the creator (optional, but good for tracking)
+     *
      * @throws \Exception
      */
     public function duplicateAllPrestationsWithNewAvenant(int $conventionId, ?int $creatorId = null): array
     {
         return DB::transaction(function () use ($conventionId, $creatorId) {
-            // Create a new Avenant with head = 'yes' and status = 'Pending'
+            // Create a new Avenant with head = true and status = 'pending'
             $newAvenant = Avenant::create([
                 'convention_id' => $conventionId,
+                'name' => 'New Avenant',
+                'description' => 'Avenant created with duplicated prestations',
                 'status' => 'pending',
-                'head' => 'yes',
+                'head' => true,
                 'creator_id' => $creatorId,
+                'start_date' => now(),
             ]);
 
             $newAvenantId = $newAvenant->id;
 
-            // Get annexes for the convention
-            $annexIds = Annex::where('convention_id', $conventionId)->pluck('id')->toArray();
+            // Get all annexes for the convention
+            $annexes = Annex::where('convention_id', $conventionId)->get();
 
-            if (empty($annexIds)) {
-                // Consider if this should throw an error or just proceed without duplicating prestations
-                // For now, I'll allow it to proceed, but log/warn if no annexes.
+            if ($annexes->isEmpty()) {
+                throw new \Exception('No annexes found for convention. Cannot duplicate prestations.');
             }
 
-            // Get all latest prestations linked to these annexes (where updated_by_id is NULL)
-            $prestations = PrestationPricing::whereIn('annex_id', $annexIds)
-                                            ->whereNull('avenant_id') // Filter for base prestations not yet part of an avenant
-                                            ->whereNull('updated_by_id') // Assuming this marks the latest original
-                                            ->get();
             $newPrestationIds = [];
 
-            // Duplicate Prestations
-            foreach ($prestations as $oldPrestation) {
-                // Insert duplicated prestation linked to the new Avenant with head = 'no'
-                $newPrestation = PrestationPricing::create([
-                    'prestation_id' => $oldPrestation->prestation_id, // CHANGED FROM prestation_list_id
-                    'prix' => $oldPrestation->prix, // Consistent with model
-                    'patient_price' => $oldPrestation->patient_price, // Consistent with model
-                    'company_price' => $oldPrestation->company_price, // Consistent with model
-                    'annex_id' => $oldPrestation->annex_id,
-                    'avenant_id' => $newAvenantId,
-                    'head' => 'no',
-                    // 'activation_at' will be set when the avenant is activated
-                ]);
+            // Duplicate prestations from all annexes
+            foreach ($annexes as $annex) {
+                $annexPrestations = PrestationPricing::where('annex_id', $annex->id)->get();
 
-                // Update the old prestation to point to the new duplicated prestation
-                $oldPrestation->update(['updated_by_id' => $newPrestation->id]);
+                foreach ($annexPrestations as $annexPrestation) {
+                    // Create a copy in the avenant
+                    $newPrestation = PrestationPricing::create([
+                        'avenant_id' => $newAvenantId,
+                        'prestation_id' => $annexPrestation->prestation_id,
+                        'contract_percentage_id' => $annexPrestation->contract_percentage_id,
+                        'discount_percentage' => $annexPrestation->discount_percentage,
+                        'max_price' => $annexPrestation->max_price,
+                        'company_price' => $annexPrestation->company_price,
+                        'patient_price' => $annexPrestation->patient_price,
+                        'head' => true, // Mark as head for the avenant
+                    ]);
 
-                $newPrestationIds[] = ['oldId' => $oldPrestation->id, 'newId' => $newPrestation->id];
+                    $newPrestationIds[] = ['oldId' => $annexPrestation->id, 'newId' => $newPrestation->id];
+                }
             }
 
-            // Duplicate ConventionDetail (only the latest where updated_by_id is NULL)
-            $ConventionDetail = ConventionDetail::where('convention_id', $conventionId)
-                                                ->whereNull('updated_by_id') // Assuming this marks the latest
-                                                ->first();
+            // Duplicate ConventionDetail if it exists
+            $conventionDetail = ConventionDetail::where('convention_id', $conventionId)
+                ->whereNull('avenant_id') // Get the base convention detail
+                ->first();
 
-            if ($ConventionDetail) {
-                // Insert the new ConventionDetail with head = 'no' (duplicate with new avenant_id)
-                $newAgreementDetail = ConventionDetail::create([
+            if ($conventionDetail) {
+                ConventionDetail::create([
                     'convention_id' => $conventionId,
                     'avenant_id' => $newAvenantId,
-                    'head' => 'no',
-                    'start_date' => $ConventionDetail->start_date,
-                    'end_date' => $ConventionDetail->end_date,
-                    'family_auth' => $ConventionDetail->family_auth,
-                    'max_price' => $ConventionDetail->max_price,
-                    'min_price' => $ConventionDetail->min_price,
-                    'discount_percentage' => $ConventionDetail->discount_percentage,
+                    'head' => true,
+                    'start_date' => $conventionDetail->start_date,
+                    'end_date' => $conventionDetail->end_date,
+                    'family_auth' => $conventionDetail->family_auth,
+                    'max_price' => $conventionDetail->max_price,
+                    'min_price' => $conventionDetail->min_price,
+                    'discount_percentage' => $conventionDetail->discount_percentage,
                 ]);
-
-                // Update the old ConventionDetail to point to the new one
-                $ConventionDetail->update(['updated_by_id' => $newAgreementDetail->id]);
             }
 
             return ['avenantId' => $newAvenantId, 'prestations' => $newPrestationIds];
@@ -100,9 +93,8 @@ class AvenantService
      * Duplicates all latest prestations and agreement details for a convention
      * and creates a new Avenant linked to an existing, latest Avenant.
      *
-     * @param int $conventionId
-     * @param int|null $creatorId User ID of the creator (optional)
-     * @return array
+     * @param  int|null  $creatorId  User ID of the creator (optional)
+     *
      * @throws \Exception
      */
     public function duplicateAllPrestationsWithExistingAvenant(int $conventionId, ?int $creatorId = null): array
@@ -110,84 +102,70 @@ class AvenantService
         return DB::transaction(function () use ($conventionId, $creatorId) {
             // 1. Find the latest active avenant for this convention
             $oldAvenant = Avenant::where('convention_id', $conventionId)
-                                    ->where('status', 'active')
-                                    ->whereNull('updated_by_id')
-                                    ->latest('id')
-                                    ->first();
+                ->where('status', 'active')
+                ->latest('id')
+                ->first();
 
-            if (!$oldAvenant) {
+            if (! $oldAvenant) {
                 throw new \Exception('No existing active avenant found for convention to duplicate from. Please activate an avenant first or create a new one.');
             }
 
-            // 2. Create a new avenant (head = 'no', status = 'pending')
+            // 2. Create a new avenant (head = false, status = 'pending')
             $newAvenant = Avenant::create([
                 'convention_id' => $conventionId,
+                'name' => 'Additional Avenant',
+                'description' => 'Avenant created with duplicated prestations from existing avenant',
                 'status' => 'pending',
-                'head' => 'no',
+                'head' => false,
                 'creator_id' => $creatorId,
+                'start_date' => now(),
             ]);
             $newAvenantId = $newAvenant->id;
 
-            // 3. Mark the old avenant as having been updated (by the new avenant's creation implicitly, not by user)
-            if ($oldAvenant->head === 'yes') {
-                $oldAvenant->update(['head' => 'no']);
+            // 3. Mark the old avenant as no longer head
+            if ($oldAvenant->head === true) {
+                $oldAvenant->update(['head' => false]);
             }
 
             $newPrestationIds = [];
 
-            // 4. Get annexes for the convention
-            $annexIds = Annex::where('convention_id', $conventionId)->pluck('id')->toArray();
+            // 4. Get all prestations from the old avenant
+            $prestations = PrestationPricing::where('avenant_id', $oldAvenant->id)->get();
 
-            if (empty($annexIds)) {
-                throw new \Exception('No annexes found for convention.');
-            }
-
-            // 5. Get all latest prestations linked to old avenant
-            $prestations = PrestationPricing::whereIn('annex_id', $annexIds)
-                                            ->where('avenant_id', $oldAvenant->id)
-                                            ->whereNull('updated_by_id') // Assuming this marks the latest
-                                            ->get();
-
-            // 6. Duplicate Prestations
+            // Duplicate Prestations
             foreach ($prestations as $oldPrestation) {
+                // Duplicate prestation pricing for the new avenant
                 $newPrestation = PrestationPricing::create([
-                    'prestation_id' => $oldPrestation->prestation_id, // CHANGED FROM prestation_list_id
-                    'prix' => $oldPrestation->prix, // Consistent with model
-                    'patient_price' => $oldPrestation->patient_price, // Consistent with model
-                    'company_price' => $oldPrestation->company_price, // Consistent with model
-                    'annex_id' => $oldPrestation->annex_id,
+                    'prestation_id' => $oldPrestation->prestation_id,
+                    'contract_percentage_id' => $oldPrestation->contract_percentage_id,
+                    'discount_percentage' => $oldPrestation->discount_percentage,
+                    'max_price' => $oldPrestation->max_price,
+                    'company_price' => $oldPrestation->company_price,
+                    'patient_price' => $oldPrestation->patient_price,
                     'avenant_id' => $newAvenantId,
-                    'head' => 'no',
-                    // 'activation_at' will be set when the avenant is activated
+                    'head' => true, // Mark as head for the new avenant
                 ]);
-
-                // Update the old prestation to point to the new one
-                $oldPrestation->update(['updated_by_id' => $newPrestation->id]);
 
                 $newPrestationIds[] = ['oldId' => $oldPrestation->id, 'newId' => $newPrestation->id];
             }
 
             // 7. Duplicate ConventionDetail
-            $ConventionDetail = ConventionDetail::where('convention_id', $conventionId)
-                                                ->where('avenant_id', $oldAvenant->id)
-                                                ->whereNull('updated_by_id') // Assuming this marks the latest
-                                                ->first();
+            $conventionDetail = ConventionDetail::where('convention_id', $conventionId)
+                ->where('avenant_id', $oldAvenant->id)
+                ->first();
 
-            if ($ConventionDetail) {
-                $newAgreementDetail = ConventionDetail::create([
+            if ($conventionDetail) {
+                ConventionDetail::create([
                     'convention_id' => $conventionId,
                     'avenant_id' => $newAvenantId,
-                    'head' => 'no',
-                    'start_date' => $ConventionDetail->start_date,
-                    'end_date' => $ConventionDetail->end_date,
-                    'family_auth' => $ConventionDetail->family_auth,
-                    'max_price' => $ConventionDetail->max_price,
-                    'min_price' => $ConventionDetail->min_price,
-                    'discount_percentage' => $ConventionDetail->discount_percentage,
+                    'head' => true,
+                    'start_date' => $conventionDetail->start_date,
+                    'end_date' => $conventionDetail->end_date,
+                    'family_auth' => $conventionDetail->family_auth,
+                    'max_price' => $conventionDetail->max_price,
+                    'min_price' => $conventionDetail->min_price,
+                    'discount_percentage' => $conventionDetail->discount_percentage,
                 ]);
-
-                // Update old agreement detail to point to new one
-                $ConventionDetail->update(['updated_by_id' => $newAgreementDetail->id]);
             }
 
             return ['avenantId' => $newAvenantId, 'prestations' => $newPrestationIds];
@@ -197,11 +175,9 @@ class AvenantService
     /**
      * Activates an avenant by its ID, handling delayed activation and deactivating predecessors.
      *
-     * @param int $avenantId
-     * @param string $activationDate Date string (YYYY-MM-DD)
-     * @param bool $isDelayedActivation
-     * @param int|null $approverId User ID of the approver (optional)
-     * @return array
+     * @param  string  $activationDate  Date string (YYYY-MM-DD)
+     * @param  int|null  $approverId  User ID of the approver (optional)
+     *
      * @throws \Exception
      */
     public function activateAvenantById(int $avenantId, string $activationDate, bool $isDelayedActivation, ?int $approverId = null): array
@@ -220,11 +196,11 @@ class AvenantService
 
                 // Update activation_at for related prestation prices (assuming this column exists)
                 PrestationPricing::where('avenant_id', $avenantId)
-                               ->update(['activation_at' => $activationCarbon]);
+                    ->update(['activation_at' => $activationCarbon]);
 
                 // Update activation_at for related agreement details (assuming this column exists)
                 ConventionDetail::where('avenant_id', $avenantId)
-                               ->update(['start_date' => $activationCarbon]); // Assuming start_date is the activation date for agreement details
+                    ->update(['start_date' => $activationCarbon]); // Assuming start_date is the activation date for agreement details
 
                 return [
                     'avenantId' => $avenantId,
@@ -235,29 +211,28 @@ class AvenantService
                 // Deactivate any currently active avenants for this convention
                 // Set their status to 'archived' or 'inactive' and set inactive_at
                 Avenant::where('convention_id', $avenant->convention_id)
-                       ->where('status', 'active')
-                       ->update([
-                           'status' => 'archived',
-                           'inactive_at' => $activationCarbon,
-                           'head' => 'no' // The old active avenant is no longer the head
-                       ]);
+                    ->where('status', 'active')
+                    ->update([
+                        'status' => 'archived',
+                        'inactive_at' => $activationCarbon,
+                        'head' => false, // The old active avenant is no longer the head
+                    ]);
 
                 // Now activate the new avenant
                 $avenant->update([
                     'status' => 'active',
                     'activation_at' => $activationCarbon,
                     'approver_id' => $approverId,
-                    'head' => 'yes' // This new avenant becomes the active head
+                    'head' => true, // This new avenant becomes the active head
                 ]);
 
                 // Update activation_at for related prestation prices
                 PrestationPricing::where('avenant_id', $avenantId)
-                               ->update(['activation_at' => $activationCarbon]);
+                    ->update(['activation_at' => $activationCarbon]);
 
                 // Update activation_at for related agreement details
                 ConventionDetail::where('avenant_id', $avenantId)
-                               ->update(['start_date' => $activationCarbon]);
-
+                    ->update(['start_date' => $activationCarbon]);
 
                 return [
                     'avenantId' => $avenantId,
@@ -270,9 +245,6 @@ class AvenantService
 
     /**
      * Get an avenant by its ID.
-     *
-     * @param int $avenantId
-     * @return Avenant|null
      */
     public function getAvenantById(int $avenantId): ?Avenant
     {
@@ -281,27 +253,23 @@ class AvenantService
 
     /**
      * Find a pending avenant for a given convention ID.
-     *
-     * @param int $conventionId
-     * @return Avenant|null
      */
     public function findPendingAvenantByConventionId(int $conventionId): ?Avenant
     {
         return Avenant::where('convention_id', $conventionId)
-                      ->where('status', 'pending')
-                      ->first();
+            ->where('status', 'pending')
+            ->first();
     }
 
     /**
      * Get all avenants for a given convention ID.
      *
-     * @param int $conventionId
      * @return \Illuminate\Database\Eloquent\Collection
      */
     public function getAvenantsByConventionId(int $conventionId)
     {
         return Avenant::where('convention_id', $conventionId)
-                      ->orderBy('id', 'desc')
-                      ->get();
+            ->orderBy('id', 'desc')
+            ->get();
     }
 }

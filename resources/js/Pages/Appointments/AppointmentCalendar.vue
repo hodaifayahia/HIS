@@ -150,7 +150,7 @@ watch(selectedDate, checkDateAvailability);
       <div class="card-body">
         <TimeSlotSelector 
           :date="formattedDate" 
-          :doctorid="props.doctorId" 
+          :doctorId="props.doctorId" 
           @timeSelected="handleTimeSelected"
           @availabilityChecked="handleAvailabilityChecked" 
           class="mt-3" 

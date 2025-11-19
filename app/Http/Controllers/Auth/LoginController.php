@@ -16,7 +16,7 @@ class LoginController extends AuthenticatedSessionController
     public function store(Request $request)
     {
         $request->validate([
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required',
             'mode' => 'sometimes|in:system,portal'
         ]);
@@ -34,7 +34,7 @@ class LoginController extends AuthenticatedSessionController
                 'success' => true,
                 'message' => 'Login successful',
                 'mode' => $request->input('mode', 'system'),
-                'redirect' => $request->input('mode') === 'portal' ? '/portal' : '/home',
+                'redirect' => $request->input('mode') === 'portal' ? '/portal' : '/',
                 'user' => Auth::user()
             ], 200);
         }

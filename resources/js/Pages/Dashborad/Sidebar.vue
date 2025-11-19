@@ -35,31 +35,32 @@ const toggleConsultationMenu = () => {
     isConsultationMenuOpen.value = !isConsultationMenuOpen.value;
 };
 
-// Logout Function
+// Logout Function - uses auth store for SPA logout
 const logout = async () => {
     try {
-        await axios.post('/logout');
-        window.location.href = '/login';
+        await authStore.logout()
     } catch (error) {
+        // Force logout even if API call fails
+        authStore.clearAuth()
         console.error('Error logging out:', error);
     }
 };
 
 // Function to fetch the initial pending count
-const fetchPendingRequestCount = async (doctorId) => {
-    try {
-        const response = await axios.get(`/api/opinion-requests/pending-opinion-requests-count/${doctorId}`);
-        pendingDoctorRequestCount.value = response.data.count;
-    } catch (error) {
-        console.error('Error fetching pending request count:', error);
-        pendingDoctorRequestCount.value = 0; // Reset or handle error
-    }
-};
+// const fetchPendingRequestCount = async (doctorId) => {
+//     try {
+//         const response = await axios.get(`/api/opinion-requests/pending-opinion-requests-count/${doctorId}`);
+//         pendingDoctorRequestCount.value = response.data.count;
+//     } catch (error) {
+//         console.error('Error fetching pending request count:', error);
+//         pendingDoctorRequestCount.value = 0; // Reset or handle error
+//     }
+// };
 
 
 onMounted(async () => {
     // Only listen for doctor role
-    if (props.user.data.role === 'doctor') {
+    if (props.user?.role === 'doctor') {
         try {
             // Fetch doctor data to get the doctor ID
             await doctorStore.getDoctor();
@@ -71,7 +72,7 @@ onMounted(async () => {
                 console.log('Doctor data:', doctorStore.doctorData);
 
                 // Fetch initial count
-                await fetchPendingRequestCount(doctorId);
+                // await fetchPendingRequestCount(doctorId);
 
 
                 // Create the private channel using the doctor ID from store
@@ -124,7 +125,7 @@ onMounted(async () => {
         }
     } else {
         console.log('WebSocket not initialized - user is not a doctor:', {
-            role: props.user.data.role,
+            role: props.user.role,
             user: props.user
         });
     }
@@ -146,8 +147,8 @@ watch(
     (newPath) => {
         // When navigating to the opinion receiver page, re-fetch the count
         // to ensure it's accurate after the user has potentially viewed requests.
-        if (newPath === '/doctor/opinionReciver' && props.user.data.role === 'doctor' && doctorStore.doctorData.id) {
-            fetchPendingRequestCount(doctorStore.doctorData.id);
+        if (newPath === '/doctor/opinionReciver' && props.user?.role === 'doctor' && doctorStore.doctorData.id) {
+            // fetchPendingRequestCount(doctorStore.doctorData.id);
         }
     }
 );
@@ -175,11 +176,11 @@ const playNotificationSound = () => {
         <div class="sidebar ">
             <div class="user-panel mt-3 pb-3 mb-3 d-flex justify-content-between">
                 <div class="image">
-                    <img :src="user.avatar" class="img-circle elevation-2 mr-2" alt="User Image"
+                    <img :src="user?.avatar || '/storage/default.png'" class="img-circle elevation-2 mr-2" alt="User Image"
                         style="height: 40px; width: 40px; object-fit: cover;">
                 </div>
                 <div class="info ">
-                    <a href="#" class="d-block text-center mr-5 mt-1">{{ user.name }}</a>
+                    <a href="#" class="d-block text-center mr-5 mt-1">{{ user?.name || 'User' }}</a>
                 </div>
             </div>
 
@@ -198,15 +199,16 @@ const playNotificationSound = () => {
                             <p>Calendar</p>
                         </router-link>
                     </li>
-                    <template v-if="user.data.role === 'admin' || user.data.role === 'SuperAdmin'">
+                     <template v-if="user?.role === 'SuperAdmin' || user?.role === 'admin'">
                         <li class="nav-item">
                             <router-link to="/admin/appointments/users" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
                                 <p>Users</p>
                             </router-link>
                         </li>
+
                         <li class="nav-item">
-                            <router-link to="/admin/appointments/Roles" active-class="active" class="nav-link">
+                            <router-link to="/admin/appointments/roles" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-user-cog"></i> <p>Roles</p>
                             </router-link>
                         </li>
@@ -231,7 +233,7 @@ const playNotificationSound = () => {
                         </li>
                     </template>
                     <template
-                        v-if="user.data.role === 'admin' || user.data.role === 'receptionist' || user.data.role === 'SuperAdmin'">
+                        v-if="user?.role === 'admin' || user?.role === 'receptionist' || user?.role === 'SuperAdmin'">
                         <li class="nav-item">
                             <router-link to="/admin/appointments/doctors" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-users"></i>
@@ -257,27 +259,15 @@ const playNotificationSound = () => {
                                 <p>Waitlist</p>
                             </router-link>
                         </li>
-                    <li class="nav-item">
-                        <router-link to="/admin/appointments/modality-appointment" active-class="active" class="nav-link">
-                            <i class="nav-icon fas fa-calendar-check"></i>
-                            <p>Modality Appointment</p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/admin/appointments/modality-appointment/forceAppointment" active-class="active" class="nav-link">
-                            <i class="nav-icon fas fa-user-shield"></i>
-                            <p>Modality Force Appointment</p>
-                        </router-link>
-                    </li>
                     </template>
                      <li class="nav-item">
-                            <router-link to="/admin/appointments/patient" active-class="active" class="nav-link">
+                            <router-link to="/admin/appointments/thepatients" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-user-injured"></i>
                                 <p>Patient</p>
                             </router-link>
                         </li>
 
-                    <template v-if="user.data.role === 'doctor'">
+                    <template v-if="user?.role === 'doctor' ">
                         <li class="nav-item">
                             <router-link to="/doctor/appointments" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-calendar-check"></i>
@@ -291,15 +281,16 @@ const playNotificationSound = () => {
                             </router-link>
                         </li>
                         <li class="nav-item">
-                            <router-link to="/doctor/avilability" active-class="active" class="nav-link">
+                            <router-link to="/doctor/schedule" active-class="active" class="nav-link">
                                 <i class="nav-icon fas fa-user-clock"></i>
-                                <p>Availability</p>
+                                <p>schedule</p>
                             </router-link>
                         </li>
+                      
                         <li class="nav-item">
-                            <router-link to="/admin/doctors/schedule" active-class="active" class="nav-link">
-                                <i class="nav-icon fas fa-calendar-alt"></i>
-                                <p>Schedule</p>
+                            <router-link to="/doctor/availability" active-class="active" class="nav-link">
+                                <i class="nav-icon fas fa-user-shield"></i>
+                                <p>availability</p>
                             </router-link>
                         </li>
                         <li class="nav-item">
@@ -327,7 +318,7 @@ const playNotificationSound = () => {
                         </li>
                     </template>
 
-                    <template v-if="['admin', 'doctor', 'SuperAdmin'].includes(user.data.role)">
+                                        <template v-if="['admin', 'doctor', 'secretary', 'SuperAdmin'].includes(user?.role)">
                         <li class="nav-item">
                             <router-link to="/admin/consultations/consultation" active-class="active" class="nav-link">
                                 <i class="fas fa-clipboard nav-icon"></i>

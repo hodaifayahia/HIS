@@ -443,7 +443,7 @@ onMounted(async () => {
           <button @click="previousMonth" class="btn btn-light btn-sm me-2">
             &lt; <!-- Left arrow for previous month -->
           </button>
-          <span class="fw-bold mx-3 fs-5">{{ currentMonthYear }}</span>
+          <span class="fw-bold mx-3 fs-5 " style="color:black;">{{ currentMonthYear }}</span>
           <button @click="nextMonth" class="btn btn-light btn-sm ms-2">
             &gt; <!-- Right arrow for next month -->
           </button>

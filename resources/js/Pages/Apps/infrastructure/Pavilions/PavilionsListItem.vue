@@ -51,10 +51,10 @@ const GotoPavilionsService = (id) => {
         <td class="table-cell">{{ formattedCreatedAt }}</td>
         <td class="table-cell actions-cell">
             <div class="action-buttons">
-                <button @click="emit('edit', pavilion)" class="action-button edit-button">
+                <button @click.prevent.stop="emit('edit', pavilion)" class="action-button edit-button">
                     <i class="fas fa-edit button-icon"></i> <span class="button-text"></span>
                 </button>
-                <button @click="emit('delete', pavilion.id)" class="action-button delete-button">
+                <button @click.prevent.stop="emit('delete', pavilion.id)" class="action-button delete-button">
                     <i class="fas fa-trash button-icon"></i> <span class="button-text"></span>
                 </button>
             </div>

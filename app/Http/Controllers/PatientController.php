@@ -9,16 +9,22 @@ use App\Models\Appointment;
 use App\Models\Patient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class PatientController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        // Paginate the patients with a specific number of items per page (e.g., 5)
-        $patients = Patient::paginate(10);
+        $page = $request->get('page', 1);
+        $cacheKey = "patients_list_page_{$page}";
+        
+        // Cache patients list for 10 minutes (600 seconds)
+        $patients = Cache::remember($cacheKey, 600, function () {
+            return Patient::paginate(10);
+        });
     
         return [
             'data' => PatientResource::collection($patients),
@@ -37,27 +43,40 @@ class PatientController extends Controller
      */
     public function store(Request $request)
     {
+        
         $validatedData = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string', 
+            'Firstname' => 'required|string|max:255',
+            'Lastname' => 'required|string|max:255',
             'phone' => 'nullable|string',
-            'gender' => 'required|string',
+            'gender' => 'required|string', // 0 for
             'Parent' => 'nullable|string',
-            'dateOfBirth' => 'nullable|date|string',
+            'dateOfBirth' => 'nullable|date',
             'Idnum' => 'nullable|string|max:20', // Assuming ID can be up to 20 characters long
         ]);
     
+        // Parse dateOfBirth if provided
+        $dateOfBirth = null;
+        if (!empty($validatedData['dateOfBirth'])) {
+            try {
+                $dateOfBirth = \Carbon\Carbon::parse($validatedData['dateOfBirth'])->format('Y-m-d');
+            } catch (\Exception $e) {
+                $dateOfBirth = null;
+            }
+        }
+    
         $patient = Patient::create([
-            'Firstname' => $validatedData['first_name'],
-            'Lastname' => $validatedData['last_name'],
+            'Firstname' => $validatedData['Firstname'],
+            'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
-            'gender' => $validatedData['gender'],
-            'dateOfBirth' => $validatedData['dateOfBirth'] ?? null, // Handle optional date
-            'Parent' => $validatedData['Parent'] ?? null, // Handle optional date
+            'gender' => $validatedData['gender'] =='male' ? 1 : 0, // Convert to integer
+            'dateOfBirth' => $dateOfBirth,
+            'Parent' => $validatedData['Parent'] ?? null, // Handle optional parent
             'Idnum' => $validatedData['Idnum'] ?? null, // Handle optional ID number
             'created_by' => Auth::id(), // Assuming you're using Laravel's built-in authentication
         ]);
        
+        // Clear cache when new patient is created
+        Cache::flush(); // Or use Cache::tags(['patients'])->flush() if using cache tags
     
         return new PatientResource($patient);
     }
@@ -65,64 +84,91 @@ class PatientController extends Controller
     public function update(Request $request,  $patientid)
     {
         $validatedData = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string',
+           'Firstname' => 'required|string|max:255',
+            'Lastname' => 'required|string|max:255',
             'Parent' => 'nullable|string',
             'phone' => 'nullable|string',
-            'gender' => 'required|string',
-            'dateOfBirth' => 'nullable|date|string',
+            'gender' => 'required|integer|in:0,1',
+            'dateOfBirth' => 'nullable|date',
             'Idnum' => 'nullable|string|max:20',
         ]);
-         $patient = Patient::find($patientid);
+        
+        $patient = Patient::find($patientid);
+        
+        // Parse dateOfBirth if provided
+        $dateOfBirth = $patient->dateOfBirth; // Keep existing if not provided
+        if (array_key_exists('dateOfBirth', $validatedData) && !empty($validatedData['dateOfBirth'])) {
+            try {
+                $dateOfBirth = \Carbon\Carbon::parse($validatedData['dateOfBirth'])->format('Y-m-d');
+            } catch (\Exception $e) {
+                $dateOfBirth = null;
+            }
+        } elseif (array_key_exists('dateOfBirth', $validatedData) && empty($validatedData['dateOfBirth'])) {
+            $dateOfBirth = null; // Allow clearing the date
+        }
     
         $patient->update([
-            'Firstname' => $validatedData['first_name'],
-            'Lastname' => $validatedData['last_name'],
+            'Firstname' => $validatedData['Firstname'],
+            'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
             'gender' => $validatedData['gender'],
-            'dateOfBirth' => $validatedData['dateOfBirth'] ?? null,
+            'dateOfBirth' => $dateOfBirth,
             'Parent' => $validatedData['Parent'] ?? null,
             'Idnum' => $validatedData['Idnum'] ?? null,
         ]);
+
+        // Clear patient-related cache when updated
+        Cache::forget("patient_{$patientid}");
+        Cache::flush(); // Clear all pagination cache
     
         return new PatientResource($patient);
     }
-public function search(Request $request)
-{
-    $searchTerm = $request->query('query');
+    public function search(Request $request)
+    {
+        $searchTerm = $request->query('query');
 
-    if (empty($searchTerm)) {
-        return PatientResource::collection(
-            Patient::orderBy('created_at', 'desc')->get()
-        );
+        if (empty($searchTerm)) {
+            // Cache empty search results for 5 minutes
+            return Cache::remember('patients_all', 300, function () {
+                return PatientResource::collection(
+                    Patient::orderBy('created_at', 'desc')->get()
+                );
+            });
+        }
+
+        // Create cache key based on search term
+        $cacheKey = "patient_search_" . md5($searchTerm);
+        
+        return Cache::remember($cacheKey, 300, function () use ($searchTerm) {
+            // Normalize slashes to dashes
+            $searchTerm = str_replace('/', '-', $searchTerm);
+
+            // Try to convert to a consistent date format if it's a valid date
+            if (strtotime($searchTerm)) {
+                $searchTerm = date('Y-m-d', strtotime($searchTerm));
+            }
+
+          $patients = Patient::where(function($query) use ($searchTerm) {
+            $searchTermLower = strtolower($searchTerm);
+
+            $query->whereRaw("LOWER(Firstname) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(Lastname) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(CONCAT(Firstname, ' ', Lastname)) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(Parent) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(Idnum) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("LOWER(phone) LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereRaw("DATE_FORMAT(dateOfBirth, '%Y-%m-%d') LIKE ?", ["%{$searchTermLower}%"])
+                ->orWhereHas('consultations', function ($query) use ($searchTermLower) {
+                    $query->whereRaw("LOWER(codebash) LIKE ?", ["%{$searchTermLower}%"]);
+                });
+        })
+        ->orderBy('created_at', 'desc')
+        ->get();
+
+
+            return PatientResource::collection($patients);
+        });
     }
-
-    // Normalize slashes to dashes
-    $searchTerm = str_replace('/', '-', $searchTerm);
-
-    // Try to convert to a consistent date format if it's a valid date
-    if (strtotime($searchTerm)) {
-        $searchTerm = date('Y-m-d', strtotime($searchTerm));
-    }
-
-    $patients = Patient::where(function($query) use ($searchTerm) {
-        $query->where('Firstname', 'LIKE', "%{$searchTerm}%")
-              ->orWhere('Lastname', 'LIKE', "%{$searchTerm}%")
-              // New line to search combined Firstname and Lastname
-              ->orWhereRaw("CONCAT(Firstname, ' ', Lastname) LIKE ?", ["%{$searchTerm}%"])
-              ->orWhereRaw("DATE_FORMAT(dateOfBirth, '%Y-%m-%d') LIKE ?", ["%{$searchTerm}%"])
-              ->orWhere('Idnum', 'LIKE', "%{$searchTerm}%")
-              ->orWhere('phone', 'LIKE', "%{$searchTerm}%")
-              ->orWhere('Parent', 'LIKE', "%{$searchTerm}%")
-              ->orWhereHas('consultations', function ($query) use ($searchTerm) {
-                  $query->where('codebash', 'LIKE', "%{$searchTerm}%");
-              });
-    })
-    ->orderBy('created_at', 'desc')
-    ->get();
-
-    return PatientResource::collection($patients);
-}
 
 
     /**
@@ -133,11 +179,16 @@ public function search(Request $request)
         // Log the received PatientId for debugging
         Log::info('Received PatientId:', ['PatientId' => $PatientId]);
     
-        // Use eager loading to reduce the number of queries, enhancing performance with large datasets
-        $appointments = Appointment::with(['patient', 'doctor.user'])
-            ->where('patient_id', $PatientId)
-            ->orderBy('appointment_date', 'desc') // Sort by appointment date, most recent first
-            ->paginate(15); // Paginate with 15 items per page, adjust as needed
+        // Cache key for patient appointments
+        $cacheKey = "patient_appointments_{$PatientId}";
+        
+        // Cache for 5 minutes (300 seconds)
+        $appointments = Cache::remember($cacheKey, 300, function () use ($PatientId) {
+            return Appointment::with(['patient', 'doctor.user'])
+                ->where('patient_id', $PatientId)
+                ->orderBy('appointment_date', 'desc')
+                ->paginate(15);
+        });
     
         // Check if any appointments were found
         if ($appointments->isEmpty()) {
@@ -165,7 +216,13 @@ public function search(Request $request)
     }
     public function SpecificPatient( $patientid)
     {
-        $patient = Patient::find($patientid);
+        // Cache specific patient for 10 minutes
+        $cacheKey = "patient_{$patientid}";
+        
+        $patient = Cache::remember($cacheKey, 600, function () use ($patientid) {
+            return Patient::find($patientid);
+        });
+        
         return new PatientResource($patient);
     }
 
@@ -176,6 +233,12 @@ public function search(Request $request)
     {
         $patient = Patient::find($patientid);
         $patient->delete();
+        
+        // Clear cache when patient is deleted
+        Cache::forget("patient_{$patientid}");
+        Cache::forget("patient_appointments_{$patientid}");
+        Cache::flush(); // Clear all patient lists cache
+        
         return response()->json([
             'message' => 'Patient deleted successfully',
         ], 200); // Return 200 OK
@@ -189,7 +252,15 @@ public function search(Request $request)
         ]);
 
         try {
-            Patient::whereIn('id', $request->input('ids'))->delete();
+            $patientIds = $request->input('ids');
+            Patient::whereIn('id', $patientIds)->delete();
+            
+            // Clear cache for deleted patients
+            foreach ($patientIds as $id) {
+                Cache::forget("patient_{$id}");
+                Cache::forget("patient_appointments_{$id}");
+            }
+            Cache::flush(); // Clear all patient lists cache
 
             return response()->json(['message' => 'Patients deleted successfully'], Response::HTTP_OK);
         } catch (\Exception $e) {

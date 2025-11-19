@@ -3,9 +3,11 @@
 namespace App\Models\CONFIGURATION;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ModalitySchedule extends Model
 {
+    use HasFactory;
     /**
      * The table associated with the model.
      *

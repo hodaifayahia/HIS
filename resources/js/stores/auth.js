@@ -16,10 +16,7 @@ export const useAuthStore = defineStore('auth', {
       this.loginError = null;
       
       try {
-        // First, get CSRF token (required by Fortify)
-        await axios.get('/sanctum/csrf-cookie');
-        
-        // Attempt login via Fortify
+        // Attempt login via Fortify (CSRF token is handled by Laravel automatically for session-based auth)
         const response = await axios.post('/login', credentials);
         
         // After successful login, get the authenticated user
@@ -65,11 +62,14 @@ export const useAuthStore = defineStore('auth', {
       try {
         // Get authenticated user (adjust endpoint based on your setup)
         const response = await axios.get('/api/setting/user');
-        this.user = response.data;
+        // Handle different response structures
+        this.user = response.data?.data || response.data || null;
         this.isAuthenticated = true;
+        return this.user; // Return the user data
       } catch (error) {
         this.user = null;
         this.isAuthenticated = false;
+        return null; // Return null on failure
       } finally {
         this.isLoading = false;
       }
@@ -78,11 +78,13 @@ export const useAuthStore = defineStore('auth', {
     // Initialize auth state on app load
     async initializeAuth() {
       try {
-        await this.getUser();
+        const user = await this.getUser();
+        return user; // Return the user data
       } catch (error) {
         // User not authenticated
         this.user = null;
         this.isAuthenticated = false;
+        return null;
       }
     }
   }

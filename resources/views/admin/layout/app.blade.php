@@ -7,6 +7,16 @@
   <title>AdminLTE 3 | Starter</title>
   <meta name="csrf-token" content="{{ csrf_token() }}">
 
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      prefix: "tw-",
+      corePlugins: {
+        preflight: false,
+      }
+    }
+  </script>
+
   @vite(['resources/css/app.css', 'resources/js/app.js'])
   <link rel="icon" type="image/png" href="{{ asset('login.png') }}">
 </head>
@@ -42,7 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
 </script>
+
 </body>
 
 

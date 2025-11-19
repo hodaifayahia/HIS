@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Package API Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .info { color: blue; }
+        pre { background: #f0f0f0; padding: 10px; overflow-x: auto; border-radius: 4px; }
+        h2 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>📦 Package API Test</h1>
+    
+    <div class="container">
+        <h2>1️⃣ Testing GET /api/prestation-packages</h2>
+        <button onclick="testPackageAPI()">Test API</button>
+        <button onclick="testPackageResource()">Test Package Structure</button>
+        <pre id="result"></pre>
+    </div>
+
+    <script>
+        const baseURL = window.location.origin;
+        
+        async function testPackageAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ Loading...';
+            
+            try {
+                const response = await fetch('/api/prestation-packages');
+                const data = await response.json();
+                
+                let html = `<span class="success">✅ API Response received</span>\n\n`;
+                html += `Total packages: ${data.data ? data.data.length : data.length}\n\n`;
+                
+                const packages = data.data || data;
+                
+                if (Array.isArray(packages) && packages.length > 0) {
+                    packages.forEach((pkg, idx) => {
+                        if (idx < 3) { // Show first 3
+                            html += `\n📦 Package #${pkg.id}: ${pkg.name}\n`;
+                            
+                            if (pkg.prestations) {
+                                html += `   prestations: ${pkg.prestations.length} items\n`;
+                                pkg.prestations.forEach(p => {
+                                    html += `      - ID: ${p.id || p.prestation_id}, Name: ${p.name}\n`;
+                                });
+                            } else {
+                                html += `   <span class="warning">⚠ prestations: NOT FOUND</span>\n`;
+                            }
+                            
+                            if (pkg.items) {
+                                html += `   items: ${pkg.items.length} items\n`;
+                                pkg.items.forEach(item => {
+                                    if (item.prestation) {
+                                        html += `      - ID: ${item.prestation.id}, Name: ${item.prestation.name}\n`;
+                                    }
+                                });
+                            } else {
+                                html += `   <span class="warning">⚠ items: NOT FOUND</span>\n`;
+                            }
+                        }
+                    });
+                } else {
+                    html += `<span class="error">❌ No packages found</span>`;
+                }
+                
+                html += `\n\n<span class="info">ℹ Frontend needs either:</span>\n`;
+                html += `  ✓ pkg.prestations array (preferred)\n`;
+                html += `  ✓ pkg.items[].prestation (fallback)\n`;
+                html += `  ✓ pkg.prestation_package_prestations (fallback)\n`;
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>\n\n${error.stack}`;
+            }
+        }
+        
+        async function testPackageResource() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⏳ Testing resource transformation...';
+            
+            try {
+                // Simulate what PrestationPackageResource does
+                const response = await fetch('/api/prestation-packages');
+                const data = await response.json();
+                const packages = data.data || data;
+                
+                if (!Array.isArray(packages) || packages.length === 0) {
+                    resultDiv.innerHTML = '<span class="error">❌ No packages to test</span>';
+                    return;
+                }
+                
+                const pkg = packages[0];
+                let html = `<span class="success">✅ Testing Resource Transformation</span>\n\n`;
+                html += `Package: #${pkg.id} - ${pkg.name}\n\n`;
+                
+                // Check each field
+                html += `Fields present:\n`;
+                html += `  ✓ id: ${pkg.id}\n`;
+                html += `  ✓ name: ${pkg.name}\n`;
+                html += `  ${pkg.price ? '✓' : '✗'} price: ${pkg.price || 'MISSING'}\n`;
+                html += `  ${pkg.prestations ? '✓' : '✗'} prestations: ${pkg.prestations ? pkg.prestations.length : 'MISSING'} items\n`;
+                html += `  ${pkg.items ? '✓' : '✗'} items: ${pkg.items ? pkg.items.length : 'MISSING'} items\n`;
+                
+                if (pkg.prestations && pkg.prestations.length > 0) {
+                    html += `\n✅ Prestations array is populated:\n`;
+                    pkg.prestations.forEach(p => {
+                        html += `   - ID: ${p.id || p.prestation_id}, Name: ${p.name}\n`;
+                    });
+                } else {
+                    html += `\n<span class="error">❌ Prestations array is empty or missing</span>\n`;
+                }
+                
+                resultDiv.innerHTML = html;
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            console.log('Page loaded - ready to test');
+        });
+    </script>
+</body>
+</html>

@@ -87,6 +87,11 @@ const isFormValid = computed(() => {
 })
 
 // Methods
+const closeModal = () => {
+  emit('update:visible', false)
+  resetForm()
+}
+
 const resetForm = () => {
   formData.patient = null
   formData.fiche_date = new Date()
@@ -115,7 +120,12 @@ const onPatientSelected = (patient) => {
 
 // Fix the handleSubmit method
 const handleSubmit = async () => {
+  console.log('=== FORM SUBMIT STARTED ===');
+  console.log('Form data:', formData);
+  console.log('Mode:', props.mode);
+  
   if (!validateForm()) {
+    console.log('Validation failed:', errors);
     toast.add({
       severity: 'warn',
       summary: 'Validation',
@@ -130,6 +140,7 @@ const handleSubmit = async () => {
   try {
     // Fix: Ensure patient.id exists
     if (!formData.patient || !formData.patient.id) {
+      console.error('No patient selected');
       toast.add({
         severity: 'error',
         summary: 'Error',
@@ -146,13 +157,20 @@ const handleSubmit = async () => {
       status: formData.status,
     }
 
-    console.log('Payload being sent:', payload); // Debug log
+    console.log('=== SENDING API REQUEST ===');
+    console.log('Payload:', payload);
+    console.log('Mode:', props.mode);
+    console.log('Service method:', props.mode === 'create' ? 'createFicheNavette' : 'update');
 
     const result = props.mode === 'create' 
       ? await ficheNavetteService.createFicheNavette(payload)
       : await ficheNavetteService.update(props.fiche.id, payload)
 
+    console.log('=== API RESPONSE ===');
+    console.log('Result:', result);
+
     if (result.success) {
+      console.log('Success! Fiche created:', result.data);
       toast.add({
         severity: 'success',
         summary: 'Success',
@@ -162,26 +180,30 @@ const handleSubmit = async () => {
       emit('saved', result.data, props.mode)
       closeModal()
     } else {
+      console.error('API returned error:', result.message, result.errors);
       if (result.errors) {
         Object.assign(errors, result.errors)
       }
       toast.add({
         severity: 'error',
         summary: 'Error',
-        detail: result.message,
+        detail: result.message || 'Failed to save fiche navette',
         life: 3000
       })
     }
   } catch (error) {
-    console.error('Error in handleSubmit:', error);
+    console.error('=== EXCEPTION IN SUBMIT ===');
+    console.error('Error:', error);
+    console.error('Stack:', error.stack);
     toast.add({
       severity: 'error',
       summary: 'Error',
-      detail: 'An unexpected error occurred',
+      detail: 'An unexpected error occurred: ' + (error.message || 'Unknown error'),
       life: 3000
     })
   } finally {
     saving.value = false
+    console.log('=== FORM SUBMIT ENDED ===');
   }
 }
 
@@ -259,63 +281,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <div class="form-section">
-        <h4 class="section-title">
-          <i class="pi pi-calendar mr-2"></i>
-          Form Details
-        </h4>
-        
-        <div class="form-grid">
-          <div class="field">
-            <label for="fiche-date" class="required">Form Date *</label>
-            <Calendar 
-              id="fiche-date"
-              v-model="formData.fiche_date"
-              dateFormat="dd/mm/yy"
-              showIcon
-              showButtonBar
-              class="w-full"
-              :class="{ 'p-invalid': errors.fiche_date }"
-              placeholder="Select a date"
-            />
-            <small v-if="errors.fiche_date" class="p-error">
-              {{ errors.fiche_date }}
-            </small>
-          </div>
-
-          <div class="field">
-            <label for="status">Status</label>
-            <Dropdown 
-              id="status"
-              v-model="formData.status"
-              :options="statusOptions"
-              optionLabel="label"
-              optionValue="value"
-              placeholder="Select a status"
-              class="w-full"
-              :class="{ 'p-invalid': errors.status }"
-            />
-            <small v-if="errors.status" class="p-error">
-              {{ errors.status }}
-            </small>
-          </div>
-        </div>
-
-        <!-- <div class="field">
-          <label for="creator">Creator</label>
-          <InputText 
-            id="creator"
-            v-model="creatorName"
-            disabled
-            class="w-full creator-input"
-          />
-          <small class="help-text">
-            <i class="pi pi-info-circle mr-1"></i>
-            The creator is automatically set
-          </small>
-        </div> -->
-      </div>
-
+    
       <div v-if="mode === 'edit' && fiche" class="form-section">
         <h4 class="section-title">
           <i class="pi pi-list mr-2"></i>

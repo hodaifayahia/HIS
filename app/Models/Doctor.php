@@ -5,12 +5,14 @@ namespace App\Models;
 use App\Models\Appointment;
 use App\Models\AppointmentForcer;
 use App\Models\AppointmentAvailableMonth;
+use App\Models\ExcludedDate;
 use App\Models\OpinionRequest;
 use App\Models\Schedule;
 use App\Models\Specialization;
 use App\Models\User;
 use Carbon\Carbon;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Doctor extends Model 
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -67,8 +69,17 @@ class Doctor extends Model
      */
     public function appointmentForce()
     {
-        return $this->hasOne(AppointmentForcer::class, 'doctor_id');
+        return $this->hasMany(AppointmentForcer::class, 'doctor_id');
     }
+    
+    /**
+     * Get excluded dates for the doctor
+     */
+    public function excludedDates()
+    {
+        return $this->hasMany(ExcludedDate::class, 'doctor_id');
+    }
+    
     // doctorname
     //specialization function
   public function doctors()

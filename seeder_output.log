@@ -1,0 +1,259 @@
+
+
+
+   INFO  Seeding database.  
+
+  Database\Seeders\SpecializationSeeder .............................. RUNNING  
+  Database\Seeders\SpecializationSeeder .......................... 550 ms DONE  
+
+  Database\Seeders\ModalitySeeder .................................... RUNNING  
+  Database\Seeders\ModalitySeeder ................................. 90 ms DONE  
+
+  Database\Seeders\PavilionSeeder .................................... RUNNING  
+  Database\Seeders\PavilionSeeder ................................. 11 ms DONE  
+
+  Database\Seeders\CategorySeeder .................................... RUNNING  
+  Database\Seeders\CategorySeeder .................................. 4 ms DONE  
+
+  Database\Seeders\OrganismeSeeder ................................... RUNNING  
+  Database\Seeders\OrganismeSeeder ............................... 236 ms DONE  
+
+  Database\Seeders\ConventionSeeder .................................. RUNNING  
+  Database\Seeders\ConventionSeeder .............................. 549 ms DONE  
+
+  Database\Seeders\DoctorSeeder ...................................... RUNNING  
+  Database\Seeders\DoctorSeeder ............................... 12,008 ms DONE  
+
+  Database\Seeders\PatientSeeder ..................................... RUNNING  
+  Database\Seeders\PatientSeeder ................................. 288 ms DONE  
+
+  Database\Seeders\ScheduleSeeder .................................... RUNNING  
+  Database\Seeders\ScheduleSeeder .............................. 9,782 ms DONE  
+
+  Database\Seeders\ProductSeeder ..................................... RUNNING  
+Progress: 5% (250/5000 products seeded)
+Progress: 10% (500/5000 products seeded)
+Progress: 15% (750/5000 products seeded)
+Progress: 20% (1000/5000 products seeded)
+Progress: 25% (1250/5000 products seeded)
+Progress: 30% (1500/5000 products seeded)
+Progress: 35% (1750/5000 products seeded)
+Progress: 40% (2000/5000 products seeded)
+Progress: 45% (2250/5000 products seeded)
+Progress: 50% (2500/5000 products seeded)
+Progress: 55% (2750/5000 products seeded)
+Progress: 60% (3000/5000 products seeded)
+Progress: 65% (3250/5000 products seeded)
+Progress: 70% (3500/5000 products seeded)
+Progress: 75% (3750/5000 products seeded)
+Progress: 80% (4000/5000 products seeded)
+Progress: 85% (4250/5000 products seeded)
+Progress: 90% (4500/5000 products seeded)
+Progress: 95% (4750/5000 products seeded)
+Progress: 100% (5000/5000 products seeded)
+✓ Successfully seeded 5000 products!
+  Database\Seeders\ProductSeeder ............................... 1,377 ms DONE  
+
+  Database\Seeders\PrestationSeeder .................................. RUNNING  
+  Database\Seeders\PrestationSeeder ............................... 25 ms DONE  
+
+  Database\Seeders\FournisseurSeeder ................................. RUNNING  
+  Database\Seeders\FournisseurSeeder ............................. 199 ms DONE  
+
+  Database\Seeders\FournisseurContactSeeder .......................... RUNNING  
+  Database\Seeders\FournisseurContactSeeder ...................... 871 ms DONE  
+
+  Database\Seeders\MedicationSeeder .................................. RUNNING  
+  Database\Seeders\MedicationSeeder .............................. 349 ms DONE  
+
+  Database\Seeders\StockageSeeder .................................... RUNNING  
+Progress: 50% (50/100 stockages seeded)
+Progress: 100% (100/100 stockages seeded)
+✓ Successfully seeded 100 stockages!
+  Database\Seeders\StockageSeeder ................................. 30 ms DONE  
+
+  Database\Seeders\InventorySeeder ................................... RUNNING  
+Starting comprehensive inventory seeding...
+Total Products: 10000
+Total Stockages: 100
+Target: ~30-50 items per stockage for realistic coverage
+
+Progress: 3% (100 inventory records seeded)
+Progress: 5% (200 inventory records seeded)
+Progress: 8% (300 inventory records seeded)
+Progress: 10% (400 inventory records seeded)
+Progress: 13% (500 inventory records seeded)
+Progress: 15% (600 inventory records seeded)
+Progress: 18% (700 inventory records seeded)
+Progress: 20% (800 inventory records seeded)
+Progress: 23% (900 inventory records seeded)
+Progress: 25% (1000 inventory records seeded)
+Progress: 28% (1100 inventory records seeded)
+Progress: 30% (1200 inventory records seeded)
+Progress: 33% (1300 inventory records seeded)
+Progress: 35% (1400 inventory records seeded)
+Progress: 38% (1500 inventory records seeded)
+Progress: 40% (1600 inventory records seeded)
+Progress: 43% (1700 inventory records seeded)
+Progress: 45% (1800 inventory records seeded)
+Progress: 48% (1900 inventory records seeded)
+Progress: 50% (2000 inventory records seeded)
+Progress: 53% (2100 inventory records seeded)
+Progress: 55% (2200 inventory records seeded)
+Progress: 57% (2300 inventory records seeded)
+Progress: 60% (2400 inventory records seeded)
+Progress: 63% (2500 inventory records seeded)
+Progress: 65% (2600 inventory records seeded)
+Progress: 68% (2700 inventory records seeded)
+Progress: 70% (2800 inventory records seeded)
+Progress: 73% (2900 inventory records seeded)
+Progress: 75% (3000 inventory records seeded)
+Progress: 78% (3100 inventory records seeded)
+Progress: 80% (3200 inventory records seeded)
+Progress: 83% (3300 inventory records seeded)
+Progress: 85% (3400 inventory records seeded)
+Progress: 88% (3500 inventory records seeded)
+Progress: 90% (3600 inventory records seeded)
+Progress: 93% (3700 inventory records seeded)
+Progress: 95% (3800 inventory records seeded)
+Progress: 98% (3900 inventory records seeded)
+Progress: 100% (3980 inventory records seeded)
+
+✓ Successfully completed comprehensive inventory seeding!
+════════════════════════════════════════════════════════
+Total Inventory Records: 3980
+Stockages with Inventory: 100 / 100
+Products in Inventory: 3321 / 10000
+════════════════════════════════════════════════════════
+  Database\Seeders\InventorySeeder ............................. 1,580 ms DONE  
+
+  Database\Seeders\PharmacyProductSeeder ............................. RUNNING  
+Progress: 5% (250/5000 products seeded)
+Progress: 10% (500/5000 products seeded)
+Progress: 15% (750/5000 products seeded)
+Progress: 20% (1000/5000 products seeded)
+Progress: 25% (1250/5000 products seeded)
+Progress: 30% (1500/5000 products seeded)
+Progress: 35% (1750/5000 products seeded)
+Progress: 40% (2000/5000 products seeded)
+Progress: 45% (2250/5000 products seeded)
+Progress: 50% (2500/5000 products seeded)
+Progress: 55% (2750/5000 products seeded)
+Progress: 60% (3000/5000 products seeded)
+Progress: 65% (3250/5000 products seeded)
+Progress: 70% (3500/5000 products seeded)
+Progress: 75% (3750/5000 products seeded)
+Progress: 80% (4000/5000 products seeded)
+Progress: 85% (4250/5000 products seeded)
+Progress: 90% (4500/5000 products seeded)
+Progress: 95% (4750/5000 products seeded)
+Progress: 100% (5000/5000 products seeded)
+✓ Successfully seeded 5000 pharmacy products!
+  Database\Seeders\PharmacyProductSeeder ....................... 4,811 ms DONE  
+
+  Database\Seeders\PharmacyStorageSeeder ............................. RUNNING  
+✓ Successfully seeded 19 pharmacy storage units!
+  Database\Seeders\PharmacyStorageSeeder .......................... 19 ms DONE  
+
+  Database\Seeders\PharmacyStockageSeeder ............................ RUNNING  
+✓ Successfully seeded 78 pharmacy stockage units!
+  Database\Seeders\PharmacyStockageSeeder ......................... 71 ms DONE  
+
+  Database\Seeders\PharmacyInventorySeeder ........................... RUNNING  
+Starting to seed pharmacy inventories...
+Products available: 5000
+Stockages available: 78
+Inserted 100 inventory entries...
+Inserted 200 inventory entries...
+Inserted 300 inventory entries...
+Inserted 400 inventory entries...
+Inserted 500 inventory entries...
+Inserted 600 inventory entries...
+Inserted 700 inventory entries...
+Inserted 800 inventory entries...
+Inserted 900 inventory entries...
+Inserted 1000 inventory entries...
+Inserted 1100 inventory entries...
+Inserted 1200 inventory entries...
+Inserted 1300 inventory entries...
+Inserted 1400 inventory entries...
+Inserted 1500 inventory entries...
+Inserted 1600 inventory entries...
+Inserted 1700 inventory entries...
+Inserted 1800 inventory entries...
+Inserted 1900 inventory entries...
+Inserted 2000 inventory entries...
+Inserted 2100 inventory entries...
+Inserted 2200 inventory entries...
+Inserted 2300 inventory entries...
+Inserted 2400 inventory entries...
+Inserted 2500 inventory entries...
+Inserted 2600 inventory entries...
+Inserted 2700 inventory entries...
+Inserted 2800 inventory entries...
+Inserted 2900 inventory entries...
+Inserted 3000 inventory entries...
+Inserted 3100 inventory entries...
+Inserted 3200 inventory entries...
+Inserted 3300 inventory entries...
+Inserted 3400 inventory entries...
+Inserted 3500 inventory entries...
+Inserted 3600 inventory entries...
+Inserted 3700 inventory entries...
+Inserted 3800 inventory entries...
+Inserted 3900 inventory entries...
+Inserted 4000 inventory entries...
+Inserted 4100 inventory entries...
+Inserted 4200 inventory entries...
+Inserted 4300 inventory entries...
+Inserted 4400 inventory entries...
+✓ Successfully seeded 4437 pharmacy inventory entries!
+Inventory is now distributed across all stockages with realistic data.
+  Database\Seeders\PharmacyInventorySeeder ..................... 2,417 ms DONE  
+
+  Database\Seeders\CaisseSeeder ...................................... RUNNING  
+✓ Successfully seeded 76 cash registers (Caisses)!
+  Database\Seeders\CaisseSeeder ................................... 25 ms DONE  
+
+  Database\Seeders\ReserveSeeder ..................................... RUNNING  
+
+🚀 Creating 25 pharmacy reserve records...
+✅ Created 4 reserves
+✅ Created 9 reserves
+✅ Created 14 reserves
+✅ Created 19 reserves
+✅ Created 24 reserves
+✅ Successfully created 25 reserve records!
+
+  Database\Seeders\ReserveSeeder .................................. 98 ms DONE  
+
+  Database\Seeders\ProductReserveDetailedSeeder ...................... RUNNING  
+
+🚀 Creating comprehensive pharmacy product reserves with test cases...
+
+📝 Test Case 1: Standard Active Reserves (40%)
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S22]: Column not found: 1054 Unknown column 'reserve_id' in 'field list' (Connection: mysql, SQL: insert into `product_reserves` (`reservation_code`, `pharmacy_product_id`, `pharmacy_stockage_id`, `reserved_by`, `quantity`, `status`, `source`, `reserved_at`, `expires_at`, `destination_service_id`, `reserve_id`, `reservation_notes`, `meta`, `created_at`, `updated_at`) values (RES-PH-001001, 27, 71, 322, 58, pending, pharmacy, 2025-11-05 11:21:26, 2025-11-26 11:21:26, 4, 7, Standard reserve for Hydrochlorothiazide 10%, {"priority":5,"batch_number":"BATCH-9355","requested_date":"2025-11-07","requested_by_service":4}, 2025-10-30 11:21:26, 2025-11-02 11:21:26))
+
+  at vendor/laravel/framework/src/Illuminate/Database/Connection.php:825
+    821▕                     $this->getName(), $query, $this->prepareBindings($bindings), $e
+    822▕                 );
+    823▕             }
+    824▕ 
+  ➜ 825▕             throw new QueryException(
+    826▕                 $this->getName(), $query, $this->prepareBindings($bindings), $e
+    827▕             );
+    828▕         }
+    829▕     }
+
+      [2m+17 vendor frames [22m
+
+  18  database/seeders/ProductReserveDetailedSeeder.php:46
+      Illuminate\Database\Eloquent\Model::__callStatic()
+      [2m+8 vendor frames [22m
+
+  27  database/seeders/DatabaseSeeder.php:23
+      Illuminate\Database\Seeder::call()
+

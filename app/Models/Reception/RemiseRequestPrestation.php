@@ -11,8 +11,7 @@ class RemiseRequestPrestation extends Model
     protected $fillable = [
         'remise_request_id',
         'prestation_id',
-        'proposed_amount',
-        'final_amount',
+        'proposed_amount'
     ];
 
     public function remiseRequest()

@@ -17,13 +17,13 @@ class WaitListResource extends JsonResource
         return [
             'id' => $this->id,
             'doctor_id' => $this->doctor_id,
-            'doctor_name' => $this->doctor->user->name ?? 'N/A', // Assuming the doctor's name is stored in the User model
+            'doctor_name' => $this->doctor?->user?->name ?? 'N/A',
             'patient_id' => $this->patient_id,
-            'patient_first_name' => $this->patient->Firstname ?? 'N/A',
-            'patient_last_name' => $this->patient->Lastname ?? 'N/A',
-            'patient_phone' => $this->patient->phone ?? 'N/A',
+            'patient_first_name' => $this->patient?->Firstname ?? 'N/A',
+            'patient_last_name' => $this->patient?->Lastname ?? 'N/A',
+            'patient_phone' => $this->patient?->phone ?? 'N/A',
             'specialization_id' => $this->specialization_id,
-            'specialization_name' => $this->specialization->name ?? 'N/A',
+            'specialization_name' => $this->specialization?->name ?? 'N/A',
             'is_Daily' => $this->is_Daily,
             'importance' => $this->importance,
             'MoveToEnd' => $this->MoveToEnd,

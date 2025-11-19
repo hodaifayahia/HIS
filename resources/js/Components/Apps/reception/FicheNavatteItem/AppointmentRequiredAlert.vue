@@ -1,5 +1,6 @@
 <!-- filepath: resources/js/Components/Apps/reception/FicheNavatteItem/AppointmentRequiredAlert.vue -->
 <template>
+
   <Dialog
     :visible="visible"
     :header="alertTitle"
@@ -149,10 +150,32 @@ const alertTitle = computed(() => {
 // Methods
 const proceedWithAppointments = () => {
   processing.value = true
-  emit('proceed-with-appointments', {
-    prestationsNeedingAppointments: props.prestationsNeedingAppointments,
-    doctorId: props.selectedDoctor
-  })
+  
+  // Get the first prestation for appointment booking
+  const firstPrestation = props.prestationsNeedingAppointments[0]
+  
+  console.log('=== AppointmentRequiredAlert proceedWithAppointments ===')
+  console.log('prestationsNeedingAppointments:', props.prestationsNeedingAppointments)
+  console.log('selectedDoctor:', props.selectedDoctor)
+  
+  // Emit the correct data structure that handleProceedWithAppointments expects
+  const appointmentData = {
+    appointmentItems: props.prestationsNeedingAppointments,
+    otherItems: {
+      selectedDoctor: props.selectedDoctor,
+      selectedSpecialization: firstPrestation?.specialization_id,
+      prestations: [],
+      type: "prestation",
+      packages: []
+    }
+  }
+  
+  console.log('Emitting appointmentData:', appointmentData)
+  emit('proceed-with-appointments', appointmentData)
+  
+  // Close this modal
+  emit('update:visible', false)
+  
   // Reset processing state after a delay to allow parent to handle
   setTimeout(() => {
     processing.value = false

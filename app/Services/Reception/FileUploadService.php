@@ -66,12 +66,25 @@ public function uploadSingleFile(UploadedFile $file): array
     public function validateConventionFile(UploadedFile $file): bool
     {
         $allowedMimeTypes = [
+            // Documents
             'application/pdf',
             'application/msword',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            // Images
+            'image/jpeg',
+            'image/jpg', 
+            'image/png',
+            'image/gif',
+            'image/bmp',
+            'image/tiff',
+            'image/webp',
+            'image/svg+xml'
         ];
         
-        $allowedExtensions = ['pdf', 'doc', 'docx'];
+        $allowedExtensions = [
+            'pdf', 'doc', 'docx', 
+            'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'webp', 'svg'
+        ];
         
         return in_array($file->getMimeType(), $allowedMimeTypes) && 
                in_array(strtolower($file->getClientOriginalExtension()), $allowedExtensions);

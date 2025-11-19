@@ -28,7 +28,7 @@ export const ficheNavetteService = {
    async getPrestationsPackage(packageId) {
     try {
         console.log('Service: Fetching prestations for package ID:', packageId);
-        const response = await axios.get(`/api/reception/prestations/packages/${packageId}`);
+        const response = await axios.get(`/api/reception/fiche-navette/prestations/packages/${packageId}`);
         return {
             success: true,
             data: response.data.data || response.data
@@ -85,8 +85,27 @@ async getAllPrestations() {
 },
 
     /**
-     * Get all packages
+     * Detect package from prestations
      */
+    async detectPackageFromPrestations(prestations) {
+        try {
+            console.log('Service: Detecting package from prestations:', prestations);
+            const response = await axios.post('/api/reception/detect-package', {
+                prestations: prestations
+            });
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error detecting package from prestations:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to detect package',
+                error
+            };
+        }
+    },
     async getAllPackages(params = {}) {
         try {
             const response = await axios.get('/api/prestation-packages', { params });
@@ -185,7 +204,8 @@ async getPrestationsDependencies(prestationIds) {
             return {
                 success: true,
                 data: response.data.data,
-                message: response.data.message
+                message: response.data.message,
+                conversion: response.data.conversion || {}
             };
         } catch (error) {
             console.error('Error creating fiche navette:', error);
@@ -193,6 +213,7 @@ async getPrestationsDependencies(prestationIds) {
                 success: false,
                 message: error.response?.data?.message || 'Failed to create fiche navette',
                 errors: error.response?.data?.errors || {},
+                conversion: error.response?.data?.conversion || {},
                 error
             };
         }
@@ -204,6 +225,23 @@ async getPrestationsDependencies(prestationIds) {
     async getAll(params = {}) {
         try {
             const response = await axios.get('/api/reception/fiche-navette', { params });
+            return {
+                success: true,
+                data: response.data.data,
+                pagination: response.data.meta || response.data.pagination
+            };
+        } catch (error) {
+            console.error('Error fetching fiche navettes:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch fiche navettes',
+                error
+            };
+        }
+    },
+    async getPrestationsForFicheByAuthenticatedUser(params = {}) {
+        try {
+            const response = await axios.get('/api/reception/prestations/fichenavette', { params });
             return {
                 success: true,
                 data: response.data.data,
@@ -366,8 +404,8 @@ async getPrestationsDependencies(prestationIds) {
      */
     async getAllDoctors() {
         try {
-            // Use the existing search route with empty query
-            const response = await axios.get('/api/doctors/search?q=');
+            // Use global doctors API like Emergency version
+            const response = await axios.get('/api/doctors');
             return {
                 success: true,
                 data: response.data.data || response.data
@@ -385,24 +423,7 @@ async getPrestationsDependencies(prestationIds) {
     /**
      * Get all prestations using existing route
      */
-    async getAllPrestations() {
-        try {
-            // Use the existing search route with empty query
-            const response = await axios.get('/api/reception/prestations/search?q=');
-            return {
-                success: true,
-                data: response.data.data || response.data
-            };
-        } catch (error) {
-            console.error('Error fetching all prestations:', error);
-            return {
-                success: false,
-                message: error.response?.data?.message || 'Failed to fetch prestations',
-                error
-            };
-        }
-    },
-
+   
     /**
      * Get items for a fiche navette using ficheNavetteItemController
      */
@@ -424,6 +445,26 @@ async getPrestationsDependencies(prestationIds) {
     },
 
     /**
+     * Get fiche navette by ID with patient information
+     */
+    async getFicheNavetteById(ficheNavetteId) {
+        try {
+            const response = await axios.get(`/api/reception/fiche-navette/${ficheNavetteId}`);
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error fetching fiche navette:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch fiche navette',
+                error
+            };
+        }
+    },
+
+    /**
      * Add items to an existing fiche navette using ficheNavetteItemController
      */
     async addItemsToFiche(ficheNavetteId, data) {
@@ -435,7 +476,8 @@ async getPrestationsDependencies(prestationIds) {
             return {
                 success: true,
                 data: response.data.data,
-                message: response.data.message
+                message: response.data.message,
+                conversion: response.data.conversion || {}
             };
         } catch (error) {
             console.error('Error adding items to fiche navette:', error);
@@ -443,6 +485,7 @@ async getPrestationsDependencies(prestationIds) {
                 success: false,
                 message: error.response?.data?.message || 'Failed to add items to fiche navette',
                 errors: error.response?.data?.errors || {},
+                conversion: error.response?.data?.conversion || {},
                 error
             };
         }
@@ -490,6 +533,27 @@ async getPrestationsDependencies(prestationIds) {
             return {
                 success: false,
                 message: error.response?.data?.message || 'Failed to update item',
+                error
+            };
+        }
+    },
+
+    /**
+     * Update a dependency's stored default_payment_type
+     */
+    async updateDependency(dependencyId, data) {
+        try {
+            const response = await axios.put(`/api/reception/fiche-navette/dependencies/${dependencyId}`, data);
+            return {
+                success: true,
+                data: response.data.data,
+                message: response.data.message || response.data
+            };
+        } catch (error) {
+            console.error('Error updating dependency:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to update dependency',
                 error
             };
         }
@@ -586,6 +650,44 @@ async getPrestationsDependencies(prestationIds) {
     },
 
     /**
+     * Get contract percentages for an organisme
+     * Returns an array of { label, value } objects suitable for Dropdown
+     */
+    async getContractPercentagesByOrganisme(organismeId) {
+        try {
+            // Use existing conventions endpoint filtered by organisme to retrieve contract percentages
+            const response = await axios.get('/api/conventions', {
+                params: { organisme_id: organismeId, per_page: -1 }
+            });
+
+            const conventions = response.data.data || [];
+            const raw = Array.isArray(conventions) ? conventions : (conventions.data || [])
+
+            const map = new Map();
+            raw.forEach(conv => {
+                const cps = conv.contract_percentages || conv.contractPercentages || [];
+                if (Array.isArray(cps)) {
+                    cps.forEach(cp => {
+                        const id = cp.id ?? cp.contract_percentage_id ?? null;
+                        const percentage = cp.percentage ?? cp.value ?? null;
+                        if (percentage !== null) {
+                            // Use id when available, else fallback to percentage as value
+                            const value = id ?? Number(percentage);
+                            map.set(value, { label: `${percentage}%`, value, percentage: Number(percentage), id });
+                        }
+                    })
+                }
+            })
+
+            const data = Array.from(map.values())
+            return { success: true, data }
+        } catch (error) {
+            console.error('Error fetching contract percentages:', error);
+            return { success: false, message: error.response?.data?.message || 'Failed to fetch percentages' }
+        }
+    },
+
+    /**
      * Get prestations by convention
      */
     async getPrestationsByConvention(conventionId, priseEnChargeDate = null) {
@@ -635,6 +737,26 @@ async getPrestationsDependencies(prestationIds) {
             };
         }
     },
+    /**
+     * Fetch the best matching PrestationPricing for a prestation with optional filters.
+     * params: { prestation_id, contract_percentage_id, annex_id, avenant_id }
+     */
+    async matchPrestationPricing(params = {}) {
+        try {
+            const response = await axios.get('/api/prestation-pricing/match', { params });
+            return {
+                success: true,
+                data: response.data.data
+            };
+        } catch (error) {
+            console.error('Error matching prestation pricing:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to match prestation pricing',
+                error
+            };
+        }
+    },
   async createConventionPrescription(ficheNavetteId, data) {
     try {
         const response = await axios.post(`/api/fiche-navette/${ficheNavetteId}/convention-prescription`, data, {
@@ -664,13 +786,15 @@ async removeDependency(dependencyId) {
     }
 },
 
-async getPatientConventions(patientId , ficheNavetteId) {
+async getPatientConventions(patientId, ficheNavetteId) {
     try {
-        const response = await axios.get(`/api/reception/patients/${patientId}/conventions`,{
+        // Use the shared patients conventions endpoint (no reception prefix)
+        const response = await axios.get(`/api/reception/fiche-navette/patients/${patientId}/conventions`, {
             params: {
                 fiche_navette_id: ficheNavetteId
             }
         })
+
         return {
             success: true,
             data: response.data.data || response.data
@@ -750,6 +874,238 @@ async getGroupedItems(ficheNavetteId) {
         } catch (error) {
             console.error('Error downloading file:', error)
             throw error
+        }
+    },
+
+    /**
+     * Get all custom packages for dropdown options
+     */
+    async getCustomPackages() {
+        try {
+            const response = await axios.get('/api/fiche-navette-custom-packages');
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error fetching custom packages:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to fetch custom packages',
+                error
+            };
+        }
+    },
+
+    /**
+     * Print fiche navette ticket
+     */
+    async printTicket(ficheNavetteId) {
+        try {
+            const response = await axios.post(
+                `/api/reception/fiche-navette/${ficheNavetteId}/print-ticket`,
+                {},
+                {
+                    responseType: 'blob' // Important for PDF download
+                }
+            );
+            
+            // Create blob link to download
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `fiche-navette-ticket-${ficheNavetteId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            return {
+                success: true,
+                message: 'Ticket printed successfully'
+            };
+        } catch (error) {
+            console.error('Error printing ticket:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to print ticket',
+                error
+            };
+        }
+    },
+
+    /**
+     * Toggle patient's faithful status
+     */
+    async togglePatientFaithful(ficheNavetteId) {
+        try {
+            const response = await axios.post(
+                `/api/reception/fiche-navette/${ficheNavetteId}/toggle-patient-faithful`
+            );
+            
+            return {
+                success: true,
+                message: response.data.message,
+                data: response.data.data
+            };
+        } catch (error) {
+            console.error('Error toggling patient faithful status:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to toggle patient status',
+                error
+            };
+        }
+    },
+
+    /**
+     * Convert prestations to package
+     * Removes existing prestation items and replaces with a package
+     */
+    async convertPrestationsToPackage(ficheNavetteId, prestationIds, packageId) {
+        try {
+            console.log('Service: Converting prestations to package:', {
+                ficheNavetteId,
+                prestationIds,
+                packageId
+            });
+            
+            const response = await axios.post(
+                `/api/reception/fiche-navette/${ficheNavetteId}/convert-to-package`,
+                {
+                    prestation_ids: prestationIds,
+                    package_id: packageId
+                }
+            );
+
+            return {
+                success: true,
+                message: 'Successfully converted prestations to package',
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            console.error('Error converting prestations to package:', error);
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to convert to package',
+                errors: error.response?.data?.errors,
+                error
+            };
+        }
+    },
+
+    /**
+     * Detect if items in a group match a package
+     */
+    async detectMatchingPackage(prestationIds, availablePackages) {
+        try {
+            console.log('Service: Detecting matching package for prestations:', {
+                prestationIds,
+                packageCount: availablePackages?.length
+            });
+
+            if (!prestationIds || prestationIds.length === 0) {
+                return { success: false, data: null, message: 'No prestations to check' };
+            }
+
+            if (!availablePackages || availablePackages.length === 0) {
+                return { success: false, data: null, message: 'No packages available' };
+            }
+
+            // Create a set for easy comparison
+            const prestationIdSet = new Set(prestationIds.map(id => parseInt(id)));
+            
+            // Search for matching package
+            for (const pkg of availablePackages) {
+                if (!pkg.prestations || pkg.prestations.length === 0) continue;
+                
+                const packagePrestationIds = new Set(pkg.prestations.map(p => parseInt(p.id)));
+                
+                // Check if both sets are equal (same size and same elements)
+                if (packagePrestationIds.size === prestationIdSet.size) {
+                    const allMatch = [...prestationIdSet].every(id => packagePrestationIds.has(id));
+                    
+                    if (allMatch) {
+                        console.log('✅ Found matching package:', pkg);
+                        return {
+                            success: true,
+                            data: pkg,
+                            message: `Found matching package: ${pkg.name}`
+                        };
+                    }
+                }
+            }
+
+            console.log('❌ No matching package found');
+            return { success: false, data: null, message: 'No matching package found' };
+        } catch (error) {
+            console.error('Error detecting matching package:', error);
+            return {
+                success: false,
+                message: error.message || 'Failed to detect matching package',
+                error
+            };
+        }
+    },
+
+    /**
+     * Create package with strict doctor validation
+     * Supports two modes: "create_package" (explicit) or "add_separate" (no merge)
+     * 
+     * @param {number} ficheNavetteId
+     * @param {object} data - {mode, prestation_ids, package_id?, doctor_id?, package_name?, package_description?}
+     * @returns {object} {success, data, message, error?}
+     */
+    async createPackageWithDoctorValidation(ficheNavetteId, data) {
+        try {
+            console.log('🔄 Creating package with doctor validation:', {
+                fiche_id: ficheNavetteId,
+                mode: data.mode,
+                prestation_count: data.prestation_ids?.length,
+                has_explicit_doctor: !!data.doctor_id,
+            });
+
+            const payload = {
+                mode: data.mode || 'create_package', // 'create_package' | 'add_separate'
+                prestation_ids: data.prestation_ids || [],
+                package_id: data.package_id || null,
+                doctor_id: data.doctor_id || null, // Explicit doctor selection
+                package_name: data.package_name || null,
+                package_description: data.package_description || null,
+            };
+
+            const response = await axios.post(
+                `/api/reception/fiche-navette/${ficheNavetteId}/create-package`,
+                payload
+            );
+
+            console.log('✅ Package creation successful:', response.data);
+
+            return {
+                success: true,
+                data: response.data.data,
+                message: response.data.message,
+                mode: response.data.mode,
+            };
+
+        } catch (error) {
+            console.error('❌ Error creating package:', error.response?.data);
+            
+            // Handle multi-doctor error specially
+            if (error.response?.status === 422 && error.response?.data?.error === 'multiple_doctors') {
+                return {
+                    success: false,
+                    error: 'multiple_doctors',
+                    message: error.response.data.message,
+                    conflicting_doctor_ids: error.response.data.conflicting_doctor_ids || [],
+                };
+            }
+
+            return {
+                success: false,
+                error: 'server_error',
+                message: error.response?.data?.message || 'Failed to create package',
+            };
         }
     }
 };

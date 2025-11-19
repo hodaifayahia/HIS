@@ -26,14 +26,19 @@ class DoctorResource extends JsonResource
             'patients_based_on_time' => $this->patients_based_on_time,
             'specific_date' => $this->specific_date,
             'total_patients_per_day' => $this->getTotalPatientsPerDay(), // Add this line
-'appointment_forcer' => $this->whenLoaded('appointmentForce', function () {
-    return [
-        'id' => $this->appointmentForce->id ?? null,
-        'start_time' => $this->appointmentForce->start_time ?? null,
-        'end_time' => $this->appointmentForce->end_time ?? null,
-        'number_of_patients' => $this->appointmentForce->number_of_patients ?? null,
-    ];
-}),
+            'appointment_forcer' => $this->whenLoaded('appointmentForce', function () {
+                // appointmentForce is now a collection (hasMany), so we need to map it
+                return $this->appointmentForce->map(function ($forcer) {
+                    return [
+                        'id' => $forcer->id ?? null,
+                        'start_time' => $forcer->start_time ?? null,
+                        'end_time' => $forcer->end_time ?? null,
+                        'number_of_patients' => $forcer->number_of_patients ?? null,
+                        'specific_date' => $forcer->specific_date ?? null,
+                        'include_time' => $forcer->include_time ?? null,
+                    ];
+                });
+            }),
             'appointment_booking_window' => $this->formatAppointmentBookingWindow(),
             'schedules' => $this->formatSchedules(),
             'created_at' => $this->formatTimestamp($this->created_at),

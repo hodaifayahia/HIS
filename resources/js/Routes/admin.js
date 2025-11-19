@@ -13,93 +13,101 @@ const adminRoutes = [{
             path: 'appointments',
             children: [
                 {
-            path: 'patient',
-            name: 'admin.patient',
-            component: () => import('../Pages/Patient/PatientList.vue'),
-        },
-        {
-            path: 'patient/appointments/:id',
-            name: 'admin.patient.appointments',
-            component: () => import('../Pages/Patient/PatientAppointmentList.vue'),
-        },
-         {
-            path: 'modality-appointment',
-            name: 'admin.modality-appointment',
-            component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentSpecilazationList.vue'),
-        },
-         {
-            path: 'modality-appointment/forceAppointment',
-            name: 'admin.modality-appointment.forceAppointment',
-            component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ForceAppointments/CanFroceList.vue'),
-        },
-         {
-            path: 'modality-appointment/specialization/:id',
-            name: 'admin.modality-appointment.specialization',
-            component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentModalityList.vue'),
-            props: true,
-        },
-         {
-            path: 'modality-appointment/details/:id/:specializationId',
-            name: 'admin.modality-appointment.details',
-            component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentDetails.vue'),
-            props: true,
-        },
-        {
-            path: 'users',
-            name: 'admin.users',
-            component: () => import('../Pages/Users/ListUsers.vue'),
-        },
-        {
-            path: 'excludeDates',
-            name: 'admin.excludeDates',
-            component: () => import('../Pages/Excludes/ExcludeDates.vue'),
-        },
-        {
-            path: 'excludeDates/:id',
-            name: 'admin.excludeDates.doctor',
-            component: () => import('../Components/exclude/DataTable.vue'),
-        },
-        {
-            path: 'doctors',
-            name: 'admin.doctors',
-            component: () => import('../Pages/Users/ListDoctors.vue'),
-        },
-        {
-            path: 'doctors/schedule/:id',
-            name: 'admin.doctors.schedule',
-            component: () => import('../Pages/Users/DoctorListSchedule.vue'),
-        },
-        {
-            path: 'doctor/forceAppointment',
-            name: 'admin.doctor.users',
-            component: () => import('../Components/Doctor/ListUsersCanForceAdmin.vue'),
-        },
-        {
-            path: 'settings',
-            name: 'admin.settings',
-            component: () => import('../Pages/Setting/settingsDoctor.vue'),
-        },
-        {
-            path: 'specializations',
-            name: 'admin.specialization',
-            component: () => import('../Pages/Specialization/specializationList.vue'),
-        },
-        {
-            path: 'profile',
-            name: 'admin.profile',
-            component: Profile,
-        },
-                 {
-                path: 'roles',
-                name: 'admin.roles',
-                component: () => import('../Pages/Roles/Roleslist.vue'),
-            },
-            {
-                path: 'calender',
-                name: 'admin.appointments.calender',
-               component: () => import('../Components/Calender.vue'),
+                    path: 'patients',
+                    name: 'admin.patient',
+                    component: () => import('../Pages/Patient/PatientList.vue'),
+                },
+             
+                {
+                    path: 'patient/appointments/:id',
+                    name: 'admin.patient.portal',
+                    component: () => import('../Pages/Patient/PatientPortalPage.vue'),
+                    meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'doctor', 'receptionist', 'secretary'] }, // Override parent meta to allow more roles
+                    props: true,    
+                },
+                {
+                    path: 'modality-appointment',
+                    name: 'admin.modality-appointment',
+                    component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentSpecilazationList.vue'),
+                },
+                {
+                    path: 'modality-appointment/forceAppointment',
+                    name: 'admin.modality-appointment.forceAppointment',
+                    component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ForceAppointments/CanFroceList.vue'),
+                },
+                {
+                    path: 'modality-appointment/specialization/:id',
+                    name: 'admin.modality-appointment.specialization',
+                    component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentModalityList.vue'),
+                    props: true,
+                },
+                {
+                    path: 'modality-appointment/details/:id/:specializationId',
+                    name: 'admin.modality-appointment.details',
+                    component: () => import('../Pages/Apps/Appointments/ModalityAppointment/ModalityAppointmentDetails.vue'),
+                    props: true,
+                },
+                   {
+                    path: 'thepatients',
+                    name: 'admin.patient.patients',
+                    component: () => import('../Pages/Patient/PatientList.vue'),
+                },
+                {
+                    path: 'users',
+                    name: 'admin.users',
+                    component: () => import('../Pages/Users/ListUsers.vue'),
+                },
+                {
+                    path: 'excludeDates',
+                    name: 'admin.excludeDates',
+                    component: () => import('../Pages/Excludes/ExcludeDates.vue'),
+                },
+                {
+                    path: 'excludeDates/:id',
+                    name: 'admin.excludeDates.doctor',
+                    component: () => import('../Components/exclude/DataTable.vue'),
+                },
+                {
+                    path: 'doctors',
+                    name: 'admin.doctors',
+                    component: () => import('../Pages/Users/ListDoctors.vue'),
+                },
+                {
+                    path: 'doctors/schedule/:id',
+                    name: 'admin.doctors.schedule',
+                    component: () => import('../Pages/Users/DoctorListSchedule.vue'),
+                },
+                {
+                    path: 'doctor/forceAppointment',
+                    name: 'admin.doctor.users',
+                    component: () => import('../Components/Doctor/ListUsersCanForceAdmin.vue'),
+                },
+                {
+                    path: 'settings',
+                    name: 'admin.settings',
+                    component: () => import('../Pages/Setting/settingsDoctor.vue'),
+                },
+                {
+                    path: 'specializations',
+                    name: 'admin.specialization',
+                    component: () => import('../Pages/Specialization/specializationList.vue'),
+                },
+                {
+                    path: 'profile',
+                    name: 'admin.profile',
+                    component: Profile,
+                },
+                {
+                    path: 'roles',
+                    name: 'admin.roles',
+                    component: () => import('../Pages/Roles/Roleslist.vue'),
+                },
+                {
+                    path: 'calender',
+                    name: 'admin.appointments.calender',
+                    component: () => import('../Components/Calender.vue'),
 
-            },
+                },
                 {
                     path: 'dashboard',
                     name: 'admin.appointments.dashboard',
@@ -117,7 +125,7 @@ const adminRoutes = [{
                     component: () => import('../Pages/Appointments/DoctorListAppointment.vue'),
                 },
                 {
-                    path: 'create/:id',
+                    path: 'create/:id/:specializationId',
                     name: 'admin.appointments.create',
                     component: () => import('../Pages/Appointments/AppointmentPage.vue'),
                 },
@@ -132,7 +140,7 @@ const adminRoutes = [{
                     component: () => import('../Pages/Pending/PendingList.vue'),
                 },
                 {
-                    path: ':id',
+                    path: ':id/:specializationId',
                     name: 'admin.appointments',
                     component: () => import('../Pages/Appointments/ListAppointment.vue'),
                 },
@@ -143,27 +151,28 @@ const adminRoutes = [{
             children: [
                 {
                     path: '',
-                    name: 'admin.waitlist.specialization',
+                    name: 'admin.Waitlist.specialization',
                     component: () => import('../Pages/waitList/SpecializationListWaitlist.vue'),
                 },
                 {
                     path: ':id/types',
-                    name: 'admin.waitlist.types',
+                    name: 'admin.Waitlist.types',
                     component: () => import('../Pages/waitList/WaitlistTypes.vue'),
                 },
+
                 {
-                    path: ':id/general',
-                    name: 'admin.waitlist.general',
-                    component: () => import('../Components/waitList/GeneralWaitlist.vue'),
+                    path: ':id/general-prime',
+                    name: 'admin.Waitlist.GeneralPrime',
+                    component: () => import('../Components/waitList/GeneralWaitlistPrime.vue'),
                 },
                 {
-                    path: ':id/daily',
-                    name: 'admin.waitlist.daily',
-                    component: () => import('../Components/waitList/DailyWaitlist.vue'),
+                    path: ':id/daily-prime',
+                    name: 'admin.Waitlist.DailyPrime',
+                    component: () => import('../Components/waitList/DailyWaitlistPrime.vue'),
                 },
             ],
         },
-        
+
         {
             path: 'consultations',
             children: [
@@ -177,12 +186,12 @@ const adminRoutes = [{
                     name: 'admin.consultation.folderlist',
                     component: () => import('../Pages/Consultation/folder/FolderList.vue'),
                 },
-                {
-                    path: 'template/:folderid',
-                    name: 'admin.consultation.template',
-                    component: () => import('../Pages/Consultation/template/TemplateList.vue'),
-                    props: true,
-                },
+                // {
+                //     path: 'template/:folderid',
+                //     name: 'admin.consultation.template',
+                //     component: () => import('../Pages/Consultation/template/templateList.vue'),
+                //     props: true,
+                // },
                 {
                     path: 'template/create/:doctor_id?/:folderid?',
                     name: 'admin.consultation.template.add',
@@ -233,17 +242,25 @@ const adminRoutes = [{
                     component: () => import('../Pages/Consultation/DoctorDoc/ConsultationWorkspaceDetails.vue'),
                     props: true,
                 },
-                 {
-            path: 'Medicales',
-            name: 'admin.consultations.Medicales.show',
-            component: () => import('../Pages/Consultation/medical/MedicalesList.vue'),
-            props: true,
-        },
+                {
+                    path: 'Medicales',
+                    name: 'admin.consultations.Medicales.show',
+                    component: () => import('../Pages/Consultation/medical/MedicalesList.vue'),
+                    props: true,
+                },
             ],
         },
-       
+
+        // --- PURCHASING BLOCK ---
+        {
+            path: 'purchasing/consignments',
+            name: 'admin.purchasing.consignments',
+            component: () => import('../Components/Purchasing/ConsignmentDashboard.vue'),
+            meta: { requiresAuth: true, role: ['admin', 'SuperAdmin', 'pharmacy', 'stock_manager'] },
+        },
+
         // --- NEW/MODIFIED CONFIGURATION BLOCK ---
-     
+
     ],
 }
 ]

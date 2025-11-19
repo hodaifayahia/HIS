@@ -2,19 +2,17 @@
 
 namespace App\Models;
 
-use App\Models\Doctor;
-use App\Models\Placeholder;
-use App\Models\Specialization;
 use Illuminate\Database\Eloquent\Model;
 
 class Folder extends Model
 {
-    protected $table ="folders";
+    protected $table = 'folders';
+
     protected $fillable = [
         'name',
         'description',
         'doctor_id',
-        'specializations_id',
+        'specialization_id',
     ];
 
     protected $appends = ['templates_count'];

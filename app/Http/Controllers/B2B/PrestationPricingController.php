@@ -374,4 +374,61 @@ class PrestationPricingController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Return the best-matching PrestationPricing for a given prestation.
+     * Optional filters: contract_percentage_id, annex_id, avenant_id
+     * GET /api/prestation-pricing/match
+     */
+    public function matchPricing(Request $request): JsonResponse
+    {
+        $request->validate([
+            'prestation_id' => 'required|exists:prestations,id',
+            'contract_percentage_id' => 'nullable|exists:contract_percentages,id',
+            'annex_id' => 'nullable|exists:annexes,id',
+            'avenant_id' => 'nullable|exists:avenants,id',
+        ]);
+
+        try {
+            $query = PrestationPricing::with('prestation')
+                ->where('prestation_id', $request->prestation_id);
+
+            // Try to prioritize exact matches when possible
+            if ($request->filled('contract_percentage_id')) {
+                $query->where('contract_percentage_id', $request->contract_percentage_id);
+            }
+
+            if ($request->filled('avenant_id')) {
+                $query->where('avenant_id', $request->avenant_id);
+            }
+
+            if ($request->filled('annex_id')) {
+                $query->where('annex_id', $request->annex_id);
+            }
+
+            // Try to get the most specific record first
+            $pricing = $query->orderByRaw("(avenant_id IS NOT NULL) DESC, (annex_id IS NOT NULL) DESC, (contract_percentage_id IS NOT NULL) DESC")
+                ->first();
+
+            if (!$pricing) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No matching prestation pricing found.'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => new PrestationPricingResource($pricing)
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error matching prestation pricing: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to match prestation pricing.',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

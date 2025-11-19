@@ -17,7 +17,7 @@ class RouteServiceProvider extends ServiceProvider
      *
      * @var string
      */
-    public const HOME = '/home'; // Or whatever your main SPA starting point is
+    public const HOME = '/';
 
     /**
      * Define your route model bindings, pattern filters, and other route configuration.

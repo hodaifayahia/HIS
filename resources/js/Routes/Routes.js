@@ -8,9 +8,24 @@ import configurationRoutes from './configuration'; // 👈 NEW IMPORT
 import infrastructureRoutes from './infrastructure'; // 👈 NEW IMPORT
 import convenationRoutes from './convenation'; // 👈 NEW IMPORT
 import crmRoutes from './crm'; // 👈 NEW IMPORT
-import TicketManagementRoutes from './ticket-management'; // 👈 NEW IMPORT
+import TicketManagementRoutes from './ticket_management.js'; // 👈 NEW IMPORT
 import receptionRoutes from './Reception'; // 👈 NEW IMPORT
 import PortalRoutes from './PortalSidebar';
+import CoffreRoutes from './Coffre.js';
+import BankRoutes from './bank'; // 👈 NEW IMPORT
+import CaisseRoutes from './caisse'
+import mangerRoutes from './manager'
+import emergencyRoutes from './emergency.js'
+import stockRoutes from './stock'
+import purchasingRoutes from './purchasing'
+import pharmacyRoutes from './pharmacy'
+import NursingRoutes from './Nursing'
+import ModalityRoutes from './modality.js' // 👈 NEW IMPORT
+import FacturationRoutes from './facturation.js' // 👈 NEW IMPORT
+import InventoryAuditProductRoutes from './inventoryAudit.js' // 👈 NEW IMPORT
+import admissionRoutes from './admission.js' // 👈 NEW IMPORT
+import externalPrescriptionRoutes from './externalPrescriptions.js' // 👈 NEW IMPORT
+import planningRoutes from './planning.js' // 👈 NEW IMPORT
 
 
 
@@ -26,6 +41,21 @@ export const allRoutes = [
     ...convenationRoutes,
     ...crmRoutes,
     ...TicketManagementRoutes,
+    ...CoffreRoutes,
+    ...BankRoutes,
+    ...CaisseRoutes,
+    ...mangerRoutes,
+    ...emergencyRoutes,
+    ...stockRoutes,
+    ...purchasingRoutes,
+    ...pharmacyRoutes,
+    ...NursingRoutes,
+    ...ModalityRoutes,
+    ...FacturationRoutes,
+    ...InventoryAuditProductRoutes,
+    ...admissionRoutes,
+    ...externalPrescriptionRoutes,
+    ...planningRoutes,
 
 
 

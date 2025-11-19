@@ -21,11 +21,13 @@ import TabPanel from 'primevue/tabpanel'
 import { remiseService } from '../../../Apps/services/Remise/RemiseService'
 import { userService } from '../../../Apps/services/User/userService'
 import RemiseNotificationService from '../../../Apps/services/Remise/RemiseNotificationService'
+import ficheNavetteService from '../../services/Reception/ficheNavetteService'
 
 // Props
 const props = defineProps({
   visible: Boolean,
   group: Object,
+  ficheNavetteId: String,
   prestations: Array,
   patientId: String,
   doctors: Array,
@@ -38,6 +40,13 @@ const emit = defineEmits(['update:visible', 'apply-remise'])
 const selectedRemise = ref(null)
 const availableRemises = ref([])
 const users = ref([])
+// Local doctors list loaded from API (fallback to props.doctors when empty)
+const doctorsList = ref([])
+
+// Derived doctor options used by Dropdowns (fallback to props.doctors)
+const doctorOptions = computed(() => {
+  return (doctorsList.value && doctorsList.value.length) ? doctorsList.value : (props.doctors || [])
+})
 const isCustomDiscount = ref(false)
 const loading = ref(false)
 const toast = useToast()
@@ -163,10 +172,10 @@ const notifyAllContributions = async () => {
           ]
         }))
     }
-    console.log(prestationContributions.value)
     // Create the remise request using the notification service
     const result = await RemiseNotificationService.createRequest(requestPayload)
-    
+        console.log(result)
+
     if (result.success) {
       toast.add({ 
         severity: 'success', 
@@ -358,32 +367,24 @@ const onDoctorSelected = (index, doctorId) => {
   }
 }
 
-// Compute total original price for the group
+// Compute totals from the normalized prestationDisplayData (includes dependencies & package items)
 const totalOriginal = computed(() => {
-  const flatPrestations = flattenGroupPrestations(props.group)
-  return flatPrestations.reduce((sum, item) => {
-    const price = Number(item.final_price || 0)
-    return sum + (item.isAffected ? price : 0)
+  return prestationDisplayData.value.reduce((sum, item) => {
+    return sum + (Number(item.originalPrice || 0))
   }, 0)
 })
 
-// Compute total discounted price for the group
 const totalDiscounted = computed(() => {
-  const flatPrestations = flattenGroupPrestations(props.group)
-  return flatPrestations.reduce((sum, item) => {
-    const price = Number(item.final_price || 0)
-    const discount = item.discount_type === 'percentage' ? (price * (Number(item.discount_value) / 100)) : Math.min(price, Number(item.discount_value))
-    const discountedPrice = Math.max(0, price - discount)
-    return sum + (item.isAffected ? discountedPrice : 0)
+  // discountedPrice already reflects whether the item is affected by the selected remise
+  return prestationDisplayData.value.reduce((sum, item) => {
+    return sum + (Number(item.discountedPrice ?? item.originalPrice ?? 0))
   }, 0)
 })
 
-// Compute total savings
 const totalSavings = computed(() => {
-  return totalOriginal.value - totalDiscounted.value
+  return Math.max(0, totalOriginal.value - totalDiscounted.value)
 })
 
-// Compute savings percentage impact
 const savingsPercentage = computed(() => {
   if (totalOriginal.value === 0) return 0
   return Math.round((totalSavings.value / totalOriginal.value) * 100)
@@ -643,6 +644,17 @@ const getAllUsers = async () => {
   }
 }
 
+// Load doctors from the ficheNavetteService API
+const getAllDoctors = async () => {
+  try {
+    const res = await ficheNavetteService.getAllDoctors()
+    doctorsList.value = res.success ? res.data : (props.doctors || [])
+  } catch (error) {
+    console.error('Error fetching doctors:', error)
+    doctorsList.value = props.doctors || []
+  }
+}
+
 const getRemiseUser = async (userId) => {
   if (!userId) return
   loading.value = true
@@ -751,6 +763,8 @@ onMounted(() => {
       loadRemises()
     }
   }
+    // Load doctors initially
+    getAllDoctors()
 })
 
 // Check if user is near salary limit
@@ -812,6 +826,103 @@ const discountImpact = computed(() => {
   if (savingsPercentage.value >= 10) return 'medium'
   if (savingsPercentage.value > 0) return 'low'
   return 'none'
+})
+
+// Add to RemiseFichenavetteModal.vue script setup
+const pendingRequests = ref([])
+const notifications = ref([])
+
+// Load remise data when modal opens
+const loadRemiseData = async () => {
+  try {
+    // Get pending requests
+    const pendingResult = await RemiseNotificationService.getPendingRequests()
+    console.log("pending request ",  pendingResult);
+
+    if (pendingResult.success) {
+      pendingRequests.value = pendingResult.data.items || []
+    }
+    
+    // Get notifications
+    const notificationsResult = await RemiseNotificationService.getNotifications()
+    if (notificationsResult.success) {
+      notifications.value = notificationsResult.data.items || []
+    }
+    
+  } catch (error) {
+    console.error('Error loading remise data:', error)
+  }
+}
+
+const getRequestDetails = async () => {
+  try {
+    const result = await RemiseNotificationService.getRequestDetails(props.ficheNavetteId)
+    console.log("Fetching request details for:", result.data.data)
+    console.log("Request details:", result.data)
+    if (result.success) {
+      // Handle successful response
+    }
+  } catch (error) {
+    console.error('Error fetching request details:', error)
+  }
+}
+
+// Watch for modal visibility changes
+
+watch(dialogVisible, async (visible) => {
+  if (visible) {
+    await loadRemiseData()
+    // Refresh doctors when modal opens to ensure up-to-date list
+    await getAllDoctors()
+    
+    const userId = props.group?.user?.id
+    if (userId) {
+      getRemiseUser(userId)
+    } else {
+      loadRemises()
+    }
+  } else {
+    resetForm()
+  }
+})
+
+const sendFichePrestations = async () => {
+  if (!props.ficheNavetteId) {
+    toast.add({ severity: 'warn', summary: 'Missing Fiche', detail: 'No ficheNavetteId available', life: 3000 })
+    return
+  }
+
+  // collect prestation ids from the computed display data (fallback to item.id)
+  const prestationIds = prestationDisplayData.value
+    .map(item => item._prestationId ?? item.id)
+    .filter(id => id !== null && id !== undefined)
+
+  if (!prestationIds.length) {
+    toast.add({ severity: 'warn', summary: 'No Prestations', detail: 'No prestations selected to send', life: 3000 })
+    return
+  }
+    console.log("Sending fiche prestations:", result);
+
+  try {
+    loading.value = true
+    const result = await RemiseNotificationService.sendFichePrestations(props.ficheNavetteId, prestationIds)
+    console.log("Sending fiche prestations:", result);
+
+    if (result.success) {
+      toast.add({ severity: 'success', summary: 'Sent', detail: 'Prestation ids sent successfully', life: 2500 })
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: result.message || 'Failed to send', life: 4000 })
+    }
+    return result
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: err.message || 'Failed to send', life: 4000 })
+    return { success: false, message: err.message }
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(() => {
+    sendFichePrestations()
 })
 </script>
 
@@ -961,7 +1072,7 @@ const discountImpact = computed(() => {
                       <div class="input-group">
                         <Dropdown
                           v-model="selectedDoctor"
-                          :options="doctors"
+                          :options="doctorOptions"
                           option-label="name"
                           placeholder="Select default doctor (applies to all)"
                           filter
@@ -1133,7 +1244,7 @@ const discountImpact = computed(() => {
                     <div class="doctor-selection-wrapper">
                       <Dropdown
                         v-model="prestationDisplayData[index].selectedDoctor"
-                        :options="doctors"
+                        :options="doctorOptions"
                         option-label="name"
                         option-value="id"
                         placeholder="Select doctor"
@@ -1143,8 +1254,8 @@ const discountImpact = computed(() => {
                         @change="onDoctorSelected(index, $event.value)"
                       >
                         <template #value="{ value, placeholder }">
-                          <div v-if="value" class="selected-value">
-                            <span>{{ doctors.find(d => d.id === value)?.name || 'Unknown' }}</span>
+                            <div v-if="value" class="selected-value">
+                            <span>{{ doctorOptions.find(d => d.id === value)?.name || 'Unknown' }}</span>
                             <i v-if="value === selectedDoctor?.id" class="pi pi-check auto-applied-icon" title="Auto-applied from default"></i>
                           </div>
                           <span v-else>{{ placeholder }}</span>

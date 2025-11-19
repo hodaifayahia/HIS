@@ -19,6 +19,7 @@ use Illuminate\Http\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\ContractPercentage;
 
 class ConventionController extends Controller
 {
@@ -39,7 +40,7 @@ class ConventionController extends Controller
             $organismeId = $request->get('organisme_id');
             $organismeIds = $request->get('organisme_ids'); // Accept multiple ids
 
-            $query = Convention::with(['conventionDetail', 'organisme', 'annexes']);
+            $query = Convention::with(['conventionDetail', 'organisme', 'annexes', 'contractPercentages']);
 
             if ($search) {
                 $query->where('contract_name', 'like', '%' . $search . '%');
@@ -230,9 +231,23 @@ private function formatAuthorizationLabel(string $auth): string
     public function store(StoreConventionRequest $request ): JsonResponse
     {
         try {
+            DB::beginTransaction();
+
             $convention = $this->conventionService->createConvention(
                 $request->validated()
             );
+
+            // Save percentages if provided
+            if ($request->has('percentages') && is_array($request->percentages)) {
+                foreach ($request->percentages as $percentageData) {
+                    ContractPercentage::create([
+                        'contract_id' => $convention->id,
+                        'percentage' => $percentageData['percentage'],
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -241,6 +256,7 @@ private function formatAuthorizationLabel(string $auth): string
             ], 201);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create convention',
@@ -256,7 +272,7 @@ private function formatAuthorizationLabel(string $auth): string
     public function show(Convention $convention): JsonResponse
     {
         try {
-            $convention->load(['conventionDetail', 'organisme']);
+            $convention->load(['conventionDetail', 'organisme', 'contractPercentages']);
 
             return response()->json([
                 'success' => true,
@@ -279,10 +295,28 @@ private function formatAuthorizationLabel(string $auth): string
     public function update(UpdateConventionRequest $request, Convention $convention): JsonResponse
     {
         try {
+            DB::beginTransaction();
+
             $updatedConvention = $this->conventionService->updateConvention(
                 $convention,
                 $request->validated()
             );
+
+            // Update percentages if provided
+            if ($request->has('percentages') && is_array($request->percentages)) {
+                // Delete existing percentages
+                $convention->contractPercentages()->delete();
+
+                // Create new ones
+                foreach ($request->percentages as $percentageData) {
+                    ContractPercentage::create([
+                        'contract_id' => $convention->id,
+                        'percentage' => $percentageData['percentage'],
+                    ]);
+                }
+            }
+
+            DB::commit();
 
             return response()->json([
                 'success' => true,
@@ -291,6 +325,7 @@ private function formatAuthorizationLabel(string $auth): string
             ]);
 
         } catch (\Exception $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update convention',
@@ -402,6 +437,51 @@ private function formatAuthorizationLabel(string $auth): string
     }
 
     /**
+     * Extend the specified convention.
+     * POST /conventions/{conventionId}/extend
+     */
+    public function extend(Request $request, int $conventionId): JsonResponse
+    {
+        try {
+            $request->validate([
+                'new_end_date' => 'required|date|after:today',
+                'reason' => 'nullable|string|max:255',
+                'notes' => 'nullable|string|max:1000',
+            ]);
+
+            $result = $this->conventionService->extendConvention($conventionId, $request->all());
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Contract extended successfully',
+                'data' => $result
+            ]);
+
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            // Check if it's the maximum extension error
+            if (str_contains($e->getMessage(), 'Maximum extension limit')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                    'error' => 'MAX_EXTENSIONS_REACHED'
+                ], 422);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to extend contract',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      * DELETE /conventions/{convention}
      */
@@ -427,6 +507,76 @@ private function formatAuthorizationLabel(string $auth): string
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete convention',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get contract percentages for filtering
+     * GET /conventions/contract-percentages
+     */
+    public function getContractPercentages(Request $request): JsonResponse
+    {
+        try {
+            $organismeId = $request->get('organisme_id');
+            $conventionId = $request->get('convention_id');
+            $annexId = $request->get('annex_id');
+            $avenantId = $request->get('avenant_id');
+
+            // If annex_id is provided but convention_id is not, derive convention_id from annex
+            if ($annexId ) {
+                $annex = \App\Models\B2B\Annex::find($annexId);
+                if ($annex) {
+                    $conventionId = $annex->convention_id;
+                }
+            }
+
+            // If avenant_id is provided but convention_id is not, derive convention_id from avenant
+            if ($avenantId && !$conventionId) {
+                $avenant = \App\Models\B2B\Avenant::find($avenantId);
+                if ($avenant) {
+                    $conventionId = $avenant->convention_id;
+                }
+            }
+
+            $query = ContractPercentage::query();
+
+            // If organisme_id is provided, filter by conventions of that organisme
+            if ($organismeId) {
+                $query->whereHas('convention', function ($q) use ($organismeId) {
+                    $q->where('organisme_id', $organismeId);
+                });
+            }
+
+            // If convention_id is provided (either directly or derived from annex/avenant), filter by specific convention
+            if ($conventionId) {
+                $query->where('contract_id', $conventionId);
+            }
+
+            $percentages = $query->select('id', 'percentage', 'contract_id')
+                ->distinct('percentage')
+                ->orderBy('percentage')
+                ->get()
+                ->map(function ($percentage) {
+                    return [
+                        'id' => $percentage->id,
+                        'percentage' => $percentage->percentage,
+                        'label' => $percentage->percentage . '%',
+                        'value' => $percentage->id,
+                        'contract_id' => $percentage->contract_id
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'data' => $percentages
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch contract percentages',
                 'error' => $e->getMessage()
             ], 500);
         }

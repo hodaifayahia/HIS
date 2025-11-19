@@ -6,15 +6,14 @@ import axios from 'axios';
 import { useAuthStoreDoctor } from '../../stores/AuthDoctor';
 
 
-const {doctorData} = useAuthStoreDoctor(); // Initialize Pinia store
+const authStore = useAuthStoreDoctor(); // Initialize Pinia store
+const {doctorData} = authStore;
 
    
 // Reactive state
 const dashboardData = ref({
   todayAppointmentsCount: 0,
-  totalDoctorsCount: 0,
   totalPatientsCount: 0,
-  totalSpecializationsCount: 0,
   totalAppointmentsCount: 0,
   upcomingAppointmentsCount: 0,
   cancelledAppointmentsCount: 0,
@@ -46,12 +45,6 @@ const cardConfig = {
     label: 'Today\'s Appointments', 
     icon: 'bi-calendar-check' ,
     link: '/calander'
-  },
-  totalDoctorsCount: { 
-    color: 'success', 
-    label: ' Doctors', 
-    icon: 'bi-person-fill-gear',
-    link: '/admin/doctors' 
   },
   totalPatientsCount: { 
     color: 'info', 
@@ -85,12 +78,6 @@ const cardConfig = {
     label: 'Total Appointments', 
     icon: 'bi-calendar-fill' ,
     link: '/admin/appointments/specialization'
-  },
-  totalSpecializationsCount: { 
-    color: 'dark', 
-    label: 'Specializations', 
-    icon: 'bi-award' ,
-    link: '/admin/specializations'
   }
 }
 
@@ -98,7 +85,6 @@ const cardConfig = {
 const primaryKPIs = computed(() => {
   return {
     todayAppointmentsCount: displayData.value.todayAppointmentsCount,
-    totalDoctorsCount: displayData.value.totalDoctorsCount,
     totalPatientsCount: displayData.value.totalPatientsCount,
     cancelledAppointmentsCount: displayData.value.cancelledAppointmentsCount
   }
@@ -110,7 +96,6 @@ const secondaryKPIs = computed(() => {
     pendingAppointmentsCount: displayData.value.pendingAppointmentsCount,
     upcomingAppointmentsCount: displayData.value.upcomingAppointmentsCount,
     totalAppointmentsCount: displayData.value.totalAppointmentsCount,
-    totalSpecializationsCount: displayData.value.totalSpecializationsCount
   }
 })
 
@@ -137,12 +122,17 @@ const fetchMedicalData = async () => {
   try {
     loading.value = true
     
-    const response = await axios.get('/api/medical-dashboard',{
-        doctorId = doctorData?.value.id
+    // Ensure we have doctor data before making the request
+    if (!doctorData.value?.id) {
+      throw new Error('Doctor data not available')
+    }
+    
+    const response = await axios.get('/api/medical-dashboard', {
+      params: {
+        doctorId: doctorData.value.id
+      }
     })
     dashboardData.value = response.data
-    
-   
     
     // Animate the numbers
     animateNumbers()
@@ -169,16 +159,30 @@ const setupWatchers = () => {
       let current = startVal
       let currentStep = 0
       
-      
+      const timer = setInterval(() => {
+        current += step
+        currentStep++
+        displayData.value[key] = Math.round(current)
+        
+        if (currentStep >= steps) {
+          displayData.value[key] = endVal
+          clearInterval(timer)
+        }
+      }, interval)
     })
   })
 }
 
 
 // Lifecycle hooks
-onMounted(() => {
+onMounted(async () => {
   setupWatchers()
-  fetchMedicalData()
+  
+  // First get doctor data, then fetch dashboard data
+  await authStore.getDoctor()
+  if (doctorData.value?.id) {
+    fetchMedicalData()
+  }
   
   // Refresh data every 30 seconds
 })

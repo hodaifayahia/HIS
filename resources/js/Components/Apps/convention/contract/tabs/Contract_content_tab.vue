@@ -7,6 +7,7 @@ import Agreement_table from '../tables/Agreement_table.vue';
 import Agreement_para_table from '../tables/Agreement_para_table.vue';
 import Annex_table from '../tables/Annex_table.vue';
 import Avenant_table from '../tables/Avenant_table.vue';
+import Contract_extension_tab from './Contract_extension_tab.vue';
 
 const props = defineProps({
   contract: {
@@ -35,7 +36,7 @@ onMounted(() => {
   <section class="mt-4">
     <div class="card">
       <div class="card-">
-        <TabView v-model:activeIndex="activeTabIndex">
+        <TabView :activeIndex="activeTabIndex" @tab-change="activeTabIndex = $event.index">
           <TabPanel header="Agreement">
             <Agreement_table :contractState="contract.status" :contractid="contract.id" />
           </TabPanel>
@@ -50,6 +51,10 @@ onMounted(() => {
 
           <TabPanel header="Avenant" v-if="contract.status === 'active' || contract.status === 'Terminated'">
             <Avenant_table :contractState="contract.status" :conventionId="contract.id" />
+          </TabPanel>
+
+          <TabPanel header="Contract Extension" v-if="contract.status === 'active'">
+            <Contract_extension_tab :contractState="contract.status" :contractid="contract.id" />
           </TabPanel>
         </TabView>
       </div>

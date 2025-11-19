@@ -157,7 +157,12 @@ const handleSubmit = async () => {
             });
             toaster.success('Service added successfully!');
             // Emit the newly added service object
-            emit('service-added', response.data.data || response.data);
+            const newService = response.data.data || response.data;
+            // Ensure the image URL is properly set for display if not returned by API
+            if (imagePreviewUrl.value && !newService.image_url) {
+                newService.image_url = imagePreviewUrl.value;
+            }
+            emit('service-added', newService);
         }
         closeModal();
     } catch (err) {

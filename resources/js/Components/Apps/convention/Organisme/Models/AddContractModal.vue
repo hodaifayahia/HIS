@@ -40,6 +40,7 @@ const formData = ref({
 });
 
 const selectedFamilyAuth = ref([]); // This needs to be an array for MultiSelect
+const percentages = ref([]); // Array of percentage objects {id, percentage}
 const errors = ref({
     name: "",
     start_date: "",
@@ -48,7 +49,8 @@ const errors = ref({
     min_price: "",
     max_price: "",
     discount_percentage: "",
-    family_auth: ""
+    family_auth: "",
+    percentages: ""
 });
 
 const close = () => {
@@ -98,6 +100,7 @@ const resetForm = () => {
         status: 'pending',
     };
     selectedFamilyAuth.value = [];
+    percentages.value = [];
     errors.value = {
         name: "",
         id: null,
@@ -107,6 +110,7 @@ const resetForm = () => {
         max_price: "",
         discount_percentage: "",
         family_auth: "",
+        percentages: "",
         status: 'pending',
     };
 };
@@ -121,7 +125,8 @@ const validateForm = () => {
         min_price: "",
         max_price: "",
         discount_percentage: "",
-        family_auth: ""
+        family_auth: "",
+        percentages: ""
     };
 
     if (!formData.value.name) {
@@ -157,6 +162,21 @@ const validateForm = () => {
         isValid = false;
     }
 
+    // Validate percentages
+    if (percentages.value.length === 0) {
+        errors.value.percentages = "At least one percentage is required";
+        isValid = false;
+    } else {
+        for (let i = 0; i < percentages.value.length; i++) {
+            const pct = percentages.value[i];
+            if (pct.percentage === null || pct.percentage === '' || parseFloat(pct.percentage) < 0 || parseFloat(pct.percentage) > 100) {
+                errors.value.percentages = "All percentages must be between 0 and 100";
+                isValid = false;
+                break;
+            }
+        }
+    }
+
     return isValid;
 };
 
@@ -178,6 +198,18 @@ watch(() => props.contractData, (newVal) => {
         } else {
             selectedFamilyAuth.value = [];
         }
+        // Initialize percentages
+        if (newVal.contractPercentages && newVal.contractPercentages.length > 0) {
+            percentages.value = newVal.contractPercentages.map(p => ({
+                id: p.id,
+                percentage: p.percentage
+            }));
+        } else if (newVal.discount_percentage) {
+            // Migrate old single percentage to new format
+            percentages.value = [{ id: null, percentage: newVal.discount_percentage }];
+        } else {
+            percentages.value = [];
+        }
     }
 }, { immediate: true });
 
@@ -195,7 +227,8 @@ const save = () => {
     const dataToSave = {
         ...formData.value,
         // Join the array back into a comma-separated string for the API
-        family_auth: selectedFamilyAuth.value.length > 0 ? selectedFamilyAuth.value.join(',') : null
+        family_auth: selectedFamilyAuth.value.length > 0 ? selectedFamilyAuth.value.join(',') : null,
+        percentages: percentages.value.map(p => ({ id: p.id, percentage: parseFloat(p.percentage) }))
     };
 
     if (dataToSave.start_date) {
@@ -221,6 +254,15 @@ const showRestrictionToast = (fieldName) => {
             });
         }
     }
+};
+
+// Methods for managing percentages
+const addPercentage = () => {
+    percentages.value.push({ id: null, percentage: '' });
+};
+
+const removePercentage = (index) => {
+    percentages.value.splice(index, 1);
 };
 </script>
 
@@ -380,31 +422,53 @@ const showRestrictionToast = (fieldName) => {
                     </div>
 
                     <div class="form-group">
-                        <label for="addDiscountPercentage" class="form-label">
-                            <i class="fas fa-percent label-icon"></i> Company Percentage:
+                        <label class="form-label">
+                            <i class="fas fa-percent label-icon"></i> Discount Percentages:
                             <span v-if="props.isEdit && hasAnnexes && typeof isFieldEditable === 'object' && !isFieldEditable.discount_percentage"
                                     class="restricted-field-indicator">
                                 <i class="fas fa-lock"></i>
                             </span>
                         </label>
-                        <div class="input-with-addon">
-                            <input
-                                type="number"
-                                step="0.01"
-                                id="addDiscountPercentage"
-                                v-model.number="formData.discount_percentage"
-                                :disabled="!isFieldEditable || (typeof isFieldEditable === 'object' && !isFieldEditable.discount_percentage)"
-                                class="form-control form-input"
-                                :class="{
-                                    'input-error': errors.discount_percentage,
-                                    'input-disabled': !isFieldEditable || (typeof isFieldEditable === 'object' && !isFieldEditable.discount_percentage)
-                                }"
-                                @focus="showRestrictionToast('discount_percentage')"
-                            />
-                            <span class="input-addon">%</span>
+                        <div class="percentages-container">
+                            <div v-for="(pct, index) in percentages" :key="index" class="percentage-item">
+                                <div class="input-with-addon">
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        :value="pct.percentage"
+                                        @input="pct.percentage = $event.target.value"
+                                        :disabled="!isFieldEditable || (typeof isFieldEditable === 'object' && !isFieldEditable.discount_percentage)"
+                                        class="form-control form-input"
+                                        :class="{
+                                            'input-error': errors.percentages,
+                                            'input-disabled': !isFieldEditable || (typeof isFieldEditable === 'object' && !isFieldEditable.discount_percentage)
+                                        }"
+                                        placeholder="Enter percentage"
+                                        @focus="showRestrictionToast('discount_percentage')"
+                                    />
+                                    <span class="input-addon">%</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-danger remove-percentage-btn"
+                                    @click="removePercentage(index)"
+                                    :disabled="percentages.length <= 1"
+                                    v-tooltip="'Remove this percentage'"
+                                >
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-primary add-percentage-btn"
+                                @click="addPercentage"
+                                v-tooltip="'Add another percentage'"
+                            >
+                                <i class="fas fa-plus"></i> Add Percentage
+                            </button>
                         </div>
-                        <small v-if="errors.discount_percentage" class="error-message">
-                            <i class="fas fa-exclamation-circle"></i> {{ errors.discount_percentage }}
+                        <small v-if="errors.percentages" class="error-message">
+                            <i class="fas fa-exclamation-circle"></i> {{ errors.percentages }}
                         </small>
                     </div>
 
@@ -417,9 +481,10 @@ const showRestrictionToast = (fieldName) => {
                             :options="familyAuthOptions"
                             optionLabel="label"
                             optionValue="value"
+                            appendTo="self"
                             placeholder="Select Family Authorizations"
                             :disabled="isFamilyAuthDisabled"
-                            class="w-full md:w-20rem"
+                            class="w-full md:w-20rem"   
                             :class="{ 'p-invalid': errors.family_auth, 'input-disabled': isFamilyAuthDisabled }"
                             @focus="showRestrictionToast('family_auth')"
                         />
@@ -828,5 +893,40 @@ const showRestrictionToast = (fieldName) => {
         width: 100%;
         justify-content: center;
     }
+}
+
+/* Percentages Styles */
+.percentages-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.percentage-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.remove-percentage-btn {
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.remove-percentage-btn:hover:not(:disabled) {
+    background-color: #dc3545;
+}
+
+.remove-percentage-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.add-percentage-btn {
+    align-self: flex-start;
+    margin-top: 0.5rem;
 }
 </style>

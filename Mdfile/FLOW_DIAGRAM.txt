@@ -1,0 +1,153 @@
+┌─────────────────────────────────────────────────────────────────────┐
+│                    PRESTATION DEPENDENCY SYSTEM                     │
+│                         Flow Diagram                                │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────┐
+│   USER INTERFACE │
+│  (Appointment    │
+│      Form)       │
+└────────┬─────────┘
+         │
+         │ 1. User selects time slot
+         ▼
+┌──────────────────────────────────────────────────────────────┐
+│  fetchPrestationsForSpecialization(specializationId)         │
+│  GET /api/reception/prestations/by-specialization/{id}       │
+│                                                               │
+│  Returns: [{                                                  │
+│    id: 1,                                                     │
+│    name: "ECG",                                              │
+│    required_prestations_info: [2, 3],  ← Dependencies       │
+│    patient_instructions: "Fast 6hrs"    ← Instructions       │
+│  }]                                                          │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+                          │ 2. User selects prestation(s)
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│  watch(selectedPrestations) → triggers                        │
+│  fetchDependenciesAndInstructions()                           │
+│                                                               │
+│  Actions:                                                     │
+│  • Extract required_prestations_info from selected           │
+│  • Filter out already-selected prestations                   │
+│  • Display remaining as checkboxes                           │
+│  • Combine patient_instructions                              │
+│  • Update description field                                  │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+                          │ 3. User views & selects dependencies
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│                  DEPENDENCY UI DISPLAY                        │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │ Required Dependencies (optional)                        │ │
+│  │                                                          │ │
+│  │ ☐ CONSULTATION CARDIOLOGIE (2500 DZD)                  │ │
+│  │ ☑ ECHOCARDIOGRAPHIE (3000 DZD)                         │ │
+│  └────────────────────────────────────────────────────────┘ │
+│                                                               │
+│  ┌────────────────────────────────────────────────────────┐ │
+│  │ Patient Instructions                                    │ │
+│  │                                                          │ │
+│  │ ECG: Fast for 6 hours before test                      │ │
+│  │ ECHOCARDIOGRAPHIE: Bring previous reports              │ │
+│  └────────────────────────────────────────────────────────┘ │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+                          │ 4. User submits form
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│  handleSubmit()                                               │
+│                                                               │
+│  Combined Prestations:                                       │
+│  selectedPrestations: [1]        ← User's primary choice    │
+│  selectedDependencies: [3]       ← User's dependency choice │
+│  Final: [1, 3]                   ← Combined & unique        │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+                          │ POST /api/appointments
+                          ▼
+┌──────────────────────────────────────────────────────────────┐
+│           BACKEND: AppointmentController::store()            │
+│                                                               │
+│  Step 1: Collect prestation IDs                              │
+│    prestations: [1, 3]                                       │
+│                                                               │
+│  Step 2: Call findMatchingPackage([1, 3])                   │
+│    ├─ Sort: [1, 3]                                          │
+│    ├─ Query active packages                                 │
+│    ├─ Compare with each package's items                     │
+│    └─ Return match or null                                  │
+└─────────────────────────┬─────────────────────────────────────┘
+                          │
+            ┌─────────────┴─────────────┐
+            │                           │
+         MATCH?                     NO MATCH?
+            │                           │
+            ▼                           ▼
+┌─────────────────────────┐   ┌─────────────────────────────┐
+│  Package Found          │   │  No Package                 │
+│                         │   │                             │
+│  Store ONE record:      │   │  Store MULTIPLE records:    │
+│                         │   │                             │
+│  appointment_prestations│   │  appointment_prestations    │
+│  ├─ appointment_id: 123 │   │  Record 1:                  │
+│  ├─ package_id: 1       │   │  ├─ appointment_id: 123     │
+│  ├─ prestation_id: 1    │   │  ├─ prestation_id: 1        │
+│  ├─ description:        │   │  ├─ description:            │
+│  │    "Package: PACK   │   │  │    "Fast for 6 hours"     │
+│  │     CARDIOLOGIE"    │   │  └─ package_id: NULL        │
+│  └─ patient_id: 456    │   │                             │
+│                         │   │  Record 2:                  │
+│  Log: "Package matched" │   │  ├─ appointment_id: 123     │
+└─────────────────────────┘   │  ├─ prestation_id: 3        │
+                              │  ├─ description:            │
+                              │  │    "Bring previous..."   │
+                              │  └─ package_id: NULL        │
+                              │                             │
+                              │  Log: "Individual stored"   │
+                              └─────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    DATABASE FINAL STATE                      │
+│                                                              │
+│  appointment_prestations table:                              │
+│  ┌────┬──────────┬─────────┬────────┬────────────────────┐ │
+│  │ ID │ appt_id  │ prest_id│ pkg_id │ description        │ │
+│  ├────┼──────────┼─────────┼────────┼────────────────────┤ │
+│  │ 1  │ 123      │ 1       │ 1      │ Package: PACK...   │ │  ← Package match
+│  │    │          │         │        │                    │ │
+│  │ OR │          │         │        │                    │ │
+│  │    │          │         │        │                    │ │
+│  │ 1  │ 123      │ 1       │ NULL   │ Fast for 6 hours   │ │  ← Individual
+│  │ 2  │ 123      │ 3       │ NULL   │ Bring previous...  │ │  ← Individual
+│  └────┴──────────┴─────────┴────────┴────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                       KEY BENEFITS                           │
+│                                                              │
+│  ✓ Automatic package detection (saves storage space)        │
+│  ✓ User chooses which dependencies to include                │
+│  ✓ Patient instructions automatically displayed & stored     │
+│  ✓ Optimized database storage (1 record vs N records)        │
+│  ✓ Clear audit trail in logs                                │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                    EXAMPLE PACKAGES                          │
+│                                                              │
+│  PACK CARDIOLOGIE (Active)                                   │
+│  ├─ ECG (ID: 1)                                             │
+│  ├─ CONSULTATION CARDIOLOGIE (ID: 2)                        │
+│  └─ ECHOCARDIOGRAPHIE (ID: 3)                               │
+│  Price: 4500 DZD                                            │
+│                                                              │
+│  PACK CARDIOLOGIE 02 (Active)                                │
+│  ├─ CONSULTATION CARDIOLOGIE (ID: 2)                        │
+│  └─ ECHOCARDIOGRAPHIE (ID: 3)                               │
+│  Price: 3500 DZD                                            │
+└─────────────────────────────────────────────────────────────┘

@@ -24,6 +24,7 @@ class PrestationResource extends JsonResource
             'convenience_prixe' => $this->convenience_price,
             'service_id' => $this->service_id,
             'specialization_id' => $this->specialization_id,
+            'Urgent_Prestation' => $this->Urgent_Prestation,
             'service' => [
                 'id' => $this->service->id,
                 'name' => $this->service->name,
@@ -46,9 +47,12 @@ class PrestationResource extends JsonResource
             }, null), // Use whenLoaded for relations
             'public_price' => $this->public_price,
             'vat_rate' => $this->vat_rate,
+            'tva_const_prestation' => $this->tva_const_prestation, // Separate VAT for consumables
             'price_with_vat' => $this->price_with_vat, // This is likely an accessor on your model
+            'price_with_vat_and_consumables_variant' => $this->price_with_vat_and_consumables_variant, // Array with both TTC variants
             'night_tariff' => $this->night_tariff, // <--- ADDED (assuming consistent naming now)
             'consumables_cost' => $this->consumables_cost,
+            'tva_const_prestation' => $this->tva_const_prestation, // Separate VAT for consumables
             'is_social_security_reimbursable' => $this->is_social_security_reimbursable,
             'reimbursement_conditions' => $this->reimbursement_conditions, // <--- ADDED
             'non_applicable_discount_rules' => $this->non_applicable_discount_rules, // <--- ADDED (will be array due to $casts)
@@ -73,9 +77,9 @@ class PrestationResource extends JsonResource
             'required_modality_type_id' => $this->required_modality_type_id, // You might want to include the modality_type object directly if it's always loaded.
             'default_duration_minutes' => $this->default_duration_minutes,
             'formatted_duration' => $this->formatted_duration, // This is likely an accessor on your model
-            'required_prestations_info' => $this->required_prestations_info, // <--- ADDED (will be array due to $casts)
+            'required_prestations_info' => $this->required_prestations_info ?? [], // Ensure it's always an array
             'patient_instructions' => $this->patient_instructions, // <--- ADDED
-            'required_consents' => $this->required_consents, // <--- ADDED (will be array due to $casts)
+            'required_consents' => $this->required_consents ?? [], // Ensure it's always an array
 
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,

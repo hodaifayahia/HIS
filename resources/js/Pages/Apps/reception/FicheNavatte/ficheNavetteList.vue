@@ -1,4 +1,3 @@
-<!-- pages/Reception/FicheNavette/FicheNavetteList.vue -->
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -72,11 +71,11 @@ const totalActiveFilters = computed(() => {
 
 // Static data
 const statusOptions = [
-  { label: 'Tous les statuts', value: null },
-  { label: 'En attente', value: 'pending', severity: 'warning', icon: 'pi pi-clock' },
-  { label: 'En cours', value: 'in_progress', severity: 'info', icon: 'pi pi-spin pi-spinner' },
-  { label: 'Terminé', value: 'completed', severity: 'success', icon: 'pi pi-check-circle' },
-  { label: 'Annulé', value: 'cancelled', severity: 'danger', icon: 'pi pi-times-circle' }
+  { label: 'All statuses', value: null },
+  { label: 'Pending', value: 'pending', severity: 'warning', icon: 'pi pi-clock' },
+  { label: 'In progress', value: 'in_progress', severity: 'info', icon: 'pi pi-spin pi-spinner' },
+  { label: 'Completed', value: 'completed', severity: 'success', icon: 'pi pi-check-circle' },
+  { label: 'Cancelled', value: 'cancelled', severity: 'danger', icon: 'pi pi-times-circle' }
 ]
 
 const rowsPerPageOptions = [10, 20, 50, 100]
@@ -102,20 +101,20 @@ const loadFicheNavettes = async () => {
       date_from: selectedDateRange.value?.[0],
       date_to: selectedDateRange.value?.[1]
     }
-    
+
     const result = await ficheNavetteService.getAll(params)
-    
-    if (result.success) {
-      ficheNavettes.value = result.data
-      totalRecords.value = result.total
-    } else {
-      toast.add({
-        severity: 'error',
-        summary: 'Erreur',
-        detail: result.message,
-        life: 3000
-      })
-    }
+
+      if (result.success) {
+        ficheNavettes.value = result.data
+        totalRecords.value = result.total
+      } else {
+        toast.add({
+          severity: 'error',
+          summary: 'Error',
+          detail: result.message,
+          life: 3000
+        })
+      }
   } finally {
     loading.value = false
   }
@@ -164,12 +163,12 @@ const editFiche = (fiche) => {
 
 const confirmDelete = (fiche) => {
   confirm.require({
-    message: `Êtes-vous sûr de vouloir supprimer la fiche navette #${fiche.id} pour ${fiche.patient_name} ?`,
-    header: 'Confirmation de suppression',
+    message: `Are you sure you want to delete shuttle form #${fiche.id} for ${fiche.patient_name}?`,
+    header: 'Delete confirmation',
     icon: 'pi pi-exclamation-triangle',
     acceptClass: 'p-button-danger',
-    acceptLabel: 'Supprimer',
-    rejectLabel: 'Annuler',
+    acceptLabel: 'Delete',
+    rejectLabel: 'Cancel',
     accept: () => deleteFiche(fiche)
   })
 }
@@ -177,24 +176,24 @@ const confirmDelete = (fiche) => {
 const deleteFiche = async (fiche) => {
   try {
     const result = await ficheNavetteService.delete(fiche.id)
-    
+
     if (result.success) {
       const index = ficheNavettes.value.findIndex(f => f.id === fiche.id)
       if (index !== -1) {
         ficheNavettes.value.splice(index, 1)
         totalRecords.value -= 1
       }
-      
+
       toast.add({
         severity: 'success',
-        summary: 'Succès',
-        detail: 'Fiche navette supprimée avec succès',
+        summary: 'Success',
+        detail: 'Shuttle form deleted successfully',
         life: 3000
       })
     } else {
       toast.add({
         severity: 'error',
-        summary: 'Erreur',
+        summary: 'Error',
         detail: result.message,
         life: 3000
       })
@@ -202,8 +201,8 @@ const deleteFiche = async (fiche) => {
   } catch (error) {
     toast.add({
       severity: 'error',
-      summary: 'Erreur',
-      detail: 'Erreur lors de la suppression',
+      summary: 'Error',
+      detail: 'Error while deleting',
       life: 3000
     })
   }
@@ -211,30 +210,106 @@ const deleteFiche = async (fiche) => {
 
 const onFicheSaved = (savedFiche, mode) => {
   showModal.value = false
-  
+
   if (mode === 'create') {
     ficheNavettes.value.unshift(savedFiche)
     totalRecords.value += 1
-    
+
     toast.add({
       severity: 'success',
-      summary: 'Succès',
-      detail: 'Fiche navette créée avec succès',
+      summary: 'Success',
+      detail: 'Shuttle form created successfully',
       life: 3000
     })
+
+    // Automatically open the created fiche items page
+    openItemsPage(savedFiche)
   } else if (mode === 'edit') {
     const index = ficheNavettes.value.findIndex(f => f.id === savedFiche.id)
     if (index !== -1) {
       ficheNavettes.value[index] = { ...ficheNavettes.value[index], ...savedFiche }
     }
-    
+
     toast.add({
       severity: 'success',
-      summary: 'Succès',
-      detail: 'Fiche navette modifiée avec succès',
+      summary: 'Success',
+      detail: 'Shuttle form updated successfully',
       life: 3000
     })
   }
+}
+
+const markAsArrived = (fiche) => {
+  confirm.require({
+    message: `Confirm arrival for shuttle form #${fiche.id}?`,
+    header: 'Confirm arrival',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'Yes, mark arrived',
+    rejectLabel: 'Cancel',
+    acceptClass: 'p-button-success',
+    accept: async () => {
+      try {
+        const payload = { status: 'arrived' }
+        const res = await ficheNavetteService.update(fiche.id, payload)
+        if (res.success) {
+          // update local list
+          const idx = ficheNavettes.value.findIndex(f => f.id === fiche.id)
+          if (idx !== -1) {
+            ficheNavettes.value[idx] = { ...ficheNavettes.value[idx], ...res.data }
+          }
+
+          toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Status updated to "arrived"',
+            life: 3000
+          })
+        } else {
+          toast.add({ severity: 'error', summary: 'Error', detail: res.message, life: 4000 })
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to update status', life: 4000 })
+      }
+    }
+  })
+}
+
+const togglePatientFaithful = (fiche) => {
+  const isFaithful = fiche.patient?.is_faithful ?? true
+  const action = isFaithful ? 'mark as unfaithful' : 'mark as faithful'
+
+  confirm.require({
+    message: `Do you want to ${action} patient ${fiche.patient_name}?`,
+    header: 'Change faithful status',
+    icon: 'pi pi-exclamation-triangle',
+    acceptLabel: 'Yes, confirm',
+    rejectLabel: 'Cancel',
+    acceptClass: isFaithful ? 'p-button-warning' : 'p-button-success',
+    accept: async () => {
+      try {
+        const res = await ficheNavetteService.togglePatientFaithful(fiche.id)
+        if (res.success) {
+          // Update entire fiche object with returned data from FicheNavetteResource
+          const idx = ficheNavettes.value.findIndex(f => f.id === fiche.id)
+          if (idx !== -1 && res.data) {
+            // Replace entire fiche with the returned fiche from the resource
+            ficheNavettes.value[idx] = { ...ficheNavettes.value[idx], ...res.data }
+          }
+
+          toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: res.message,
+            life: 3000
+          })
+        } else {
+          toast.add({ severity: 'error', summary: 'Error', detail: res.message, life: 4000 })
+        }
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Unable to change status', life: 4000 })
+      }
+    }
+  })
 }
 
 // Utility functions
@@ -266,8 +341,8 @@ const formatCurrency = (amount) => {
 }
 
 const getStatusData = (status) => {
-  return statusOptions.find(opt => opt.value === status) || { 
-    label: status, 
+  return statusOptions.find(opt => opt.value === status) || {
+    label: status,
     severity: 'secondary',
     icon: 'pi pi-circle'
   }
@@ -282,329 +357,221 @@ onMounted(() => {
   loadFicheNavettes()
 })
 </script>
-
 <template>
-  <div class="fiche-navette-container">
-    <!-- Enhanced Header Section -->
-    <div class="page-header">
-      <div class="header-content">
-        <div class="title-section">
-          <div class="title-group">
-            <div class="title-icon">
-              <i class="pi pi-file-edit"></i>
-            </div>
-            <div class="title-content">
-              <h1 class="page-title">Fiches Navette</h1>
-              <p class="page-subtitle">Gestion des fiches de réception et suivi des services</p>
-              <div class="stats-chips">
-                <Chip :label="`${totalRecords} fiches`" severity="info" />
-                <Chip v-if="hasActiveFilters" :label="`${totalActiveFilters} filtre${totalActiveFilters > 1 ? 's' : ''} actif${totalActiveFilters > 1 ? 's' : ''}`" severity="warning" />
-              </div>
-            </div>
+  <div
+    class="tw-min-h-screen tw-bg-gray-100 tw-p-4 sm:tw-p-6 lg:tw-p-10 tw-font-sans tw-transition-colors tw-duration-300">
+
+    <div class="tw-mb-8 lg:tw-mb-10">
+      <div
+        class="tw-flex tw-flex-col sm:tw-flex-row sm:tw-items-center tw-justify-between tw-gap-6 tw-p-6 tw-bg-white tw-shadow-md tw-rounded-xl">
+        <div class="tw-flex tw-items-center tw-gap-4">
+          <div
+            class="tw-flex tw-items-center tw-justify-center tw-w-16 tw-h-16 tw-bg-gradient-to-br tw-from-blue-500 tw-to-indigo-600 tw-text-white tw-rounded-2xl tw-shadow-lg">
+            <i class="pi pi-file-edit tw-text-3xl"></i>
           </div>
+          <div>
+            <h1 class="tw-text-3xl tw-font-bold tw-text-gray-900">Shuttle Forms</h1>
+            <p class="tw-text-base tw-text-gray-600 tw-mt-1">Management and tracking of reception forms</p>
+          </div>
+        </div>
+        <div class="tw-flex tw-gap-4 tw-flex-wrap">
+          <Chip :label="`${totalRecords} forms`" class="!tw-bg-blue-100 !tw-text-blue-800 tw-font-medium" />
+          <Chip v-if="hasActiveFilters"
+            :label="`${totalActiveFilters} active filter${totalActiveFilters > 1 ? 's' : ''}`"
+            class="!tw-bg-yellow-100 !tw-text-yellow-800 tw-font-medium" />
+          <Button icon="pi pi-plus" label="New Form"
+            class="p-button-primary tw-bg-blue-600 tw-text-white tw-rounded-lg tw-py-3 tw-px-6 tw-font-semibold"
+            @click="openCreateModal" />
         </div>
       </div>
     </div>
 
-    <!-- Main Content Card -->
-    <Card class="main-card">
+    <Card class="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-gray-200">
       <template #content>
-        <!-- Enhanced Toolbar -->
-        <div class="toolbar-container">
-          <div class="toolbar-main">
-            <div class="toolbar-left">
-              <!-- Search Section -->
-              <div class="search-section">
-                <span class="p-input-icon-left search-wrapper">
-                  <i class="pi pi-search" />
-                  <InputText 
-                    v-model="searchQuery" 
-                    placeholder="Rechercher par patient, ID, créateur..." 
-                    class="search-input"
-                    @keyup.enter="onSearch"
-                  />
-                </span>
-                <Button 
-                  icon="pi pi-search" 
-                  class="p-button-outlined search-btn"
-                  @click="onSearch"
-                  v-tooltip.bottom="'Rechercher'"
-                />
-              </div>
-
-              <!-- Filter Toggle -->
-              <div class="filter-section">
-                <Button 
-                  :icon="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
-                  :label="showFilters ? 'Masquer' : 'Filtres'"
-                  :class="['filter-toggle', { 'p-button-success': hasActiveFilters }]"
+        <div class="tw-p-4 sm:tw-p-6 lg:tw-p-8">
+          <div class="tw-flex tw-flex-col lg:tw-flex-row tw-items-start lg:tw-items-center tw-justify-between tw-gap-6">
+            <div class="tw-flex tw-flex-col md:tw-flex-row md:tw-items-center tw-gap-4 tw-flex-1 tw-w-full">
+              <span class="p-input-icon-left tw-w-full md:tw-max-w-xs">
+                <i class="pi pi-search" />
+                <InputText v-model="searchQuery" placeholder="Search..."
+                  class="tw-w-full tw-rounded-lg tw-py-2.5 tw-pl-10 tw-pr-4 tw-bg-gray-100 tw-border-none focus:tw-ring-2 focus:tw-ring-blue-500"
+                  @keyup.enter="onSearch" />
+              </span>
+              <div class="tw-flex tw-items-center tw-gap-2">
+                <Button :icon="showFilters ? 'pi pi-filter-slash' : 'pi pi-filter'"
+                  :label="showFilters ? 'Hide Filters' : 'Show Filters'"
                   :severity="hasActiveFilters ? 'success' : 'secondary'"
-                  @click="toggleFilters"
-                  :badge="hasActiveFilters ? totalActiveFilters.toString() : null"
-                />
-                <Button 
-                  v-if="hasActiveFilters"
-                  icon="pi pi-times"
-                  class="p-button-outlined p-button-sm clear-filters"
-                  @click="clearFilters"
-                  v-tooltip.bottom="'Effacer tous les filtres'"
-                />
+                  class="tw-rounded-xl tw-py-2.5 tw-px-4 tw-font-semibold tw-transition-all tw-duration-300"
+                  @click="toggleFilters" />
+                <Button v-if="hasActiveFilters" icon="pi pi-times"
+                  class="p-button-outlined p-button-danger tw-rounded-full tw-w-10 tw-h-10 tw-p-0 tw-transition-all tw-duration-300"
+                  @click="clearFilters" v-tooltip.bottom="'Clear all filters'" />
               </div>
             </div>
-            
-            <div class="toolbar-right">
-              <Button 
-                icon="pi pi-refresh" 
-                class="p-button-outlined refresh-btn"
-                @click="loadFicheNavettes"
-                v-tooltip.bottom="'Actualiser'"
-                :loading="loading"
-              />
-              <Button 
-                icon="pi pi-plus" 
-                label="Nouvelle Fiche" 
-                class="p-button-primary create-btn"
-                @click="openCreateModal"
-              />
+            <div class="tw-flex tw-gap-3 tw-w-full md:tw-w-auto tw-mt-4 lg:tw-mt-0 tw-justify-end">
+              <Button icon="pi pi-refresh"
+                class="p-button-outlined tw-bg-white tw-text-gray-600 tw-rounded-xl tw-py-2.5 tw-px-4"
+                @click="loadFicheNavettes" v-tooltip.bottom="'Refresh'" :loading="loading" />
+              <Button icon="pi pi-plus" label="New Form"
+                class="p-button-primary tw-bg-blue-600 tw-text-white tw-rounded-xl tw-py-2.5 tw-px-5 tw-font-semibold tw-shadow-md"
+                @click="openCreateModal" />
             </div>
           </div>
 
-          <!-- Advanced Filters Panel -->
-          <Transition name="filters">
-            <div v-if="showFilters" class="filters-panel">
-              <div class="filters-grid">
-                <div class="filter-item">
-                  <label class="filter-label">Période</label>
-                  <Calendar 
-                    v-model="selectedDateRange" 
-                    selectionMode="range"
-                    :manualInput="false"
-                    placeholder="Sélectionner une période"
-                    class="date-filter"
-                    @date-select="onSearch"
-                  />
-                </div>
-                
-                <div class="filter-item">
-                  <label class="filter-label">Statut</label>
-                  <Dropdown 
-                    v-model="selectedStatus" 
-                    :options="statusOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Tous les statuts"
-                    class="status-filter"
-                    @change="onSearch"
-                  >
-                    <template #option="{ option }">
-                      <div class="status-option">
-                        <i :class="option.icon" v-if="option.icon"></i>
-                        <span>{{ option.label }}</span>
-                      </div>
-                    </template>
-                  </Dropdown>
-                </div>
-                
-                <div class="filter-item">
-                  <label class="filter-label">Créateur</label>
-                  <Dropdown 
-                    v-model="selectedCreator" 
-                    :options="creatorsOptions"
-                    optionLabel="label"
-                    optionValue="value"
-                    placeholder="Tous les créateurs"
-                    class="creator-filter"
-                    @change="onSearch"
-                  />
-                </div>
+          <div v-if="showFilters"
+            class="tw-mt-6 tw-bg-gray-100 tw-rounded-xl tw-border tw-border-gray-200 tw-p-6 tw-transition-all">
+            <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-3 tw-gap-6">
+              <div class="tw-flex tw-flex-col tw-gap-2">
+                <label class="tw-text-sm tw-font-semibold tw-text-gray-700">Period</label>
+                <Calendar v-model="selectedDateRange" selectionMode="range" placeholder="Select a period"
+                  class="tw-w-full" inputClass="!tw-rounded-lg tw-border-gray-300" @date-select="onSearch" />
+              </div>
+              <div class="tw-flex tw-flex-col tw-gap-2">
+                <label class="tw-text-sm tw-font-semibold tw-text-gray-700">Status</label>
+                <Dropdown v-model="selectedStatus" :options="statusOptions" optionLabel="label" optionValue="value"
+                  placeholder="All statuses" class="tw-w-full" inputClass="!tw-rounded-lg tw-border-gray-300"
+                  @change="onSearch">
+                  <template #option="{ option }">
+                    <div class="tw-flex tw-items-center tw-gap-2">
+                      <i :class="option.icon" v-if="option.icon"></i>
+                      <span>{{ option.label }}</span>
+                    </div>
+                  </template>
+                </Dropdown>
+              </div>
+              <div class="tw-flex tw-flex-col tw-gap-2">
+                <label class="tw-text-sm tw-font-semibold tw-text-gray-700">Creator</label>
+                <Dropdown v-model="selectedCreator" :options="creatorsOptions" optionLabel="label" optionValue="value"
+                  placeholder="All creators" class="tw-w-full" inputClass="!tw-rounded-lg tw-border-gray-300"
+                  @change="onSearch" />
               </div>
             </div>
-          </Transition>
+          </div>
         </div>
 
-        <Divider />
+        <Divider class="tw-my-0 tw-border-gray-200" />
 
-        <!-- Enhanced Data Table -->
-        <DataTable 
-          :value="ficheNavettes" 
-          :loading="loading"
-          :paginator="true"
-          :rows="lazyParams.rows"
-          :totalRecords="totalRecords"
-          :lazy="true"
-          :rowsPerPageOptions="rowsPerPageOptions"
-          @page="onPage"
-          class="fiche-table"
-          responsiveLayout="scroll"
-          :rowHover="true"
-          stripedRows
-          dataKey="id"
-          @row-click="(event) => openItemsPage(event.data)"
+        <DataTable :value="ficheNavettes" :loading="loading" :paginator="true" :rows="lazyParams.rows"
+          :totalRecords="totalRecords" :lazy="true" :rowsPerPageOptions="rowsPerPageOptions" @page="onPage"
+          class="p-datatable-gridlines tw-w-full tw-shadow-sm tw-rounded-lg" responsiveLayout="scroll" :rowHover="true"
+          stripedRows dataKey="id" @row-click="(event) => openItemsPage(event.data)"
           paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
-          currentPageReportTemplate="Affichage de {first} à {last} sur {totalRecords} entrées"
-        >
-          <!-- ID Column with enhanced styling -->
-          <Column field="id" header="ID" sortable class="id-column">
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} entries">
+          <template #loading>
+            <div class="tw-p-4">
+              <Skeleton width="100%" height="2rem" class="tw-mb-2" />
+              <Skeleton width="100%" height="2rem" class="tw-mb-2" />
+              <Skeleton width="100%" height="2rem" />
+            </div>
+          </template>
+
+          <Column field="id" header="ID" sortable class="tw-w-16">
             <template #body="{ data }">
-              <div class="id-cell">
-                <Badge :value="`#${data.id}`" severity="info" size="large" />
+              <div class="tw-flex tw-justify-center tw-items-center">
+                <Badge :value="`#${data.id}`" severity="info" class="tw-text-xs tw-font-semibold" />
               </div>
             </template>
           </Column>
-
-          <!-- Enhanced Patient Column -->
-          <Column field="patient_name" header="Patient" sortable class="patient-column">
+          <Column field="patient_name" header="Patient" sortable class="tw-min-w-[12rem] lg:tw-min-w-[15rem]">
             <template #body="{ data }">
-              <div class="patient-info">
-                <Avatar 
-                  :label="getInitials(data.patient_name)" 
-                  class="patient-avatar"
-                  size="large"
-                  shape="circle"
-                />
-                <div class="patient-details">
-                  <div class="patient-name">{{ data.patient_name }}</div>
-                  <small class="patient-id">
-                    <i class="pi pi-id-card mr-1"></i>
+              <div class="tw-flex tw-items-center tw-gap-3">
+                <Avatar :label="getInitials(data.patient_name)"
+                  class="tw-bg-blue-100 tw-text-blue-800 tw-font-semibold tw-w-10 tw-h-10 tw-flex-shrink-0"
+                  shape="circle" />
+                <div class="tw-flex tw-flex-col">
+                  <div class="tw-flex tw-items-center tw-gap-2">
+                    <span class="tw-font-medium tw-text-gray-900">{{ data.patient_name }}</span>
+                    <Tag v-if="data.patient && data.patient.is_faithful === false" 
+                      value="Non-fidèle" 
+                      severity="warning" 
+                      class="tw-text-xs tw-font-semibold"
+                      icon="pi pi-exclamation-circle" />
+                  </div>
+                  <small class="tw-text-gray-500">
                     ID: {{ data.patient_id }}
                   </small>
                 </div>
               </div>
             </template>
           </Column>
-
-          <!-- Enhanced Creator Column -->
-          <Column field="creator_name" header="Créateur" sortable>
+          <Column field="creator_name" header="Creator" sortable>
             <template #body="{ data }">
-              <div class="creator-info">
-                <Avatar 
-                  :label="getInitials(data.creator_name)" 
-                  class="creator-avatar"
-                  size="normal"
-                  shape="circle"
-                  :style="{ background: 'var(--green-500)', color: 'white' }"
-                />
-                <div class="creator-details">
-                  <div class="creator-name">{{ data.creator_name }}</div>
-                  <small class="creator-role">Réceptionniste</small>
-                </div>
+              <div class="tw-flex tw-items-center tw-gap-2">
+                <Avatar :label="getInitials(data.creator_name)"
+                  class="tw-bg-green-100 tw-text-green-800 tw-font-semibold tw-w-8 tw-h-8 tw-text-xs tw-flex-shrink-0"
+                  shape="circle" />
+                <span class="tw-text-sm tw-text-gray-800">{{ data.creator_name }}</span>
               </div>
             </template>
           </Column>
-
-          <!-- Enhanced Date Column -->
-          <Column field="fiche_date" header="Date de création" sortable>
+          <Column field="fiche_date" header="Creation Date" sortable>
             <template #body="{ data }">
-              <div class="date-info">
-                <div class="date-main">
-                  <i class="pi pi-calendar mr-2"></i>
-                  {{ formatDate(data.fiche_date) }}
-                </div>
-                <small class="date-time">{{ formatDateTime(data.created_at) }}</small>
+              <div class="tw-flex tw-flex-col">
+                <span class="tw-font-medium tw-text-gray-800">{{ formatDate(data.fiche_date) }}</span>
+                <small class="tw-text-gray-500">{{ formatDateTime(data.created_at) }}</small>
               </div>
             </template>
           </Column>
-
-          <!-- Enhanced Status Column -->
-          <Column field="status" header="Statut" sortable>
+          <Column field="status" header="Status" sortable>
             <template #body="{ data }">
-              <div class="status-cell">
-                <Tag 
-                  :value="getStatusData(data.status).label"
-                  :severity="getStatusData(data.status).severity"
-                  :icon="getStatusData(data.status).icon"
-                  class="status-tag"
-                />
+              <Tag :value="getStatusData(data.status).label" :severity="getStatusData(data.status).severity"
+                :icon="getStatusData(data.status).icon" class="tw-font-semibold tw-px-3 tw-py-1 tw-text-sm" />
+            </template>
+          </Column>
+         
+          <Column field="total_amount" header="Total Amount" sortable>
+            <template #body="{ data }">
+              <div class="tw-text-right">
+                <span class="tw-font-bold tw-text-lg tw-text-blue-600">{{ formatCurrency(data.total_amount) }}</span>
               </div>
             </template>
           </Column>
-
-          <!-- Services Count Column -->
-          <Column field="items_count" header="Services" sortable>
+          <Column header="Actions" class="tw-w-32 tw-text-center">
             <template #body="{ data }">
-              <div class="services-info">
-                <Badge 
-                  :value="data.items_count || 0" 
-                  :severity="(data.items_count || 0) > 0 ? 'success' : 'warning'"
-                  size="large"
-                />
-                <small class="services-label">service{{ (data.items_count || 0) !== 1 ? 's' : '' }}</small>
-              </div>
-            </template>
-          </Column>
-
-          <!-- Enhanced Amount Column -->
-          <Column field="total_amount" header="Montant Total" sortable>
-            <template #body="{ data }">
-              <div class="amount-display">
-                <div class="amount-value">{{ formatCurrency(data.total_amount) }}</div>
-                <small class="amount-label">Total DZD</small>
-              </div>
-            </template>
-          </Column>
-
-          <!-- Enhanced Actions Column -->
-          <Column header="Actions" class="actions-column">
-            <template #body="{ data }">
-              <div class="action-buttons" @click.stop>
+              <div class="tw-flex tw-gap-1 tw-items-center tw-justify-center">
+                <Button v-if="data.status === 'pending'" icon="pi pi-user-check"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-green-600 hover:tw-!tw-bg-green-100"
+                  v-tooltip.top="'Mark as Arrived'" @click.stop="markAsArrived(data)" />
                 <Button 
-                  icon="pi pi-list" 
-                  class="p-button-rounded p-button-text p-button-sm p-button-info action-btn"
-                  v-tooltip.top="'Voir les services'"
-                  @click="openItemsPage(data)"
-                />
-                <Button 
-                  icon="pi pi-pencil" 
-                  class="p-button-rounded p-button-text p-button-sm action-btn"
-                  v-tooltip.top="'Modifier'"
-                  @click="editFiche(data)"
-                />
-                <Button 
-                  icon="pi pi-trash" 
-                  class="p-button-rounded p-button-text p-button-sm p-button-danger action-btn"
-                  v-tooltip.top="'Supprimer'"
-                  @click="confirmDelete(data)"
-                />
+                  :icon="data.patient && data.patient.is_faithful === false ? 'pi pi-check' : 'pi pi-times'"
+                  :class="[
+                    'p-button-rounded p-button-text p-button-sm',
+                    data.patient && data.patient.is_faithful === false 
+                      ? '!tw-text-green-600 hover:tw-!tw-bg-green-100' 
+                      : '!tw-text-orange-600 hover:tw-!tw-bg-orange-100'
+                  ]"
+                  v-tooltip.top="data.patient && data.patient.is_faithful === false ? 'Mark as Faithful' : 'Mark as Unfaithful'"
+                  @click.stop="togglePatientFaithful(data)" />
+                <Button icon="pi pi-list"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-blue-500 hover:tw-!tw-bg-blue-100"
+                  v-tooltip.top="'View Services'" @click.stop="openItemsPage(data)" />
+                <Button icon="pi pi-pencil"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-gray-500 hover:tw-!tw-bg-gray-100"
+                  v-tooltip.top="'Edit'" @click.stop="editFiche(data)" />
+                <Button icon="pi pi-trash"
+                  class="p-button-rounded p-button-text p-button-sm !tw-text-red-500 hover:tw-!tw-bg-red-100"
+                  v-tooltip.top="'Delete'" @click.stop="confirmDelete(data)" />
               </div>
             </template>
           </Column>
 
-          <!-- Enhanced Empty State -->
+
           <template #empty>
-            <div class="empty-state">
-              <div class="empty-content">
-                <div class="empty-icon">
-                  <i class="pi pi-file-o"></i>
-                </div>
-                <h3 class="empty-title">Aucune fiche navette trouvée</h3>
-                <p class="empty-description">
-                  {{ hasActiveFilters ? 'Aucun résultat ne correspond à vos critères de recherche' : 'Commencez par créer votre première fiche navette' }}
-                </p>
-                <div class="empty-actions">
-                  <Button 
-                    v-if="hasActiveFilters"
-                    icon="pi pi-filter-slash" 
-                    label="Effacer les filtres" 
-                    class="p-button-outlined"
-                    @click="clearFilters"
-                  />
-                  <Button 
-                    icon="pi pi-plus" 
-                    label="Créer une fiche" 
-                    class="p-button-primary"
-                    @click="openCreateModal"
-                  />
-                </div>
+            <div class="tw-py-12 tw-text-center tw-text-gray-500">
+              <div class="tw-flex tw-justify-center tw-mb-4">
+                <i class="pi pi-inbox tw-text-7xl tw-text-gray-300"></i>
               </div>
-            </div>
-          </template>
-
-          <!-- Enhanced Loading State -->
-          <template #loading>
-            <div class="loading-state">
-              <div class="loading-content">
-                <ProgressSpinner strokeWidth="3" size="3rem" />
-                <p class="loading-text">Chargement des fiches navette...</p>
+              <h3 class="tw-text-2xl tw-font-bold tw-text-gray-800 tw-mb-2">
+                No shuttle forms found
+              </h3>
+              <p class="tw-text-base tw-max-w-sm tw-mx-auto tw-mb-6">
+                {{ hasActiveFilters ? 'No results match your search criteria.' : 'Start by creating your first shuttle form.' }}
+              </p>
+              <div class="tw-flex tw-gap-4 tw-justify-center tw-flex-wrap">
+                <Button v-if="hasActiveFilters" icon="pi pi-filter-slash" label="Clear Filters"
+                  class="p-button-outlined" @click="clearFilters" />
+                <Button icon="pi pi-plus" label="Create a Form"
+                  class="p-button-primary tw-bg-blue-600 tw-text-white tw-font-semibold" @click="openCreateModal" />
               </div>
             </div>
           </template>
@@ -612,524 +579,9 @@ onMounted(() => {
       </template>
     </Card>
 
-    <!-- Modals -->
-    <FicheNavetteModal 
-      v-model:visible="showModal"
-      :fiche="selectedFiche"
-      :mode="modalMode"
-      @saved="onFicheSaved"
-    />
+    <FicheNavetteModal :visible="showModal" @update:visible="val => showModal = val" :fiche="selectedFiche"
+      :mode="modalMode" @saved="onFicheSaved" />
 
     <ConfirmDialog />
   </div>
 </template>
-
-<style scoped>
-.fiche-navette-container {
-  padding: 1.5rem;
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--surface-50) 0%, var(--surface-100) 100%);
-}
-
-/* Enhanced Header */
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.header-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.title-group {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.title-icon {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-600) 100%);
-  color: white;
-  width: 4rem;
-  height: 4rem;
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  box-shadow: 0 8px 20px rgba(var(--primary-color-rgb), 0.3);
-}
-
-.title-content {
-  flex: 1;
-}
-
-.page-title {
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: var(--text-color);
-  margin: 0 0 0.5rem 0;
-  line-height: 1.2;
-}
-
-.page-subtitle {
-  color: var(--text-color-secondary);
-  margin: 0 0 1rem 0;
-  font-size: 1.1rem;
-  line-height: 1.4;
-}
-
-.stats-chips {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-/* Enhanced Main Card */
-.main-card {
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border-radius: 16px;
-  border: 1px solid var(--surface-200);
-  overflow: hidden;
-}
-
-/* Enhanced Toolbar */
-.toolbar-container {
-  padding: 1.5rem;
-  background: linear-gradient(135deg, var(--surface-0) 0%, var(--surface-50) 100%);
-  border-bottom: 1px solid var(--surface-200);
-}
-
-.toolbar-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex: 1;
-}
-
-.search-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.search-wrapper {
-  position: relative;
-}
-
-.search-input {
-  width: 400px;
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border-radius: 12px;
-  border: 2px solid var(--surface-300);
-  transition: all 0.3s ease;
-}
-
-.search-input:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.2);
-}
-
-.search-btn {
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
-}
-
-.filter-section {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-toggle {
-  border-radius: 12px;
-  transition: all 0.3s ease;
-}
-
-.clear-filters {
-  border-radius: 50%;
-  width: 2.5rem;
-  height: 2.5rem;
-  padding: 0;
-}
-
-.toolbar-right {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.refresh-btn,
-.create-btn {
-  border-radius: 12px;
-  padding: 0.75rem 1.5rem;
-  font-weight: 600;
-}
-
-/* Filters Panel */
-.filters-panel {
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-  background: var(--surface-50);
-  border-radius: 12px;
-  border: 1px solid var(--surface-200);
-}
-
-.filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1.5rem;
-}
-
-.filter-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.filter-label {
-  font-weight: 600;
-  color: var(--text-color);
-  font-size: 0.9rem;
-}
-
-.date-filter,
-.status-filter,
-.creator-filter {
-  width: 100%;
-}
-
-.status-option {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-/* Filters Animation */
-.filters-enter-active,
-.filters-leave-active {
-  transition: all 0.3s ease;
-  overflow: hidden;
-}
-
-.filters-enter-from,
-.filters-leave-to {
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(-10px);
-}
-
-.filters-enter-to,
-.filters-leave-from {
-  max-height: 200px;
-  opacity: 1;
-  transform: translateY(0);
-}
-
-/* Enhanced Table */
-.fiche-table {
-  margin-top: 1rem;
-}
-
-.fiche-table :deep(.p-datatable-thead tr th) {
-  background: var(--surface-100);
-  border-bottom: 2px solid var(--primary-200);
-  color: var(--text-color);
-  font-weight: 600;
-  padding: 1rem;
-}
-
-.fiche-table :deep(.p-datatable-tbody tr) {
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-bottom: 1px solid var(--surface-200);
-}
-
-.fiche-table :deep(.p-datatable-tbody tr:hover) {
-  background: linear-gradient(135deg, var(--primary-50) 0%, var(--primary-25) 100%) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.fiche-table :deep(.p-datatable-tbody tr td) {
-  padding: 1rem;
-  border: none;
-}
-
-/* Column Styles */
-.id-column {
-  width: 100px;
-}
-
-.patient-column {
-  min-width: 250px;
-}
-
-.actions-column {
-  width: 150px;
-}
-
-.id-cell {
-  display: flex;
-  justify-content: center;
-}
-
-.patient-info {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.patient-avatar {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 100%);
-  color: white;
-  font-weight: 600;
-}
-
-.patient-details {
-  flex: 1;
-}
-
-.patient-name {
-  font-weight: 600;
-  color: var(--text-color);
-  font-size: 1rem;
-  margin-bottom: 0.25rem;
-}
-
-.patient-id {
-  color: var(--text-color-secondary);
-  display: flex;
-  align-items: center;
-}
-
-.creator-info {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.creator-avatar {
-  background: linear-gradient(135deg, var(--green-500) 0%, var(--green-600) 100%);
-  color: white;
-  font-weight: 600;
-}
-
-.creator-details {
-  flex: 1;
-}
-
-.creator-name {
-  font-weight: 500;
-  color: var(--text-color);
-  margin-bottom: 0.25rem;
-}
-
-.creator-role {
-  color: var(--text-color-secondary);
-  font-size: 0.8rem;
-}
-
-.date-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.date-main {
-  display: flex;
-  align-items: center;
-  color: var(--text-color);
-  font-weight: 500;
-}
-
-.date-time {
-  color: var(--text-color-secondary);
-  font-size: 0.8rem;
-}
-
-.status-cell {
-  display: flex;
-  justify-content: center;
-}
-
-.status-tag {
-  font-weight: 600;
-  padding: 0.5rem 1rem;
-}
-
-.services-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.services-label {
-  color: var(--text-color-secondary);
-  font-size: 0.8rem;
-}
-
-.amount-display {
-  text-align: center;
-}
-
-.amount-value {
-  color: var(--primary-color);
-  font-size: 1.2rem;
-  font-weight: 700;
-  margin-bottom: 0.25rem;
-}
-
-.amount-label {
-  color: var(--text-color-secondary);
-  font-size: 0.8rem;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.25rem;
-  justify-content: center;
-}
-
-.action-btn {
-  transition: all 0.2s ease;
-}
-
-.action-btn:hover {
-  transform: scale(1.1);
-}
-
-/* Enhanced Empty State */
-.empty-state {
-  padding: 4rem 2rem;
-  text-align: center;
-}
-
-.empty-content {
-  max-width: 400px;
-  margin: 0 auto;
-}
-
-.empty-icon {
-  font-size: 5rem;
-  color: var(--text-color-secondary);
-  margin-bottom: 1.5rem;
-  opacity: 0.5;
-}
-
-.empty-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-color);
-  margin: 0 0 1rem 0;
-}
-
-.empty-description {
-  color: var(--text-color-secondary);
-  margin: 0 0 2rem 0;
-  line-height: 1.5;
-}
-
-.empty-actions {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-/* Enhanced Loading State */
-.loading-state {
-  padding: 3rem 2rem;
-  text-align: center;
-}
-
-.loading-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.loading-text {
-  color: var(--text-color-secondary);
-  font-size: 1.1rem;
-  margin: 0;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .search-input {
-    width: 300px;
-  }
-  
-  .filters-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 768px) {
-  .fiche-navette-container {
-    padding: 1rem;
-  }
-  
-  .title-group {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  .page-title {
-    font-size: 2rem;
-  }
-  
-  .toolbar-main {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .toolbar-left {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .search-section {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .search-input {
-    width: 100%;
-  }
-  
-  .filters-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .empty-actions {
-    flex-direction: column;
-  }
-}
-
-@media (max-width: 480px) {
-  .page-title {
-    font-size: 1.75rem;
-  }
-  
-  .title-icon {
-    width: 3rem;
-    height: 3rem;
-    font-size: 1.25rem;
-  }
-}
-</style>

@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Http\Resources\Stock;
+
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+
+class ReserveResource extends JsonResource
+{
+    /**
+     * Transform the resource into an array.
+     *
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
+    {
+       return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'description' => $this->description,
+            'reserved_at' => $this->reserved_at,
+            'status' => $this->status,
+            'created_by' => $this->created_by,
+            'creator' => $this->whenLoaded('creator', function () {
+                if (!$this->creator) return null;
+                return [
+                    'id' => $this->creator->id,
+                    'name' => $this->creator->name ?? null,
+                    'email' => $this->creator->email ?? null,
+                ];
+            }),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            'deleted_at' => $this->whenLoaded('deleted_at', $this->deleted_at),
+        ];
+    }
+}

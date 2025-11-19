@@ -2,18 +2,22 @@
 
 use App\Http\Controllers\AppointmentController;
 use App\Http\Controllers\AppointmentStatus;
+use App\Http\Controllers\ConsulationController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/appointments/search', [AppointmentController::class, 'search']);
 Route::get('/appointments/checkAvailability', [AppointmentController::class, 'checkAvailability']);
 Route::get('/appointments/canceledappointments', [AppointmentController::class, 'getAllCanceledAppointments']);
 Route::get('/appointments/available', [AppointmentController::class, 'AvailableAppointments']);
+// Temporary alias: handle legacy/mistyped frontend URL that calls consulationappointment under /appointments
+Route::get('/appointments/consulationappointment/{doctorid}', [ConsulationController::class, 'consulationappointment']);
+Route::get('/appointments/{doctorId}', [AppointmentController::class, 'index']);
 Route::get('/appointmentStatus/{doctorid}', [AppointmentStatus::class, 'appointmentStatus']);
 Route::get('/appointment-statuses', [AppointmentStatus::class, 'allAppointmentStatuses']);
 Route::get('/appointmentStatus/patient/{patientid}', [AppointmentStatus::class, 'appointmentStatusPatient']);
 Route::get('/todaysAppointments/{doctorid}', [AppointmentStatus::class, 'todaysAppointments']);
 Route::get('/appointments/ForceSlots', [AppointmentController::class, 'ForceAppointment']);
-Route::get('/appointments/consulationappointment/{doctorid}', [AppointmentController::class, 'consulationappointment']);
+Route::get('/consulations/consulationappointment/{doctorid}', [ConsulationController::class, 'consulationappointment']);
 Route::get('/appointments/patient/{Patientid}', [AppointmentController::class, 'ForPatient']);
 Route::get('/appointments/{doctorId}/filter-by-date', [AppointmentController::class, 'filterByDate']);
 Route::patch('/appointment/{appointmentId}/status', [AppointmentController::class, 'changeAppointmentStatus']);

@@ -13,6 +13,7 @@ import axios from "axios";
 import AddPrestationDialog from "../models/AddPrestationDialog.vue";
 import EditPrestationDialog from "../models/EditPrestationDialog.vue";
 import { useSweetAlert } from "../../../../useSweetAlert"; // Adjust path as needed
+import { useCurrencyFormatter } from "../../../../../composables/useCurrencyFormatter";
 
 const props = defineProps({
     contractState: String,
@@ -24,19 +25,23 @@ const props = defineProps({
 
 const toast = useToast();
 const swil = useSweetAlert();
+const { formatCurrency } = useCurrencyFormatter();
 
 // State variables
 const searchQuery = ref("");
 const searchFilter = ref("prestation_name");
+const selectedPercentageFilter = ref(null); // For dynamic percentage filtering
 
 const prestations = ref([]); // This will hold the fetched PrestationPricing records
 const selectedPrestations = ref([]); // State for selected rows for bulk delete
+const contractPercentages = ref([]); // Dynamic contract percentages
 
 const filterOptions = ref([
     { label: "By ID", value: "prestation_id" },
     { label: "By Name", value: "prestation_name" },
     { label: "By Code", value: "formatted_id" },
     { label: "By Global Price", value: "prix" },
+    { label: "By Company Percentage", value: "companyPercentage" },
 ]);
 
 // Dialog visibility states for child components
@@ -49,8 +54,33 @@ const hasSelectedPrestations = computed(() => selectedPrestations.value.length >
 
 // Fetch data on component mount
 onMounted(async () => {
+    await fetchContractPercentages();
     await fetchPrestations();
 });
+
+// Fetch contract percentages from the API
+const fetchContractPercentages = async () => {
+  try {
+    const params = {};
+    if (props.contractdata?.organisme_id) {
+      params.organisme_id = props.contractdata.organisme_id;
+    }
+    if (props.contractdata?.id) {
+      params.convention_id = props.contractdata.id;
+    }
+    
+    // If contractdata is not available but avenantid is, use avenantid to derive convention_id
+    if (!props.contractdata?.id && props.avenantid) {
+      params.avenant_id = props.avenantid;
+    }
+    
+    const response = await axios.get('/api/conventions/contract-percentages', { params });
+    contractPercentages.value = response.data.data || response.data || [];
+  } catch (error) {
+    console.error("Error fetching contract percentages:", error);
+    contractPercentages.value = [];
+  }
+};
 
 // Fetch prestations for the avenant
 const fetchPrestations = async () => {
@@ -61,10 +91,12 @@ const fetchPrestations = async () => {
         const rawPrestations = response.data.data || response.data;
 
         prestations.value = rawPrestations.map((item) => {
-            // Ensure patientPercentage is calculated for display in the table
+            // Calculate both company and patient percentages for display in the table
             if (item.pricing && item.pricing.prix > 0) {
+                item.companyPercentage = (item.pricing.company_price / item.pricing.prix) * 100;
                 item.patientPercentage = (item.pricing.patient_price / item.pricing.prix) * 100;
             } else {
+                item.companyPercentage = 0;
                 item.patientPercentage = 0;
             }
             return item;
@@ -186,11 +218,21 @@ const confirmBulkDelete = async () => {
 
 // Filtered items for the DataTable
 const filteredItems = computed(() => {
-    if (!searchQuery.value) return prestations.value;
+    let items = prestations.value;
+
+    // Apply dynamic percentage filtering
+    if (selectedPercentageFilter.value) {
+      items = items.filter((item) => {
+        return item.contract_percentage_id === selectedPercentageFilter.value.id;
+      });
+    }
+
+    // Apply search filtering
+    if (!searchQuery.value) return items;
 
     const searchVal = searchQuery.value.toLowerCase();
 
-    return prestations.value.filter((item) => {
+    return items.filter((item) => {
         let fieldValue;
 
         if (searchFilter.value === "prestation_name") {
@@ -201,6 +243,8 @@ const filteredItems = computed(() => {
             fieldValue = item.formatted_id;
         } else if (searchFilter.value === "prix") {
             fieldValue = item.pricing?.prix;
+        } else if (searchFilter.value === "companyPercentage") {
+            fieldValue = item.companyPercentage;
         } else {
             fieldValue = item[searchFilter.value];
         }
@@ -208,6 +252,29 @@ const filteredItems = computed(() => {
         return String(fieldValue || "").toLowerCase().includes(searchVal);
     });
 });
+
+// Handle percentage filter button clicks
+const selectPercentageFilter = (percentage) => {
+  if (selectedPercentageFilter.value?.id === percentage.id) {
+    selectedPercentageFilter.value = null; // Deselect if already selected
+  } else {
+    selectedPercentageFilter.value = percentage;
+  }
+};
+
+// Clear all filters
+const clearAllFilters = () => {
+  selectedPercentageFilter.value = null;
+  searchQuery.value = "";
+};
+
+// Format percentage for display
+const formatPercentage = (value) => {
+  if (value === null || value === undefined || isNaN(value)) {
+    return "0.00%";
+  }
+  return `${Number(value).toFixed(2)}%`;
+};
 </script>
 
 <template>
@@ -229,6 +296,13 @@ const filteredItems = computed(() => {
                 />
             </div>
             <div class="action-buttons">
+                <Button
+                    v-if="selectedPercentageFilter || activeTab !== 0 || searchQuery"
+                    label="Clear Filters"
+                    icon="pi pi-filter-slash"
+                    severity="secondary"
+                    @click="clearAllFilters"
+                />
                 <Button
                     v-if="
                         props.contractState === 'pending' ||
@@ -255,6 +329,35 @@ const filteredItems = computed(() => {
             </div>
         </div>
 
+        <!-- Clear Filters Button -->
+        <div v-if="selectedPercentageFilter || searchQuery" class="mb-4">
+          <Button
+            label="Clear Filters"
+            icon="pi pi-times"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="clearAllFilters"
+          />
+        </div>
+
+        <!-- Dynamic Percentage Filter Buttons -->
+        <div v-if="contractPercentages.length > 0" class="mb-4">
+          <h6 class="text-sm font-semibold text-gray-700 mb-2">Filter by Contract Percentage:</h6>
+          <div class="d-flex gap-2 flex-wrap">
+            <Button
+              v-for="percentage in contractPercentages"
+              :key="percentage.id"
+              :label="`${percentage.percentage}%`"
+              :severity="selectedPercentageFilter?.id === percentage.id ? 'primary' : 'secondary'"
+              :outlined="selectedPercentageFilter?.id !== percentage.id"
+              size="small"
+              @click="selectPercentageFilter(percentage)"
+              class="budget-filter-btn"
+            />
+          </div>
+        </div>
+
         <DataTable
             :value="filteredItems"
             stripedRows
@@ -270,9 +373,39 @@ const filteredItems = computed(() => {
             <Column field="prestation_name" header="Name"></Column>
             <Column field="formatted_id" header="Code"></Column>
             <Column field="service" header="Service"></Column>
-            <Column field="pricing.prix" header="Global Price"></Column>
-            <Column field="pricing.company_price" header="Company Part"></Column>
-            <Column field="pricing.patient_price" header="Patient Part"></Column>
+            <Column header="Global Price">
+              <template #body="slotProps">
+                {{ formatCurrency(slotProps.data.pricing?.prix || 0) }}
+              </template>
+            </Column>
+            <Column header="Company Part">
+              <template #body="slotProps">
+                {{ formatCurrency(slotProps.data.pricing?.company_price || 0) }}
+              </template>
+            </Column>
+            <Column header="Patient Part">
+              <template #body="slotProps">
+                {{ formatCurrency(slotProps.data.pricing?.patient_price || 0) }}
+              </template>
+            </Column>
+            <Column header="Contract %">
+              <template #body="slotProps">
+                <span class="font-semibold text-blue-600">
+                  {{ slotProps.data.contract_percentage?.percentage || 'N/A' }}%
+                </span>
+              </template>
+            </Column>
+            <Column header="Company %">
+              <template #body="slotProps">
+                <span class="font-semibold" :class="{
+                  'text-green-600': slotProps.data.companyPercentage >= 80,
+                  'text-orange-500': slotProps.data.companyPercentage >= 50 && slotProps.data.companyPercentage < 80,
+                  'text-red-500': slotProps.data.companyPercentage < 50
+                }">
+                  {{ formatPercentage(slotProps.data.companyPercentage) }}
+                </span>
+              </template>
+            </Column>
             <Column
                 v-if="
                     props.contractState === 'pending' ||
@@ -388,6 +521,66 @@ const filteredItems = computed(() => {
     .action-buttons {
         width: auto; /* Auto width on larger screens */
     }
+}
+
+/* Budget filter button styles */
+.budget-filter-btn {
+  min-width: 60px;
+  font-weight: 600;
+}
+
+.budget-filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Utility classes for margin and text styling */
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-2 {
+  margin-bottom: 0.5rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.text-gray-700 {
+  color: #374151;
+}
+
+.text-blue-600 {
+  color: #2563eb;
+}
+
+.text-green-600 {
+  color: #16a34a;
+}
+
+.text-orange-500 {
+  color: #f97316;
+}
+
+.text-red-500 {
+  color: #ef4444;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
 }
 
 /* PrimeVue Button overrides for consistent look */

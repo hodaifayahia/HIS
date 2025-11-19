@@ -31,5 +31,16 @@ class StoreWaitlistRequest extends FormRequest
         'importance' => 'nullable',
         'notes' => 'nullable|string',
     ];
+
+ 
 }
+public function messages()
+    {
+        return [
+            'patient_id.required' => 'The patient field is required.',
+            'specialization_id.required' => 'The specialization field is required.',
+            'is_Daily.boolean' => 'The is_Daily field must be true or false.',
+            'notes.string' => 'The notes field must be a string.',
+        ];
+    }
 }

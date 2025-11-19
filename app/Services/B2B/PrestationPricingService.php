@@ -21,13 +21,13 @@ class PrestationPricingService
      */
     public function getPrestationPricingsByAvenantId(string $avenantId): Collection
     {
-        return PrestationPricing::with('prestation.service', 'avenant') // Eager load prestation.service
+        return PrestationPricing::with('prestation.service', 'avenant', 'contractPercentage') // Eager load prestation.service and contract percentage
             ->where('avenant_id', $avenantId)
             ->get();
     }
     public function getPrestationPricingsByAnnexId(string $annexid): Collection
     {
-        return PrestationPricing::with('prestation.service', 'annex') // Eager load prestation.service
+        return PrestationPricing::with('prestation.service', 'annex', 'contractPercentage') // Eager load prestation.service and contract percentage
             ->where('annex_id', $annexid)
             ->get();
     }

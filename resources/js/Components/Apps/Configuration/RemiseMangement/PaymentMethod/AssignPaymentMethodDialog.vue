@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, watch } from 'vue';
 
 // PrimeVue Components
 import Dialog from 'primevue/dialog';
@@ -43,6 +43,23 @@ const emit = defineEmits([
   'update:payment-methods',
   'update:selected-users',
 ]);
+
+// Debug the users prop
+watch(() => props.users, (newUsers, oldUsers) => {
+  console.log('AssignPaymentMethodDialog - Users prop changed:');
+  console.log('  - New users:', newUsers);
+  console.log('  - New users type:', typeof newUsers);
+  console.log('  - New users is array:', Array.isArray(newUsers));
+  console.log('  - New users length:', newUsers?.length || 0);
+  console.log('  - Old users length:', oldUsers?.length || 0);
+  
+  if (newUsers && newUsers.length > 0) {
+    console.log('  - First user sample:', newUsers[0]);
+    console.log('  - First user keys:', Object.keys(newUsers[0]));
+  } else {
+    console.log('  - No users available in dialog');
+  }
+}, { immediate: true });
 </script>
 <template>
   <Dialog
@@ -56,6 +73,8 @@ const emit = defineEmits([
     <div class="form-grid">
       <div class="form-field">
         <label for="assignMethods">Select Payment Methods to Assign</label>
+        <!-- Debug info -->
+       
         <MultiSelect
           id="assignMethods"
           :modelValue="paymentMethodsToAssign"

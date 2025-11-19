@@ -29,6 +29,12 @@ const doctorRoutes = [  {
                 component: () => import('../Pages/Patient/PatientList.vue'),
             },
             {
+                path: 'patient/appointments/:id',
+                name: 'doctor.patient.appointments',
+                component: () => import('../Pages/Patient/PatientPortalPage.vue'),
+                props: true,
+            },
+            {
                 path: 'consultations/consultation-workspaces',
                 name: 'doctor.consultations.ConsultationWorkspaces',
                 component: () => import('../Pages/Consultation/DoctorDoc/ConsultationWorkspacelist.vue'),
@@ -47,12 +53,27 @@ const doctorRoutes = [  {
             {
                 path: 'schedule',
                 name: 'doctor.schedule',
-                component: () => import('../Components/Doctor/DoctorListScheduleDForDoctor.vue'),
+                component: () => import('../Components/Doctor/DoctorScheduleAuthView.vue'),
+            },
+            {
+            path: 'schedule-management',
+            name: 'doctor.schedule.management',
+            component: () => import('../Components/Doctor/EnhancedDoctorSchedule.vue'),
+        },
+        {
+            path: 'schedule-demo',
+            name: 'doctor.schedule.demo',
+            component: () => import('../Components/Doctor/ScheduleDemo.vue'),
+        },
+            {
+                path: 'availability',
+                name: 'doctor.availability',
+                component: () => import('../Components/Doctor/DoctorAvilibilte.vue'),
             },
             {
                 path: 'avilability',
                 name: 'doctor.avilability',
-                component: () => import('../Components/Doctor/DoctorAvilibilte.vue'),
+                component: () => import('../Components/Doctor/DoctorScheduleAuthView.vue'),
             },
             {
                 path: 'excludeDates',

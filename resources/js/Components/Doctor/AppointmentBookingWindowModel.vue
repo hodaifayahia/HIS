@@ -1,6 +1,14 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue';
 import 'font-awesome/css/font-awesome.min.css';
+import Card from 'primevue/card';
+import Dropdown from 'primevue/dropdown';
+import Button from 'primevue/button';
+import Badge from 'primevue/badge';
+import Chip from 'primevue/chip';
+import Message from 'primevue/message';
+import Divider from 'primevue/divider';
+import MultiSelect from 'primevue/multiselect';
 
 const props = defineProps({
   modelValue: {
@@ -310,495 +318,336 @@ defineExpose({
 </script>
 
 <template>
-  <div class="appointment-booking-window mb-4">
-    <label for="monthDropdown" class="form-label d-flex align-items-center gap-2 mb-2">
-      <span v-if="required" class="text-danger">*</span>
-      <span v-if="hasSelectedMonths" class="text-muted-small text-secondary">
-        ({{ selectedMonths.length }} selected)
-      </span>
-    </label>
-
-    <div class="row align-items-center mb-3">
-      <div class="col-auto">
-        <label for="yearSelect" class="col-form-label fw-semibold text-muted">Year:</label>
-      </div>
-      <div class="col-md-4 col-6">
-        <select
-          id="yearSelect"
-          class="form-select custom-select-year"
-          v-model="selectedYear"
-          :disabled="disabled"
-        >
-          <option v-for="year in years" :key="year" :value="year">
-            {{ year }}
-          </option>
-        </select>
-      </div>
-      <div class="col-md-7 col-auto d-flex align-items-center gap-2 text-muted-small">
-        <small class="text-info-subtle">
-          <i class="fa fa-info-circle"></i>
-          {{ selectedMonthsForCurrentYear }}/{{ selectedMonthsForCurrentYear + availableMonthsForCurrentYear }} months available for {{ selectedYear }}
-        </small>
-      </div>
-    </div>
-
-    <div class="dropdown" ref="dropdownRef">
-      <button
-        @click="toggleDropdown"
-        class="btn btn-outline-primary dropdown-toggle w-100 d-flex justify-content-between align-items-center"
-        type="button"
-        id="monthDropdown"
-        :aria-expanded="isDropdownOpen"
-        :disabled="disabled"
-        :class="{ 'is-invalid': validationErrors.selectedMonths, 'btn-disabled': disabled }"
-      >
-        <span class="text-truncate me-2">{{ selectedMonthsDisplay }}</span>
-      </button>
-
-      <div v-show="isDropdownOpen" class="dropdown-menu w-100 show shadow-lg border mt-2">
-        <div class="dropdown-header d-flex justify-content-between align-items-center py-2 px-3 bg-light-subtle">
-          <span class="fw-bold text-dark">Months for {{ selectedYear }}</span>
-          <div class="btn-group btn-group-sm" role="group" aria-label="Bulk month actions">
-            <button
-              @click.stop="selectAllMonthsForYear"
-              class="btn btn-sm btn-outline-success"
-              type="button"
-              :disabled="availableMonthsForCurrentYear === 0 || disabled"
-              title="Select all available months for this year"
-            >
-              <i class="fa fa-check-double me-1"></i> All
-            </button>
-            <button
-              @click.stop="clearAllMonthsForYear"
-              class="btn btn-sm btn-outline-danger"
-              type="button"
-              :disabled="selectedMonthsForCurrentYear === 0 || disabled"
-              title="Clear all selected months for this year"
-            >
-              <i class="fa fa-ban me-1"></i> Clear
-            </button>
+  <Card class="tw-shadow-xl tw-border-0 tw-bg-gradient-to-br tw-from-white tw-to-gray-50">
+    <template #header>
+      <div class="tw-bg-gradient-to-r tw-from-indigo-600 tw-to-purple-600 tw-text-white tw-p-6 tw-rounded-t-lg">
+        <div class="tw-flex tw-items-center tw-justify-between">
+          <div class="tw-flex tw-items-center tw-space-x-3">
+            <i class="pi pi-calendar-plus tw-text-2xl"></i>
+            <h2 class="tw-text-2xl tw-font-bold tw-m-0">Appointment Booking Window</h2>
+            <span v-if="required" class="tw-text-red-300 tw-text-xl">*</span>
           </div>
+          <Badge 
+            v-if="hasSelectedMonths" 
+            :value="`${selectedMonths.length} Selected`" 
+            severity="info" 
+            class="tw-bg-white tw-text-indigo-600 tw-px-3 tw-py-1"
+          />
         </div>
-        <div class="dropdown-divider my-0"></div>
-
-        <div class="month-grid">
-          <a
-            v-for="month in monthsForSelectedYear"
-            :key="month.value"
-            class="dropdown-item month-item d-flex justify-content-between align-items-center py-2 px-3"
-            href="#"
-            @click.prevent="toggleMonthSelection(month)"
-            :class="{
-              'active': month.is_available,
-              'disabled': month.isPastMonth || disabled,
-              'text-muted': month.isPastMonth,
-            }"
-            :title="month.isPastMonth ? 'Month is in the past' : ''"
-            :aria-disabled="month.isPastMonth || disabled"
-            role="option"
-            :aria-selected="month.is_available"
-          >
-            <div class="d-flex align-items-center gap-2">
-              <i
-                class="fa month-checkbox-icon"
-                :class="month.is_available ? 'fa-check-square text-primary' : 'fa-square-o text-secondary'"
-              ></i>
-              <span>{{ month.name }}</span>
-              <small v-if="month.isPastMonth" class="text-danger-emphasis fw-bold">(Past)</small>
+      </div>
+    </template>
+    
+    <template #content>
+      <div class="tw-p-6 tw-space-y-6">
+        <!-- Year Selection -->
+        <div class="tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-p-4 tw-rounded-xl tw-border tw-border-blue-200">
+          <div class="tw-flex tw-flex-col md:tw-flex-row tw-items-start md:tw-items-center tw-space-y-4 md:tw-space-y-0 md:tw-space-x-4">
+            <div class="tw-flex tw-items-center tw-space-x-3">
+              <i class="pi pi-calendar tw-text-blue-500 tw-text-lg"></i>
+              <label for="yearSelect" class="tw-text-sm tw-font-semibold tw-text-gray-700">Select Year:</label>
             </div>
-            <span v-if="month.is_available" class="badge bg-primary-subtle text-primary rounded-pill checkmark-badge">
-              <i class="fa fa-check"></i>
-            </span>
-          </a>
-          <div v-if="monthsForSelectedYear.every(m => m.isPastMonth)" class="dropdown-item text-center text-muted py-3">
-            <i class="fa fa-calendar-times-o me-1"></i> No future months available for this year.
+            <div class="tw-flex-1 tw-max-w-xs">
+              <Dropdown
+                id="yearSelect"
+                v-model="selectedYear"
+                :options="years"
+                :disabled="disabled"
+                class="tw-w-full"
+                panelClass="tw-shadow-lg tw-border tw-border-gray-200 tw-rounded-lg"
+                :pt="{
+                  root: 'tw-w-full',
+                  input: 'tw-px-4 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200',
+                  trigger: 'tw-px-3 tw-text-gray-500'
+                }"
+              />
+            </div>
+            <div class="tw-flex tw-items-center tw-space-x-2 tw-text-sm tw-text-blue-600">
+              <i class="pi pi-info-circle"></i>
+              <span>{{ selectedMonthsForCurrentYear }}/{{ selectedMonthsForCurrentYear + availableMonthsForCurrentYear }} months available for {{ selectedYear }}</span>
+            </div>
           </div>
         </div>
-      </div>
-    </div>
 
-    <div v-if="hasSelectedMonths" class="selected-months mt-3 p-3 border rounded-lg bg-light">
-      <label class="form-label fw-semibold mb-2 text-dark">Currently Selected:</label>
-      <div class="d-flex flex-wrap gap-2">
-        <div
-          v-for="(month, index) in selectedMonths"
-          :key="`${month.year}-${month.value}`"
-          class="badge ml-2 mb-2 d-flex align-items-center gap-2 p-2 shadow-sm month-pill"
-          :class="{
-            'bg-success-subtle text-success border border-success-subtle': !isMonthInPast(month.value, month.year),
-            'bg-warning-subtle text-warning-emphasis border border-warning-subtle': isMonthInPast(month.value, month.year)
-          }"
-        >
-          <span>{{ month.short || month.name }} {{ month.year }}</span>
-          <button
-            @click="removeMonth(index)"
-            class="btn-close"
-            aria-label="Remove"
-            :disabled="disabled"
-          > 
-        <!--can u add a incon for deleate here -->
-        x
-           </button>
+        <!-- Month Selection -->
+        <div class="tw-space-y-4">
+          <div class="tw-relative" ref="dropdownRef">
+            <Button
+              @click="toggleDropdown"
+              :disabled="disabled"
+              class="tw-w-full tw-justify-between tw-px-4 tw-py-3 tw-text-left tw-bg-white tw-border tw-border-gray-300 tw-rounded-lg tw-shadow-sm hover:tw-shadow-md tw-transition-all tw-duration-200"
+              :class="{ 
+                'tw-border-red-500 tw-ring-2 tw-ring-red-200': validationErrors.selectedMonths,
+                'tw-opacity-60 tw-cursor-not-allowed': disabled 
+              }"
+              :pt="{
+                root: 'tw-w-full tw-justify-between',
+                label: 'tw-text-left tw-truncate tw-flex-1'
+              }"
+            >
+              <template #default>
+                <div class="tw-flex tw-items-center tw-justify-between tw-w-full">
+                  <span class="tw-truncate tw-text-gray-700">{{ selectedMonthsDisplay }}</span>
+                  <i class="pi pi-chevron-down tw-text-gray-400 tw-transition-transform tw-duration-200" :class="{ 'tw-rotate-180': isDropdownOpen }"></i>
+                </div>
+              </template>
+            </Button>
+
+            <div v-show="isDropdownOpen" class="tw-absolute tw-z-50 tw-w-full tw-mt-2 tw-bg-white tw-border tw-border-gray-200 tw-rounded-xl tw-shadow-xl tw-overflow-hidden">
+              <!-- Header with bulk actions -->
+              <div class="tw-bg-gradient-to-r tw-from-gray-50 tw-to-gray-100 tw-p-4 tw-border-b tw-border-gray-200">
+                <div class="tw-flex tw-flex-col sm:tw-flex-row tw-items-start sm:tw-items-center tw-justify-between tw-space-y-3 sm:tw-space-y-0">
+                  <h3 class="tw-text-lg tw-font-semibold tw-text-gray-800 tw-flex tw-items-center">
+                    <i class="pi pi-calendar tw-mr-2 tw-text-blue-500"></i>
+                    Months for {{ selectedYear }}
+                  </h3>
+                  <div class="tw-flex tw-space-x-2">
+                    <Button
+                      @click.stop="selectAllMonthsForYear"
+                      :disabled="availableMonthsForCurrentYear === 0 || disabled"
+                      severity="success"
+                      size="small"
+                      outlined
+                      class="tw-px-3 tw-py-1"
+                    >
+                      <i class="pi pi-check tw-mr-1"></i> All
+                    </Button>
+                    <Button
+                      @click.stop="clearAllMonthsForYear"
+                      :disabled="selectedMonthsForCurrentYear === 0 || disabled"
+                      severity="danger"
+                      size="small"
+                      outlined
+                      class="tw-px-3 tw-py-1"
+                    >
+                      <i class="pi pi-times tw-mr-1"></i> Clear
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Month grid -->
+              <div class="tw-max-h-80 tw-overflow-y-auto tw-p-2">
+                <div class="tw-grid tw-grid-cols-1 sm:tw-grid-cols-2 lg:tw-grid-cols-3 tw-gap-2">
+                  <button
+                    v-for="month in monthsForSelectedYear"
+                    :key="month.value"
+                    @click="toggleMonthSelection(month)"
+                    :disabled="month.isPastMonth || disabled"
+                    class="tw-flex tw-items-center tw-justify-between tw-p-3 tw-rounded-lg tw-border tw-transition-all tw-duration-200 tw-text-left"
+                    :class="{
+                      'tw-bg-blue-50 tw-border-blue-200 tw-text-blue-700': month.is_available && !month.isPastMonth,
+                      'tw-bg-gray-50 tw-border-gray-200 tw-text-gray-400 tw-cursor-not-allowed': month.isPastMonth || disabled,
+                      'tw-bg-white tw-border-gray-200 tw-text-gray-700 hover:tw-bg-gray-50': !month.is_available && !month.isPastMonth && !disabled
+                    }"
+                  >
+                    <div class="tw-flex tw-items-center tw-space-x-3">
+                      <i class="pi" :class="month.is_available ? 'pi-check-square tw-text-blue-500' : 'pi-square tw-text-gray-400'"></i>
+                      <div>
+                        <span class="tw-font-medium">{{ month.name }}</span>
+                        <span v-if="month.isPastMonth" class="tw-ml-2 tw-text-xs tw-bg-red-100 tw-text-red-600 tw-px-2 tw-py-1 tw-rounded-full">Past</span>
+                      </div>
+                    </div>
+                    <Badge v-if="month.is_available" value="✓" severity="success" class="tw-text-xs" />
+                  </button>
+                </div>
+                <div v-if="monthsForSelectedYear.every(m => m.isPastMonth)" class="tw-text-center tw-py-8 tw-text-gray-500">
+                  <i class="pi pi-calendar-times tw-text-2xl tw-mb-2 tw-block"></i>
+                  <p>No future months available for this year.</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <!-- Selected months display -->
+        <div v-if="hasSelectedMonths" class="tw-bg-gradient-to-r tw-from-green-50 tw-to-emerald-50 tw-p-6 tw-rounded-xl tw-border tw-border-green-200">
+          <div class="tw-flex tw-items-center tw-mb-4">
+            <i class="pi pi-check-circle tw-text-green-500 tw-mr-2 tw-text-lg"></i>
+            <h3 class="tw-text-lg tw-font-semibold tw-text-gray-800">Currently Selected Months</h3>
+          </div>
+          <div class="tw-flex tw-flex-wrap tw-gap-3">
+            <Chip
+              v-for="(month, index) in selectedMonths"
+              :key="`${month.year}-${month.value}`"
+              :label="`${month.short || month.name} ${month.year}`"
+              :removable="!disabled"
+              @remove="removeMonth(index)"
+              :class="{
+                'tw-bg-green-100 tw-text-green-700': !isMonthInPast(month.value, month.year),
+                'tw-bg-yellow-100 tw-text-yellow-700': isMonthInPast(month.value, month.year)
+              }"
+              class="tw-shadow-sm tw-transition-all tw-duration-200 hover:tw-shadow-md"
+            />
+          </div>
+          <div class="tw-mt-4 tw-flex tw-items-center tw-text-sm tw-text-green-600">
+            <i class="pi pi-info-circle tw-mr-2"></i>
+            <span>These months will be available for appointment bookings.</span>
+          </div>
+        </div>
+
+        <!-- Validation and help messages -->
+        <Message v-if="validationErrors.selectedMonths" severity="error" class="tw-mb-4">
+          <div class="tw-flex tw-items-center">
+            <i class="pi pi-exclamation-triangle tw-mr-2"></i>
+            {{ validationErrors.selectedMonths }}
+          </div>
+        </Message>
+
+        <Message v-else severity="info" class="tw-mb-4">
+          <div class="tw-flex tw-items-center">
+            <i class="pi pi-lightbulb tw-mr-2"></i>
+            Select the months when appointments can be booked. You can select months across multiple years.
+          </div>
+        </Message>
       </div>
-
-      <div class="mt-3 text-sm text-muted">
-        <i class="fa fa-info-circle me-1"></i>
-        These months will be available for appointment bookings.
-      </div>
-    </div>
-
-    <div v-if="validationErrors.selectedMonths" class="invalid-feedback d-block mt-2">
-      <i class="fa fa-exclamation-triangle me-1"></i>
-      {{ validationErrors.selectedMonths }}
-    </div>
-
-    <div v-else class="form-text mt-2 text-info">
-      <i class="fa fa-lightbulb-o me-1"></i>
-      Select the months when appointments can be booked. You can select months across multiple years.
-    </div>
-  </div>
+    </template>
+  </Card>
 </template>
 
 <style scoped>
-:root {
-  --bs-primary: #007bff;
-  --bs-secondary: #6c757d;
-  --bs-success: #28a745;
-  --bs-danger: #dc3545;
-  --bs-warning: #ffc107;
-  --bs-info: #17a2b8;
-  --bs-light: #f8f9fa;
-  --bs-dark: #343a40;
-  --bs-white: #fff;
-  --bs-gray-100: #f8f9fa;
-  --bs-gray-200: #e9ecef;
-  --bs-gray-500: #adb5bd;
-  --bs-gray-700: #495057;
-
-  /* New Bootstrap 5-like color palette */
-  --bs-primary-rgb: 13, 110, 253;
-  --bs-secondary-rgb: 108, 117, 125;
-  --bs-success-rgb: 25, 135, 84;
-  --bs-danger-rgb: 220, 53, 69;
-  --bs-warning-rgb: 255, 193, 7;
-  --bs-info-rgb: 13, 202, 240;
-
-  /* Subtler background colors for badges and dropdowns */
-  --bs-primary-subtle: #cfe2ff;
-  --bs-secondary-subtle: #e2e3e5;
-  --bs-success-subtle: #d1e7dd;
-  --bs-warning-subtle: #fff3cd;
-  --bs-info-subtle: #cff4fc;
-  --bs-light-subtle: #fcfcfd;
+/* Custom PrimeVue component overrides */
+:deep(.p-card) {
+  @apply tw-transition-all tw-duration-300;
 }
 
-.appointment-booking-window {
-  position: relative;
-  font-family: 'Inter', sans-serif; /* Modern font */
-  color: var(--bs-dark);
+:deep(.p-card-header) {
+  @apply tw-p-0;
 }
 
-/* Typography */
-.text-lg {
-  font-size: 1.25rem; /* Larger label for importance */
+:deep(.p-card-content) {
+  @apply tw-p-0;
 }
 
-.font-semibold {
-  font-weight: 600;
+:deep(.p-dropdown) {
+  @apply tw-w-full;
 }
 
-.text-muted-small {
-  font-size: 0.875em;
-  color: var(--bs-secondary);
+:deep(.p-dropdown .p-dropdown-trigger) {
+  @apply tw-text-gray-500;
 }
 
-.text-info-subtle {
-  color: rgba(var(--bs-info-rgb), 0.8);
+:deep(.p-dropdown .p-dropdown-label) {
+  @apply tw-text-gray-700;
 }
 
-.text-danger-emphasis {
-  color: #dc3545; /* Stronger red for "Past" */
+:deep(.p-dropdown:not(.p-disabled):hover) {
+  @apply tw-border-blue-400;
 }
 
-/* Year Select */
-.custom-select-year {
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-color: var(--bs-gray-300);
+:deep(.p-dropdown:not(.p-disabled).p-focus) {
+  @apply tw-border-blue-500 tw-ring-2 tw-ring-blue-200;
 }
 
-/* Dropdown button */
-.btn-outline-primary {
-  border-color: var(--bs-primary);
-  color: var(--bs-primary);
-  border-radius: 0.5rem;
-  padding: 0.75rem 1rem; /* More comfortable padding */
-  font-size: 1rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+:deep(.p-button) {
+  @apply tw-transition-all tw-duration-200;
 }
 
-.btn-outline-primary:hover {
-  background-color: var(--bs-primary);
-  color: var(--bs-white);
+:deep(.p-button.p-button-outlined.p-button-success) {
+  @apply tw-border-green-500 tw-text-green-600 hover:tw-bg-green-500 hover:tw-text-white;
 }
 
-.btn-disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  background-color: var(--bs-light) !important;
-  border-color: var(--bs-gray-300) !important;
-  color: var(--bs-secondary) !important;
+:deep(.p-button.p-button-outlined.p-button-danger) {
+  @apply tw-border-red-500 tw-text-red-600 hover:tw-bg-red-500 hover:tw-text-white;
 }
 
-.btn-outline-primary.is-invalid {
-  border-color: var(--bs-danger);
-  box-shadow: 0 0 0 0.25rem rgba(var(--bs-danger-rgb), 0.25);
+:deep(.p-button.p-button-sm) {
+  @apply tw-px-3 tw-py-1 tw-text-sm;
 }
 
-/* Dropdown menu */
-.dropdown-menu.show {
-  border-radius: 0.75rem; /* More rounded corners */
-  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.1); /* Stronger, softer shadow */
-  padding: 0; /* Remove default padding */
-  overflow: hidden; /* Ensures rounded corners apply to content */
+:deep(.p-badge) {
+  @apply tw-transition-all tw-duration-200;
 }
 
-.dropdown-header {
-  background-color: var(--bs-light-subtle); /* Lighter header background */
-  border-bottom: 1px solid var(--bs-gray-200);
-  border-top-left-radius: 0.75rem; /* Match parent radius */
-  border-top-right-radius: 0.75rem; /* Match parent radius */
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  padding: 0.75rem 1.25rem; /* More padding */
+:deep(.p-badge.p-badge-success) {
+  @apply tw-bg-green-500 tw-text-white;
 }
 
-.dropdown-header .btn-group .btn {
-  border-radius: 0.5rem; /* Rounded buttons */
-  font-weight: 500;
-  padding: 0.375rem 0.75rem;
-  transition: all 0.2s ease;
+:deep(.p-badge.p-badge-info) {
+  @apply tw-bg-blue-500 tw-text-white;
 }
 
-.btn-outline-success {
-  border-color: var(--bs-success);
-  color: var(--bs-success);
-}
-.btn-outline-success:hover {
-  background-color: var(--bs-success);
-  color: var(--bs-white);
+:deep(.p-chip) {
+  @apply tw-transition-all tw-duration-200;
 }
 
-.btn-outline-danger {
-  border-color: var(--bs-danger);
-  color: var(--bs-danger);
-}
-.btn-outline-danger:hover {
-  background-color: var(--bs-danger);
-  color: var(--bs-white);
+:deep(.p-chip .p-chip-remove-icon) {
+  @apply tw-text-gray-500 hover:tw-text-red-500;
 }
 
-.dropdown-divider {
-  border-top: 1px solid var(--bs-gray-200);
-  margin: 0; /* Remove default margin */
+:deep(.p-message) {
+  @apply tw-rounded-lg tw-border-l-4;
 }
 
-.month-grid {
-  max-height: 280px; /* Slightly reduced height for better fit */
-  overflow-y: auto;
-  padding: 0.5rem 0; /* Internal padding for grid */
+:deep(.p-message.p-message-error) {
+  @apply tw-bg-red-50 tw-border-red-500 tw-text-red-700;
 }
 
-.month-item {
-  transition: all 0.2s ease-in-out;
-  cursor: pointer;
-  font-weight: 500;
-  padding: 0.75rem 1.25rem; /* More padding for month items */
-  color: var(--bs-dark);
+:deep(.p-message.p-message-info) {
+  @apply tw-bg-blue-50 tw-border-blue-500 tw-text-blue-700;
 }
 
-.month-item:hover:not(.disabled) {
-  background-color: var(--bs-primary-subtle); /* Lighter hover background */
-  color: var(--bs-dark);
-}
-
-.month-item.active {
-  background-color: var(--bs-primary);
-  color: var(--bs-dark);
-}
-
-.month-item.disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  background-color: var(--bs-gray-100);
-  color: var(--bs-secondary);
-  pointer-events: none;
-}
-
-.month-checkbox-icon {
-  width: 1em; /* Ensure consistent icon width */
-  text-align: center;
-}
-
-.checkmark-badge {
-  font-size: 0.75rem;
-  padding: 0.2em 0.5em;
-  min-width: 20px; /* Ensure it's not too small */
-  text-align: center;
-  line-height: 1;
-}
-
-/* Selected months badges */
-.selected-months {
-  background-color: var(--bs-light-subtle);
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  border: 1px solid var(--bs-gray-200);
-}
-
-.month-pill {
-  font-weight: 500;
-  padding: 0.75em 1em;
-  border-radius: 0.6rem; /* Slightly more rounded */
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08); /* More pronounced shadow */
-  transition: all 0.2s ease;
-}
-
-.month-pill:hover:not([disabled]) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
-}
-
-.bg-success-subtle {
-  background-color: var(--bs-success-subtle) !important;
-}
-.text-success {
-  color: var(--bs-success) !important;
-}
-.border-success-subtle {
-  border-color: rgba(var(--bs-success-rgb), 0.3) !important;
-}
-
-.bg-warning-subtle {
-  background-color: var(--bs-warning-subtle) !important;
-}
-.text-warning-emphasis {
-  color: #664d03 !important; /* Darker yellow text for contrast */
-}
-.border-warning-subtle {
-  border-color: rgba(var(--bs-warning-rgb), 0.3) !important;
-}
-
-.btn-close {
-    width: 1.5rem;
-    height: 1.5rem;
-    padding: 0;
-    border: none;
-    background: transparent;
-    opacity: 0.7; /* Slightly transparent */
-    transition: opacity 0.2s ease, transform 0.2s ease;
-
-
-}
-
-.btn-close:hover {
-  opacity: 1;
-}
-
-.btn-close-white {
-  filter: brightness(0) invert(1); /* Makes the icon white */
-}
-
-/* Dropdown button icon rotation */
-.transition-transform {
-  transition: transform 0.2s ease-in-out;
-}
-
-.rotate-180 {
+/* Custom animations */
+.tw-rotate-180 {
   transform: rotate(180deg);
 }
 
-/* Custom scrollbar styles */
-.month-grid::-webkit-scrollbar {
-  width: 6px; /* Slimmer scrollbar */
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
 }
 
-.month-grid::-webkit-scrollbar-track {
-  background: var(--bs-gray-100);
-  border-radius: 3px;
+::-webkit-scrollbar-track {
+  @apply tw-bg-gray-100 tw-rounded-full;
 }
 
-.month-grid::-webkit-scrollbar-thumb {
-  background: var(--bs-gray-400);
-  border-radius: 3px;
+::-webkit-scrollbar-thumb {
+  @apply tw-bg-gray-400 tw-rounded-full;
 }
 
-.month-grid::-webkit-scrollbar-thumb:hover {
-  background: var(--bs-gray-600);
+::-webkit-scrollbar-thumb:hover {
+  @apply tw-bg-gray-500;
 }
 
 /* Focus styles for accessibility */
-.dropdown-item:focus {
-  outline: 2px solid rgba(var(--bs-primary-rgb), 0.5); /* Primary focus ring */
-  outline-offset: -2px;
-  background-color: var(--bs-primary-subtle);
-  color: var(--bs-primary);
-}
-
-.btn:focus {
-  box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.25);
-}
-
-/* Form feedback messages */
-.invalid-feedback {
-  color: var(--bs-danger);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.form-text {
-  color: var(--bs-secondary);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.text-info {
-  color: rgba(var(--bs-info-rgb), 0.9) !important;
+button:focus {
+  @apply tw-outline-none tw-ring-2 tw-ring-blue-500 tw-ring-offset-2;
 }
 
 /* Responsive adjustments */
-@media (max-width: 767.98px) {
-  .dropdown-header {
+@media (max-width: 640px) {
+  :deep(.tw-grid-cols-1.sm\:tw-grid-cols-2.lg\:tw-grid-cols-3) {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+  }
+  
+  :deep(.tw-flex-col.sm\:tw-flex-row) {
+    display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
   }
-  .dropdown-header .btn-group {
-    width: 100%;
-    justify-content: stretch;
+  
+  :deep(.tw-space-y-3.sm\:tw-space-y-0) {
+    row-gap: 0.75rem;
   }
-  .dropdown-header .btn-group .btn {
-    flex: 1;
-    font-size: 0.9rem;
-    padding: 0.4rem 0.6rem;
-  }
-  .month-item {
-    padding: 0.6rem 1rem;
-  }
-  .selected-months .badge {
-    font-size: 0.9rem;
-    padding: 0.6rem 0.8rem;
-  }
-  .col-md-7.col-auto.text-muted-small {
-    margin-top: 0.5rem;
-    text-align: left;
-  }
+}
+
+/* Animation classes */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Hover effects */
+.hover\:tw-scale-\[1\.02\]:hover {
+  transform: scale(1.02);
+}
+
+.hover\:tw-shadow-md:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 </style>

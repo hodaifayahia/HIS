@@ -2,20 +2,22 @@
 
 namespace App\Models\B2B;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\B2B\ConventionDetail;
 use App\Models\CONFIGURATION\Prestation;
-
 use App\Models\CRM\Organisme;
+use App\Models\ContractPercentage;
 
 
 
 
 class Convention extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'organisme_id',
         'name',
@@ -42,6 +44,11 @@ class Convention extends Model
     public function annexes(): HasMany
     {
         return $this->hasMany(Annex::class, 'convention_id'); // Changed to convention_id
+    }
+
+    public function contractPercentages(): HasMany
+    {
+        return $this->hasMany(ContractPercentage::class, 'contract_id');
     }
 
     // public function agreementDetails(): HasMany

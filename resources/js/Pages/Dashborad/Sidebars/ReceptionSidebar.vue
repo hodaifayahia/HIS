@@ -56,9 +56,9 @@ const hasPermission = (requiredRoles) => {
                 </a>
                 <ul class="nav nav-treeview" v-show="isPatientManagementOpen">
                     <li class="nav-item">
-                        <router-link to="/reception/fiche-navette" active-class="active" class="nav-link">
+                        <router-link to="/reception/fiche-navettes" active-class="active" class="nav-link">
                             <i class="far fa-circle nav-icon"></i>
-                            <p>Fiche Navette</p> </router-link>
+                            <p>Patient Overview</p> </router-link>
                     </li>
                     <li class="nav-item">
                         <router-link to="/reception/fiche-navette/custom-package" active-class="active" class="nav-link">
@@ -69,38 +69,6 @@ const hasPermission = (requiredRoles) => {
                 </ul>
             </li>
 
-            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isFinancialActionsOpen }">
-                <a href="#" class="nav-link" @click.prevent="toggleFinancialActions">
-                    <i class="nav-icon fas fa-wallet"></i>
-                    <p>
-                        Financial Actions
-                        <i class="right fas fa-angle-left"></i>
-                    </p>
-                </a>
-                <ul class="nav nav-treeview" v-show="isFinancialActionsOpen">
-                    <li class="nav-item">
-                        <router-link to="/reception/patient-balance" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Patient Balances</p> </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/reception/process-payments" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Process Card Payments</p> </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/reception/apply-discount" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Apply Discounts (Remise)</p> </router-link>
-                    </li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <router-link to="/reception/patient-flow" active-class="active" class="nav-link">
-                    <i class="nav-icon fas fa-chart-line"></i>
-                    <p>Patient Flow Monitor</p> </router-link>
-            </li>
         </template>
     </BaseSidebar>
 </template>

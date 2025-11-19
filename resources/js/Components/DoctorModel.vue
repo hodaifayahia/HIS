@@ -25,6 +25,7 @@ const errors = ref({});
 const specializations = ref({});
 const showPassword = ref(false);
 const isLoading = ref(false);
+const loading = ref(false);
 const patients_based_on_time = ref(props.doctorData.patients_based_on_time);
 const numberOfPatients = ref(
   Array.isArray(props.doctorData?.schedules)
@@ -130,11 +131,20 @@ watch(
       const formatTime = (timeString) => {
         if (!timeString) return '';
         try {
-          const date = new Date(`2000-01-01T${timeString}`); // Use a dummy date to parse time
-          return date.toTimeString().slice(0, 5); // Extracts HH:mm
+          // Handle different time formats
+          if (timeString.includes('T')) {
+            // ISO format: 2024-01-01T09:00:00.000000Z
+            const date = new Date(timeString);
+            return date.toTimeString().slice(0, 5); // Extracts HH:mm
+          } else if (timeString.includes(':')) {
+            // Simple time format: 09:00:00 or 09:00
+            const timeParts = timeString.split(':');
+            return `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+          }
+          return timeString;
         } catch (e) {
           console.error("Error formatting time:", timeString, e);
-          return '';
+          return timeString || '';
         }
       };
 
@@ -158,7 +168,12 @@ watch(
         avatar: newValue?.avatar || null,
         appointmentBookingWindow: newValue?.appointment_booking_window,
         customDates: Array.isArray(newValue?.schedules) ? [...newValue.schedules] : [],
-        schedules: Array.isArray(newValue?.schedules) ? [...newValue.schedules] : [],
+        schedules: Array.isArray(newValue?.schedules) ? 
+          newValue.schedules.map(schedule => ({
+            ...schedule,
+            start_time: formatTime(schedule.start_time),
+            end_time: formatTime(schedule.end_time)
+          })) : [],
         password: '',
         number_of_patients_per_day: (doctor.value.number_of_patients_per_day === undefined)
           ? computedNumber
@@ -417,48 +432,7 @@ onMounted(() => {
               </div>
             </div>
             <!-- Second Row: Phone and Specialization -->
-            <div class="row ms-4">
-              <!-- Force Setting Label -->
-              <div class="col-12 mb-3">
-                <h5 class="mb-0">Force Setting</h5>
-                <small class="text-muted">Configure the appointment booking window.</small>
-              </div>
-
-              <!-- Start Time -->
-              <div class="col-md-6 mb-3">
-                <label for="start_time_force" class="form-label">Start Time</label>
-                <Field type="time" id="start_time_force" name="start_time_force" v-model="doctor.start_time_force"
-                  :class="{ 'is-invalid': validationErrors.start_time_force }" class="form-control form-control-md" />
-                <span class="text-sm invalid-feedback">{{ validationErrors.start_time_force }}</span>
-              </div>
-          <div class="form-check mb-3">
-            <input
-              class="form-check-input"
-              type="checkbox"
-              id="allowed_appointment_today"
-              v-model="doctor.allowed_appointment_today"
-            />
-            <label class="form-check-label" for="allowed_appointment_today">
-              Allow Appointments Today
-            </label>
-          </div>
-              <!-- End Time -->
-              <div class="col-md-6 mb-3">
-                <label for="end_time_force" class="form-label">End Time</label>
-                <Field type="time" id="end_time_force" name="end_time_force" v-model="doctor.end_time_force"
-                  :class="{ 'is-invalid': validationErrors.end_time_force }" class="form-control form-control-md" />
-                <span class="text-sm invalid-feedback">{{ validationErrors.end_time_force }}</span>
-              </div>
-
-              <!-- Number of Patients -->
-              <div class="col-md-8 mb-3">
-                <label for="number_of_patients" class="form-label">Patients</label>
-                <Field type="text" id="number_of_patients" name="number_of_patients" v-model="doctor.number_of_patients"
-                  :class="{ 'is-invalid': validationErrors.number_of_patients }" class="form-control form-control-md" />
-                <span class="text-sm invalid-feedback">{{ validationErrors.number_of_patients }}</span>
-              </div>
-                 
-            </div>
+      
             </div>
 
               <div class="row">
@@ -499,7 +473,7 @@ onMounted(() => {
 
                 <div v-if="doctor.patients_based_on_time" class="col-md-6 mb-4">
                   <label for="time_slot" class="form-label fs-5">Time Slot for Patients</label>
-                  <input v-model="doctor.time_slot" class="form-control form-control-md"
+                  <input v-model.number="doctor.time_slot" type="number" class="form-control form-control-md"
                     placeholder="Select time slot" />
                 </div>
               </div>
@@ -558,14 +532,14 @@ onMounted(() => {
               <div class="row">
                 <div class="col-12" v-if="doctor.frequency === 'Daily' || doctor.frequency === 'Weekly'">
                   <DoctorSchedules :doctorId="doctor.id" :existingSchedules="doctor.schedules"
-                    :patients_based_on_time="doctor.patients_based_on_time" :time_slot="doctor.time_slot"
+                    :patients_based_on_time="Boolean(doctor.patients_based_on_time)" :time_slot="Number(doctor.time_slot) || 0"
                     v-model="doctor.schedules" @schedulesUpdated="handleSchedulesUpdated" />
                 </div>
                 <div class="col-md-12 mb-4" v-if="doctor.frequency === 'Monthly'">
                   <label class="form-label fs-5">Custom Dates</label>
                   <CustomDates :doctorId="doctor.id" :existingSchedules="doctor.schedules" v-model="doctor.customDates"
-                    :patients_based_on_time="doctor.patients_based_on_time" :time_slot="doctor.time_slot"
-                    :number_of_patients_per_day="doctor.number_of_patients_per_day"
+                    :patients_based_on_time="Boolean(doctor.patients_based_on_time)" :time_slot="Number(doctor.time_slot) || 0"
+                    :number_of_patients_per_day="Number(doctor.number_of_patients_per_day) || 0"
                     @schedulesUpdated="handlecustomDatesUpdated" />
                 </div>
 
@@ -616,6 +590,6 @@ onMounted(() => {
 }
 
 .modal-dialog {
-  max-width: 800px;
+  max-width: 1100px;
 }
 </style>

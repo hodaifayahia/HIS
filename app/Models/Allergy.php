@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 use App\Models\Patient;
@@ -10,6 +11,7 @@ use App\Models\User;
 
 class Allergy extends Model
 {
+    use HasFactory;
 
     protected $fillable = [
         'name',

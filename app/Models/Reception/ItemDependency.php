@@ -17,18 +17,28 @@ class ItemDependency extends Model
         'base_price',
         'final_price',
         'status',
+        'payment_status',
+        'remaining_amount',
+        'paid_amount',
         'patient_share',
         'prise_en_charge_date',
         'discounted_price',
         'organisme_share',
         'notes',
         'custom_name' ,// Add this field
+        'default_payment_type',
         'is_package'
     ];
 
     protected $casts = [
         'base_price' => 'decimal:2',
-        'final_price' => 'decimal:2'
+        'final_price' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'remaining_amount' => 'decimal:2',
+        'patient_share' => 'decimal:2',
+        'discounted_price' => 'decimal:2',
+        'organisme_share' => 'decimal:2',
+        'prise_en_charge_date' => 'date'
     ];
 
     /**
@@ -42,10 +52,11 @@ class ItemDependency extends Model
     /**
      * Get the dependent prestation
      */
- public function dependencyPrestation(): BelongsTo
-{
-    return $this->belongsTo(\App\Models\CONFIGURATION\Prestation::class, 'parent_item_id', 'id');
-}
+    public function dependencyPrestation(): BelongsTo
+    {
+        // dependent_prestation_id is the correct foreign key linking to prestation id
+        return $this->belongsTo(\App\Models\CONFIGURATION\Prestation::class, 'dependent_prestation_id', 'id');
+    }
 
     /**
      * Get the doctor assigned to this dependency

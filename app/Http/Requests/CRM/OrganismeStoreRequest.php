@@ -3,7 +3,6 @@
 namespace App\Http\Requests\CRM;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class OrganismeStoreRequest extends FormRequest
 {
@@ -26,7 +25,7 @@ class OrganismeStoreRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-          'organism_color' => ['nullable', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/'],
+            'organism_color' => ['nullable', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/'],
 
             'legal_form' => 'nullable|string|max:255',
             'trade_register_number' => 'nullable|string|max:255|unique:organismes,trade_register_number',
@@ -45,8 +44,11 @@ class OrganismeStoreRequest extends FormRequest
             'longitude' => 'nullable|numeric|between:-180,180',
             'initial_invoice_number' => 'nullable|string|max:255',
             'initial_credit_note_number' => 'nullable|string|max:255',
+            // Accept either direct URLs (optional) or file uploads named logo_file/profile_image_file
             'logo_url' => 'nullable|string|url|max:255',
             'profile_image_url' => 'nullable|string|url|max:255',
+            'logo_file' => 'nullable|file|image|max:2048', // max 2MB
+            'profile_image_file' => 'nullable|file|image|max:2048',
             'description' => 'nullable|string',
             'industry' => 'nullable|string|max:255',
             'creation_date' => 'nullable|date',

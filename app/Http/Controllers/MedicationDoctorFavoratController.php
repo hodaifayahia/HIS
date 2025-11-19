@@ -156,4 +156,58 @@ class MedicationDoctorFavoratController extends Controller
     {
         //
     }
+
+    /**
+     * Duplicate favorite medications from one doctor to another
+     */
+    public function duplicateFavorites(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'source_doctor_id' => 'required|exists:doctors,id',
+                'target_doctor_id' => 'required|exists:doctors,id',
+            ]);
+
+            $sourceFavorites = MedicationDoctorFavorat::where('doctor_id', $validated['source_doctor_id'])->get();
+            
+            if ($sourceFavorites->isEmpty()) {
+                return response()->json([
+                    'message' => 'No favorite medications found for source doctor',
+                    'count' => 0
+                ]);
+            }
+
+            $duplicatedCount = 0;
+            
+            foreach ($sourceFavorites as $favorite) {
+                // Check if already exists for target doctor
+                $exists = MedicationDoctorFavorat::where([
+                    'medication_id' => $favorite->medication_id,
+                    'doctor_id' => $validated['target_doctor_id']
+                ])->exists();
+                
+                if (!$exists) {
+                    MedicationDoctorFavorat::create([
+                        'medication_id' => $favorite->medication_id,
+                        'doctor_id' => $validated['target_doctor_id'],
+                        'favorited_at' => Carbon::now()
+                    ]);
+                    $duplicatedCount++;
+                }
+            }
+
+            return response()->json([
+                'message' => 'Favorite medications duplicated successfully',
+                'total_source_favorites' => $sourceFavorites->count(),
+                'duplicated_count' => $duplicatedCount,
+                'skipped_count' => $sourceFavorites->count() - $duplicatedCount
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to duplicate favorite medications',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

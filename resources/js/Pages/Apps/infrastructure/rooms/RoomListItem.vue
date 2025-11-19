@@ -31,15 +31,12 @@ const formatStatus = (status) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
-const getRoomTypeLabel = (typeId) => {
-  const types = {
-    1: 'Deluxe',
-    2: 'Standard',
-    3: 'Presidential',
-    4: 'Economy',
-    5: 'Family'
+const getRoomTypeLabel = (room) => {
+  // Display the room type name from the relationship object
+  if (room && room.room_type && room.room_type.name) {
+    return room.room_type.name
   }
-  return types[typeId] || 'Standard'
+  return 'Unknown Type'
 }
 </script>
 
@@ -60,7 +57,7 @@ const getRoomTypeLabel = (typeId) => {
         </div>
         <div>
           <div class="fw-bold text-dark">{{ room.name }}</div>
-          <div class="small text-muted">{{ getRoomTypeLabel(room.room_type_id) }}</div>
+          <div class="small text-muted">{{ getRoomTypeLabel(room) }}</div>
         </div>
       </div>
     </td>

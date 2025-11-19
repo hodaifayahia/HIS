@@ -10,6 +10,7 @@ export const useAppointmentStore = defineStore('appointment', {
     doctors: [],               // You might want to store doctors here too if they are shared
     isLoadingDoctors: false,   // Loading status for the main doctors list
     searchQuery: '',           // If search functionality is global
+    appointmentsFetched: {},   // Track which doctors we've already fetched appointments for
   }),
 
   getters: {
@@ -39,15 +40,24 @@ export const useAppointmentStore = defineStore('appointment', {
   actions: {
     // Action to fetch all doctors (if doctor data is also managed by this store)
     async fetchDoctors(specializationId = null) {
+      if (this.isLoadingDoctors) return; // Prevent concurrent fetches
+      
       this.isLoadingDoctors = true;
       try {
-        const response = await axios.get('/api/doctors', {
-          params: { query: specializationId },
-        });
-        this.doctors = response.data.data;
+        let response;
+        if (specializationId) {
+          // Use the dedicated endpoint for specialization filtering
+          response = await axios.get(`/api/doctors/specializations/${specializationId}`);
+        } else {
+          response = await axios.get('/api/doctors');
+        }
 
-        // Fetch appointments for all doctors concurrently after doctors are loaded
-        await Promise.all(this.doctors.map(doctor => this.fetchAvailableAppointments(doctor.id)));
+        // The API returns data in response.data.data in other places; handle both shapes defensively
+        this.doctors = response.data.data || response.data || [];
+
+        // Only fetch initial appointments for visible doctors (e.g., first page)
+        const visibleDoctors = this.doctors.slice(0, 10); // Adjust number based on your UI
+        await Promise.all(visibleDoctors.map(doctor => this.fetchAvailableAppointments(doctor.id)));
 
       } catch (error) {
         console.error('Error fetching doctors:', error);
@@ -77,7 +87,12 @@ export const useAppointmentStore = defineStore('appointment', {
 
     // Action to fetch available appointments for a specific doctor
     async fetchAvailableAppointments(doctorId) {
-      this.loadingAppointments[doctorId] = true; // Set loading for specific doctor
+      // Skip if already fetched or currently loading
+      if (this.appointmentsFetched?.[doctorId] || this.loadingAppointments?.[doctorId]) {
+        return;
+      }
+
+      this.loadingAppointments[doctorId] = true;
       try {
         const response = await axios.get('/api/appointments/available', {
           params: { doctor_id: doctorId }
@@ -86,16 +101,27 @@ export const useAppointmentStore = defineStore('appointment', {
           canceled_appointments: response.data.canceled_appointments,
           normal_appointments: response.data.normal_appointments
         };
+        this.appointmentsFetched[doctorId] = true; // Mark as fetched
       } catch (error) {
         console.error(`Error fetching available appointments for doctor ${doctorId}:`, error);
-        // You might want to clear or set an error state for this doctorId
       } finally {
         this.loadingAppointments[doctorId] = false;
       }
     },
 
+    // Keep track of pending requests
+    _pendingRequests: {},
+
     async getAppointments(doctorId, page = 1, status = null, filter = null, date = null) {
-      // Prevent duplicate calls
+      // Create a unique key for this request
+      const requestKey = `${doctorId}-${page}-${status}-${filter}-${date}`;
+      
+      // If there's already a pending request with the same parameters, return it
+      if (this._pendingRequests[requestKey]) {
+        return this._pendingRequests[requestKey];
+      }
+
+      // If we're already loading with the same parameters, skip
       if (this.loading) {
         console.log('Already loading, skipping duplicate call');
         return;
@@ -104,20 +130,29 @@ export const useAppointmentStore = defineStore('appointment', {
       this.loading = true;
       this.error = null;
 
-      try {
-        const params = { page, status, filter, date };
-        const { data } = await axios.get(`/api/appointments/${doctorId}`, { params });
+      // Create the promise for this request
+      this._pendingRequests[requestKey] = (async () => {
+        try {
+          const params = { page, status, filter, date };
+          const { data } = await axios.get(`/api/appointments/${doctorId}`, { params });
 
-        if (data.success) {
-          this.appointments = data.data;
-          this.pagination = data.meta;
+          if (data.success) {
+            this.appointments = data.data;
+            this.pagination = data.meta;
+          }
+          return data;
+        } catch (err) {
+          console.error('Error fetching appointments:', err);
+          this.error = 'Failed to load appointments. Please try again.';
+          throw err;
+        } finally {
+          this.loading = false;
+          // Clean up the pending request
+          delete this._pendingRequests[requestKey];
         }
-      } catch (err) {
-        console.error('Error fetching appointments:', err);
-        this.error = 'Failed to load appointments. Please try again.';
-      } finally {
-        this.loading = false;
-      }
+      })();
+
+      return this._pendingRequests[requestKey];
     },
 
     // Add method to check if we should reload

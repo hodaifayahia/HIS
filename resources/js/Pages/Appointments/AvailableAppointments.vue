@@ -43,11 +43,9 @@ const fetchTimeSlots = async (date, type) => {
       return appointment?.available_times || [];
     } else {
       const response = await axios.get('/api/appointments/checkAvailability', {
-        params: {
-          date: availableAppointments.value.normal_appointments.date,
-          doctor_id: props.doctorId,
-          include_slots: true,
-        }
+        date: availableAppointments.value.normal_appointments.date,
+        doctor_id: props.doctorId,
+        include_slots: true,
       });
       return response.data.available_slots || [];
     }
@@ -161,7 +159,7 @@ onMounted(fetchAvailableAppointments);
       :key="timeSlotKey"
       :deletedslots="selectedType === 'canceled' ? availableTimes : []"
       :date="selectedAppointment.date"
-      :doctorid="doctorId"
+      :doctorId="doctorId"
       :slots="selectedType === 'canceled' ? availableTimes : []"
       @timeSelected="handleTimeSelected"
       class="mt-4"

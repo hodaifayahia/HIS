@@ -19,7 +19,7 @@ class ServiceController extends Controller
     public function index()
     {
         try {
-            $services = Service::latest()->get();
+            $services = Service::withCount('stockages')->latest()->get();
             return response()->json([
                 'status' => 'success',
                 'message' => 'Services retrieved successfully.',

@@ -1,14 +1,12 @@
 
 @import "/node_modules/admin-lte/dist/css/adminlte.min.css";
-@import "/node_modules/admin-lte/plugins/fontawesome-free/css/all.min.css";
 @import url('https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback');
 @import 'primevue/resources/themes/aura-light-green/theme.css';
 @import 'primevue/resources/primevue.min.css';
 @import 'primeicons/primeicons.css';
-
+@import "@fortawesome/fontawesome-free/css/all.min.css";
 
 /* Add this to your main CSS file or create a new one */
-
 
 /* Icon Colors */
 .nav-icon.fas.fa-tachometer-alt {
@@ -2042,4 +2040,136 @@
     margin-bottom: 1.5rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid #e5e7eb;
+}
+
+/* Fix button flickering/flaking issues */
+button,
+.btn,
+.p-button,
+.action-button,
+[class*="button"],
+[class*="btn-"] {
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    -webkit-transform: translate3d(0, 0, 0);
+    -moz-transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    will-change: transform;
+}
+
+/* Prevent transform flickering on hover */
+button:hover,
+.btn:hover,
+.p-button:hover,
+.action-button:hover {
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translate3d(0, -1px, 0);
+}
+
+/* Override PrimeVue button ripple effect that can cause flickering */
+.p-button .p-ripple {
+    overflow: hidden;
+}
+
+/* Prevent icon flickering inside buttons */
+button i,
+.btn i,
+.p-button i,
+.pi,
+.fas,
+.far,
+.fab,
+.fa,
+i[class*="pi-"],
+i[class*="fa-"] {
+    will-change: auto;
+    transform: translateZ(0);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    display: inline-block;
+}
+
+/* Fix icon flickering on hover */
+button:hover i,
+.btn:hover i,
+.p-button:hover i,
+a:hover i {
+    transform: translateZ(0);
+}
+
+/* Fix PrimeIcons and FontAwesome specifically */
+.pi,
+.fa,
+.fas,
+.far,
+.fab {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "liga";
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Fix icon flickering in action buttons */
+.action-button i,
+.dialog-button i,
+.add-specialization-button i,
+.edit-button i,
+.delete-button i {
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: auto;
+}
+
+/* Fix icon flickering in navigation and sidebar */
+.nav-icon,
+.sidebar-icon,
+.menu-icon {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Fix product-related button flickering specifically */
+.add-product-button,
+.edit-product-button,
+.delete-product-button,
+.add-specialization-button,
+.dialog-button,
+.btn-premium,
+.btn-premium-light,
+.btn-premium-outline,
+.btn-premium-success,
+.btn-premium-control {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: transform;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Disable transform on disabled buttons to prevent flicker */
+button:disabled,
+.btn:disabled,
+.p-button:disabled {
+    will-change: auto !important;
+    transform: none !important;
+}
+
+/* Fix floating action button flickering */
+.tw-fixed button,
+.floating-button {
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    transform: translate3d(0, 0, 0);
+    will-change: transform, box-shadow;
 }

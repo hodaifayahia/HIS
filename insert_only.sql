@@ -1,0 +1,1717 @@
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Sep 13, 2025 at 05:29 PM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.2.12
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+--
+-- Database: `oasisreception`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `agreements`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `allergies`
+--
+--
+-- Dumping data for table `allergies`
+--
+INSERT INTO `allergies` (`id`, `name`, `severity`, `date`, `note`, `patient_id`, `deleted_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `annexes`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `appointments`
+--
+--
+-- Dumping data for table `appointments`
+--
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+INSERT INTO `appointments` (`id`, `doctor_id`, `patient_id`, `notes`, `appointment_date`, `appointment_time`, `created_by`, `status`, `reason`, `deleted_at`, `created_at`, `updated_at`, `add_to_waitlist`, `canceled_by`, `updated_by`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `appointment_available_month`
+--
+--
+-- Dumping data for table `appointment_available_month`
+--
+INSERT INTO `appointment_available_month` (`id`, `month`, `year`, `doctor_id`, `is_available`, `deleted_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `appointment_forcers`
+--
+--
+-- Dumping data for table `appointment_forcers`
+--
+INSERT INTO `appointment_forcers` (`id`, `doctor_id`, `user_id`, `is_able_to_force`, `number_of_patients`, `start_time`, `end_time`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `appointment_modality_forces`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `appointment_prestations`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `attributes`
+--
+--
+-- Dumping data for table `attributes`
+--
+INSERT INTO `attributes` (`id`, `name`, `input_type`, `value`, `placeholder_id`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `attributes_placeholder_doctors`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `authorized_modality_users`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `avenants`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `ayants_droit_rules`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `b2b_invoices`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `b2b_invoice_items`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `banks`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `bank_accounts`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `bank_account_transactions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `bank_account_transaction_packs`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `bank_account_transaction_pack_items`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `beds`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `cache`
+--
+--
+-- Dumping data for table `cache`
+--
+INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES
+INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `cache_locks`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `caisses`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `caisse_sessions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `caisse_session_denominations`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `caisse_transactions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `caisse_transfers`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `chronic_diseases`
+--
+--
+-- Dumping data for table `chronic_diseases`
+--
+INSERT INTO `chronic_diseases` (`id`, `name`, `description`, `diagnosis_date`, `patient_id`, `deleted_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `coffres`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `coffre_transactions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `consultations`
+--
+--
+-- Dumping data for table `consultations`
+--
+INSERT INTO `consultations` (`id`, `template_id`, `patient_id`, `doctor_id`, `appointment_id`, `created_at`, `updated_at`, `name`, `codebash`, `consultation_end_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `consultationworkspaces`
+--
+--
+-- Dumping data for table `consultationworkspaces`
+--
+INSERT INTO `consultationworkspaces` (`id`, `name`, `doctor_id`, `last_accessed`, `is_archived`, `description`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `consultationworkspace_list`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `consultationworkspace_lists`
+--
+--
+-- Dumping data for table `consultationworkspace_lists`
+--
+INSERT INTO `consultationworkspace_lists` (`consultation_id`, `consultation_workspace_id`, `notes`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `consultation_placeholder_attributes`
+--
+--
+-- Dumping data for table `consultation_placeholder_attributes`
+--
+INSERT INTO `consultation_placeholder_attributes` (`id`, `consultation_id`, `placeholder_id`, `attribute_id`, `created_at`, `updated_at`, `appointment_id`, `attribute_value`) VALUES
+INSERT INTO `consultation_placeholder_attributes` (`id`, `consultation_id`, `placeholder_id`, `attribute_id`, `created_at`, `updated_at`, `appointment_id`, `attribute_value`) VALUES
+INSERT INTO `consultation_placeholder_attributes` (`id`, `consultation_id`, `placeholder_id`, `attribute_id`, `created_at`, `updated_at`, `appointment_id`, `attribute_value`) VALUES
+INSERT INTO `consultation_placeholder_attributes` (`id`, `consultation_id`, `placeholder_id`, `attribute_id`, `created_at`, `updated_at`, `appointment_id`, `attribute_value`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `conventions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `conventions_details`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `convention_rules`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `credit_notes`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `demandes_de_fonds`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `doctors`
+--
+--
+-- Dumping data for table `doctors`
+--
+INSERT INTO `doctors` (`id`, `specialization_id`, `allowed_appointment_today`, `number_of_patient`, `frequency`, `specific_date`, `notes`, `patients_based_on_time`, `time_slot`, `appointment_booking_window`, `created_by`, `user_id`, `deleted_at`, `created_at`, `updated_at`, `schedule_id`, `include_time`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `doctor_fiche_navettes`
+--
+--
+-- Dumping data for table `doctor_fiche_navettes`
+--
+INSERT INTO `doctor_fiche_navettes` (`id`, `fiche_navette_id`, `doctor_id`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `doctor_medication_favorites`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `doctor_salls`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `excluded_dates`
+--
+--
+-- Dumping data for table `excluded_dates`
+--
+INSERT INTO `excluded_dates` (`id`, `doctor_id`, `start_date`, `end_date`, `reason`, `apply_for_all_years`, `created_at`, `updated_at`, `deleted_at`, `start_time`, `number_of_patients_per_day`, `end_time`, `shift_period`, `is_active`, `exclusionType`, `created_by`, `updated_by`, `deleted_by`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `failed_jobs`
+--
+--
+-- Dumping data for table `failed_jobs`
+--
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+INSERT INTO `failed_jobs` (`id`, `uuid`, `connection`, `queue`, `payload`, `exception`, `failed_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `family_diseases`
+--
+--
+-- Dumping data for table `family_diseases`
+--
+INSERT INTO `family_diseases` (`id`, `disease_name`, `relation`, `notes`, `patient_id`, `deleted_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `fee_distribution_models`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `fiche_navettes`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `fiche_navette_custom_packages`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `fiche_navette_items`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `financial_transactions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `folders`
+--
+--
+-- Dumping data for table `folders`
+--
+INSERT INTO `folders` (`id`, `name`, `description`, `created_at`, `updated_at`, `doctor_id`, `specializations_id`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `item_dependencies`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `jobs`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `job_batches`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `medications`
+--
+--
+-- Dumping data for table `medications`
+--
+INSERT INTO `medications` (`id`, `designation`, `type_medicament`, `forme`, `boite_de`, `__v`, `isSelected`, `code_pch`, `nom_commercial`, `created_at`, `updated_at`, `deleted_at`) VALUES
+INSERT INTO `medications` (`id`, `designation`, `type_medicament`, `forme`, `boite_de`, `__v`, `isSelected`, `code_pch`, `nom_commercial`, `created_at`, `updated_at`, `deleted_at`) VALUES
+INSERT INTO `medications` (`id`, `designation`, `type_medicament`, `forme`, `boite_de`, `__v`, `isSelected`, `code_pch`, `nom_commercial`, `created_at`, `updated_at`, `deleted_at`) VALUES
+INSERT INTO `medications` (`id`, `designation`, `type_medicament`, `forme`, `boite_de`, `__v`, `isSelected`, `code_pch`, `nom_commercial`, `created_at`, `updated_at`, `deleted_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `medication_doctor_favorats`
+--
+--
+-- Dumping data for table `medication_doctor_favorats`
+--
+INSERT INTO `medication_doctor_favorats` (`id`, `medication_id`, `doctor_id`, `favorited_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `medication_doctor_favorats_`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `migrations`
+--
+--
+-- Dumping data for table `migrations`
+--
+INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `moality_appointments`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `modalities`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `modality_available_months`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `modality_schedules`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `modality_types`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `model_has_permissions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `model_has_roles`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `opinion_requests`
+--
+--
+-- Dumping data for table `opinion_requests`
+--
+INSERT INTO `opinion_requests` (`id`, `sender_doctor_id`, `reciver_doctor_id`, `appointment_id`, `patient_id`, `request`, `status`, `Reply`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `organismes`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `organisme_contacts`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `password_reset_tokens`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `patients`
+--
+--
+-- Dumping data for table `patients`
+--
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+INSERT INTO `patients` (`id`, `Firstname`, `Lastname`, `phone`, `dateOfBirth`, `Idnum`, `Parent`, `created_by`, `deleted_at`, `created_at`, `updated_at`, `age`, `weight`, `gender`, `nss`, `balance`, `firstname_ar`, `lastname_ar`, `birth_place`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `patient_docements`
+--
+--
+-- Dumping data for table `patient_docements`
+--
+INSERT INTO `patient_docements` (`id`, `patient_id`, `doctor_id`, `appointment_id`, `folder_id`, `document_type`, `document_path`, `document_name`, `document_size`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `pavilions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `pavilion_service`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `payment_type_overrides_log`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `permissions`
+--
+--
+-- Dumping data for table `permissions`
+--
+INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `placeholders`
+--
+--
+-- Dumping data for table `placeholders`
+--
+INSERT INTO `placeholders` (`id`, `name`, `doctor_id`, `specializations_id`, `description`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `placeholder_templates`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `prescriptions`
+--
+--
+-- Dumping data for table `prescriptions`
+--
+INSERT INTO `prescriptions` (`id`, `consultation_id`, `patient_id`, `signature_status`, `pdf_path`, `created_at`, `updated_at`, `doctor_id`, `start_date`, `end_date`, `appointment_id`, `prescription_date`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `prescriptiontemplates`
+--
+--
+-- Dumping data for table `prescriptiontemplates`
+--
+INSERT INTO `prescriptiontemplates` (`id`, `doctor_id`, `name`, `prescription_id`, `description`, `deleted_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `prescription_medications`
+--
+--
+-- Dumping data for table `prescription_medications`
+--
+INSERT INTO `prescription_medications` (`id`, `prescription_id`, `medication_id`, `cd_active_substance`, `brand_name`, `pharmaceutical_form`, `dose_per_intake`, `num_intakes_per_time`, `frequency`, `duration_or_boxes`, `created_at`, `updated_at`, `form`, `num_times`, `start_date`, `end_date`, `description`, `pills_matin`, `pills_apres_midi`, `pills_midi`, `pills_soir`, `frequency_period`, `period_intakes`, `timing_preference`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `prestations`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `prestation_packageitems`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `prestation_packages`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `prestation_pricing`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `prestation_remises`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `proforma_invoices`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `proforma_invoice_items`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `refund_authorizations`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remises`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_approvers`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_policies`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_requests`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_request_approvals`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_request_notifications`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_request_prestations`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_request_prestation_contributions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `remise_users`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `request_transaction_approvals`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `roles`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `role_has_permissions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `rooms`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `room_types`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `salls`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `schedules`
+--
+--
+-- Dumping data for table `schedules`
+--
+INSERT INTO `schedules` (`id`, `doctor_id`, `day_of_week`, `shift_period`, `start_time`, `end_time`, `date`, `number_of_patients_per_day`, `is_active`, `break_duration`, `break_times`, `excluded_dates`, `modified_times`, `deleted_at`, `created_by`, `updated_by`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `services`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `sessions`
+--
+--
+-- Dumping data for table `sessions`
+--
+INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `specializations`
+--
+--
+-- Dumping data for table `specializations`
+--
+INSERT INTO `specializations` (`id`, `name`, `description`, `photo`, `deleted_at`, `created_by`, `created_at`, `updated_at`, `service_id`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `specialization_fichenavettes`
+--
+--
+-- Dumping data for table `specialization_fichenavettes`
+--
+INSERT INTO `specialization_fichenavettes` (`id`, `fiche_navette_id`, `specialization_id`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `specialty_minimum_rules`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `surgicals`
+--
+--
+-- Dumping data for table `surgicals`
+--
+INSERT INTO `surgicals` (`id`, `procedure_name`, `description`, `surgery_date`, `patient_id`, `deleted_at`, `created_at`, `updated_at`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `templates`
+--
+--
+-- Dumping data for table `templates`
+--
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+INSERT INTO `templates` (`id`, `name`, `mime_type`, `file_size`, `doctor_id`, `description`, `created_at`, `updated_at`, `content`, `folder_id`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `transaction_bank_requests`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `transfer_approvals`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `users`
+--
+--
+-- Dumping data for table `users`
+--
+INSERT INTO `users` (`id`, `name`, `email`, `phone`, `email_verified_at`, `password`, `two_factor_secret`, `two_factor_recovery_codes`, `two_factor_confirmed_at`, `role`, `avatar`, `background`, `created_by`, `remember_token`, `deleted_at`, `created_at`, `updated_at`, `is_active`, `job_title`, `account_status`, `professional_license_number`, `fee_account_details`, `personal_discount_ceiling`, `service_id`, `manager_id`, `fichenavatte_max`, `salary`) VALUES
+-- --------------------------------------------------------
+--
+-- Table structure for table `user_payment_method`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `user_refund_permissions`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `user_specializations`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `user_specialties`
+--
+-- --------------------------------------------------------
+--
+-- Table structure for table `waitlist`
+--
+--
+-- Dumping data for table `waitlist`
+--
+INSERT INTO `waitlist` (`id`, `doctor_id`, `patient_id`, `specialization_id`, `is_Daily`, `created_by`, `appointmentId`, `importance`, `MoveToEnd`, `notes`, `deleted_at`, `created_at`, `updated_at`) VALUES
+--
+-- Indexes for dumped tables
+--
+--
+-- Indexes for table `agreements`
+--
+--
+-- Indexes for table `allergies`
+--
+--
+-- Indexes for table `annexes`
+--
+--
+-- Indexes for table `appointments`
+--
+--
+-- Indexes for table `appointment_available_month`
+--
+--
+-- Indexes for table `appointment_forcers`
+--
+--
+-- Indexes for table `appointment_modality_forces`
+--
+--
+-- Indexes for table `appointment_prestations`
+--
+--
+-- Indexes for table `attributes`
+--
+--
+-- Indexes for table `attributes_placeholder_doctors`
+--
+--
+-- Indexes for table `authorized_modality_users`
+--
+--
+-- Indexes for table `avenants`
+--
+--
+-- Indexes for table `ayants_droit_rules`
+--
+--
+-- Indexes for table `b2b_invoices`
+--
+--
+-- Indexes for table `b2b_invoice_items`
+--
+--
+-- Indexes for table `banks`
+--
+--
+-- Indexes for table `bank_accounts`
+--
+--
+-- Indexes for table `bank_account_transactions`
+--
+--
+-- Indexes for table `bank_account_transaction_packs`
+--
+--
+-- Indexes for table `bank_account_transaction_pack_items`
+--
+--
+-- Indexes for table `beds`
+--
+--
+-- Indexes for table `cache`
+--
+--
+-- Indexes for table `cache_locks`
+--
+--
+-- Indexes for table `caisses`
+--
+--
+-- Indexes for table `caisse_sessions`
+--
+--
+-- Indexes for table `caisse_session_denominations`
+--
+--
+-- Indexes for table `caisse_transactions`
+--
+--
+-- Indexes for table `caisse_transfers`
+--
+--
+-- Indexes for table `chronic_diseases`
+--
+--
+-- Indexes for table `coffres`
+--
+--
+-- Indexes for table `coffre_transactions`
+--
+--
+-- Indexes for table `consultations`
+--
+--
+-- Indexes for table `consultationworkspaces`
+--
+--
+-- Indexes for table `consultationworkspace_list`
+--
+--
+-- Indexes for table `consultationworkspace_lists`
+--
+--
+-- Indexes for table `consultation_placeholder_attributes`
+--
+--
+-- Indexes for table `conventions`
+--
+--
+-- Indexes for table `conventions_details`
+--
+--
+-- Indexes for table `convention_rules`
+--
+--
+-- Indexes for table `credit_notes`
+--
+--
+-- Indexes for table `demandes_de_fonds`
+--
+--
+-- Indexes for table `doctors`
+--
+--
+-- Indexes for table `doctor_fiche_navettes`
+--
+--
+-- Indexes for table `doctor_medication_favorites`
+--
+--
+-- Indexes for table `doctor_salls`
+--
+--
+-- Indexes for table `excluded_dates`
+--
+--
+-- Indexes for table `failed_jobs`
+--
+--
+-- Indexes for table `family_diseases`
+--
+--
+-- Indexes for table `fee_distribution_models`
+--
+--
+-- Indexes for table `fiche_navettes`
+--
+--
+-- Indexes for table `fiche_navette_custom_packages`
+--
+--
+-- Indexes for table `fiche_navette_items`
+--
+--
+-- Indexes for table `financial_transactions`
+--
+--
+-- Indexes for table `folders`
+--
+--
+-- Indexes for table `item_dependencies`
+--
+--
+-- Indexes for table `jobs`
+--
+--
+-- Indexes for table `job_batches`
+--
+--
+-- Indexes for table `medications`
+--
+--
+-- Indexes for table `medication_doctor_favorats`
+--
+--
+-- Indexes for table `medication_doctor_favorats_`
+--
+--
+-- Indexes for table `migrations`
+--
+--
+-- Indexes for table `moality_appointments`
+--
+--
+-- Indexes for table `modalities`
+--
+--
+-- Indexes for table `modality_available_months`
+--
+--
+-- Indexes for table `modality_schedules`
+--
+--
+-- Indexes for table `modality_types`
+--
+--
+-- Indexes for table `model_has_permissions`
+--
+--
+-- Indexes for table `model_has_roles`
+--
+--
+-- Indexes for table `opinion_requests`
+--
+--
+-- Indexes for table `organismes`
+--
+--
+-- Indexes for table `organisme_contacts`
+--
+--
+-- Indexes for table `password_reset_tokens`
+--
+--
+-- Indexes for table `patients`
+--
+--
+-- Indexes for table `patient_docements`
+--
+--
+-- Indexes for table `pavilions`
+--
+--
+-- Indexes for table `pavilion_service`
+--
+--
+-- Indexes for table `payment_type_overrides_log`
+--
+--
+-- Indexes for table `permissions`
+--
+--
+-- Indexes for table `placeholders`
+--
+--
+-- Indexes for table `placeholder_templates`
+--
+--
+-- Indexes for table `prescriptions`
+--
+--
+-- Indexes for table `prescriptiontemplates`
+--
+--
+-- Indexes for table `prescription_medications`
+--
+--
+-- Indexes for table `prestations`
+--
+--
+-- Indexes for table `prestation_packageitems`
+--
+--
+-- Indexes for table `prestation_packages`
+--
+--
+-- Indexes for table `prestation_pricing`
+--
+--
+-- Indexes for table `prestation_remises`
+--
+--
+-- Indexes for table `proforma_invoices`
+--
+--
+-- Indexes for table `proforma_invoice_items`
+--
+--
+-- Indexes for table `refund_authorizations`
+--
+--
+-- Indexes for table `remises`
+--
+--
+-- Indexes for table `remise_approvers`
+--
+--
+-- Indexes for table `remise_policies`
+--
+--
+-- Indexes for table `remise_requests`
+--
+--
+-- Indexes for table `remise_request_approvals`
+--
+--
+-- Indexes for table `remise_request_notifications`
+--
+--
+-- Indexes for table `remise_request_prestations`
+--
+--
+-- Indexes for table `remise_request_prestation_contributions`
+--
+--
+-- Indexes for table `remise_users`
+--
+--
+-- Indexes for table `request_transaction_approvals`
+--
+--
+-- Indexes for table `roles`
+--
+--
+-- Indexes for table `role_has_permissions`
+--
+--
+-- Indexes for table `rooms`
+--
+--
+-- Indexes for table `room_types`
+--
+--
+-- Indexes for table `salls`
+--
+--
+-- Indexes for table `schedules`
+--
+--
+-- Indexes for table `services`
+--
+--
+-- Indexes for table `sessions`
+--
+--
+-- Indexes for table `specializations`
+--
+--
+-- Indexes for table `specialization_fichenavettes`
+--
+--
+-- Indexes for table `specialty_minimum_rules`
+--
+--
+-- Indexes for table `surgicals`
+--
+--
+-- Indexes for table `templates`
+--
+--
+-- Indexes for table `transaction_bank_requests`
+--
+--
+-- Indexes for table `transfer_approvals`
+--
+--
+-- Indexes for table `users`
+--
+--
+-- Indexes for table `user_payment_method`
+--
+--
+-- Indexes for table `user_refund_permissions`
+--
+--
+-- Indexes for table `user_specializations`
+--
+--
+-- Indexes for table `user_specialties`
+--
+--
+-- Indexes for table `waitlist`
+--
+--
+-- AUTO_INCREMENT for dumped tables
+--
+--
+-- AUTO_INCREMENT for table `agreements`
+--
+--
+-- AUTO_INCREMENT for table `allergies`
+--
+--
+-- AUTO_INCREMENT for table `annexes`
+--
+--
+-- AUTO_INCREMENT for table `appointments`
+--
+--
+-- AUTO_INCREMENT for table `appointment_available_month`
+--
+--
+-- AUTO_INCREMENT for table `appointment_forcers`
+--
+--
+-- AUTO_INCREMENT for table `appointment_modality_forces`
+--
+--
+-- AUTO_INCREMENT for table `appointment_prestations`
+--
+--
+-- AUTO_INCREMENT for table `attributes`
+--
+--
+-- AUTO_INCREMENT for table `attributes_placeholder_doctors`
+--
+--
+-- AUTO_INCREMENT for table `avenants`
+--
+--
+-- AUTO_INCREMENT for table `ayants_droit_rules`
+--
+--
+-- AUTO_INCREMENT for table `b2b_invoices`
+--
+--
+-- AUTO_INCREMENT for table `b2b_invoice_items`
+--
+--
+-- AUTO_INCREMENT for table `banks`
+--
+--
+-- AUTO_INCREMENT for table `bank_accounts`
+--
+--
+-- AUTO_INCREMENT for table `bank_account_transactions`
+--
+--
+-- AUTO_INCREMENT for table `bank_account_transaction_packs`
+--
+--
+-- AUTO_INCREMENT for table `bank_account_transaction_pack_items`
+--
+--
+-- AUTO_INCREMENT for table `beds`
+--
+--
+-- AUTO_INCREMENT for table `caisses`
+--
+--
+-- AUTO_INCREMENT for table `caisse_sessions`
+--
+--
+-- AUTO_INCREMENT for table `caisse_session_denominations`
+--
+--
+-- AUTO_INCREMENT for table `caisse_transactions`
+--
+--
+-- AUTO_INCREMENT for table `caisse_transfers`
+--
+--
+-- AUTO_INCREMENT for table `chronic_diseases`
+--
+--
+-- AUTO_INCREMENT for table `coffres`
+--
+--
+-- AUTO_INCREMENT for table `coffre_transactions`
+--
+--
+-- AUTO_INCREMENT for table `consultations`
+--
+--
+-- AUTO_INCREMENT for table `consultationworkspaces`
+--
+--
+-- AUTO_INCREMENT for table `consultationworkspace_list`
+--
+--
+-- AUTO_INCREMENT for table `consultation_placeholder_attributes`
+--
+--
+-- AUTO_INCREMENT for table `conventions`
+--
+--
+-- AUTO_INCREMENT for table `conventions_details`
+--
+--
+-- AUTO_INCREMENT for table `convention_rules`
+--
+--
+-- AUTO_INCREMENT for table `credit_notes`
+--
+--
+-- AUTO_INCREMENT for table `demandes_de_fonds`
+--
+--
+-- AUTO_INCREMENT for table `doctors`
+--
+--
+-- AUTO_INCREMENT for table `doctor_fiche_navettes`
+--
+--
+-- AUTO_INCREMENT for table `doctor_medication_favorites`
+--
+--
+-- AUTO_INCREMENT for table `doctor_salls`
+--
+--
+-- AUTO_INCREMENT for table `excluded_dates`
+--
+--
+-- AUTO_INCREMENT for table `failed_jobs`
+--
+--
+-- AUTO_INCREMENT for table `family_diseases`
+--
+--
+-- AUTO_INCREMENT for table `fee_distribution_models`
+--
+--
+-- AUTO_INCREMENT for table `fiche_navettes`
+--
+--
+-- AUTO_INCREMENT for table `fiche_navette_custom_packages`
+--
+--
+-- AUTO_INCREMENT for table `fiche_navette_items`
+--
+--
+-- AUTO_INCREMENT for table `financial_transactions`
+--
+--
+-- AUTO_INCREMENT for table `folders`
+--
+--
+-- AUTO_INCREMENT for table `item_dependencies`
+--
+--
+-- AUTO_INCREMENT for table `jobs`
+--
+--
+-- AUTO_INCREMENT for table `medications`
+--
+--
+-- AUTO_INCREMENT for table `medication_doctor_favorats`
+--
+--
+-- AUTO_INCREMENT for table `medication_doctor_favorats_`
+--
+--
+-- AUTO_INCREMENT for table `migrations`
+--
+--
+-- AUTO_INCREMENT for table `moality_appointments`
+--
+--
+-- AUTO_INCREMENT for table `modalities`
+--
+--
+-- AUTO_INCREMENT for table `modality_available_months`
+--
+--
+-- AUTO_INCREMENT for table `modality_schedules`
+--
+--
+-- AUTO_INCREMENT for table `modality_types`
+--
+--
+-- AUTO_INCREMENT for table `opinion_requests`
+--
+--
+-- AUTO_INCREMENT for table `organismes`
+--
+--
+-- AUTO_INCREMENT for table `organisme_contacts`
+--
+--
+-- AUTO_INCREMENT for table `patients`
+--
+--
+-- AUTO_INCREMENT for table `patient_docements`
+--
+--
+-- AUTO_INCREMENT for table `pavilions`
+--
+--
+-- AUTO_INCREMENT for table `payment_type_overrides_log`
+--
+--
+-- AUTO_INCREMENT for table `permissions`
+--
+--
+-- AUTO_INCREMENT for table `placeholders`
+--
+--
+-- AUTO_INCREMENT for table `placeholder_templates`
+--
+--
+-- AUTO_INCREMENT for table `prescriptions`
+--
+--
+-- AUTO_INCREMENT for table `prescriptiontemplates`
+--
+--
+-- AUTO_INCREMENT for table `prescription_medications`
+--
+--
+-- AUTO_INCREMENT for table `prestations`
+--
+--
+-- AUTO_INCREMENT for table `prestation_packageitems`
+--
+--
+-- AUTO_INCREMENT for table `prestation_packages`
+--
+--
+-- AUTO_INCREMENT for table `prestation_pricing`
+--
+--
+-- AUTO_INCREMENT for table `prestation_remises`
+--
+--
+-- AUTO_INCREMENT for table `proforma_invoices`
+--
+--
+-- AUTO_INCREMENT for table `proforma_invoice_items`
+--
+--
+-- AUTO_INCREMENT for table `refund_authorizations`
+--
+--
+-- AUTO_INCREMENT for table `remises`
+--
+--
+-- AUTO_INCREMENT for table `remise_approvers`
+--
+--
+-- AUTO_INCREMENT for table `remise_policies`
+--
+--
+-- AUTO_INCREMENT for table `remise_requests`
+--
+--
+-- AUTO_INCREMENT for table `remise_request_approvals`
+--
+--
+-- AUTO_INCREMENT for table `remise_request_notifications`
+--
+--
+-- AUTO_INCREMENT for table `remise_request_prestations`
+--
+--
+-- AUTO_INCREMENT for table `remise_request_prestation_contributions`
+--
+--
+-- AUTO_INCREMENT for table `remise_users`
+--
+--
+-- AUTO_INCREMENT for table `request_transaction_approvals`
+--
+--
+-- AUTO_INCREMENT for table `roles`
+--
+--
+-- AUTO_INCREMENT for table `rooms`
+--
+--
+-- AUTO_INCREMENT for table `room_types`
+--
+--
+-- AUTO_INCREMENT for table `salls`
+--
+--
+-- AUTO_INCREMENT for table `schedules`
+--
+--
+-- AUTO_INCREMENT for table `services`
+--
+--
+-- AUTO_INCREMENT for table `specializations`
+--
+--
+-- AUTO_INCREMENT for table `specialization_fichenavettes`
+--
+--
+-- AUTO_INCREMENT for table `specialty_minimum_rules`
+--
+--
+-- AUTO_INCREMENT for table `surgicals`
+--
+--
+-- AUTO_INCREMENT for table `templates`
+--
+--
+-- AUTO_INCREMENT for table `transaction_bank_requests`
+--
+--
+-- AUTO_INCREMENT for table `transfer_approvals`
+--
+--
+-- AUTO_INCREMENT for table `users`
+--
+--
+-- AUTO_INCREMENT for table `user_payment_method`
+--
+--
+-- AUTO_INCREMENT for table `user_refund_permissions`
+--
+--
+-- AUTO_INCREMENT for table `user_specializations`
+--
+--
+-- AUTO_INCREMENT for table `waitlist`
+--
+--
+-- Constraints for dumped tables
+--
+--
+-- Constraints for table `agreements`
+--
+--
+-- Constraints for table `allergies`
+--
+--
+-- Constraints for table `annexes`
+--
+--
+-- Constraints for table `appointments`
+--
+--
+-- Constraints for table `appointment_forcers`
+--
+--
+-- Constraints for table `appointment_modality_forces`
+--
+--
+-- Constraints for table `appointment_prestations`
+--
+--
+-- Constraints for table `attributes`
+--
+--
+-- Constraints for table `attributes_placeholder_doctors`
+--
+--
+-- Constraints for table `authorized_modality_users`
+--
+--
+-- Constraints for table `avenants`
+--
+--
+-- Constraints for table `ayants_droit_rules`
+--
+--
+-- Constraints for table `b2b_invoices`
+--
+--
+-- Constraints for table `b2b_invoice_items`
+--
+--
+-- Constraints for table `bank_accounts`
+--
+--
+-- Constraints for table `bank_account_transactions`
+--
+--
+-- Constraints for table `bank_account_transaction_packs`
+--
+--
+-- Constraints for table `beds`
+--
+--
+-- Constraints for table `caisses`
+--
+--
+-- Constraints for table `caisse_sessions`
+--
+--
+-- Constraints for table `caisse_session_denominations`
+--
+--
+-- Constraints for table `caisse_transactions`
+--
+--
+-- Constraints for table `caisse_transfers`
+--
+--
+-- Constraints for table `chronic_diseases`
+--
+--
+-- Constraints for table `coffres`
+--
+--
+-- Constraints for table `coffre_transactions`
+--
+--
+-- Constraints for table `consultations`
+--
+--
+-- Constraints for table `consultationworkspaces`
+--
+--
+-- Constraints for table `consultationworkspace_list`
+--
+--
+-- Constraints for table `consultationworkspace_lists`
+--
+--
+-- Constraints for table `consultation_placeholder_attributes`
+--
+--
+-- Constraints for table `conventions`
+--
+--
+-- Constraints for table `conventions_details`
+--
+--
+-- Constraints for table `convention_rules`
+--
+--
+-- Constraints for table `credit_notes`
+--
+--
+-- Constraints for table `demandes_de_fonds`
+--
+--
+-- Constraints for table `doctors`
+--
+--
+-- Constraints for table `doctor_fiche_navettes`
+--
+--
+-- Constraints for table `doctor_salls`
+--
+--
+-- Constraints for table `excluded_dates`
+--
+--
+-- Constraints for table `family_diseases`
+--
+--
+-- Constraints for table `fee_distribution_models`
+--
+--
+-- Constraints for table `fiche_navettes`
+--
+--
+-- Constraints for table `fiche_navette_items`
+--
+--
+-- Constraints for table `financial_transactions`
+--
+--
+-- Constraints for table `item_dependencies`
+--
+--
+-- Constraints for table `medication_doctor_favorats`
+--
+--
+-- Constraints for table `moality_appointments`
+--
+--
+-- Constraints for table `modalities`
+--
+--
+-- Constraints for table `modality_available_months`
+--
+--
+-- Constraints for table `modality_schedules`
+--
+--
+-- Constraints for table `model_has_permissions`
+--
+--
+-- Constraints for table `model_has_roles`
+--
+--
+-- Constraints for table `opinion_requests`
+--
+--
+-- Constraints for table `organisme_contacts`
+--
+--
+-- Constraints for table `patient_docements`
+--
+--
+-- Constraints for table `pavilion_service`
+--
+--
+-- Constraints for table `payment_type_overrides_log`
+--
+--
+-- Constraints for table `placeholders`
+--
+--
+-- Constraints for table `placeholder_templates`
+--
+--
+-- Constraints for table `prescriptions`
+--
+--
+-- Constraints for table `prescriptiontemplates`
+--
+--
+-- Constraints for table `prescription_medications`
+--
+--
+-- Constraints for table `prestations`
+--
+--
+-- Constraints for table `prestation_packageitems`
+--
+--
+-- Constraints for table `prestation_packages`
+--
+--
+-- Constraints for table `prestation_pricing`
+--
+--
+-- Constraints for table `prestation_remises`
+--
+--
+-- Constraints for table `proforma_invoices`
+--
+--
+-- Constraints for table `proforma_invoice_items`
+--
+--
+-- Constraints for table `refund_authorizations`
+--
+--
+-- Constraints for table `remises`
+--
+--
+-- Constraints for table `remise_approvers`
+--
+--
+-- Constraints for table `remise_requests`
+--
+--
+-- Constraints for table `remise_request_approvals`
+--
+--
+-- Constraints for table `remise_request_notifications`
+--
+--
+-- Constraints for table `remise_request_prestations`
+--
+--
+-- Constraints for table `remise_request_prestation_contributions`
+--
+--
+-- Constraints for table `remise_users`
+--
+--
+-- Constraints for table `request_transaction_approvals`
+--
+--
+-- Constraints for table `role_has_permissions`
+--
+--
+-- Constraints for table `rooms`
+--
+--
+-- Constraints for table `room_types`
+--
+--
+-- Constraints for table `schedules`
+--
+--
+-- Constraints for table `specialty_minimum_rules`
+--
+--
+-- Constraints for table `surgicals`
+--
+--
+-- Constraints for table `templates`
+--
+--
+-- Constraints for table `transaction_bank_requests`
+--
+--
+-- Constraints for table `transfer_approvals`
+--
+--
+-- Constraints for table `users`
+--
+--
+-- Constraints for table `user_payment_method`
+--
+--
+-- Constraints for table `user_refund_permissions`
+--
+--
+-- Constraints for table `user_specializations`
+--
+--
+-- Constraints for table `user_specialties`
+--
+--
+-- Constraints for table `waitlist`
+--
+COMMIT;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

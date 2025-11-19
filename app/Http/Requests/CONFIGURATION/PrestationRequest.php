@@ -3,7 +3,6 @@
 namespace App\Http\Requests\CONFIGURATION;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class PrestationRequest extends FormRequest
 {
@@ -29,6 +28,7 @@ class PrestationRequest extends FormRequest
                 'max:50',
             ],
             'need_an_appointment' => 'boolean',
+            'Urgent_Prestation' => 'boolean',
             'billing_code' => 'nullable|string|max:50',
             'description' => 'nullable|string',
 
@@ -40,7 +40,7 @@ class PrestationRequest extends FormRequest
             // Financial Configuration
             'public_price' => 'required|numeric|min:0',
             'convenience_prix' => 'nullable|numeric|min:0',
-            
+            'tva_const_prestation' => 'nullable|numeric|min:0|max:100',
             'vat_rate' => 'nullable|numeric|min:0|max:100',
             'night_tariff' => 'nullable|numeric|min:0',
             'consumables_cost' => 'nullable|numeric|min:0',
@@ -104,9 +104,9 @@ class PrestationRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             // Validate hospitalization requirements
-            if ($this->requires_hospitalization && !$this->default_hosp_nights) {
+            if ($this->requires_hospitalization && ! $this->default_hosp_nights) {
                 $validator->errors()->add(
-                    'default_hosp_nights', 
+                    'default_hosp_nights',
                     'Default hospitalization nights is required when hospitalization is required.'
                 );
             }
@@ -152,7 +152,7 @@ class PrestationRequest extends FormRequest
         // If all are percentages and the total is not approximately 100
         if ($allArePercentages && abs($totalPercentage - 100) > $epsilon) {
             $validator->errors()->add(
-                'fee_distribution_shares', 
+                'fee_distribution_shares',
                 "Fee distribution percentages must sum to 100%. Current total: {$totalPercentage}%"
             );
         }
@@ -171,7 +171,7 @@ class PrestationRequest extends FormRequest
             'assistant_doctor_is_percentage',
             'technician_is_percentage',
             'clinic_is_percentage',
-            'requires_hospitalization'
+            'requires_hospitalization',
         ];
 
         $data = [];
@@ -181,7 +181,7 @@ class PrestationRequest extends FormRequest
             }
         }
 
-        if (!empty($data)) {
+        if (! empty($data)) {
             $this->merge($data);
         }
 

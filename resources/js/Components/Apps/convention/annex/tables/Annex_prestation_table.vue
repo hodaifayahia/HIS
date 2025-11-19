@@ -14,6 +14,7 @@ import axios from "axios";
 import AddAnnexPrestationDialog from "../models/AddAnnexPrestationDialog.vue";
 import EditAnnexPrestationDialog from "../models/EditAnnexPrestationDialog.vue";
 import { useSweetAlert } from "../../../../useSweetAlert"; // Adjust path as needed
+import { useCurrencyFormatter } from "../../../../../composables/useCurrencyFormatter";
 
 const props = defineProps({
   contractState: String,
@@ -27,20 +28,24 @@ const props = defineProps({
 
 const toast = useToast();
 const swil = useSweetAlert();
+const { formatCurrency } = useCurrencyFormatter();
 
 // State variables
 const searchQuery = ref("");
 const searchFilter = ref("prestation_name");
+const selectedPercentageFilter = ref(null); // For dynamic percentage filtering
 
 const prestations = ref([]); // This will hold the fetched PrestationPricing records
 const selectedPrestations = ref([]); // New: Holds selected prestations for bulk actions
 const currentService = ref(null); // To store the current service info
+const contractPercentages = ref([]); // Dynamic contract percentages
 
 const filterOptions = ref([
   { label: "By ID", value: "prestation_id" },
   { label: "By Name", value: "prestation_name" },
   { label: "By Code", value: "formatted_id" },
   { label: "By Global Price", value: "prix" },
+  { label: "By Company Percentage", value: "companyPercentage" },
 ]);
 
 // Dialog visibility states for child components
@@ -52,8 +57,68 @@ const selectedPrestationForEdit = ref(null);
 
 // Fetch data on component mount
 onMounted(async () => {
+  // Fetch prestations first so we can derive percentages if API returns none
   await fetchPrestations();
+  await fetchContractPercentages();
 });
+
+// Fetch contract percentages from the API
+const fetchContractPercentages = async () => {
+  try {
+    const params = {};
+    if (props.contractdata?.organisme_id) {
+      params.organisme_id = props.contractdata.organisme_id;
+    }
+    if (props.contractdata?.id) {
+      params.convention_id = props.contractdata.id;
+    }
+    // Ensure we include annex_id to get percentages linked to this annex
+    if (props.annexId) {
+      params.annex_id = props.annexId;
+    }
+
+    const { data } = await axios.get('/api/conventions/contract-percentages', { params });
+
+    // Normalize response shape: it can be an array or an object with data
+    let list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+
+    // Map to a clean shape and filter out invalid entries
+    list = (list || []).filter(Boolean).map(cp => ({
+      id: cp.id ?? cp.contract_percentage_id ?? cp.contractPercentageId ?? null,
+      percentage: cp.percentage !== undefined ? Number(cp.percentage) : null,
+    })).filter(p => p.id !== null && !Number.isNaN(p.percentage));
+
+    // Fallback: derive unique percentages from loaded prestations when API returns empty
+    if (list.length === 0 && Array.isArray(prestations.value) && prestations.value.length > 0) {
+      const map = new Map();
+      for (const item of prestations.value) {
+        const id = item.contract_percentage_id ?? item.contract_percentage?.id;
+        const pctRaw = item.contract_percentage?.percentage ?? item.companyPercentage;
+        const pct = pctRaw !== undefined && pctRaw !== null ? Number(pctRaw) : null;
+        if (id && pct !== null && !Number.isNaN(pct) && !map.has(id)) {
+          map.set(id, pct);
+        }
+      }
+      list = Array.from(map.entries()).map(([id, percentage]) => ({ id, percentage }));
+      list.sort((a, b) => a.percentage - b.percentage);
+    }
+
+    contractPercentages.value = list;
+  } catch (error) {
+    console.error("Error fetching contract percentages:", error);
+    // Fallback from prestations even on error
+    const map = new Map();
+    for (const item of prestations.value || []) {
+      const id = item.contract_percentage_id ?? item.contract_percentage?.id;
+      const pctRaw = item.contract_percentage?.percentage ?? item.companyPercentage;
+      const pct = pctRaw !== undefined && pctRaw !== null ? Number(pctRaw) : null;
+      if (id && pct !== null && !Number.isNaN(pct) && !map.has(id)) {
+        map.set(id, pct);
+      }
+    }
+    contractPercentages.value = Array.from(map.entries()).map(([id, percentage]) => ({ id, percentage }));
+  }
+};
 
 // Fetch prestations for the annex
 const fetchPrestations = async () => {
@@ -76,8 +141,11 @@ const fetchPrestations = async () => {
 
     prestations.value = rawPrestations.map((item) => {
       if (item.pricing && item.pricing.prix > 0) {
+        // Calculate company percentage instead of patient percentage
+        item.companyPercentage = (item.pricing.company_price / item.pricing.prix) * 100;
         item.patientPercentage = (item.pricing.patient_price / item.pricing.prix) * 100;
       } else {
+        item.companyPercentage = 0;
         item.patientPercentage = 0;
       }
       return item;
@@ -213,30 +281,65 @@ const confirmBulkDelete = async () => {
   }
 };
 
-// Filtered items for the DataTable
+// Filtered items for the DataTable with dynamic percentage filtering
 const filteredItems = computed(() => {
-  if (!searchQuery.value) return prestations.value;
+  let items = prestations.value;
+
+  // Apply dynamic percentage filtering
+  if (selectedPercentageFilter.value) {
+    items = items.filter((item) => {
+      return item.contract_percentage_id === selectedPercentageFilter.value.id;
+    });
+  }
+
+  // Apply search filtering
+  if (!searchQuery.value) return items;
 
   const searchVal = searchQuery.value.toLowerCase();
 
-  return prestations.value.filter((item) => {
-    let fieldValue;
+  return items.filter((item) => {
+        let fieldValue;
 
-    if (searchFilter.value === "prestation_name") {
-      fieldValue = item.prestation_name;
-    } else if (searchFilter.value === "prestation_id") {
-      fieldValue = item.prestation_id;
-    } else if (searchFilter.value === "formatted_id") {
-      fieldValue = item.formatted_id;
-    } else if (searchFilter.value === "prix") {
-      fieldValue = item.pricing?.prix;
-    } else {
-      fieldValue = item[searchFilter.value];
-    }
+        if (searchFilter.value === "prestation_name") {
+            fieldValue = item.prestation_name;
+        } else if (searchFilter.value === "prestation_id") {
+            fieldValue = item.prestation_id;
+        } else if (searchFilter.value === "formatted_id") {
+            fieldValue = item.formatted_id;
+        } else if (searchFilter.value === "prix") {
+            fieldValue = item.pricing?.prix;
+        } else if (searchFilter.value === "companyPercentage") {
+            fieldValue = item.companyPercentage;
+        } else {
+            fieldValue = item[searchFilter.value];
+        }
 
-    return String(fieldValue || "").toLowerCase().includes(searchVal);
-  });
+        return String(fieldValue || "").toLowerCase().includes(searchVal);
+    });
 });
+
+// Handle percentage filter button clicks
+const selectPercentageFilter = (percentage) => {
+  if (selectedPercentageFilter.value?.id === percentage.id) {
+    selectedPercentageFilter.value = null; // Deselect if already selected
+  } else {
+    selectedPercentageFilter.value = percentage;
+  }
+};
+
+// Clear all filters
+const clearAllFilters = () => {
+  selectedPercentageFilter.value = null;
+  searchQuery.value = "";
+};
+
+// Format percentage for display
+const formatPercentage = (value) => {
+  if (value === null || value === undefined || isNaN(value)) {
+    return "0.00%";
+  }
+  return `${Number(value).toFixed(2)}%`;
+};
 
 // Computed property to check if the bulk delete button should be visible
 const showBulkDeleteButton = computed(() => {
@@ -268,6 +371,13 @@ const showBulkDeleteButton = computed(() => {
       </div>
       <div class="d-flex gap-2">
         <Button
+          v-if="selectedPercentageFilter || searchQuery"
+          label="Clear Filters"
+          icon="pi pi-filter-slash"
+          severity="secondary"
+          @click="clearAllFilters"
+        />
+        <Button
           v-if="showBulkDeleteButton"
           label="Delete Selected"
           icon="pi pi-trash"
@@ -285,6 +395,24 @@ const showBulkDeleteButton = computed(() => {
         />
       </div>
     </div>
+
+    <!-- Dynamic Percentage Filter Buttons -->
+    <div v-if="contractPercentages.length > 0" class="mb-4">
+      <h6 class="text-sm font-semibold text-gray-700 mb-2">Filter by Contract Percentage:</h6>
+      <div class="d-flex gap-2 flex-wrap">
+        <Button
+          v-for="percentage in contractPercentages"
+          :key="percentage.id"
+          :label="`${percentage.percentage}%`"
+          :severity="selectedPercentageFilter?.id === percentage.id ? 'primary' : 'secondary'"
+          :outlined="selectedPercentageFilter?.id !== percentage.id"
+          size="small"
+          @click="selectPercentageFilter(percentage)"
+          class="budget-filter-btn"
+        />
+      </div>
+    </div>
+
     <DataTable
       :value="filteredItems"
       v-model:selection="selectedPrestations"
@@ -300,9 +428,37 @@ const showBulkDeleteButton = computed(() => {
       <Column field="subname" header="sub_prestation_name"></Column>
       <Column field="formatted_id" header="Code"></Column>
       <Column field="service" header="Service"></Column>
-      <Column field="pricing.prix" header="Global Price"></Column>
-      <Column field="pricing.company_price" header="Company Part"></Column>
-      <Column field="pricing.patient_price" header="Patient Part"></Column>
+      <Column header="Global Price">
+        <template #body="slotProps">
+          {{ formatCurrency(slotProps.data.pricing?.prix || 0) }}
+        </template>
+      </Column>
+      <Column header="Company Part">
+        <template #body="slotProps">
+          {{ formatCurrency(slotProps.data.pricing?.company_price || 0) }}
+        </template>
+      </Column>
+      <Column header="Patient Part">
+        <template #body="slotProps">
+          {{ formatCurrency(slotProps.data.pricing?.patient_price || 0) }}
+        </template>
+      </Column>
+      <Column header="Contract %">
+        <template #body="slotProps">
+          <span class="font-semibold text-blue-600">
+            {{ slotProps.data.contract_percentage?.percentage || 'N/A' }}%
+          </span>
+        </template>
+      </Column>
+      <Column header="Company %">
+        <template #body="slotProps">
+          <span class="font-semibold" :class="{
+          
+          }">
+            {{ formatPercentage(slotProps.data.companyPercentage) }}
+          </span>
+        </template>
+      </Column>
       <Column
         v-if="
           props.contractState === 'pending' ||
@@ -355,5 +511,13 @@ const showBulkDeleteButton = computed(() => {
 </template>
 
 <style scoped>
-/* Any global styles that apply to the table or controls */
+.budget-filter-btn {
+  min-width: 60px;
+  font-weight: 600;
+}
+
+.budget-filter-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
 </style>

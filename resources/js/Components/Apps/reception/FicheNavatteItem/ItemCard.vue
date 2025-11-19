@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import axios from 'axios'
 
 // PrimeVue Components
 import Card from 'primevue/card'
@@ -241,9 +242,9 @@ const mainDisplayItems = computed(() => {
         id: `dep_${dep.id || Math.random()}`,
         prestation: prestation,
         status: dep.status || 'required',
-        base_price: prestation.public_price || 0,
-        final_price: prestation.public_price || 0,
-        patient_share: prestation.public_price || 0,
+  base_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+  final_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+  patient_share: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
         dependencies: [],
         isDependency: true,
         originalDependency: dep
@@ -357,18 +358,38 @@ const confirmRemoveDependency = (dependency: Dependency) => {
   })
 }
 
-const handleApplyRemise = (data: any) => {
-  emit('apply-remise', props.group.id)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Success',
-    detail: 'Remise applied successfully',
-    life: 3000
-  })
-  
-  // Refresh the component data
-  emit('item-updated', { refresh: true })
+const handleApplyRemise = async (data: any) => {
+  try {
+    // Call the remise API endpoint
+    const response = await axios.post('/remise/apply', data)
+    
+    if (response.data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Remise applied successfully',
+        life: 3000
+      })
+      
+      // Refresh the component data to show updated prices
+      emit('item-updated', { refresh: true })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: response.data.message || 'Failed to apply remise',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('Error applying remise:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to apply remise',
+      life: 3000
+    })
+  }
 }
 </script>
 
@@ -776,6 +797,8 @@ const handleApplyRemise = (data: any) => {
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Base Card Styles - Using Flexbox Layout */
 .item-card {
   margin-bottom: 1rem;

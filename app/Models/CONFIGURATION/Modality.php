@@ -4,12 +4,14 @@ namespace App\Models\CONFIGURATION; // Correct namespace
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Builder; // THIS IS THE CRUCIAL IMPORT: Use Laravel's Eloquent Builder
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\CONFIGURATION\ModalityType;
 use App\Models\INFRASTRUCTURE\Room; // Assuming Room is still in CONFIGURATION or adjust if in INFRASTRUCTURE
 use App\Models\Specialization; // Ensure this is correctly imported
 
 class Modality extends Model
 {
+    use HasFactory;
     /**
      * The table associated with the model.
      *

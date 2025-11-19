@@ -75,7 +75,10 @@
         </div>
       </div>
 
-      <div class="premium-document-preview-container">
+      <div
+        class="premium-document-preview-container"
+        :class="{ 'is-preview-mode': previewMode }"
+      >
         <div v-if="loading" class="loading-state">
           <div class="loading-spinner"></div>
           <p>Loading document preview...</p>
@@ -87,7 +90,7 @@
           <p>Upload a DOCX file or add content to get started</p>
         </div>
 
-        <div v-else class="document-wrapper">
+        <div v-else class="document-wrapper" :class="{ 'is-preview-mode': previewMode }">
           <div
             v-if="previewMode"
             class="document-preview"
@@ -909,6 +912,11 @@ defineExpose({
   background-color: #fff;
 }
 
+.premium-document-preview-container.is-preview-mode {
+  padding: 0;
+  background-color: transparent;
+}
+
 .loading-state, .empty-state {
   display: flex;
   flex-direction: column;
@@ -944,12 +952,27 @@ defineExpose({
   min-height: 400px;
 }
 
+.document-wrapper.is-preview-mode {
+  min-height: unset;
+}
+
 .document-preview, .document-editor {
   font-family: 'Times New Roman', serif;
   font-size: 12pt;
   line-height: 1.6;
   color: #000;
   word-wrap: break-word;
+}
+
+.document-preview {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.premium-document-preview-container.is-preview-mode .document-preview {
+  margin: 0;
+  padding: 0;
 }
 
 .document-editor {

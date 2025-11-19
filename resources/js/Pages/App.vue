@@ -15,6 +15,7 @@ const { user, isLoading } = storeToRefs(authStore);
 // List of routes that should NOT show the dashboard layout at all (e.g., login, home)
 const noLayoutRoutes = [
   'home',
+  'calander.public',
   'auth.login',
   // Add more routes as needed that are full-page layouts without any dashboard elements
 ];
@@ -47,7 +48,7 @@ onMounted(async () => {
       <Navbar />
       <component :is="currentSidebarComponent" :user="user" /> 
       
-      <div class="content-wrapper" style="margin-top: 60px;" >
+      <div class="content-wrapper"  >
         <router-view></router-view>
       </div>
       <Footer />

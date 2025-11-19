@@ -110,10 +110,53 @@ const onServiceCategorySelect = async () => {
   await fetchPrestationsByServiceAndAvenant();
 };
 
-const onPrestationSelect = (event) => {
-  // When a prestation is selected, associate its ID with the new service
-  // No need to set price here, it's user-inputted below
+const onPrestationSelect = async (event) => {
+  // When a prestation is selected, fetch its details and calculate price with VAT
   selectedPrestationToAdd.value = event.value; // Store the ID directly
+  
+  if (!selectedPrestationToAdd.value) {
+    prix.value = 0;
+    return;
+  }
+
+  try {
+    // Fetch the full prestation details to get pricing info
+    const response = await axios.get(`/api/prestation/${selectedPrestationToAdd.value}`);
+    const prestation = response.data.data || response.data;
+    
+    // Calculate price with VAT using convention_price (convenience_prix) if available, otherwise public_price
+    const basePrice = parseFloat(prestation.convenience_prixe || prestation.public_price || 0);
+    const consumables = parseFloat(prestation.consumables_cost || 0);
+    const vatRate = parseFloat(prestation.vat_rate || 0);
+    const tvaConsumables = prestation.tva_const_prestation !== undefined ? parseFloat(prestation.tva_const_prestation || 0) : null;
+
+    let priceTTC = 0;
+
+    if (tvaConsumables && tvaConsumables > 0) {
+      // Apply general VAT to base (without consumables) and separate VAT to consumables
+      const ttcBase = basePrice * (1 + vatRate / 100);
+      const ttcConsumables = consumables * (1 + tvaConsumables / 100);
+      priceTTC = ttcBase + ttcConsumables;
+    } else {
+      // Standard calculation: same VAT for base + consumables
+      const priceHT = basePrice + consumables;
+      priceTTC = priceHT * (1 + vatRate / 100);
+    }
+
+    // Set the calculated price with VAT
+    prix.value = parseFloat((priceTTC || 0).toFixed(2));
+    
+    // Trigger calculation of company and patient parts
+    calculatePartsFromGlobal();
+  } catch (error) {
+    console.error("Error fetching prestation details:", error);
+    toast.add({
+      severity: "warn",
+      summary: "Warning",
+      detail: "Could not fetch prestation price automatically. Please enter manually.",
+      life: 3000,
+    });
+  }
 };
 
 const savePrestationPricing = async () => {

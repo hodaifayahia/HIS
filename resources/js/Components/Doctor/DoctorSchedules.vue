@@ -2,6 +2,13 @@
 import { reactive, defineEmits, watch, ref } from 'vue';
 import * as yup from 'yup';
 import { useForm } from 'vee-validate';
+import Card from 'primevue/card';
+import Checkbox from 'primevue/checkbox';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
+import Badge from 'primevue/badge';
+import Divider from 'primevue/divider';
+import Message from 'primevue/message';
 
 const emit = defineEmits(['schedulesUpdated', 'update:modelValue']);
 
@@ -81,8 +88,8 @@ const populateSchedules = (existingSchedules) => {
       if (schedules[day][shift]) {
         schedules[day][shift] = {
           isActive: true,
-          startTime: schedule.start_time.slice(0, 5),
-          endTime: schedule.end_time.slice(0, 5),
+          startTime: formatTimeForInput(schedule.start_time),
+          endTime: formatTimeForInput(schedule.end_time),
           patients_per_day: schedule.number_of_patients_per_day || 0
         };
       }
@@ -126,6 +133,28 @@ const fetchExcludedDates = async (doctorId) => {
       console.error('Error fetching excluded dates:', error);
     }
   };
+
+// Helper function to format time for input
+function formatTimeForInput(time) {
+  if (!time) return '';
+  
+  try {
+    // Handle different time formats
+    if (time.includes('T')) {
+      // ISO format: 2024-01-01T09:00:00.000000Z
+      const date = new Date(time);
+      return date.toTimeString().slice(0, 5); // Extracts HH:mm
+    } else if (time.includes(':')) {
+      // Simple time format: 09:00:00 or 09:00
+      const timeParts = time.split(':');
+      return `${timeParts[0].padStart(2, '0')}:${timeParts[1].padStart(2, '0')}`;
+    }
+    return time;
+  } catch (e) {
+    console.error("Error formatting time:", time, e);
+    return time || '';
+  }
+}
 
 // Calculate patients per shift
 const calculatePatientsPerDay = (startTime, endTime, slot) => {
@@ -204,141 +233,268 @@ const handlePatientsChange = (day, shift, event) => {
 };
 </script>
 
-<template class="">
-  <div class="card width ">
-    <div class="card-header">
-      <h2 class="card-title">
-        <i class="fas fa-clock me-2"></i>
-        Weekly Schedule
-      </h2>
-    </div>
+<template>
+  <Card class="tw-shadow-xl tw-border-0 tw-bg-gradient-to-br tw-from-white tw-to-gray-50">
+    <template #header>
+      <div class="tw-bg-gradient-to-r tw-from-purple-600 tw-to-blue-600 tw-text-white tw-p-6 tw-rounded-t-lg">
+        <div class="tw-flex tw-items-center tw-justify-between">
+          <div class="tw-flex tw-items-center tw-space-x-3">
+            <i class="pi pi-calendar tw-text-2xl"></i>
+            <h2 class="tw-text-2xl tw-font-bold tw-m-0">Weekly Schedule</h2>
+          </div>
+          <Badge 
+            :value="`${Object.values(schedules).reduce((count, day) => count + (day.morning.isActive ? 1 : 0) + (day.afternoon.isActive ? 1 : 0), 0)} Active Shifts`" 
+            severity="info" 
+            class="tw-bg-white tw-text-purple-600 tw-px-3 tw-py-1"
+          />
+        </div>
+      </div>
+    </template>
     
-    <div class="card-body">
-      <div v-if="errors.schedules" class="alert alert-danger">
-        {{ errors.schedules }}
-      </div>
-      
-      <div v-for="day in daysOfWeek" :key="day" class="mb-4 p-3 border rounded">
-        <h3 class="mb-3">{{ day }}</h3>
+    <template #content>
+      <div class="tw-p-6">
+        <Message v-if="errors.schedules" severity="error" class="tw-mb-6">
+          {{ errors.schedules }}
+        </Message>
         
-        <!-- Morning Shift -->
-        <div class="mb-4">
-          <div class="d-flex align-items-center mb-2">
-            <div class="form-check">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                :id="'morning-' + day"
-                v-model="schedules[day].morning.isActive"
-              />
-              <label class="form-check-label" :for="'morning-' + day">Morning Shift</label>
-            </div>
-          </div>
-          
-          <div v-if="schedules[day].morning.isActive" class="row ms-4">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Start Time</label>
-              <input
-                type="time"
-                class="form-control"
-                :value="schedules[day].morning.startTime"
-                @input="(e) => handleTimeChange(day, 'morning', 'startTime', e)"
-              />
-            </div>
-            <div class="col-md-6 mb-3">
-              <label class="form-label">End Time</label>
-              <input
-                type="time"
-                class="form-control"
-                :value="schedules[day].morning.endTime"
-                @input="(e) => handleTimeChange(day, 'morning', 'endTime', e)"
-              />
-            </div>
-            <div class="col-md-4 mb-3" v-if="!patients_based_on_time">
-              <label class="form-label">Patients Per Day Morning</label>
-              <input
-                type="number"
-                class="form-control"
-                :value="schedules[day].morning.patients_per_day"
-                @input="(e) => handlePatientsChange(day, 'morning', e)"
-                min="0"
-                :disabled="props.patients_based_on_time"
-              />
-            </div>
-          </div>
+        <div class="tw-grid tw-grid-cols-1 lg:tw-grid-cols-2 tw-gap-6">
+          <Card 
+            v-for="day in daysOfWeek" 
+            :key="day" 
+            class="tw-shadow-md tw-border tw-border-gray-200 tw-transition-all tw-duration-300 hover:tw-shadow-lg hover:tw-scale-[1.02]"
+          >
+            <template #header>
+              <div class="tw-bg-gradient-to-r tw-from-gray-100 tw-to-gray-200 tw-p-4 tw-rounded-t-lg">
+                <div class="tw-flex tw-items-center tw-justify-between">
+                  <h3 class="tw-text-lg tw-font-semibold tw-text-gray-800 tw-m-0 tw-flex tw-items-center">
+                    <i class="pi pi-calendar-clock tw-mr-2 tw-text-blue-500"></i>
+                    {{ day }}
+                  </h3>
+                  <div class="tw-flex tw-space-x-2">
+                    <Badge 
+                      v-if="schedules[day].morning.isActive" 
+                      value="AM" 
+                      severity="warning" 
+                      class="tw-text-xs"
+                    />
+                    <Badge 
+                      v-if="schedules[day].afternoon.isActive" 
+                      value="PM" 
+                      severity="info" 
+                      class="tw-text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            </template>
+            
+            <template #content>
+              <div class="tw-p-4 tw-space-y-6">
+                <!-- Morning Shift -->
+                <div class="tw-bg-gradient-to-r tw-from-amber-50 tw-to-orange-50 tw-p-4 tw-rounded-xl tw-border tw-border-amber-200">
+                  <div class="tw-flex tw-items-center tw-mb-4">
+                    <Checkbox 
+                      :inputId="'morning-' + day"
+                      binary="true"
+                      v-model="schedules[day].morning.isActive"
+                      class="tw-mr-3"
+                    />
+                    <label :for="'morning-' + day" class="tw-flex tw-items-center tw-text-sm tw-font-medium tw-text-gray-700 tw-cursor-pointer">
+                      <i class="pi pi-sun tw-mr-2 tw-text-amber-500"></i>
+                      Morning Shift
+                    </label>
+                  </div>
+                  
+                  <div v-if="schedules[day].morning.isActive" class="tw-space-y-4 tw-ml-6">
+                    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+                      <div class="tw-space-y-2">
+                        <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700">
+                          <i class="pi pi-clock tw-mr-2 tw-text-green-500"></i>
+                          Start Time
+                        </label>
+                        <input
+                          type="time"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
+                          :value="schedules[day].morning.startTime"
+                          @input="(e) => handleTimeChange(day, 'morning', 'startTime', e)"
+                        />
+                      </div>
+                      <div class="tw-space-y-2">
+                        <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700">
+                          <i class="pi pi-clock tw-mr-2 tw-text-red-500"></i>
+                          End Time
+                        </label>
+                        <input
+                          type="time"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
+                          :value="schedules[day].morning.endTime"
+                          @input="(e) => handleTimeChange(day, 'morning', 'endTime', e)"
+                        />
+                      </div>
+                    </div>
+                    <div v-if="!patients_based_on_time" class="tw-space-y-2">
+                      <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700">
+                        <i class="pi pi-users tw-mr-2 tw-text-purple-500"></i>
+                        Patients Per Day (Morning)
+                      </label>
+                      <InputNumber
+                        v-model="schedules[day].morning.patients_per_day"
+                        @update:modelValue="(value) => handlePatientsChange(day, 'morning', { target: { value } })"
+                        :min="0"
+                        :disabled="props.patients_based_on_time"
+                        class="tw-w-full"
+                        inputClass="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
+                        :showButtons="true"
+                        buttonLayout="horizontal"
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Afternoon Shift -->
+                <div class="tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-p-4 tw-rounded-xl tw-border tw-border-blue-200">
+                  <div class="tw-flex tw-items-center tw-mb-4">
+                    <Checkbox 
+                      :inputId="'afternoon-' + day"
+                       binary="true"
+                      v-model="schedules[day].afternoon.isActive"
+                      class="tw-mr-3"
+                    />
+                    <label :for="'afternoon-' + day" class="tw-flex tw-items-center tw-text-sm tw-font-medium tw-text-gray-700 tw-cursor-pointer">
+                      <i class="pi pi-moon tw-mr-2 tw-text-blue-500"></i>
+                      Afternoon Shift
+                    </label>
+                  </div>
+                  
+                  <div v-if="schedules[day].afternoon.isActive" class="tw-space-y-4 tw-ml-6">
+                    <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-4">
+                      <div class="tw-space-y-2">
+                        <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700">
+                          <i class="pi pi-clock tw-mr-2 tw-text-green-500"></i>
+                          Start Time
+                        </label>
+                        <input
+                          type="time"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
+                          :value="schedules[day].afternoon.startTime"
+                          @input="(e) => handleTimeChange(day, 'afternoon', 'startTime', e)"
+                        />
+                      </div>
+                      <div class="tw-space-y-2">
+                        <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700">
+                          <i class="pi pi-clock tw-mr-2 tw-text-red-500"></i>
+                          End Time
+                        </label>
+                        <input
+                          type="time"
+                          class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
+                          :value="schedules[day].afternoon.endTime"
+                          @input="(e) => handleTimeChange(day, 'afternoon', 'endTime', e)"
+                        />
+                      </div>
+                    </div>
+                    <div v-if="!patients_based_on_time" class="tw-space-y-2">
+                      <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700">
+                        <i class="pi pi-users tw-mr-2 tw-text-purple-500"></i>
+                        Patients Per Day (Afternoon)
+                      </label>
+                      <InputNumber
+                        v-model="schedules[day].afternoon.patients_per_day"
+                        @update:modelValue="(value) => handlePatientsChange(day, 'afternoon', { target: { value } })"
+                        :min="0"
+                        :disabled="props.patients_based_on_time"
+                        class="tw-w-full"
+                        inputClass="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-gray-300 tw-rounded-lg focus:tw-ring-2 focus:tw-ring-blue-500 focus:tw-border-transparent tw-transition-all tw-duration-200"
+                        :showButtons="true"
+                        buttonLayout="horizontal"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </Card>
         </div>
-        
-        <!-- Afternoon Shift -->
-        <div>
-          <div class="d-flex align-items-center mb-2">
-            <div class="form-check">
-              <input
-                type="checkbox"
-                class="form-check-input"
-                :id="'afternoon-' + day"
-                v-model="schedules[day].afternoon.isActive"
-              />
-              <label class="form-check-label" :for="'afternoon-' + day">Afternoon Shift</label>
-            </div>
-          </div>
-          
-          <div v-if="schedules[day].afternoon.isActive"   class="row ms-4">
-            <div class="col-md-6 mb-3" >
-              <label class="form-label">Start Time</label>
-              <input
-                type="time"
-                class="form-control"
-                :value="schedules[day].afternoon.startTime"
-                @input="(e) => handleTimeChange(day, 'afternoon', 'startTime', e)"
-              />
-            </div>
-            <div class="col-md-6 mb-3" >
-              <label class="form-label">End Time</label>
-              <input
-                type="time"
-                class="form-control"
-                :value="schedules[day].afternoon.endTime"
-                @input="(e) => handleTimeChange(day, 'afternoon', 'endTime', e)"
-              />
-            </div>
-            <div class="col-md-4 mb-3" v-if="!patients_based_on_time">
-              <label class="form-label">Patients Per Day Afternoon</label>
-              <input
-                type="number"
-                class="form-control"
-                :value="schedules[day].afternoon.patients_per_day"
-                @input="(e) => handlePatientsChange(day, 'afternoon', e)"
-                min="0"
-                :disabled="props.patients_based_on_time"
-              />
-            </div>
-          </div>
-        </div>
-
-        
       </div>
-    </div>
-  </div>
+    </template>
+  </Card>
 </template>
 
 <style scoped>
-.modal.show {
-  display: block;
-  background-color: rgba(0, 0, 0, 0.5);
+/* Custom PrimeVue component overrides */
+/* :deep(.p-card) {
+  @apply tw-transition-all tw-duration-300;
 }
 
-.input-group {
-  display: flex;
-  align-items: center;
+:deep(.p-card-header) {
+  @apply tw-p-0;
 }
 
-.invalid-feedback {
-  display: block;
-  color: red;
-  font-size: 0.875rem;
+:deep(.p-card-content) {
+  @apply tw-p-0;
 }
 
-.modal-dialog {
-  max-width: 800px;
+:deep(.p-checkbox .p-checkbox-box) {
+  @apply tw-border-2 tw-border-gray-300 tw-rounded-md tw-transition-all tw-duration-200;
 }
+
+:deep(.p-checkbox .p-checkbox-box.p-highlight) {
+  @apply tw-bg-blue-500 tw-border-blue-500;
+}
+
+:deep(.p-checkbox .p-checkbox-box:hover) {
+  @apply tw-border-blue-400;
+}
+
+:deep(.p-inputnumber-input) {
+  @apply tw-bg-white;
+}
+
+:deep(.p-inputnumber-button) {
+  @apply tw-bg-gray-100 tw-border-gray-300 hover:tw-bg-gray-200;
+}
+
+:deep(.p-message) {
+  @apply tw-rounded-lg tw-border-l-4;
+}
+
+:deep(.p-message.p-message-error) {
+  @apply tw-bg-red-50 tw-border-red-500 tw-text-red-700;
+} */
+
+/* Animation classes */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply tw-bg-gray-100;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply tw-bg-gray-400 tw-rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply tw-bg-gray-500;
+}
+
+/* Responsive grid adjustments */
+/* @media (max-width: 768px) {
+  :deep(.tw-grid-cols-1.md\:tw-grid-cols-2) {
+    @apply tw-grid-cols-1;
+  }
+} */
 </style>

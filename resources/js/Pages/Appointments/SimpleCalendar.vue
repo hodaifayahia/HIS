@@ -13,8 +13,19 @@ const props = defineProps({
 
 const emit = defineEmits(['timeSelected', 'dateSelected']);
 
+// Calculate initial date based on days prop
+const calculateInitialDate = () => {
+  if (props.days && props.days > 0) {
+    const today = new Date();
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + props.days);
+    return targetDate;
+  }
+  return new Date();
+};
+
 // State
-const selectedDate = ref(new Date());
+const selectedDate = ref(calculateInitialDate());
 const selectedTime = ref('09:00');
 const showViewModal = ref(false);
 const appointments = ref([]);
@@ -24,6 +35,13 @@ const loading = ref(false);
 watch(() => props.date, (newDate) => {
   if (newDate) {
     selectedDate.value = new Date(newDate);
+  }
+}, { immediate: true });
+
+// Watch for changes in the days prop and recalculate the date
+watch(() => props.days, (newDays) => {
+  if (newDays && newDays > 0) {
+    selectedDate.value = calculateInitialDate();
   }
 }, { immediate: true });
 

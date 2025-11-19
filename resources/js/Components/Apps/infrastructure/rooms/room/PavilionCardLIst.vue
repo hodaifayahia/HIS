@@ -18,7 +18,7 @@ const favorites = ref(new Set())
 
 // Constants
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
-const defaultImage = 'https://via.placeholder.com/400x300?text=Medical+Pavilion'
+const defaultImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23e9ecef" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="system-ui" font-size="24" fill="%236c757d"%3EMedical Pavilion%3C/text%3E%3C/svg%3E'
 
 // Computed properties
 const totalServices = computed(() => services.value.length)

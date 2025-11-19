@@ -71,7 +71,6 @@ const checkAvailability = async () => {
         doctor_id: props.doctorId,
         range: range.value, // Pass the range to the API
         include_slots: true
-
       }
     });
     console.log(response.data.data);
@@ -158,7 +157,7 @@ onMounted(() => {
 
   <!-- If next appointment date is available, show the TimeSlotSelector component -->
   <TimeSlotSelector v-if="nextAppointmentDate" :date="nextAppointmentDate" :range="range"
-    @timeSelected="handleTimeSelected" :doctorid="props.doctorId" class="mt-4" />
+    @timeSelected="handleTimeSelected" :doctorId="props.doctorId" class="mt-4" />
 </template>
 
 <style scoped>

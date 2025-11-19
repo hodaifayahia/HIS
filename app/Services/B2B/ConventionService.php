@@ -2,14 +2,15 @@
 
 namespace App\Services\B2B;
 
+use App\Models\B2B\Annex;
+use App\Models\B2B\Avenant;
 use App\Models\B2B\Convention;
 use App\Models\B2B\ConventionDetail;
-use App\Models\B2B\Annex;
+use App\Models\B2B\PrestationPricing;
 use App\Models\CONFIGURATION\Prestation;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 // Carbon
- use Illuminate\Support\Carbon;
-
+use Illuminate\Support\Facades\DB;
 
 class ConventionService
 {
@@ -25,7 +26,7 @@ class ConventionService
             $convention->conventionDetail()->create([
                 'start_date' => $data['start_date'],
                 'end_date' => $data['end_date'],
-                'family_auth' => $data['family_auth'],
+                'family_auth' => json_encode($data['family_auth']),
                 'max_price' => $data['max_price'],
                 'min_price' => $data['min_price'],
                 'discount_percentage' => $data['discount_percentage'],
@@ -51,7 +52,7 @@ class ConventionService
                 [
                     'start_date' => $data['start_date'],
                     'end_date' => $data['end_date'],
-                    'family_auth' => $data['family_auth'],
+                    'family_auth' => json_encode($data['family_auth']),
                     'max_price' => $data['max_price'],
                     'min_price' => $data['min_price'],
                     'discount_percentage' => $data['discount_percentage'],
@@ -61,17 +62,18 @@ class ConventionService
             return $convention->load('conventionDetail');
         });
     }
-   public function calculatePrestationPricing($annexId)
+
+    public function calculatePrestationPricing($annexId)
     {
         $annex = Annex::find($annexId);
-        
-        if (!$annex) {
+
+        if (! $annex) {
             throw new \Exception('Annex not found');
         }
 
         $convention = Convention::with(['conventionDetail', 'organisme'])->find($annex->convention_id);
-        
-        if (!$convention || !$convention->conventionDetail) {
+
+        if (! $convention || ! $convention->conventionDetail) {
             throw new \Exception('Convention or Convention Detail not found');
         }
 
@@ -85,11 +87,11 @@ class ConventionService
 
         foreach ($prestations as $prestation) {
             $pricing = $this->calculatePrestationPrice($prestation, $convention, $prestationPrixStatus);
-            
+
             // Create formatted identifier: organisme_abrv + service_id + prestation_id
             $organismeAbrv = $convention->organisme->abrv ?? 'N/A';
-            $formattedId = $organismeAbrv . '_' . $serviceId . '_' . $prestation->id;
-            
+            $formattedId = $organismeAbrv.'_'.$serviceId.'_'.$prestation->id;
+
             $results[] = [
                 'prestation_id' => $prestation->id,
                 'prestation_name' => $prestation->name ?? 'N/A',
@@ -101,7 +103,7 @@ class ConventionService
                 'prix_patient' => $pricing['prix_patient'],
                 'max_price_exceeded' => $pricing['max_price_exceeded'],
                 'original_company_share' => $pricing['original_company_share'],
-                'original_patient_share' => $pricing['original_patient_share']
+                'original_patient_share' => $pricing['original_patient_share'],
             ];
         }
 
@@ -113,7 +115,7 @@ class ConventionService
         $conventionDetail = $convention->conventionDetail;
         $discountPercentage = $conventionDetail->discount_percentage;
         $maxPrice = $conventionDetail->max_price;
-        
+
         // Determine the base price based on prestation_prix_status
         $basePrice = $this->getBasePrice($prestation, $prestationPrixStatus);
         // If base price is 0 or empty, everything is 0
@@ -124,22 +126,22 @@ class ConventionService
                 'prix_patient' => 0,
                 'max_price_exceeded' => false,
                 'original_company_share' => 0,
-                'original_patient_share' => 0
+                'original_patient_share' => 0,
             ];
         }
 
         // Calculate company and patient shares
         $companySharePercentage = $discountPercentage / 100;
         $patientSharePercentage = 1 - $companySharePercentage;
-        
+
         $originalCompanyShare = $basePrice * $companySharePercentage;
         $originalPatientShare = $basePrice * $patientSharePercentage;
-        
+
         // Check if company share exceeds max price
         $maxPriceExceeded = false;
         $finalCompanyShare = $originalCompanyShare;
         $finalPatientShare = $originalPatientShare;
-        
+
         if ($maxPrice > 0 && $originalCompanyShare > $maxPrice) {
             $maxPriceExceeded = true;
             $excess = $originalCompanyShare - $maxPrice;
@@ -153,7 +155,7 @@ class ConventionService
             'prix_patient' => $finalPatientShare,
             'max_price_exceeded' => $maxPriceExceeded,
             'original_company_share' => $originalCompanyShare,
-            'original_patient_share' => $originalPatientShare
+            'original_patient_share' => $originalPatientShare,
         ];
     }
 
@@ -169,7 +171,8 @@ class ConventionService
                 return $prestation->PrixGloble ?? 0;
         }
     }
-     public function activateConventionById(int $conventionId, string $activationDate, bool $isDelayedActivation): array
+
+    public function activateConventionById(int $conventionId, string $activationDate, bool $isDelayedActivation): array
     {
         return DB::transaction(function () use ($conventionId, $activationDate, $isDelayedActivation) {
             $convention = Convention::findOrFail($conventionId);
@@ -206,6 +209,9 @@ class ConventionService
                     'activation_at' => $activationCarbon,
                 ]);
 
+                // Create initial avenant and copy prestations from annexes
+                $this->createInitialAvenantWithPrestations($conventionId, $activationCarbon);
+
                 // Update related models if they need immediate activation
                 // Example:
                 // ConventionDetail::where('convention_id', $conventionId)
@@ -218,6 +224,44 @@ class ConventionService
                 ];
             }
         });
+    }
+
+    /**
+     * Create initial avenant and copy prestations from all annexes
+     */
+    private function createInitialAvenantWithPrestations(int $conventionId, Carbon $activationDate): void
+    {
+        // Create the initial avenant
+        $avenant = Avenant::create([
+            'convention_id' => $conventionId,
+            'name' => 'Initial Avenant',
+            'description' => 'Initial avenant created during contract activation',
+            'start_date' => $activationDate,
+            'head' => true,
+            'creator_id' => auth()->id() ?? 1, // Use authenticated user or default to 1
+        ]);
+
+        // Get all annexes for this convention
+        $annexes = Annex::where('convention_id', $conventionId)->get();
+
+        foreach ($annexes as $annex) {
+            // Get all prestation pricings from this annex
+            $annexPrestations = PrestationPricing::where('annex_id', $annex->id)->get();
+
+            foreach ($annexPrestations as $annexPrestation) {
+                // Create a copy in the avenant
+                PrestationPricing::create([
+                    'avenant_id' => $avenant->id,
+                    'prestation_id' => $annexPrestation->prestation_id,
+                    'contract_percentage_id' => $annexPrestation->contract_percentage_id,
+                    'discount_percentage' => $annexPrestation->discount_percentage,
+                    'max_price' => $annexPrestation->max_price,
+                    'company_price' => $annexPrestation->company_price,
+                    'patient_price' => $annexPrestation->patient_price,
+                    'head' => true, // Mark as head for the avenant
+                ]);
+            }
+        }
     }
 
     public function expireConventionById(int $conventionId): array
@@ -233,6 +277,42 @@ class ConventionService
             return [
                 'conventionId' => $conventionId,
                 'status' => 'terminated',
+            ];
+        });
+    }
+
+    public function extendConvention(int $conventionId, array $data): array
+    {
+        return DB::transaction(function () use ($conventionId, $data) {
+            $convention = Convention::findOrFail($conventionId);
+
+            // Update the convention detail with new end date
+            $conventionDetail = $convention->conventionDetail;
+            if (!$conventionDetail) {
+                throw new \Exception('Convention detail not found');
+            }
+
+            // Check if maximum extensions (3) have been reached
+            if ($conventionDetail->extension_count >= 3) {
+                throw new \Exception('Maximum extension limit of 3 times has been reached for this contract');
+            }
+
+            $oldEndDate = $conventionDetail->end_date;
+            $conventionDetail->update([
+                'end_date' => $data['new_end_date'],
+                'extension_count' => $conventionDetail->extension_count + 1,
+            ]);
+
+            // Log the extension (you might want to create an extension history table)
+            // For now, we'll just return the updated data
+
+            return [
+                'conventionId' => $conventionId,
+                'oldEndDate' => $oldEndDate,
+                'newEndDate' => $data['new_end_date'],
+                'extensionCount' => $conventionDetail->extension_count,
+                'reason' => $data['reason'] ?? null,
+                'notes' => $data['notes'] ?? null,
             ];
         });
     }

@@ -128,7 +128,7 @@ onMounted(() => {
             <div class="header-flex-container">
                 <div class="header-left">
                     <h1 class="page-title">Room Types Management</h1>
-                    <p class="page-subtitle">Define and manage categories for your clinic's rooms</p>
+                    <p class="page-subtitle">Manage different room types for your clinic</p>
                 </div>
                 <nav class="breadcrumbs">
                     <ul class="breadcrumb-list">
@@ -211,7 +211,6 @@ onMounted(() => {
                                     <th class="table-header">Name</th>
                                     <th class="table-header">Description</th>
                                     <th class="table-header">service</th>
-                                    <th class="table-header">Room Type</th>
                                     <th class="table-header">Created At</th>
                                     <th class="table-header actions-header">Actions</th>
                                 </tr>

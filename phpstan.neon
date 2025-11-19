@@ -1,0 +1,30 @@
+parameters:
+    level: 8
+    paths:
+        - app
+        - tests
+    excludePaths:
+        - app/Console/Kernel.php
+        - app/Http/Kernel.php
+        - app/Exceptions/Handler.php
+    ignoreErrors:
+        - '#Call to an undefined method Illuminate\\Database\\Eloquent\\Builder#'
+        - '#Call to an undefined method Illuminate\\Database\\Query\\Builder#'
+        - '#Access to an undefined property App\\Models\\#'
+        - '#Cannot call method .* on mixed#'
+    checkMissingIterableValueType: false
+    checkGenericClassInNonGenericObjectType: false
+    reportUnmatchedIgnoredErrors: false
+    
+    # Laravel specific configurations
+    bootstrapFiles:
+        - bootstrap/app.php
+    
+    # Doctrine extensions for Laravel
+    doctrine:
+        objectManagerLoader: tests/object-manager.php
+    
+    # Stub files for better Laravel support
+    stubFiles:
+        - stubs/User.stub
+        - stubs/Model.stub

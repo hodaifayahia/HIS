@@ -1,0 +1,80 @@
+// src/router/routes/configuration.js
+
+// Routes for the "Coffre" (CRM) section — renamed & reorganized for CoffreSidebar
+const CoffreRoutes = [
+  {
+    path: '/coffre',
+    name: 'coffre',
+    meta: { role: ['admin', 'SuperAdmin', 'manager', 'reception', 'support', 'partner'], appKey: 'coffre' },
+    children: [
+      {
+        path: 'dashboard', // <-- changed from '' to 'dashboard' so /coffre/dashboard works
+        name: 'coffre.dashboard',
+        component: () => import('../Pages/Apps/coffre/CoffreDashboard.vue'),
+        meta: { title: 'Coffre Dashboard' }
+      },
+      {
+        path: 'list', // <-- remove leading slash so path becomes /coffre/list
+        name: 'coffre.list',
+        component: () => import('../Pages/Apps/coffre/Coffre/CoffreList.vue'),
+        meta: { title: 'Coffre List' }
+      },
+      {
+        path: 'transactions/:coffre_id',
+        name: 'coffre.transactions',
+        component: () => import('../Pages/Apps/coffre/Transactions/CoffreTransactionList.vue'),
+        meta: { title: 'Coffre Transactions' },
+        props: true
+      },
+      {
+        path: 'transactions-dashboard',
+        name: 'coffre.transactions.dashboard',
+        component: () => import('../Pages/Apps/coffre/CoffreTransactionsDashboard.vue'),
+        meta: { title: 'Transactions & Approvals' }
+      },
+      {
+        path: 'caisse', // <-- remove leading slash so path becomes /coffre/caisse
+        name: 'coffre.caisse',
+        component: () => import('../Pages/Apps/coffre/caisse/CaisseList.vue'),
+        meta: { title: 'Coffre Caisse' }
+      },
+      {
+        path: 'caisse/:caisse_id/transfers', // <-- keep param name
+        name: 'coffre.caisse.transfers',
+        component: () => import('../Pages/Apps/coffre/caisse/CaisseTransfersList.vue'),
+        meta: {
+            title: 'Caisse Transfers',
+            requiresAuth: true
+          },
+        // map route param 'caisse_id' to prop 'caisseId' expected by CaisseTransfersList.vue
+        props: (route) => ({ caisseId: route.params.caisse_id })
+      },
+      {
+        path: 'caisse/:caisse_id/financial-transactions', // <-- new route for financial transactions
+        name: 'coffre.caisse.financial-transactions',
+        component: () => import('../Pages/Apps/coffre/caisse/CaisseFinancialTransactionsList.vue'),
+        meta: {
+            title: 'Caisse Financial Transactions',
+            requiresAuth: true
+          },
+        // map route param 'caisse_id' to prop 'caisseId' expected by CaisseFinancialTransactionsList.vue
+        props: (route) => ({ caisseId: route.params.caisse_id })
+      },
+        {
+        path: 'caisse/:caisse_id', // <-- keep param name
+        name: 'coffre.caisse.operation',
+        component: () => import('../Pages/Apps/coffre/caisse/CaisseSessionList.vue'),
+        meta: {
+            title: 'Cash Register Sessions',
+            requiresAuth: true
+          },
+        // map route param 'caisse_id' to prop 'id' expected by CaisseSessionList.vue
+        props: (route) => ({ id: route.params.caisse_id })
+      },
+     
+     
+    ]
+  }
+];
+
+export default CoffreRoutes;

@@ -19,6 +19,21 @@ export const userService = {
       return { success: false, message: error.response?.data?.message || 'Failed to load user.' }
     }
   },
+   async getCashiers() {
+        try {
+            const response = await axios.get('/api/users');
+            return {
+                success: true,
+                data: response.data.data || response.data
+            };
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || 'Failed to load cashiers.',
+                error
+            };
+        }
+    }
 
   
 }

@@ -205,7 +205,7 @@ const getFolders = async () => {
   loading.value = true;
   
   try {
-    const response = await axios.get('/folders', {
+    const response = await axios.get('/api/folders', {
       params: { doctorid: props.doctorId },
     });
 

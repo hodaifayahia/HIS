@@ -1,10 +1,13 @@
 import './bootstrap';
 import './echo';
 
-import 'admin-lte/plugins/bootstrap/js/bootstrap.bundle.min.js';
-import 'admin-lte/dist/js/adminlte.min.js';
+import 'bootstrap/dist/js/bootstrap.bundle.min.js';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
-import { createApp } from 'vue/dist/vue.esm-bundler.js';
+import 'admin-lte/dist/css/adminlte.min.css';
+import 'admin-lte';
+
+import { createApp } from 'vue/dist/vue.runtime.esm-bundler.js';
 import { createPinia } from 'pinia';
 import { createRouter, createWebHistory } from 'vue-router';
 import { allRoutes as AppRoutes } from '../js/Routes/Routes.js';
@@ -13,9 +16,13 @@ import App from '../js/Pages/App.vue';
 
 // ✅ PrimeVue imports (only config and services)
 import PrimeVue from 'primevue/config';
-import Aura from '@primevue/themes/aura';
+ 
+import 'primevue/resources/themes/saga-blue/theme.css';
+import 'primevue/resources/primevue.min.css';
 import ToastService from 'primevue/toastservice';
 import ConfirmDialog from 'primevue/confirmdialog'
+import Toast from 'primevue/toast';
+import Tooltip from 'primevue/tooltip';
 
 import ConfirmationService from 'primevue/confirmationservice';
 
@@ -25,24 +32,27 @@ const pinia = createPinia();
 // ✅ Create app instance
 const app = createApp(App);
 app.use(pinia);
-    app.component('ConfirmDialog', ConfirmDialog)
 
-// ✅ Configure PrimeVue with custom theme
+if (import.meta.env.DEV) {
+    app.config.devtools = true;
+}
+    app.component('ConfirmDialog', ConfirmDialog)
+    app.component('Toast', Toast)
+
+// ✅ Configure PrimeVue with custom theme and directives
 app.use(PrimeVue, {
     theme: {
-        preset: Aura,
         options: {
             prefix: 'p',
             darkModeSelector: 'system',
             cssLayer: false
-            
         }
-        
     },
-   
-
+    ripple: true // Enable ripple effect for buttons
 });
-app.use(PrimeVue, { ripple: true }); // Enable ripple effect for buttons
+
+// ✅ Register Tooltip directive globally
+app.directive('tooltip', Tooltip);
 
 // ✅ Add PrimeVue services
 app.use(ToastService);

@@ -26,6 +26,11 @@ const configurationRoutes = [
                         name: 'admin.configuration.services',
                         component: () => import('../Pages/Apps/Configuration/Services/servicesList.vue'),
                     },
+                    {
+                        path: 'salles',
+                        name: 'admin.configuration.salles',
+                        component: () => import('../Pages/Apps/Configuration/Salles/SallesList.vue'),
+                    },
                     // Uncomment and use these as needed
                     {
                         path: 'modalities',
@@ -57,15 +62,31 @@ const configurationRoutes = [
                         name: 'admin.configuration.prestations.view',
                         component: () => import('../Components/Apps/Configuration/PrestationConfig/PrescriptionView.vue'),
                     },
-                     {
+                    {
                         path: 'specializations',
                         name: 'admin.configuration.specializations',
                         component: () => import('../Pages/Specialization/specializationList.vue'),
                     },
-                     {
+                    {
                         path: 'system-settings',
                         name: 'admin.configuration.system-settings',
                         component: () => import('../Components/Apps/Configuration/SystemSettings/SystemSettings.vue'),
+                    },
+                    {
+                        path: 'Role-refund-permission',
+                        name: 'admin.configuration.Role-refund-permission',
+                        component: () => import('../Components/Apps/Configuration/rolesAndPremissions/ListUsersCanRefund.vue'),
+                    },
+                    {
+                        path: 'transfer-approvals',
+                        name: 'admin.configuration.transfer-approvals',
+                        component: () => import('../Pages/Apps/Configuration/Approvers/UserCaisseApprovalManagement.vue'),
+
+                    },
+                    {
+                        path: 'permissions',
+                        name: 'admin.configuration.permissions',
+                        component: () => import('../Pages/Apps/Configuration/Permissions/PermissionManagement.vue'),
                     },
                     //  {
                     //     path: 'remise-types',
@@ -77,7 +98,7 @@ const configurationRoutes = [
                         name: 'admin.configuration.payment-methods',
                         component: () => import('../Pages/Apps/Configuration/RemiseMangement/PaymentMethod/PaymentMethodList.vue'),
                     },
-                     {
+                    {
                         path: 'remise-management',
                         name: 'admin.configuration.remise-management',
                         component: () => import('../Pages/Apps/Configuration/RemiseMangement/Remise/RemiseList.vue'),

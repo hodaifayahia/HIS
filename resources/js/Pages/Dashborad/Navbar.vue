@@ -1,19 +1,43 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
-import { useRouter } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router';
 
 const router = useRouter();
-const isDropdownOpen = ref(false);
-const currentTime = ref(new Date());
 
-// Update time every minute
-onMounted(() => {
-    setInterval(() => {
-        currentTime.value = new Date();
-    }, 60000);
-});
+// Reactive state for the current time
+const currentTime = ref('');
+const updateTime = () => {
+    const now = new Date();
+    currentTime.value = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+};
+let timeInterval = null;
 
+// Reactive state for dropdowns
+const isNotificationsMenuOpen = ref(false);
+const isUserMenuOpen = ref(false);
+
+const toggleNotificationsMenu = () => {
+    isNotificationsMenuOpen.value = !isNotificationsMenuOpen.value;
+    isUserMenuOpen.value = false;
+};
+
+const toggleUserMenu = () => {
+    isUserMenuOpen.value = !isUserMenuOpen.value;
+    isNotificationsMenuOpen.value = false;
+};
+
+// Function to handle clicking outside the dropdowns
+const closeDropdowns = (event) => {
+    if (!event.target.closest('.notifications-menu') && !event.target.closest('.notifications-toggle')) {
+        isNotificationsMenuOpen.value = false;
+    }
+    if (!event.target.closest('.user-menu') && !event.target.closest('.user-toggle')) {
+        isUserMenuOpen.value = false;
+    }
+};
+
+// Logout Function
 const logout = async () => {
     try {
         await axios.post('/logout');
@@ -23,386 +47,100 @@ const logout = async () => {
     }
 };
 
-const toggleDropdown = () => {
-    isDropdownOpen.value = !isDropdownOpen.value;
-};
+onMounted(() => {
+    // Start the clock
+    updateTime();
+    timeInterval = setInterval(updateTime, 1000);
 
-const formatTime = (date) => {
-    return date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: true 
-    });
-};
+    // Add click listener to close dropdowns
+    document.addEventListener('click', closeDropdowns);
+});
 
-const formatDate = (date) => {
-    return date.toLocaleDateString('en-US', { 
-        weekday: 'short',
-        month: 'short', 
-        day: 'numeric' 
-    });
-};
+onUnmounted(() => {
+    // Clean up the interval and event listener
+    if (timeInterval) {
+        clearInterval(timeInterval);
+    }
+    document.removeEventListener('click', closeDropdowns);
+});
 </script>
 
 <template>
-    <nav class="main-header navbar navbar-expand premium-navbar">
-        <!-- Left navbar links -->
-        <ul class="navbar-nav">
-            <li class="nav-item">
-                <a class="nav-link sidebar-toggle" data-widget="pushmenu" href="#" role="button">
-                    <div class="hamburger-icon">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
+    <nav class="tw-main-header tw-navbar tw-flex tw-items-center tw-justify-between tw-px-4 tw-py-1 tw-bg-[#253237] tw-text-white tw-shadow-md tw-relative">
+        <ul class="tw-navbar-nav tw-flex tw-items-center tw-space-x-4 tw-list-none tw-m-0 tw-p-0">
+            <li class="tw-nav-item">
+                <a class="tw-nav-link tw-p-2 tw-text-white hover:tw-text-gray-300" data-widget="pushmenu" href="#" role="button">
+                    <i class="fas fa-bars"></i>
                 </a>
             </li>
         </ul>
 
-        <!-- Center - Time Display -->
-        <div class="navbar-center">
-            <div class="time-display">
-                <div class="current-time">{{ formatTime(currentTime) }}</div>
-                <div class="current-date">{{ formatDate(currentTime) }}</div>
-            </div>
+        <div class="tw-absolute tw-left-1/2 tw-transform -tw-translate-x-1/2 tw-text-xl tw-font-bold tw-text-gray-200">
+            {{ currentTime }}
         </div>
 
-        <!-- Right navbar links -->
-        <ul class="navbar-nav ml-auto">
-            <!-- Dashboard Button -->
-            <li class="nav-item">
-                <button @click="router.push('/home')" class="nav-btn dashboard-btn" title="Dashboard">
-                    <i class="fas fa-th-large"></i>
-                    <span class="btn-text">Dashboard</span>
+        <ul class="tw-navbar-nav tw-ml-auto tw-flex tw-items-center tw-space-x-4 tw-list-none tw-m-0 tw-p-0">
+            <li class="tw-nav-item">
+                <button @click="router.push('/home')" class="tw-btn tw-p-2 tw-text-white hover:tw-text-gray-300 tw-transition-colors" title="Go back">
+                    <img class="tw-w-5 tw-h-5" src="https://img.icons8.com/ios/50/squared-menu.png" alt="squared-menu"/>
                 </button>
             </li>
-
-            <!-- Fullscreen Toggle -->
-            <li class="nav-item">
-                <button class="nav-btn fullscreen-btn" data-widget="fullscreen" title="Toggle Fullscreen">
+            
+            <li class="tw-nav-item">
+                <a class="tw-nav-link tw-p-2 tw-text-white hover:tw-text-gray-300" data-widget="fullscreen" href="#" role="button">
                     <i class="fas fa-expand-arrows-alt"></i>
-                </button>
+                </a>
             </li>
-
-            <!-- Notifications -->
-            <li class="nav-item dropdown">
-                <button class="nav-btn notification-btn" title="Notifications">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge">3</span>
-                </button>
-            </li>
-
-            <!-- User Dropdown -->
-            <li class="nav-item dropdown user-dropdown">
-                <button class="nav-btn user-btn" @click="toggleDropdown" :class="{ active: isDropdownOpen }">
-                    <div class="user-avatar">
-                        <i class="fas fa-user-circle"></i>
-                    </div>
-                    <div class="user-info">
-                        <span class="user-name">Dr. Smith</span>
-                        <i class="fas fa-chevron-down dropdown-arrow" :class="{ rotated: isDropdownOpen }"></i>
-                    </div>
-                </button>
-                
-                <div class="dropdown-menu premium-dropdown" :class="{ show: isDropdownOpen }">
-                    <div class="dropdown-header">
-                        <div class="user-details">
-                            <div class="user-avatar-large">
-                                <i class="fas fa-user-circle"></i>
-                            </div>
-                            <div class="user-meta">
-                                <div class="user-name-large">Dr. John Smith</div>
-                                <div class="user-email">john.smith@hospital.com</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="dropdown-divider"></div>
-                    
-                    <router-link to="/admin/profile" class="dropdown-item">
-                        <i class="fas fa-user-edit"></i>
-                        <span>Edit Profile</span>
-                    </router-link>
-                    
-                    <router-link to="/admin/settings" class="dropdown-item">
-                        <i class="fas fa-cog"></i>
-                        <span>Settings</span>
-                    </router-link>
-                    
-                    <a href="#" class="dropdown-item">
-                        <i class="fas fa-question-circle"></i>
-                        <span>Help & Support</span>
+            <!-- <li class="tw-nav-item tw-dropdown tw-relative">
+                <a @click="toggleNotificationsMenu" class="tw-nav-link tw-p-2 tw-text-white hover:tw-text-gray-300 tw-cursor-pointer notifications-toggle">
+                    <i class="far fa-bell"></i>
+                    <span class="tw-badge tw-absolute tw-top-0 tw-right-0 tw-bg-red-500 tw-text-white tw-rounded-full tw-text-xs tw-px-1.5 tw-py-0.5">15</span>
+                </a>
+                <div v-if="isNotificationsMenuOpen" class="notifications-menu tw-absolute tw-right-0 tw-mt-2 tw-w-80 tw-bg-white tw-rounded-lg tw-shadow-xl tw-z-50">
+                    <span class="tw-dropdown-header tw-block tw-p-3 tw-text-sm tw-font-bold tw-text-gray-700 tw-border-b tw-border-gray-200">15 Notifications</span>
+                    <div class="tw-dropdown-divider tw-h-px tw-bg-gray-200"></div>
+                    <a href="#" class="tw-dropdown-item tw-flex tw-items-center tw-px-4 tw-py-3 tw-text-sm tw-text-gray-700 hover:tw-bg-gray-100 tw-transition-colors">
+                        <i class="fas fa-envelope tw-mr-2 tw-w-4"></i>
+                        <span>4 new messages</span>
+                        <span class="tw-ml-auto tw-text-xs tw-text-gray-500">3 mins</span>
                     </a>
-                    
-                    <div class="dropdown-divider"></div>
-                    
-                    <a href="#" @click.prevent="logout" class="dropdown-item logout-item">
-                        <i class="fas fa-sign-out-alt"></i>
-                        <span>Logout</span>
+                    <div class="tw-dropdown-divider tw-h-px tw-bg-gray-200"></div>
+                    <a href="#" class="tw-dropdown-item tw-flex tw-items-center tw-px-4 tw-py-3 tw-text-sm tw-text-gray-700 hover:tw-bg-gray-100 tw-transition-colors">
+                        <i class="fas fa-users tw-mr-2 tw-w-4"></i>
+                        <span>8 friend requests</span>
+                        <span class="tw-ml-auto tw-text-xs tw-text-gray-500">12 hours</span>
                     </a>
+                    <div class="tw-dropdown-divider tw-h-px tw-bg-gray-200"></div>
+                    <a href="#" class="tw-dropdown-item tw-flex tw-items-center tw-px-4 tw-py-3 tw-text-sm tw-text-gray-700 hover:tw-bg-gray-100 tw-transition-colors">
+                        <i class="fas fa-file tw-mr-2 tw-w-4"></i>
+                        <span>3 new reports</span>
+                        <span class="tw-ml-auto tw-text-xs tw-text-gray-500">2 days</span>
+                    </a>
+                    <div class="tw-dropdown-divider tw-h-px tw-bg-gray-200"></div>
+                    <a href="#" class="tw-dropdown-item tw-dropdown-footer tw-block tw-text-center tw-py-2 tw-text-sm tw-text-gray-600 hover:tw-bg-gray-100 hover:tw-text-gray-800 tw-transition-colors">See All Notifications</a>
+                </div>
+            </li> -->
+            <li class="tw-nav-item tw-dropdown tw-relative">
+                <a @click="toggleUserMenu" class="tw-nav-link tw-p-2 tw-text-white hover:tw-text-gray-300 tw-cursor-pointer user-toggle">
+                    <i class="far fa-user"></i>
+                </a>
+                <div v-if="isUserMenuOpen" class="user-menu tw-absolute tw-right-0 tw-mt-2 tw-w-56 tw-bg-white tw-rounded-lg tw-shadow-xl tw-z-50">
+                    <div class="tw-dropdown-divider tw-h-px tw-bg-gray-200"></div>
+                    <RouterLink to="/admin/settings" active-class="active"
+                        class="tw-nav-link tw-flex tw-items-center tw-px-4 tw-py-3 tw-text-sm tw-text-gray-700 hover:tw-bg-gray-100 hover:tw-text-gray-900 tw-transition-colors">
+                        <i class="fas fa-cog tw-mr-2 tw-w-4"></i>
+                        <p>Settings</p>
+                    </RouterLink>
+                    <div class="tw-dropdown-divider tw-h-px tw-bg-gray-200"></div>
+                    <form style="display: contents;">
+                        <a href="#" @click.prevent="logout"
+                            class="tw-nav-link tw-flex tw-items-center tw-px-4 tw-py-3 tw-text-sm tw-text-gray-700 hover:tw-bg-gray-100 hover:tw-text-gray-900 tw-transition-colors">
+                            <i class="fas fa-sign-out-alt tw-mr-2 tw-w-4"></i>
+                            <span>Logout</span>
+                        </a>
+                    </form>
                 </div>
             </li>
         </ul>
     </nav>
 </template>
-
-<style scoped>
-/* Premium Navbar */
-.premium-navbar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-    padding: 0.5rem 1rem;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1030;
-}
-
-/* Sidebar Toggle */
-.sidebar-toggle {
-    background: none;
-    border: none;
-    padding: 0.5rem;
-}
-
-.hamburger-icon {
-    width: 24px;
-    height: 18px;
-    position: relative;
-    cursor: pointer;
-}
-
-.hamburger-icon span {
-    display: block;
-    position: absolute;
-    height: 2px;
-    width: 100%;
-    background: white;
-    border-radius: 1px;
-    opacity: 1;
-    left: 0;
-    transform: rotate(0deg);
-    transition: 0.25s ease-in-out;
-}
-
-.hamburger-icon span:nth-child(1) { top: 0px; }
-.hamburger-icon span:nth-child(2) { top: 8px; }
-.hamburger-icon span:nth-child(3) { top: 16px; }
-
-/* Center Time Display */
-.navbar-center {
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-}
-
-.time-display {
-    text-align: center;
-    color: white;
-}
-
-.current-time {
-    font-size: 1.2rem;
-    font-weight: 600;
-    line-height: 1;
-}
-
-.current-date {
-    font-size: 0.8rem;
-    opacity: 0.8;
-}
-
-/* Navigation Buttons */
-.nav-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: white;
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    margin: 0 0.25rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.nav-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.dashboard-btn .btn-text {
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-.notification-btn {
-    position: relative;
-}
-
-.notification-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #ff4757;
-    color: white;
-    font-size: 0.7rem;
-    padding: 2px 5px;
-    border-radius: 10px;
-    min-width: 16px;
-    height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    animation: pulse 2s infinite;
-}
-
-/* User Dropdown */
-.user-dropdown {
-    position: relative;
-}
-
-.user-btn {
-    padding: 0.5rem 1rem;
-    gap: 0.75rem;
-}
-
-.user-avatar i {
-    font-size: 1.5rem;
-}
-
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.user-name {
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-.dropdown-arrow {
-    font-size: 0.8rem;
-    transition: transform 0.3s ease;
-}
-
-.dropdown-arrow.rotated {
-    transform: rotate(180deg);
-}
-
-/* Premium Dropdown */
-.premium-dropdown {
-    position: absolute;
-    top: 100%;
-    right: 0;
-    min-width: 280px;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(-10px);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1000;
-    margin-top: 0.5rem;
-}
-
-.premium-dropdown.show {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-.dropdown-header {
-    padding: 1.5rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 12px 12px 0 0;
-    color: white;
-}
-
-.user-details {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.user-avatar-large i {
-    font-size: 2.5rem;
-}
-
-.user-name-large {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 0.25rem;
-}
-
-.user-email {
-    font-size: 0.85rem;
-    opacity: 0.9;
-}
-
-.dropdown-divider {
-    height: 1px;
-    background: #e9ecef;
-    margin: 0;
-}
-
-.dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1.5rem;
-    color: #495057;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    border: none;
-    background: none;
-    width: 100%;
-    text-align: left;
-}
-
-.dropdown-item:hover {
-    background: #f8f9fa;
-    color: #007bff;
-    padding-left: 2rem;
-}
-
-.dropdown-item i {
-    width: 16px;
-    text-align: center;
-}
-
-.logout-item:hover {
-    background: #fff5f5;
-    color: #dc3545;
-}
-
-/* Animations */
-@keyframes pulse {
-    0% { transform: scale(1); }
-    50% { transform: scale(1.1); }
-    100% { transform: scale(1); }
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .navbar-center {
-        display: none;
-    }
-    
-    .nav-btn .btn-text {
-        display: none;
-    }
-    
-    .user-name {
-        display: none;
-    }
-}
-</style>

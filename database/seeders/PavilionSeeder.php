@@ -19,7 +19,7 @@ class PavilionSeeder extends Seeder
         // Sample Pavilions based on your document
         $pavilions = [
             [
-                'name' => 'Pavillon de Chirurgie',
+                'name' => 'Surgery Pavilion',
                 'description' => 'Main wing for surgical procedures and post-operative care.',
                 // 'display_color' => '#FF5733', // Add if you uncommented in migration
                 // 'layout_data' => json_encode(['coords' => '0,0,100,100']), // Add if you uncommented
@@ -27,7 +27,7 @@ class PavilionSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'name' => 'Pavillon Mère-Enfant',
+                'name' => 'Mother-Child Pavilion',
                 'description' => 'Dedicated wing for maternity, pediatrics, and child care.',
                 // 'display_color' => '#33FF57',
                 // 'layout_data' => json_encode(['coords' => '100,0,200,100']),
@@ -35,7 +35,7 @@ class PavilionSeeder extends Seeder
                 'updated_at' => now()->subDays(5),
             ],
             [
-                'name' => 'Pavillon des Consultations Externes',
+                'name' => 'Outpatient Consultations Pavilion',
                 'description' => 'Outpatient department for various medical consultations.',
                 // 'display_color' => '#3357FF',
                 // 'layout_data' => json_encode(['coords' => '0,100,100,200']),
@@ -43,7 +43,7 @@ class PavilionSeeder extends Seeder
                 'updated_at' => now()->subDays(10),
             ],
             [
-                'name' => 'Pavillon de Médecine Interne',
+                'name' => 'Internal Medicine Pavilion',
                 'description' => 'Wing for general internal medicine and chronic disease management.',
                 // 'display_color' => '#FFCC33',
                 // 'layout_data' => json_encode(['coords' => '100,100,200,200']),
@@ -51,7 +51,7 @@ class PavilionSeeder extends Seeder
                 'updated_at' => now()->subDays(15),
             ],
             [
-                'name' => 'Plateau Technique',
+                'name' => 'Technical Platform',
                 'description' => 'Technical platform housing imaging, laboratory, and specialized diagnostic services.',
                 // 'display_color' => '#A033FF',
                 // 'layout_data' => json_encode(['coords' => '200,0,300,100']),

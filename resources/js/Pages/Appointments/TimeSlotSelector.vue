@@ -7,7 +7,7 @@ const props = defineProps({
     type: String,
     default: '',
   },
-  doctorid: {
+  doctorId: {
     type: Number,
     required: true,
   },
@@ -59,7 +59,7 @@ const fetchTimeSlots = async () => {
       const response = await axios.get('/api/appointments/ForceSlots', {
         params: {
           days: props.days,
-          doctor_id: props.doctorid,
+          doctor_id: props.doctorId,
           date:props.date
         }
       });
@@ -80,9 +80,9 @@ const fetchTimeSlots = async () => {
     const response = await axios.get('/api/appointments/checkAvailability', {
       params: {
         date: props.date,
-        doctor_id: props.doctorid,
+        doctor_id: props.doctorId,
         range: props.range,
-        include_slots: true,
+        include_slots: true
       }
     });
     
@@ -122,7 +122,7 @@ const selectTimeSlot = (time) => {
 };
 
 onMounted(fetchTimeSlots);
-watch([() => props.date, () => props.range, () => props.doctorid, () => props.forceAppointment, () => props.days], fetchTimeSlots);
+watch([() => props.date, () => props.range, () => props.doctorId, () => props.forceAppointment, () => props.days], fetchTimeSlots);
 watch(() => props.modelValue, (newValue) => {
   selectedTime.value = newValue;
 });

@@ -30,7 +30,7 @@ class OrganismeUpdateRequest extends FormRequest
 
         return [
             'name' => 'required|string|max:255',
-                    'organism_color' => ['nullable', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/'],
+            'organism_color' => ['nullable', 'regex:/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$/'],
 
             'legal_form' => 'nullable|string|max:255',
             'trade_register_number' => ['nullable', 'string', 'max:255', Rule::unique('organismes')->ignore($organismeId)],
@@ -51,6 +51,8 @@ class OrganismeUpdateRequest extends FormRequest
             'initial_credit_note_number' => 'nullable|string|max:255',
             'logo_url' => 'nullable|string|url|max:255',
             'profile_image_url' => 'nullable|string|url|max:255',
+            'logo_file' => 'nullable|file|image|max:2048',
+            'profile_image_file' => 'nullable|file|image|max:2048',
             'description' => 'nullable|string',
             'industry' => 'nullable|string|max:255',
             'creation_date' => 'nullable|date',

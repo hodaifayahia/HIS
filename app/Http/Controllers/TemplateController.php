@@ -326,4 +326,57 @@ public function store(Request $request)
             'data' => $templates
         ]);
     }
+
+    /**
+     * Duplicate a template with all its placeholder associations to another doctor
+     */
+    public function duplicate(Request $request, $templateId)
+    {
+        try {
+            $validated = $request->validate([
+                'target_doctor_id' => 'required|exists:doctors,id',
+                'folder_id' => 'required|exists:folders,id',
+                'new_name' => 'nullable|string|max:255',
+            ]);
+
+            $sourceTemplate = Template::with('placeholders')->findOrFail($templateId);
+            
+            DB::beginTransaction();
+            
+            // Create new template for target doctor
+            $newTemplate = Template::create([
+                'name' => $validated['new_name'] ?? $sourceTemplate->name . ' (Copy)',
+                'description' => $sourceTemplate->description,
+                'content' => $sourceTemplate->content,
+                'doctor_id' => $validated['target_doctor_id'],
+                'mime_type' => $sourceTemplate->mime_type,
+                'folder_id' => $validated['folder_id'],
+            ]);
+            
+            // Duplicate placeholder associations
+            foreach ($sourceTemplate->placeholders as $placeholder) {
+                PlaceholderTemplate::create([
+                    'template_id' => $newTemplate->id,
+                    'placeholder_id' => $placeholder->id,
+                    'attribute_id' => $placeholder->pivot->attribute_id,
+                ]);
+            }
+            
+            DB::commit();
+            
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Template duplicated successfully',
+                'data' => $newTemplate->load('doctor', 'placeholders')
+            ], 201);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to duplicate template: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }
+

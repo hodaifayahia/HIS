@@ -18,7 +18,6 @@ const isModalOpen = ref(false);
 const selectedRoomType = ref(null);
 const searchQuery = ref('');
 const service_id = ref(route.params.id || '');
-const type = ref(null);
 
 
 
@@ -43,7 +42,6 @@ const filteredRoomTypes = computed(() => {
  */
 // In your <script setup>
 
-// Update your getRoomTypes function to include room_type filter
 const getRoomTypes = async () => {
     
     loading.value = true;
@@ -52,7 +50,6 @@ const getRoomTypes = async () => {
     try {
         const response = await axios.get('/api/room-types', {
             params: {
-                type: type.value,
                 service_id: service_id.value
             }
         });
@@ -66,11 +63,6 @@ const getRoomTypes = async () => {
     }
 };
 
-// Add a method to filter by room type
-const filterByRoomType = (roomTypeFilter) => {
-    type.value = roomTypeFilter;
-    getRoomTypes();
-};
 /**
  * Navigate to rooms list for specific type
  */
@@ -216,32 +208,6 @@ onMounted(() => {
     </div>
     
     <div class="room-types-page p-2">
-        <div class="btn-group mb-3" role="group" aria-label="Room type filter">
-    <button 
-        type="button"
-        @click="filterByRoomType('')"
-        :class="{'btn-primary': !type, 'btn-outline-secondary': type}"
-        class="btn"
-    >
-        All Rooms
-    </button>
-    <button 
-        type="button"
-        @click="filterByRoomType('Normal')"
-        :class="{'btn-primary': type === 'Normal', 'btn-outline-secondary': type !== 'Normal'}"
-        class="btn"
-    >
-        Normal Rooms
-    </button>
-    <button 
-        type="button"
-        @click="filterByRoomType('WaitingRoom')"
-        :class="{'btn-primary': type === 'WaitingRoom', 'btn-outline-secondary': type !== 'WaitingRoom'}"
-        class="btn"
-    >
-        Waiting Rooms
-    </button>
-</div>
         <div class="controls-section">
             <div class="controls-container">
                 <div class="search-section">

@@ -8,16 +8,50 @@ export const appointmentService = {
    */
   async checkSameDayAvailability(params) {
     try {
-      const response = await axios.post('/api/appointments/check-same-day-availability', params)
+      // Validate required parameters before making the request
+      if (!params.doctor_id || params.doctor_id === null || params.doctor_id === undefined) {
+        throw new Error('Doctor ID is required for availability check')
+      }
+
+      console.log('Checking same-day availability with validated params:', params)
+
+      // Prepare query parameters for GET request
+      const queryParams = {
+        doctor_id: params.doctor_id,
+        date: params.date || new Date().toISOString().split('T')[0], // Default to today if no date provided
+        include_slots: 'true' // Always include slots for same-day availability
+      }
+
+      // Add prestation_id if provided
+      if (params.prestation_id) {
+        queryParams.prestation_id = params.prestation_id
+      }
+
+      console.log('Sending GET request with query params:', queryParams)
+
+      // Use GET with query parameters as expected by the backend
+      const response = await axios.get('/api/appointments/checkAvailability', {
+        params: queryParams
+      })
+
+      console.log('API response received:', response)
       return {
         success: true,
         data: response.data
       }
     } catch (error) {
       console.error('Error checking same-day availability:', error)
+
+      // Provide more specific error messages
+      let errorMessage = error.response?.data?.message || error.message || 'Failed to check availability. Please try again.'
+
+      if (error.message.includes('Doctor ID is required')) {
+        errorMessage = 'Doctor information is missing. Please select a doctor first.'
+      }
+
       return {
         success: false,
-        message: error.response?.data?.message || 'Failed to check availability. Please try again.',
+        message: errorMessage,
         error
       }
     }

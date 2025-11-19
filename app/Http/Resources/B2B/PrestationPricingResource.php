@@ -51,8 +51,17 @@ class PrestationPricingResource extends JsonResource
         $formattedId = null;
         // Only generate formatted_id if serviceId and prestation_id are available
         
-            $formattedId = $this->prestation->service->id . '_' . $this->prestation_id;
+            $formattedId = $this->id . '_' . $this->prestation_id . '_' .$this->prestation->service->id ;
         
+
+        // Prepare contract percentage info if relation is loaded
+        $contractPercentageData = null;
+        if ($this->relationLoaded('contractPercentage') && $this->contractPercentage) {
+            $contractPercentageData = [
+                'id' => $this->contractPercentage->id,
+                'percentage' => (float) $this->contractPercentage->percentage,
+            ];
+        }
 
         return [
             'id'=> $this->id,
@@ -60,13 +69,17 @@ class PrestationPricingResource extends JsonResource
             'prestation_name' => $prestationName,
             'subname' => $this->subname,
             'service' => $this->prestation->service->name,
-
             'organisme_abrv' => $displayOrganismeAbrv, // Now uses the guaranteed non-null value
             'formatted_id' => $formattedId,
+            // Expose contract percentage fields for filtering and display
+            'contract_percentage_id' => $this->contract_percentage_id,
+            'contract_percentage' => $contractPercentageData,
             'pricing' => [
-                'prix' =>  $this->prix,
+                'prix' =>  $this->prix, // Convention price
+                'prix_with_vat' => $this->price_with_vat, // Convention price with VAT
                 'company_price' =>  $this->company_price,
                 'patient_price' =>  $this->patient_price,
+                'tva' => $this->tva, // VAT percentage
             ],
             'details' => [
                 'max_price_exceeded' => (bool) $this->max_price_exceeded, // Ensure boolean cast

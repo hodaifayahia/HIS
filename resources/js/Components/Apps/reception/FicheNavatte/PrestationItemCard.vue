@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
+import axios from 'axios'
 
 // PrimeVue Components
 import Card from 'primevue/card'
@@ -44,6 +45,10 @@ const props = defineProps({
     type: String,
     required: true
   },
+  ficheNavetteId: {
+    type: String,
+    required: true
+  },
   doctors: {
     type: Array,
     required: true,
@@ -66,6 +71,20 @@ const confirm = useConfirm()
 // State
 const showDetailsModal = ref(false)
 const showRemiseModal = ref(false)
+const showPaymentTypeDialog = ref(false)
+const showDoctorDialog = ref(false)
+const editingItem = ref(null)
+const selectedPaymentType = ref(null)
+const showConversionDialog = ref(false)
+const matchingPackage = ref(null)
+const isConvertingToPackage = ref(false)
+
+// Payment type options match backend validation
+const paymentTypeOptions = [
+  { label: 'Pré-paiement', value: 'Pré-paiement' },
+  { label: 'Post-paiement', value: 'Post-paiement' },
+  { label: 'Versement', value: 'Versement' }
+]
 
 // Safe access to group items
 const groupItems = computed(() => {
@@ -81,8 +100,41 @@ const cardTitle = computed(() => {
 })
 
 const cardSubtitle = computed(() => {
+  const doctors = []
+  
+  // Main group doctor
   if (props.group?.doctor_name) {
-    return `Dr. ${props.group.doctor_name}`
+    doctors.push(props.group.doctor_name)
+  }
+  
+  // Collect doctors from all items in the group
+  groupItems.value.forEach(item => {
+    // Item doctor
+    if (item.doctor_name && !doctors.includes(item.doctor_name)) {
+      doctors.push(item.doctor_name)
+    }
+    
+    // Package prestations doctors
+    if (item.package?.prestations) {
+      item.package.prestations.forEach(prestation => {
+        if (prestation.doctor?.name && !doctors.includes(prestation.doctor.name)) {
+          doctors.push(prestation.doctor.name)
+        }
+      })
+    }
+    
+    // Dependencies doctors
+    if (item.dependencies) {
+      item.dependencies.forEach(dependency => {
+        if (dependency.dependencyPrestation?.doctor?.name && !doctors.includes(dependency.dependencyPrestation.doctor.name)) {
+          doctors.push(dependency.dependencyPrestation.doctor.name)
+        }
+      })
+    }
+  })
+  
+  if (doctors.length > 0) {
+    return `Dr. ${doctors.join(', Dr. ')}`
   }
   return 'No doctor assigned'
 })
@@ -194,8 +246,10 @@ const packageDependencies = computed(() => {
 const organismColor = computed(() => {
   // Check if any item in the group has a convention with organism_color
   const itemWithConvention = groupItems.value.find(item => 
-    item.convention_id && item.convention?.organism_color
-  )
+  item.convention_id && item.convention?.organism_color
+)
+
+
   
   return itemWithConvention?.convention?.organism_color || null
 })
@@ -319,9 +373,10 @@ const mainDisplayItems = computed(() => {
           id: `dep_${dep.id || Math.random()}`,
           prestation: prestation,
           status: dep.status || 'required',
-          base_price: prestation.public_price || 0,
-          final_price: prestation.public_price || 0,
-          patient_share: prestation.public_price || 0,
+          // Prefer the combined TTC (with consumables VAT) when available
+          base_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+          final_price: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
+          patient_share: (prestation.price_with_vat_and_consumables_variant && prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat) || prestation.public_price || 0,
           dependencies: [],
           isDependency: true,
           originalDependency: dep,
@@ -369,6 +424,16 @@ const getItemTypeBadge = (item) => {
   return { label: 'Unknown', severity: 'secondary' }
 }
 
+// Human-friendly payment label formatter
+const paymentLabel = (raw) => {
+  const status = String(raw || 'unpaid').toLowerCase()
+  if (status === 'unpaid') return 'Not Paid'
+  if (status === 'partial') return 'Partial'
+  if (status === 'paid') return 'Paid'
+  // fallback: capitalize
+  return status.charAt(0).toUpperCase() + status.slice(1)
+}
+
 const getConventionBadge = (item) => {
   if (!item.convention_id) return null
   
@@ -377,6 +442,31 @@ const getConventionBadge = (item) => {
     severity: 'success'
   }
 }
+
+// Check if current group matches a package
+const canConvertToPackage = computed(() => {
+  // Only allow conversion for prestation groups, not packages
+  if (props.group?.type === 'package') {
+    return false
+  }
+  
+  // Must have at least 2 items to match a package
+  if (groupItems.value.length < 2) {
+    return false
+  }
+  
+  // All items must be prestations (no dependencies, no packages)
+  const allPrestations = groupItems.value.every(item => item.prestation_id && !item.package_id && !item.isDependency)
+  
+  return allPrestations
+})
+
+// Get the prestation IDs from the current group
+const groupPrestationIds = computed(() => {
+  return groupItems.value
+    .filter(item => item.prestation_id)
+    .map(item => item.prestation_id)
+})
 
 const updateItemStatus = async (item, newStatus) => {
   console.log('Updating item status:', item.id, newStatus)
@@ -389,6 +479,100 @@ const openDetails = () => {
 
 const openRemiseModal = () => {
   showRemiseModal.value = true
+}
+
+const checkForPackageConversion = async () => {
+  if (!canConvertToPackage.value) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Cannot Convert',
+      detail: 'Group cannot be converted to a package',
+      life: 3000
+    })
+    return
+  }
+
+  try {
+    console.log('Checking for package match:', groupPrestationIds.value)
+    
+    const result = await ficheNavetteService.detectMatchingPackage(
+      groupPrestationIds.value,
+      props.packages
+    )
+
+    if (result.success && result.data) {
+      matchingPackage.value = result.data
+      showConversionDialog.value = true
+      toast.add({
+        severity: 'info',
+        summary: 'Package Found',
+        detail: `Found matching package: ${result.data.name}`,
+        life: 3000
+      })
+    } else {
+      toast.add({
+        severity: 'warn',
+        summary: 'No Match',
+        detail: 'No package matches this combination of prestations',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('Error checking for package:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to check for matching package',
+      life: 3000
+    })
+  }
+}
+
+const performPackageConversion = async () => {
+  if (!matchingPackage.value) return
+
+  isConvertingToPackage.value = true
+  try {
+    console.log('Converting prestations to package:', {
+      ficheNavetteId: props.ficheNavetteId,
+      prestationIds: groupPrestationIds.value,
+      packageId: matchingPackage.value.id
+    })
+
+    const result = await ficheNavetteService.convertPrestationsToPackage(
+      props.ficheNavetteId,
+      groupPrestationIds.value,
+      matchingPackage.value.id
+    )
+
+    if (result.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Conversion Successful',
+        detail: `Converted to package: ${matchingPackage.value.name}`,
+        life: 3000
+      })
+
+      // Reset the dialog
+      showConversionDialog.value = false
+      matchingPackage.value = null
+
+      // Refresh the parent component
+      emit('item-updated', { refresh: true })
+    } else {
+      throw new Error(result.message || 'Conversion failed')
+    }
+  } catch (error) {
+    console.error('Error converting to package:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Conversion Failed',
+      detail: error.message || 'Failed to convert prestations to package',
+      life: 3000
+    })
+  } finally {
+    isConvertingToPackage.value = false
+  }
 }
 
   const removeItemGroup = (itemsGroup) => {
@@ -427,6 +611,50 @@ const removeDependency = async (dependency) => {
   }
 }
 
+const openPaymentTypeDialog = (item) => {
+  editingItem.value = item
+  selectedPaymentType.value = item.default_payment_type || null
+  showPaymentTypeDialog.value = true
+}
+
+const cancelPaymentTypeChange = () => {
+  editingItem.value = null
+  selectedPaymentType.value = null
+  showPaymentTypeDialog.value = false
+}
+
+const savePaymentTypeChange = async () => {
+  if (!editingItem.value) return
+  try {
+    let res
+
+    // If editingItem is a dependency (has parent_item_id) call dependency endpoint
+    if (editingItem.value.parent_item_id && editingItem.value.id) {
+      // dependency ids are numeric in DB
+      res = await ficheNavetteService.updateDependency(editingItem.value.id, {
+        default_payment_type: selectedPaymentType.value
+      })
+    } else {
+      // Otherwise update the fiche navette item
+      res = await ficheNavetteService.updateFicheNavetteItem(props.ficheNavetteId, editingItem.value.id, {
+        default_payment_type: selectedPaymentType.value
+      })
+    }
+
+    if (res.success) {
+      toast.add({ severity: 'success', summary: 'Saved', detail: 'Payment type updated', life: 3000 })
+      // Notify parent to refresh items
+      emit('item-updated', { refresh: true })
+      cancelPaymentTypeChange()
+    } else {
+      throw new Error(res.message || 'Update failed')
+    }
+  } catch (error) {
+    console.error('Error updating payment type:', error)
+    toast.add({ severity: 'error', summary: 'Error', detail: error.message || 'Failed to update payment type', life: 5000 })
+  }
+}
+
 const confirmRemoveDependency = (dependency) => {
   confirm.require({
     message: `Are you sure you want to remove the dependency "${dependency.dependencyPrestation?.name || dependency.dependency_prestation?.name || 'Unknown'}"?`,
@@ -440,18 +668,38 @@ const confirmRemoveDependency = (dependency) => {
   })
 }
 
-const handleApplyRemise = (data) => {
-  emit('apply-remise', props.group.id)
-  
-  toast.add({
-    severity: 'success',
-    summary: 'Success',
-    detail: 'Remise applied successfully',
-    life: 3000
-  })
-  
-  // Refresh the component data
-  emit('item-updated', { refresh: true })
+const handleApplyRemise = async (data) => {
+  try {
+    // Call the remise API endpoint
+    const response = await axios.post('/api/remise/apply', data)
+    
+    if (response.data.success) {
+      toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: 'Remise applied successfully',
+        life: 3000
+      })
+      
+      // Refresh the component data to show updated prices
+      emit('item-updated', { refresh: true })
+    } else {
+      toast.add({
+        severity: 'error',
+        summary: 'Error',
+        detail: response.data.message || 'Failed to apply remise',
+        life: 3000
+      })
+    }
+  } catch (error) {
+    console.error('Error applying remise:', error)
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'Failed to apply remise',
+      life: 3000
+    })
+  }
 }
 
 // FIXED: Update the packagePrestations computed property
@@ -487,24 +735,203 @@ const individualTotal = computed(() => {
   return total
 })
 
-// FIXED: Update showSavings computation
-const showSavings = computed(() => {
-  const isPackage = props.group.type === 'package'
-  const hasIndividualTotal = individualTotal.value > 0
-  const hasPackagePrice = props.group.total_price > 0
-  const hasSavings = individualTotal.value > props.group.total_price
+// NEW: compute a correct total for the group including main items + their dependencies (non-package)
+const totalPrice = computed(() => {
+  // If this is a package, use the package's total price directly
+  if (props.group?.type === 'package') {
+    // First try to get the declared package price from the group
+    const declaredPackagePrice = parseFloat(props.group?.total_price ?? 0) || 0
+    if (declaredPackagePrice > 0) {
+      return declaredPackagePrice
+    }
+    
+    // If no declared price, try to get it from the first item's package data
+    const firstItem = groupItems.value[0]
+    if (firstItem?.package?.total_price) {
+      return parseFloat(firstItem.package.total_price) || 0
+    }
+    
+    // If no package total price, try to get it from final_price of the main item
+    if (firstItem?.final_price) {
+      return parseFloat(firstItem.final_price) || 0
+    }
+    
+    // Fallback: sum individual prestations in the package
+    const packageSum = packagePrestations.value.reduce((sum, p) => {
+      const v = parseFloat(p.public_price ?? p.final_price ?? 0) || 0
+      return sum + v
+    }, 0)
+    
+    if (packageSum > 0) return packageSum
+  }
+
+  // For non-package groups, sum main items + their dependencies
+  // Sum main display items (these include package dependencies already added to mainDisplayItems)
+  const mainSum = mainDisplayItems.value.reduce((sum, item) => {
+    const v = parseFloat(item.final_price ?? item.base_price ?? item.prestation?.public_price ?? item.package?.total_price ?? 0) || 0
+    return sum + v
+  }, 0)
+
+  // Sum regular (non-package) dependencies that belong to items in this group
+  const dependencySum = regularDependencies.value.reduce((sum, dep) => {
+    // price may be on dependency.dependencyPrestation.public_price or dep.price or dependency_prestation.public_price
+    const price = parseFloat(
+      dep.dependencyPrestation?.public_price
+      ?? dep.dependencyPrestation?.final_price
+      ?? dep.dependency_prestation?.public_price
+      ?? dep.price
+      ?? 0
+    ) || 0
+    return sum + price
+  }, 0)
+
+  return mainSum + dependencySum
+})
+
+// Get payment status information
+const paymentStatusInfo = computed(() => {
+  // Check if any item in the group has payment_status
+  // Consider items with explicit payment_status or infer 'unpaid' when missing
+  if (!groupItems.value || groupItems.value.length === 0) return null
+
+  // Collect statuses, defaulting missing statuses to 'unpaid'
+  const paymentStatuses = groupItems.value.map(item => item.payment_status ? String(item.payment_status).toLowerCase() : 'unpaid')
+  const uniqueStatuses = [...new Set(paymentStatuses.filter(Boolean))]
+
+  // Prioritize most severe status
+  if (uniqueStatuses.includes('unpaid')) {
+    return { status: 'unpaid', label: 'Not Paid', severity: 'danger', color: '#dc3545' }
+  } else if (uniqueStatuses.includes('partial')) {
+    return { status: 'partial', label: 'Partial', severity: 'warning', color: '#fd7e14' }
+  } else if (uniqueStatuses.includes('paid')) {
+    return { status: 'paid', label: 'Paid', severity: 'success', color: '#28a745' }
+  }
+
+  return null
+})
+
+// Doctor tags for display
+const doctorTags = computed(() => {
+  const doctors = []
   
-  console.log('Savings calculation:', {
-    isPackage,
-    hasIndividualTotal,
-    hasPackagePrice,
-    hasSavings,
-    individualTotal: individualTotal.value,
-    packagePrice: props.group.total_price
+  // Main group doctor
+  if (props.group?.doctor_name) {
+    doctors.push({
+      id: props.group.doctor_id || 'unknown',
+      name: props.group.doctor_name,
+      source: 'group'
+    })
+  }
+  
+  // Collect doctors from all items in the group
+  groupItems.value.forEach(item => {
+    // Item doctor
+    if (item.doctor_name && !doctors.some(d => d.id === item.doctor_id)) {
+      doctors.push({
+        id: item.doctor_id || 'unknown',
+        name: item.doctor_name,
+        source: 'item'
+      })
+    }
+    
+    // Package prestations doctors
+    if (item.package?.prestations) {
+      item.package.prestations.forEach(prestation => {
+        if (prestation.doctor?.name && !doctors.some(d => d.id === prestation.doctor.id)) {
+          doctors.push({
+            id: prestation.doctor.id,
+            name: prestation.doctor.name,
+            source: 'package'
+          })
+        }
+      })
+    }
+    
+    // Dependencies doctors
+    if (item.dependencies) {
+      item.dependencies.forEach(dependency => {
+        if (dependency.dependencyPrestation?.doctor?.name && !doctors.some(d => d.id === dependency.dependencyPrestation.doctor.id)) {
+          doctors.push({
+            id: dependency.dependencyPrestation.doctor.id,
+            name: dependency.dependencyPrestation.doctor.name,
+            source: 'dependency'
+          })
+        }
+      })
+    }
   })
   
-  return isPackage && hasIndividualTotal && hasPackagePrice && hasSavings
+  return doctors
 })
+
+// NEW: Computed property to get doctors from package reception records
+const packageDoctors = computed(() => {
+  if (props.group?.type !== 'package') {
+    return []
+  }
+  
+  // Get all doctors from packageReceptionRecords of items in this group
+  const doctors = []
+  
+  groupItems.value.forEach(item => {
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        // Avoid duplicates by checking if doctor already exists
+        if (record.doctor && !doctors.some(d => d.id === record.doctor.id)) {
+          doctors.push({
+            id: record.doctor.id,
+            name: record.doctor.name,
+            prestation_id: record.prestation_id,
+            source: 'package_reception'
+          })
+        }
+      })
+    }
+  })
+  
+  return doctors
+})
+
+// Methods to get doctors for each prestation in package
+const getPrestationDoctors = (prestation) => {
+  if (!prestation || !prestation.id) return []
+  
+  // Find doctors assigned to this specific prestation from packageReceptionRecords
+  const doctors = []
+  
+  groupItems.value.forEach(item => {
+    if (item.packageReceptionRecords && Array.isArray(item.packageReceptionRecords)) {
+      item.packageReceptionRecords.forEach(record => {
+        if (record.prestation_id === prestation.id && record.doctor) {
+          // Avoid duplicates
+          if (!doctors.some(d => d.id === record.doctor.id)) {
+            doctors.push({
+              id: record.doctor.id,
+              name: record.doctor.name
+            })
+          }
+        }
+      })
+    }
+  })
+  
+  return doctors
+}
+
+const showPrestationDoctors = (prestation) => {
+  const doctors = getPrestationDoctors(prestation)
+  if (doctors.length === 0) return
+  
+  // For now, just show a toast with the doctor names
+  // In the future, this could open a dialog
+  const doctorNames = doctors.map(d => d.name).join(', ')
+  toast.add({
+    severity: 'info',
+    summary: `Doctors for ${prestation.name}`,
+    detail: `Assigned doctors: ${doctorNames}`,
+    life: 4000
+  })
+}
 </script>
 
 <template>
@@ -520,7 +947,58 @@ const showSavings = computed(() => {
           <small class="card-subtitle">{{ cardSubtitle }}</small>
         </div>
       </div>
-     
+      
+      <!-- Header Actions with Payment Status -->
+      <div class="header-actions">
+        <!-- Payment Status Chip -->
+        <Chip
+          v-if="paymentStatusInfo"
+          :label="paymentStatusInfo.label"
+          :severity="paymentStatusInfo.severity"
+          class="payment-status-chip"
+          :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
+          size="small"
+        />
+        
+        <!-- Convention Chips -->
+        <div v-if="conventionChips.length > 0" class="convention-chips">
+          <Chip
+            v-for="chip in conventionChips.slice(0, 2)"
+            :key="chip.id"
+            :label="chip.label"
+            severity="info"
+            class="convention-chip"
+            size="small"
+          />
+          <Chip
+            v-if="conventionChips.length > 2"
+            :label="`+${conventionChips.length - 2}`"
+            severity="secondary"
+            size="small"
+          />
+        </div>
+        
+        <!-- Doctor Tags -->
+        <div v-if="((doctorTags.length > 0) && (packageDoctors.length === 0))" class="doctor-chips">
+          <Chip
+            v-for="doctor in doctorTags.slice(0, 2)"
+            :key="doctor.id"
+            :label="`Dr. ${doctor.name}`"
+            severity="secondary"
+            class="doctor-chip"
+            size="small"
+            icon="pi pi-user-md"
+          />
+          <Chip
+            v-if="doctorTags.length > 2"
+            :label="`+${doctorTags.length - 2} more`"
+            severity="secondary"
+            size="small"
+          />
+        </div>
+
+      
+      </div>
     </div>
 
     <!-- Content -->
@@ -550,9 +1028,16 @@ const showSavings = computed(() => {
             severity="secondary"
           />
         </div>
-        <div class="info-item">
-          <span class="info-label">Total:</span>
-          <strong class="total-price">{{ formatCurrency(group?.total_price || 0) }}</strong>
+        
+        <!-- Payment Status -->
+        <div v-if="paymentStatusInfo" class="info-item">
+          <span class="info-label">Payment:</span>
+          <Chip
+            :label="paymentStatusInfo.label"
+            :severity="paymentStatusInfo.severity"
+            class="payment-status-chip"
+            :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
+          />
         </div>
       </div>
 
@@ -598,35 +1083,51 @@ const showSavings = computed(() => {
       </div>
 
       <!-- FIXED: Package Content Section -->
-      <div v-if="group?.type === 'package'" class="package-content">
-        <!-- Package Info -->
-        <div class="package-info">
-          <div class="package-details">
-            <div class="detail-row">
-              <span class="detail-label">Package Price:</span>
-              <span class="detail-value package-price">{{ formatCurrency(group.total_price) }}</span>
-            </div>
-            <div v-if="group.doctor_name" class="detail-row">
-              <span class="detail-label">Assigned Doctor:</span>
-              <span class="detail-value">{{ group.doctor_name }}</span>
-            </div>
+      <!-- Package Reception Doctors -->
+        <div v-if="packageDoctors.length > 0" class="package-doctor-chips">
+          <div v-if="packageDoctors.length <= 3" class="doctor-chips-grid ">
+            <Chip
+              v-for="doctor in packageDoctors"
+              :key="`pkg-doc-${doctor.id}`"
+              :label="`${doctor.name}`"
+              severity="info"
+              class="package-doctor-chip"
+              title="Package Reception Doctor"
+            />
+          </div>
+          <div v-else class="doctor-chips-compact">
+            <Chip
+              :label="`${packageDoctors.length} Doctors`"
+              severity="info"
+              class="doctor-count-chip"
+              size="small"
+              icon="pi pi-users"
+              @click="showDoctorDialog = true"
+              title="Click to see all doctors"
+            />
+            <small class="doctor-preview">
+              {{ packageDoctors.slice(0, 2).map(d => d.name).join(', ') }}
+              <span v-if="packageDoctors.length > 2"> +{{ packageDoctors.length - 2 }} more</span>
+            </small>
           </div>
         </div>
-
-        
-
-      
-        
-      </div>
     </div>
 
     <!-- Footer - Fixed at bottom -->
     <div class="card-footer">
       <Button
+        v-if="!paymentStatusInfo || paymentStatusInfo.status !== 'paid'"
         icon="pi pi-percentage"
         label="Remise"
         class="p-button-outlined p-button-warning p-button-sm"
         @click="openRemiseModal"
+      />
+      <Button
+        v-if="canConvertToPackage"
+        icon="pi pi-box"
+        label="Convert to Package"
+        class="p-button-outlined p-button-info p-button-sm"
+        @click="checkForPackageConversion"
       />
       <Button
         icon="pi pi-eye"
@@ -635,6 +1136,7 @@ const showSavings = computed(() => {
         @click="openDetails"
       />
       <Button
+        v-if="!paymentStatusInfo || (paymentStatusInfo.status !== 'paid' && paymentStatusInfo.status !== 'partial')"
         icon="pi pi-trash"
         label="Remove"
         class="p-button-outlined p-button-danger p-button-sm"
@@ -679,34 +1181,16 @@ const showSavings = computed(() => {
                 <span class="detail-label">Doctor:</span>
                 <span>{{ group.doctor_name || 'Not assigned' }}</span>
               </div>
-              <div class="detail-item">
-                <span class="detail-label">Total Price:</span>
-                <strong class="total-amount">{{ formatCurrency(group.total_price) }}</strong>
-              </div>
               
-              <!-- Package-specific info -->
-              <div v-if="group.type === 'package'" class="detail-item">
-                <span class="detail-label">Package Prestations:</span>
+              <!-- Payment Status in Details -->
+              <div v-if="paymentStatusInfo" class="detail-item">
+                <span class="detail-label">Payment Status:</span>
                 <Chip
-                  :label="`${packagePrestations.length} prestations`"
-                  severity="info"
+                  :label="paymentStatusInfo.label"
+                  :severity="paymentStatusInfo.severity"
+                  class="payment-status-chip"
+                  :style="{ backgroundColor: paymentStatusInfo.color, color: 'white', borderColor: paymentStatusInfo.color }"
                 />
-              </div>
-              
-              <!-- Package Savings Info -->
-              <div v-if="group.type === 'package' && showSavings" class="detail-item">
-                <span class="detail-label">Savings:</span>
-                <div class="savings-chips">
-                  <Chip
-                    :label="`Individual Total: ${formatCurrency(individualTotal)}`"
-                    severity="warning"
-                    class="mr-2"
-                  />
-                  <Chip
-                    :label="`You Save: ${formatCurrency(individualTotal - group.total_price)}`"
-                    severity="success"
-                  />
-                </div>
               </div>
               
               <div class="detail-item">
@@ -777,10 +1261,30 @@ const showSavings = computed(() => {
                 </template>
               </Column>
 
-              <Column field="public_price" header="Individual Price" :sortable="true">
+              <Column header="Assigned Doctor" :sortable="true">
                 <template #body="{ data }">
-                  <div class="price-cell">
-                    <span class="individual-price">{{ formatCurrency(data.public_price) }}</span>
+                  <div class="doctor-assignment-cell">
+                    <template v-if="getPrestationDoctors(data).length > 0">
+                      <div v-if="getPrestationDoctors(data).length === 1" class="single-doctor">
+                        <Chip
+                          :label="getPrestationDoctors(data)[0].name"
+                          severity="success"
+                          size="small"
+                          icon="pi pi-user-md"
+                        />
+                      </div>
+                      <div v-else class="multiple-doctors">
+                        <Chip
+                          :label="`${getPrestationDoctors(data).length} doctors`"
+                          severity="warning"
+                          size="small"
+                          icon="pi pi-users"
+                          @click="showPrestationDoctors(data)"
+                          title="Click to see assigned doctors"
+                        />
+                      </div>
+                    </template>
+                    <span v-else class="no-doctor text-muted">Not assigned</span>
                   </div>
                 </template>
               </Column>
@@ -818,22 +1322,6 @@ const showSavings = computed(() => {
                 </template>
               </Column> -->
             </DataTable>
-
-            <!-- Package Summary -->
-            <div class="package-summary mt-3">
-              <div class="summary-row">
-                <span class="summary-label">Individual Prestations Total:</span>
-                <span class="summary-value individual-total">{{ formatCurrency(individualTotal) }}</span>
-              </div>
-              <div class="summary-row package-price-row">
-                <span class="summary-label">Package Price:</span>
-                <span class="summary-value package-price">{{ formatCurrency(group.total_price) }}</span>
-              </div>
-              <div v-if="showSavings" class="summary-row savings-row">
-                <span class="summary-label">Your Savings:</span>
-                <span class="summary-value savings-amount">{{ formatCurrency(individualTotal - group.total_price) }}</span>
-              </div>
-            </div>
           </template>
         </Card>
 
@@ -892,21 +1380,21 @@ const showSavings = computed(() => {
                 </template>
               </Column>
 
-              <Column field="base_price" header="Base Price">
+              <!-- Payment Status Column -->
+              <Column field="payment_status" header="Payment Status">
                 <template #body="{ data }">
-                  {{ formatCurrency(data.base_price) }}
-                </template>
-              </Column>
-
-              <Column field="final_price" header="Final Price">
-                <template #body="{ data }">
-                  <strong>{{ formatCurrency(data.final_price) }}</strong>
-                </template>
-              </Column>
-
-              <Column field="patient_share" header="Patient Share">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.patient_share) }}
+                  <Chip
+                    :label="paymentLabel(data.payment_status)"
+                    :severity="(data.payment_status || 'unpaid') === 'paid' ? 'success' : (data.payment_status || 'unpaid') === 'partial' ? 'warning' : 'danger'"
+                    size="small"
+                    :style="{
+                      backgroundColor: (data.payment_status || 'unpaid') === 'paid' ? '#28a745' : 
+                                     (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545',
+                      color: 'white',
+                      borderColor: (data.payment_status || 'unpaid') === 'paid' ? '#28a745' : 
+                                  (data.payment_status || 'unpaid') === 'partial' ? '#fd7e14' : '#dc3545'
+                    }"
+                  />
                 </template>
               </Column>
 
@@ -927,12 +1415,20 @@ const showSavings = computed(() => {
 
               <Column header="Actions">
                 <template #body="{ data }">
-                  <Button
-                    icon="pi pi-trash"
-                    class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                    @click="removeItem(data.id)"
-                    v-tooltip.top="'Remove item'"
-                  />
+                  <div class="item-actions">
+                    <Button
+                      icon="pi pi-pencil"
+                      class="p-button-rounded p-button-text p-button-sm p-button-info"
+                      @click="openPaymentTypeDialog(data)"
+                      v-tooltip.top="'Edit payment type'"
+                    />
+                    <Button
+                      icon="pi pi-trash"
+                      class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                      @click="removeItem(data.id)"
+                      v-tooltip.top="'Remove item'"
+                    />
+                  </div>
                 </template>
               </Column>
             </DataTable>
@@ -991,12 +1487,6 @@ const showSavings = computed(() => {
                 </template>
               </Column>
 
-              <Column field="price" header="Price">
-                <template #body="{ data }">
-                  {{ formatCurrency(data.dependencyPrestation?.public_price || data.dependency_prestation?.public_price || 0) }}
-                </template>
-              </Column>
-
               <Column field="notes" header="Notes">
                 <template #body="{ data }">
                   <span class="notes-text">{{ data.notes || 'No notes' }}</span>
@@ -1023,17 +1513,50 @@ const showSavings = computed(() => {
               <!-- Add Actions Column for Delete Button -->
               <Column header="Actions" style="width: 120px">
                 <template #body="{ data }">
-                  <div class="dependency-actions">
-                    <Button
-                      icon="pi pi-trash"
-                      class="p-button-rounded p-button-text p-button-sm p-button-danger"
-                      @click="confirmRemoveDependency(data)"
-                      v-tooltip.top="'Remove dependency'"
-                    />
-                  </div>
+                      <div class="dependency-actions">
+                        <Button
+                          icon="pi pi-pencil"
+                          class="p-button-rounded p-button-text p-button-sm p-button-info"
+                          @click="openPaymentTypeDialog(data)"
+                          v-tooltip.top="'Edit payment type'"
+                        />
+                        <Button
+                          icon="pi pi-trash"
+                          class="p-button-rounded p-button-text p-button-sm p-button-danger"
+                          @click="confirmRemoveDependency(data)"
+                          v-tooltip.top="'Remove dependency'"
+                        />
+                      </div>
                 </template>
               </Column>
             </DataTable>
+          </template>
+        </Card>
+
+        <!-- NEW: Package Doctors Section -->
+        <Card v-if="group?.type === 'package' && packageDoctors.length > 0" class="mb-4">
+          <template #title>
+            <div class="table-title">
+              <i class="pi pi-users"></i>
+              Doctors in Package ({{ packageDoctors.length }})
+            </div>
+          </template>
+          <template #content>
+            <div class="doctors-grid">
+              <div 
+                v-for="doctor in packageDoctors" 
+                :key="`${doctor.id}_${doctor.prestation_id}`"
+                class="doctor-card"
+              >
+                <div class="doctor-avatar">
+                  <i class="pi pi-user-md"></i>
+                </div>
+                <div class="doctor-info">
+                  <div class="doctor-name">Dr. {{ doctor.name }}</div>
+                  <small class="doctor-id">ID: {{ doctor.id }}</small>
+                </div>
+              </div>
+            </div>
           </template>
         </Card>
       </div>
@@ -1053,14 +1576,106 @@ const showSavings = computed(() => {
       v-model:visible="showRemiseModal"
       :patientId="props.patientId"
       :group="group"
+      :ficheNavetteId="props.ficheNavetteId"
       :prestations="prestations"
       :doctors="doctors"
       @apply-remise="handleApplyRemise"
     />
+
+    <!-- Payment Type Edit Dialog -->
+    <Dialog
+      v-model:visible="showPaymentTypeDialog"
+      header="Edit Payment Type"
+      :modal="true"
+      :style="{ width: '420px' }"
+      :closable="false"
+    >
+      <div class="p-fluid">
+        <div class="p-field">
+          <label for="paymentType">Payment Type</label>
+          <Dropdown
+            inputId="paymentType"
+            :options="paymentTypeOptions"
+            optionLabel="label"
+            optionValue="value"
+            v-model="selectedPaymentType"
+            placeholder="Select a payment type"
+          />
+        </div>
+      </div>
+      <template #footer>
+        <Button label="Cancel" class="p-button-text" @click="cancelPaymentTypeChange" />
+        <Button label="Save" icon="pi pi-check" @click="savePaymentTypeChange" />
+      </template>
+    </Dialog>
+
+    <!-- Package Conversion Dialog -->
+    <Dialog
+      v-model:visible="showConversionDialog"
+      header="Convert to Package"
+      :modal="true"
+      :style="{ width: '500px' }"
+      @hide="() => { matchingPackage = null }"
+    >
+      <div v-if="matchingPackage" class="conversion-dialog-content">
+        <div class="info-section">
+          <h3>Matching Package Found</h3>
+          <div class="package-info-display">
+            <div class="info-row">
+              <span class="label">Package Name:</span>
+              <span class="value font-bold">{{ matchingPackage.name }}</span>
+            </div>
+            <div v-if="matchingPackage.description" class="info-row">
+              <span class="label">Description:</span>
+              <span class="value">{{ matchingPackage.description }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Package Price:</span>
+              <span class="value font-bold text-primary">{{ formatCurrency(matchingPackage.price) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="current-items-section">
+          <h3>Current Prestations</h3>
+          <div class="items-list">
+            <div v-for="prestationId in groupPrestationIds" :key="prestationId" class="item-row">
+              <i class="pi pi-check-circle text-success"></i>
+              <span>{{ 
+                groupItems.find(item => item.prestation_id === prestationId)?.prestation?.name || `Prestation ${prestationId}`
+              }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="notice-section">
+          <i class="pi pi-info-circle"></i>
+          <p>Converting will remove the current items and create a single package item.</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <Button 
+          label="Cancel" 
+          class="p-button-text" 
+          @click="showConversionDialog = false" 
+        />
+        <Button 
+          label="Convert to Package" 
+          icon="pi pi-check"
+          :loading="isConvertingToPackage"
+          :disabled="isConvertingToPackage"
+          class="p-button-success"
+          @click="performPackageConversion"
+        />
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
+@reference "../../../../../../resources/css/app.css";
+
 /* Base Card Styles - Using Flexbox Layout */
 .item-card {
   margin-bottom: 1rem;
@@ -1190,11 +1805,25 @@ const showSavings = computed(() => {
 }
 
 .convention-chip {
-  font-weight: 500;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+}
+
+.doctor-chips {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.doctor-chip {
+  font-size: 0.75rem;
+  background-color: var(--blue-100) !important;
+  color: var(--blue-700) !important;
+  border-color: var(--blue-200) !important;
 }
 
 .type-chip {
+  font-weight: 500;
+  font-size: 0.8rem;
   white-space: nowrap;
 }
 
@@ -1670,27 +2299,246 @@ const showSavings = computed(() => {
   word-break: break-all;
 }
 
-/* Responsive design */
-@media (max-width: 768px) {
-  .prestations-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .package-savings {
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
-  }
-  
-  .prestation-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .prestation-price {
-    text-align: left;
-    align-self: stretch;
-  }
+/* Payment Status Styles */
+.payment-status-chip {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.payment-status-chip:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Payment status specific colors */
+.payment-status-unpaid {
+  background-color: #dc3545 !important;
+  color: white !important;
+  border-color: #dc3545 !important;
+}
+
+.payment-status-partial {
+  background-color: #fd7e14 !important;
+  color: white !important;
+  border-color: #fd7e14 !important;
+}
+
+.payment-status-paid {
+  background-color: #28a745 !important;
+  color: white !important;
+  border-color: #28a745 !important;
+}
+
+/* Package Conversion Dialog Styles */
+.conversion-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.info-section h3,
+.current-items-section h3 {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.package-info-display {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #7dd3fc;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #bae6fd;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+.info-row .label {
+  color: #0369a1;
+  font-weight: 500;
+}
+
+.info-row .value {
+  color: #1f2937;
+  text-align: right;
+  word-break: break-word;
+  margin-left: 1rem;
+}
+
+.items-list {
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #10b981;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  color: #374151;
+}
+
+.item-row i {
+  font-size: 0.9rem;
+}
+
+.notice-section {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #7f1d1d;
+}
+
+.notice-section i {
+  flex-shrink: 0;
+  color: #dc2626;
+  font-size: 1.1rem;
+  margin-top: 0.125rem;
+}
+
+.notice-section p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.font-bold {
+  font-weight: 600;
+}
+
+.text-primary {
+  color: #0369a1;
+}
+
+.text-success {
+  color: #10b981;
+}
+
+/* Package Doctors Grid */
+.doctors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.doctor-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+
+.doctor-card:hover {
+  border-color: #007bff;
+  background-color: #f8f9ff;
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.doctor-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background-color: var(--blue-100, #dbeafe);
+  color: var(--blue-600, #2563eb);
+  border-radius: 50%;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.doctor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.doctor-name {
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.doctor-id {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+/* Doctor Assignment Cell Styles */
+.doctor-assignment-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.single-doctor {
+  display: flex;
+  align-items: center;
+}
+
+.multiple-doctors {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.multiple-doctors:hover {
+  opacity: 0.8;
+}
+
+.no-doctor {
+  font-style: italic;
+  color: #6c757d;
+}
+
+/* Doctor Chips Grid and Compact Styles */
+.doctor-chips-grid {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.doctor-chips-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.doctor-count-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doctor-count-chip:hover {
+  transform: scale(1.05);
+}
+
+.doctor-preview {
+  font-size: 0.75rem;
+  color: #6c757d;
+  margin: 0;
 }
 </style>
