@@ -137,10 +137,9 @@ const stockRoutes = [
         props: (route) => ({ reserveId: route.params.reserveId })
       },
       {
-        path: 'selling-settings',
-        name: 'stock.selling-settings',
-        component: () => import('../Pages/Apps/pharmacy/SellingSettings/SellingSettingslist.vue'),
-        props: { type: 'stock' }
+        path: 'service-groups',
+        name: 'stock.service-groups',
+        component: () => import('../Pages/Apps/stock/ServiceGroups/ServiceGroupList.vue'),
       },
       {
         path: 'consignments',

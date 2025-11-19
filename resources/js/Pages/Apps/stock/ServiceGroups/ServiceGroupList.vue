@@ -11,8 +11,8 @@
       <div class="tw-bg-gradient-to-r tw-from-blue-600 tw-to-indigo-700 tw-rounded-2xl tw-shadow-xl tw-p-8 tw-text-white">
         <div class="tw-flex tw-justify-between tw-items-center">
           <div>
-            <h1 class="tw-text-4xl tw-font-bold tw-mb-2">Service Groups</h1>
-            <p class="tw-text-blue-100">Manage service groups for {{ type === 'pharmacy' ? 'Pharmacy' : 'Stock' }}</p>
+            <h1 class="tw-text-4xl tw-font-bold tw-mb-2">Selling Settings</h1>
+            <p class="tw-text-blue-100">Manage service groups for selling settings</p>
           </div>
           <div class="tw-flex tw-gap-4">
             <Button
@@ -411,7 +411,7 @@ export default {
   props: {
     type: {
       type: String,
-      default: 'pharmacy',
+      default: 'stock',
       validator: (value) => ['stock', 'pharmacy'].includes(value)
     }
   },

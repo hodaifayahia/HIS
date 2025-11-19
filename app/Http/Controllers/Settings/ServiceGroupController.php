@@ -21,6 +21,11 @@ class ServiceGroupController extends Controller
         try {
             $query = ServiceGroup::with(['services', 'creator', 'updater']);
 
+            // Filter by type
+            if ($request->has('type')) {
+                $query->where('type', $request->type);
+            }
+
             // Filter by active status
             if ($request->has('is_active')) {
                 $query->where('is_active', $request->is_active);
@@ -63,10 +68,11 @@ class ServiceGroupController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:service_groups,name',
+            'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'code' => 'nullable|string|max:50|unique:service_groups,code',
             'color' => 'nullable|string|max:7',
+            'type' => 'required|string|in:stock,pharmacy',
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer',
             'service_ids' => 'nullable|array',
@@ -89,6 +95,7 @@ class ServiceGroupController extends Controller
                 'description' => $request->description,
                 'code' => $request->code,
                 'color' => $request->color ?? '#3B82F6',
+                'type' => $request->type,
                 'is_active' => $request->is_active ?? true,
                 'sort_order' => $request->sort_order ?? 0,
                 'created_by' => Auth::id(),
@@ -144,13 +151,14 @@ class ServiceGroupController extends Controller
     /**
      * Update the specified service group
      */
-    public function update(Request $request, $id): JsonResponse
+    public function update(Request $request, ServiceGroup $serviceGroup): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|string|max:255|unique:service_groups,name,'.$id,
+            'name' => 'required|string|max:255|unique:service_groups,name,' . $serviceGroup->id,
             'description' => 'nullable|string',
-            'code' => 'nullable|string|max:50|unique:service_groups,code,'.$id,
+            'code' => 'nullable|string|max:50|unique:service_groups,code,' . $serviceGroup->id,
             'color' => 'nullable|string|max:7',
+            'type' => 'required|string|in:stock,pharmacy',
             'is_active' => 'boolean',
             'sort_order' => 'nullable|integer',
             'service_ids' => 'nullable|array',
@@ -168,26 +176,30 @@ class ServiceGroupController extends Controller
         try {
             DB::beginTransaction();
 
-            $group = ServiceGroup::findOrFail($id);
+            $serviceGroup->update([
+                'name' => $request->name,
+                'description' => $request->description,
+                'code' => $request->code,
+                'color' => $request->color,
+                'type' => $request->type,
+                'is_active' => $request->is_active ?? true,
+                'sort_order' => $request->sort_order ?? 0,
+                'updated_by' => Auth::id(),
+            ]);
 
-            $group->update(array_merge(
-                $request->only(['name', 'description', 'code', 'color', 'is_active', 'sort_order']),
-                ['updated_by' => Auth::id()]
-            ));
-
-            // Update services if provided
+            // Sync services if provided
             if ($request->has('service_ids')) {
-                $group->syncServices($request->service_ids ?? []);
+                $serviceGroup->syncServices($request->service_ids);
             }
 
-            $group->load(['services', 'creator', 'updater']);
+            $serviceGroup->load(['services', 'creator']);
 
             DB::commit();
 
             return response()->json([
                 'status' => 'success',
                 'message' => 'Service group updated successfully',
-                'data' => $group,
+                'data' => $serviceGroup,
             ]);
         } catch (\Exception $e) {
             DB::rollBack();

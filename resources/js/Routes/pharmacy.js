@@ -138,11 +138,12 @@ const pharmacyRoutes = [
         name: 'pharmacy.service-groups',
         component: () => import('../Pages/Apps/pharmacy/ServiceGroups/ServiceGroupList.vue'),
       },
-      // {
-      //   path: 'selling-settings',
-      //   name: 'pharmacy.selling-settings',
-      //   component: () => import('../Pages/Apps/pharmacy/SellingSettings/ServiceGroupList.'),
-      // }
+      {
+        path: 'selling-settings',
+        name: 'pharmacy.selling-settings',
+        component: () => import('../Pages/Apps/pharmacy/SellingSettings/SellingSettingslist.vue'),
+        props: { type: 'pharmacy' }
+      }
     ],
   },
 ];

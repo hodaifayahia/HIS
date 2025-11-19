@@ -17,7 +17,6 @@ const isProductsOpen = ref(false);
 const isSuppliersOpen = ref(false);
 const isReportsOpen = ref(false);
 
-const toggleProducts = () => { isProductsOpen.value = !isProductsOpen.value; };
 const toggleSuppliers = () => { isSuppliersOpen.value = !isSuppliersOpen.value; };
 const toggleReports = () => { isReportsOpen.value = !isReportsOpen.value; };
 
@@ -41,59 +40,47 @@ const hasPermission = (requiredRoles) => {
                 </router-link>
             </li>
             <!-- Products Management -->
-            <li class="nav-item has-treeview" :class="{ 'menu-is-opening menu-open': isProductsOpen }">
-                <a href="#" class="nav-link" @click.prevent="toggleProducts">
+            <li class="nav-item">
+                <router-link to="/stock/productList" active-class="active" class="nav-link">
                     <i class="nav-icon fas fa-box"></i>
-                    <p>
-                        Product Management
-                        <i class="right fas fa-angle-left"></i>
-                    </p>
-                </a>
-                <ul class="nav nav-treeview" v-show="isProductsOpen">
-                    <li class="nav-item">
-                        <router-link to="/stock/productList" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Product List</p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/stock/services-stock" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Service Stock</p>
-                        </router-link>
-                    </li>
+                    <p>Product List</p>
+                </router-link>
+            </li>
+            <li class="nav-item">
+                <router-link to="/stock/services-stock" active-class="active" class="nav-link">
+                    <i class="nav-icon fas fa-cube"></i>
+                    <p>Service Stock</p>
+                </router-link>
+            </li>
             <li class="nav-item">
                 <router-link to="/stock/product-reserves" active-class="active" class="nav-link">
-                    <i class="fas fa-bookmark nav-icon"></i>
+                    <i class="nav-icon fas fa-bookmark"></i>
                     <p>Product Reserves</p>
                 </router-link>
             </li>
             <li class="nav-item">
-                <router-link to="/stock/selling-settings" active-class="active" class="nav-link">
-                    <i class="fas fa-percentage nav-icon"></i>
-                    <p>Selling Settings</p>
+                <router-link to="/stock/service-groups" active-class="active" class="nav-link">
+                    <i class="nav-icon fas fa-percentage"></i>
+                    <p>Service Groups</p>
                 </router-link>
             </li>
             <li class="nav-item">
                 <router-link to="/stock/stockages" active-class="active" class="nav-link">
-                    <i class="far fa-circle nav-icon"></i>
+                    <i class="nav-icon fas fa-warehouse"></i>
                     <p>Storages</p>
                 </router-link>
             </li>
-                    <li class="nav-item">
-                        <router-link to="/stock/requests" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>My Requests</p>
-                        </router-link>
-                    </li>
-                    <li class="nav-item">
-                        <router-link to="/stock/approvals" active-class="active" class="nav-link">
-                            <i class="far fa-circle nav-icon"></i>
-                            <p>Approvals</p>
-                        </router-link>
-                    </li>
-
-                </ul>
+            <li class="nav-item">
+                <router-link to="/stock/requests" active-class="active" class="nav-link">
+                    <i class="nav-icon fas fa-clipboard-list"></i>
+                    <p>My Requests</p>
+                </router-link>
+            </li>
+            <li class="nav-item">
+                <router-link to="/stock/approvals" active-class="active" class="nav-link">
+                    <i class="nav-icon fas fa-check-circle"></i>
+                    <p>Approvals</p>
+                </router-link>
             </li>
 
             <!-- Purchasing Management -->

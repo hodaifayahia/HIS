@@ -360,23 +360,23 @@ onMounted(() => {
 
 /* PrimeVue Buttons */
 .p-button-primary {
-  @apply tw-bg-blue-600 tw-border-blue-600 tw-text-white hover:tw-tw-bg-blue-700 focus:tw-tw-ring-blue-500;
+  @apply tw-bg-blue-600 tw-border-blue-600 tw-text-white hover:tw-bg-blue-700 focus:tw-ring-blue-500;
 }
 
 .p-button-secondary {
-  @apply tw-bg-gray-200 tw-border-gray-200 tw-text-gray-800 hover:tw-tw-bg-gray-300 focus:tw-tw-ring-gray-300;
+  @apply tw-bg-gray-200 tw-border-gray-200 tw-text-gray-800 hover:tw-bg-gray-300 focus:tw-ring-gray-300;
 }
 
 .p-button-danger {
-  @apply tw-bg-red-600 tw-border-red-600 tw-text-white hover:tw-tw-bg-red-700 focus:tw-tw-ring-red-500;
+  @apply tw-bg-red-600 tw-border-red-600 tw-text-white hover:tw-bg-red-700 focus:tw-ring-red-500;
 }
 
 /* PrimeVue Inputs */
 :deep(.p-inputtext) {
-  @apply tw-border-gray-300 focus:tw-tw-border-blue-500 focus:tw-tw-ring-blue-500 tw-shadow-sm;
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-blue-500 tw-shadow-sm;
 }
 
 :deep(.p-dropdown) {
-  @apply tw-border-gray-300 focus:tw-tw-border-blue-500 focus:tw-tw-ring-blue-500 tw-shadow-sm;
+  @apply tw-border-gray-300 focus:tw-border-blue-500 focus:tw-ring-blue-500 tw-shadow-sm;
 }
 </style>

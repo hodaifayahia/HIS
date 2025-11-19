@@ -19,6 +19,7 @@ class ServiceGroup extends Model
         'description',
         'code',
         'color',
+        'type',
         'is_active',
         'sort_order',
         'created_by',

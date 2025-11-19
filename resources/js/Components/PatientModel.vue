@@ -384,6 +384,25 @@ const emitUpdate = (newPatient) => {
 const submitForm = async (values) => {
     try {
         const submissionData = { ...values, id: Patient.value.id };
+        
+        // Format dateOfBirth to YYYY-MM-DD if it's a Date object
+        if (submissionData.dateOfBirth instanceof Date) {
+            submissionData.dateOfBirth = submissionData.dateOfBirth.toISOString().split('T')[0];
+        } else if (submissionData.dateOfBirth && typeof submissionData.dateOfBirth === 'string') {
+            // If it's already a string in ISO format, extract just the date part
+            if (submissionData.dateOfBirth.includes('T')) {
+                submissionData.dateOfBirth = submissionData.dateOfBirth.split('T')[0];
+            }
+        }
+        
+        // Format identity_issued_on similarly
+        if (submissionData.identity_issued_on instanceof Date) {
+            submissionData.identity_issued_on = submissionData.identity_issued_on.toISOString().split('T')[0];
+        } else if (submissionData.identity_issued_on && typeof submissionData.identity_issued_on === 'string') {
+            if (submissionData.identity_issued_on.includes('T')) {
+                submissionData.identity_issued_on = submissionData.identity_issued_on.split('T')[0];
+            }
+        }
 
         if (isEditMode.value) {
             const response = await axios.put(`/api/patients/${submissionData.id}`, submissionData);
@@ -564,13 +583,22 @@ const submitForm = async (values) => {
                                         <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
                                             Date of Birth
                                         </label>
-                                        <Calendar
-                                            v-model="Patient.dateOfBirth"
-                                            placeholder="Select date"
-                                            dateFormat="yy-mm-dd"
-                                            class="tw-w-full tw-rounded-lg"
-                                            :maxDate="new Date()"
-                                        />
+                                        <Field name="dateOfBirth" v-model="Patient.dateOfBirth">
+                                            <template #default="{ field }">
+                                                <Calendar
+                                                    v-bind="field"
+                                                    :model-value="Patient.dateOfBirth"
+                                                    @update:model-value="(value) => { Patient.dateOfBirth = value; field.value = value; }"
+                                                    placeholder="Select date"
+                                                    dateFormat="yy-mm-dd"
+                                                    class="tw-w-full tw-rounded-lg"
+                                                    :maxDate="new Date()"
+                                                />
+                                            </template>
+                                        </Field>
+                                        <small v-if="errors.dateOfBirth" class="tw-text-red-500 tw-mt-1 tw-block">
+                                            {{ errors.dateOfBirth }}
+                                        </small>
                                     </div>
 
                                     <!-- Birth Place -->
@@ -798,12 +826,21 @@ const submitForm = async (values) => {
                                             <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
                                                 Issued On
                                             </label>
-                                            <Calendar
-                                                v-model="Patient.identity_issued_on"
-                                                placeholder="Select issue date"
-                                                dateFormat="yy-mm-dd"
-                                                class="tw-w-full tw-rounded-lg"
-                                            />
+                                            <Field name="identity_issued_on" v-model="Patient.identity_issued_on">
+                                                <template #default="{ field }">
+                                                    <Calendar
+                                                        v-bind="field"
+                                                        :model-value="Patient.identity_issued_on"
+                                                        @update:model-value="(value) => { Patient.identity_issued_on = value; field.value = value; }"
+                                                        placeholder="Select issue date"
+                                                        dateFormat="yy-mm-dd"
+                                                        class="tw-w-full tw-rounded-lg"
+                                                    />
+                                                </template>
+                                            </Field>
+                                            <small v-if="errors.identity_issued_on" class="tw-text-red-500 tw-mt-1 tw-block">
+                                                {{ errors.identity_issued_on }}
+                                            </small>
                                         </div>
 
                                         <div>

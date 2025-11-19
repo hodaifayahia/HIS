@@ -50,17 +50,27 @@ class PatientController extends Controller
             'phone' => 'nullable|string',
             'gender' => 'required|string', // 0 for
             'Parent' => 'nullable|string',
-            'dateOfBirth' => 'nullable|date|string',
+            'dateOfBirth' => 'nullable|date',
             'Idnum' => 'nullable|string|max:20', // Assuming ID can be up to 20 characters long
         ]);
+    
+        // Parse dateOfBirth if provided
+        $dateOfBirth = null;
+        if (!empty($validatedData['dateOfBirth'])) {
+            try {
+                $dateOfBirth = \Carbon\Carbon::parse($validatedData['dateOfBirth'])->format('Y-m-d');
+            } catch (\Exception $e) {
+                $dateOfBirth = null;
+            }
+        }
     
         $patient = Patient::create([
             'Firstname' => $validatedData['Firstname'],
             'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
             'gender' => $validatedData['gender'] =='male' ? 1 : 0, // Convert to integer
-            'dateOfBirth' => $validatedData['dateOfBirth'] ?? null, // Handle optional date
-            'Parent' => $validatedData['Parent'] ?? null, // Handle optional date
+            'dateOfBirth' => $dateOfBirth,
+            'Parent' => $validatedData['Parent'] ?? null, // Handle optional parent
             'Idnum' => $validatedData['Idnum'] ?? null, // Handle optional ID number
             'created_by' => Auth::id(), // Assuming you're using Laravel's built-in authentication
         ]);
@@ -79,17 +89,30 @@ class PatientController extends Controller
             'Parent' => 'nullable|string',
             'phone' => 'nullable|string',
             'gender' => 'required|integer|in:0,1',
-            'dateOfBirth' => 'nullable|date|string',
+            'dateOfBirth' => 'nullable|date',
             'Idnum' => 'nullable|string|max:20',
         ]);
-         $patient = Patient::find($patientid);
+        
+        $patient = Patient::find($patientid);
+        
+        // Parse dateOfBirth if provided
+        $dateOfBirth = $patient->dateOfBirth; // Keep existing if not provided
+        if (array_key_exists('dateOfBirth', $validatedData) && !empty($validatedData['dateOfBirth'])) {
+            try {
+                $dateOfBirth = \Carbon\Carbon::parse($validatedData['dateOfBirth'])->format('Y-m-d');
+            } catch (\Exception $e) {
+                $dateOfBirth = null;
+            }
+        } elseif (array_key_exists('dateOfBirth', $validatedData) && empty($validatedData['dateOfBirth'])) {
+            $dateOfBirth = null; // Allow clearing the date
+        }
     
         $patient->update([
             'Firstname' => $validatedData['Firstname'],
             'Lastname' => $validatedData['Lastname'],
             'phone' => $validatedData['phone'],
             'gender' => $validatedData['gender'],
-            'dateOfBirth' => $validatedData['dateOfBirth'] ?? null,
+            'dateOfBirth' => $dateOfBirth,
             'Parent' => $validatedData['Parent'] ?? null,
             'Idnum' => $validatedData['Idnum'] ?? null,
         ]);
