@@ -825,11 +825,19 @@ onMounted(() => {
 }
 
 :deep(.p-inputtext) {
-  @apply tw-border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
+  @apply tw-border-gray-200 tw-rounded-lg;
+}
+
+:deep(.p-inputtext:focus) {
+  @apply tw-border-blue-500 tw-ring-2 tw-ring-blue-200 tw-ring-opacity-50;
 }
 
 :deep(.p-multiselect), :deep(.p-dropdown) {
-  @apply tw-border-gray-200 tw-rounded-lg focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-200 focus:tw-ring-opacity-50;
+  @apply tw-border-gray-200 tw-rounded-lg;
+}
+
+:deep(.p-multiselect:focus), :deep(.p-dropdown:focus) {
+  @apply tw-border-blue-500 tw-ring-2 tw-ring-blue-200 tw-ring-opacity-50;
 }
 
 :deep(.p-button) {
@@ -845,7 +853,7 @@ onMounted(() => {
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr) {
-  @apply tw-border-gray-100 hover:tw-bg-blue-50;
+  @apply tw-border-gray-100;
 }
 
 :deep(.p-datatable .p-datatable-tbody > tr:hover) {
@@ -918,7 +926,7 @@ onMounted(() => {
 }
 
 /* Enhanced hover effects */
-.group:tw-hover .tw-opacity-0 {
+.group:hover .tw-opacity-0 {
   @apply tw-opacity-100;
 }
 

@@ -303,14 +303,19 @@ const handleItemsCreated = (data) => {
 }
 
 // --- Appointment & Convention Handlers (kept for compatibility) ---
-const handleAppointmentRequired = (prestations) => {
+const handleAppointmentRequired = (appointmentData) => {
   console.log('=== handleAppointmentRequired called ===')
-  console.log('Prestations requiring appointments:', prestations)
-  prestationsNeedingAppointments.value = prestations
-  fuckuifwork.value = prestations
+  console.log('Appointment data:', appointmentData)
+  
+  // Extract the appointment items array from the object
+  const appointmentItems = appointmentData.appointmentItems || appointmentData
+  console.log('Prestations requiring appointments:', appointmentItems)
+  
+  prestationsNeedingAppointments.value = appointmentItems
+  fuckuifwork.value = appointmentData
 
-  if (prestations && prestations.length > 0 && allDoctors.value.length > 0) {
-    const firstPrestation = prestations[0]
+  if (appointmentItems && appointmentItems.length > 0 && allDoctors.value.length > 0) {
+    const firstPrestation = appointmentItems[0]
     console.log('Looking for compatible doctor for prestation:', firstPrestation)
     
     const compatibleDoctor = allDoctors.value.find(doctor => 
@@ -342,14 +347,16 @@ const handleProceedWithAppointments = (appointmentData) => {
   console.log('=== handleProceedWithAppointments called ===')
   console.log('Appointment data received:', appointmentData)
   
-  showAppointmentAlert.value = false
+  // Store appointment data first
   fuckuifwork.value = appointmentData
   
+  // Set current prestation for appointment
   if (appointmentData.appointmentItems && appointmentData.appointmentItems.length > 0) {
     currentPrestationForAppointment.value = appointmentData.appointmentItems[0]
     console.log('Set currentPrestationForAppointment:', currentPrestationForAppointment.value)
   }
   
+  // Set doctor if provided
   if (appointmentData.otherItems && appointmentData.otherItems.selectedDoctor) {
     selectedDoctor.value = appointmentData.otherItems.selectedDoctor
     const doctor = allDoctors.value.find(d => d.id === appointmentData.otherItems.selectedDoctor)
@@ -361,14 +368,23 @@ const handleProceedWithAppointments = (appointmentData) => {
   prestationsNeedingAppointments.value = appointmentData.appointmentItems
   console.log('Prestations needing appointments:', prestationsNeedingAppointments.value)
   
-  console.log('Opening SameDayAppointmentModal...')
-  console.log('Modal props will be:')
-  console.log('- doctor-id:', selectedDoctor.value)
-  console.log('- patient-id:', props.patientId)
-  console.log('- prestation-id:', currentPrestationForAppointment.value?.id)
-  console.log('- doctor-specialization-id:', selectedDoctorSpecializationId.value)
+  // Close the alert modal first
+  showAppointmentAlert.value = false
   
-  showSameDayModal.value = true
+  // Use nextTick to ensure state updates are processed
+  setTimeout(() => {
+    console.log('Opening SameDayAppointmentModal...')
+    console.log('Modal props will be:')
+    console.log('- doctor-id:', selectedDoctor.value)
+    console.log('- patient-id:', props.patientId)
+    console.log('- prestation-id:', currentPrestationForAppointment.value?.id)
+    console.log('- doctor-specialization-id:', selectedDoctorSpecializationId.value)
+    console.log('showSameDayModal before set:', showSameDayModal.value)
+    
+    showSameDayModal.value = true
+    
+    console.log('showSameDayModal after set:', showSameDayModal.value)
+  }, 100)
 }
 
 // Pass-through functions for modals
@@ -580,26 +596,62 @@ const onAddedToWaitingList = (waitListEntry) => {
 
 // Computed properties for safe prop access
 const safeDoctorId = computed(() => {
+  // Prefer the explicitly selected doctor in state
+  if (selectedDoctor.value) {
+    return selectedDoctor.value
+  }
 
-  // Then try to get from appointment data
+  // Try to use the doctor attached to the current prestation (if any)
+  if (currentPrestationForAppointment.value?.doctor_id) {
+    return currentPrestationForAppointment.value.doctor_id
+  }
+
+  // Then try to get from appointment data provided by the alert/modal bridge
   if (fuckuifwork.value?.otherItems?.selectedDoctor) {
     return fuckuifwork.value.otherItems.selectedDoctor
   }
-  
+
+  if (fuckuifwork.value?.appointmentItems?.length > 0) {
+    const firstItemDoctor = fuckuifwork.value.appointmentItems[0]?.doctor_id
+    if (firstItemDoctor) {
+      return firstItemDoctor
+    }
+  }
+
+  // Finally fall back to the prestations awaiting appointment if they carry doctor data
+  if (prestationsNeedingAppointments.value?.length > 0) {
+    const doctorId = prestationsNeedingAppointments.value[0]?.doctor_id
+    if (doctorId) {
+      return doctorId
+    }
+  }
+
   return null
 })
 
 const safeSpecializationId = computed(() => {
+  // Prefer the specialization tracked from the selected doctor
+  if (selectedDoctorSpecializationId.value) {
+    return selectedDoctorSpecializationId.value
+  }
 
   // Then try to get from appointment data
   if (fuckuifwork.value?.otherItems?.selectedSpecialization) {
     return fuckuifwork.value.otherItems.selectedSpecialization
   }
-  
-  // Try to get from selected doctor info
+
   if (selectedDoctor.value && allDoctors.value.length > 0) {
     const doctor = allDoctors.value.find(d => d.id === selectedDoctor.value)
-    return doctor?.specialization_id || null
+    if (doctor?.specialization_id) {
+      return doctor.specialization_id
+    }
+  }
+
+  if (prestationsNeedingAppointments.value?.length > 0) {
+    const specializationId = prestationsNeedingAppointments.value[0]?.specialization_id
+    if (specializationId) {
+      return specializationId
+    }
   }
   
   return null
@@ -902,7 +954,6 @@ onMounted(() => {
                     class="tw-ml-auto"
                   />
                 </div>
-                {{ allPrestations }}
                 <PrestationSelection
                   :specializations="specializations"
                   :all-doctors="allDoctors"
@@ -989,7 +1040,8 @@ onMounted(() => {
     />
 
     <SameDayAppointmentModal
-      v-model="showSameDayModal"
+      :visible="showSameDayModal"
+      @update:visible="showSameDayModal = $event"
       :doctor-id="safeDoctorId"
       :patient-id="props.patientId"
       :fuckuifwork="fuckuifwork"
@@ -1000,6 +1052,7 @@ onMounted(() => {
     />
     
     <AppointmentRequiredAlert
+      :visible="showAppointmentAlert"
       v-model="showAppointmentAlert"
       :prestations-needing-appointments="prestationsNeedingAppointments"
       :other-items-count="otherItemsCount"
@@ -1020,7 +1073,7 @@ onMounted(() => {
     />
     
     <ReasonModel
-      v-model="showCancelReasonModal"
+      :show="showCancelReasonModal"
       @submit="onReasonSubmitted"
       @close="showCancelReasonModal = false; prestationToCancel = null"
     />

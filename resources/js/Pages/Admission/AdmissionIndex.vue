@@ -223,6 +223,21 @@
             </template>
           </Column>
 
+          <Column header="Companion" :sortable="false">
+            <template #body="slotProps">
+              <div v-if="slotProps.data.companion" class="tw-flex tw-items-center tw-gap-3">
+                <div class="tw-w-10 tw-h-10 tw-bg-purple-100 tw-rounded-full tw-flex tw-items-center tw-justify-center">
+                  <i class="bi bi-person-plus tw-text-purple-600"></i>
+                </div>
+                <div>
+                  <strong class="tw-block tw-text-slate-900">{{ slotProps.data.companion.name }}</strong>
+                  <small class="tw-text-slate-500">{{ slotProps.data.companion.phone }}</small>
+                </div>
+              </div>
+              <span v-else class="tw-text-slate-400 tw-text-sm">—</span>
+            </template>
+          </Column>
+
           <Column field="type" header="Type" :sortable="true">
             <template #body="slotProps">
               <Tag 
@@ -254,10 +269,16 @@
             <template #body="slotProps">
               <div class="tw-flex tw-justify-end tw-gap-2">
                 <Button
-                  @click.stop="viewAdmissionDetails(slotProps.data.id)"
-                  icon="pi pi-eye"
+                  @click.stop="viewAdmissionShow(slotProps.data.id)"
+                  icon="pi pi-file-pdf"
                   class="p-button-rounded p-button-info p-button-text"
-                  v-tooltip.top="'View Details'"
+                  v-tooltip.top="'View Admission'"
+                />
+                <Button
+                  @click.stop="viewFicheNavetteItems(slotProps.data.id)"
+                  icon="pi pi-list"
+                  class="p-button-rounded p-button-primary p-button-text"
+                  v-tooltip.top="'Fiche Navette'"
                 />
                 <Button
                   @click="editAdmission(slotProps.data.id)"
@@ -314,6 +335,10 @@
                   <i class="bi bi-person-check tw-text-green-600"></i>
                   <span class="tw-text-sm tw-text-slate-600">{{ admission.doctor?.name || 'Unassigned' }}</span>
                 </div>
+                <div v-if="admission.companion" class="tw-flex tw-items-center tw-gap-2">
+                  <i class="bi bi-person-plus tw-text-purple-600"></i>
+                  <span class="tw-text-sm tw-text-slate-600">{{ admission.companion.name }}</span>
+                </div>
                 <div class="tw-flex tw-items-center tw-gap-2">
                   <i :class="`bi bi-${admission.type === 'surgery' ? 'bandaid' : 'heart-pulse'} tw-text-slate-600`"></i>
                   <Tag 
@@ -330,10 +355,16 @@
 
               <div class="tw-flex tw-gap-2">
                 <Button
-                  @click="viewAdmissionDetails(admission.id)"
-                  icon="pi pi-eye"
-                  label="View"
+                  @click="viewAdmissionShow(admission.id)"
+                  icon="pi pi-file-pdf"
+                  label="Details"
                   class="p-button-sm p-button-info"
+                />
+                <Button
+                  @click="viewFicheNavetteItems(admission.id)"
+                  icon="pi pi-list"
+                  label="Fiche"
+                  class="p-button-sm p-button-primary p-button-outlined"
                 />
                 <Button
                   @click="editAdmission(admission.id)"
@@ -578,7 +609,32 @@ const onAdmissionSaved = () => {
 }
 
 const onRowClick = (event) => {
-  viewAdmissionDetails(event.data.id)
+  viewAdmissionShow(event.data.id)
+}
+
+const viewAdmissionShow = (id) => {
+  // Navigate to admission show/details page
+  router.push(`/admissions/${id}`)
+}
+
+const viewFicheNavetteItems = async (id) => {
+  try {
+    loading.value = true
+    // Create or get existing fiche navette for this admission
+    const response = await AdmissionService.getOrCreateFicheNavette(id)
+    
+    if (response.data && response.data.data && response.data.data.fiche_navette_id) {
+      // Navigate to the fiche navette items list within admission context
+      router.push(`/admissions/fiche-navette/${response.data.data.fiche_navette_id}/items`)
+    } else {
+      toastr.error('Failed to create Fiche Navette')
+    }
+  } catch (error) {
+    console.error('Error creating Fiche Navette:', error)
+    toastr.error(error.response?.data?.message || 'Failed to open fiche navette')
+  } finally {
+    loading.value = false
+  }
 }
 
 const viewAdmissionDetails = async (id) => {
@@ -588,8 +644,8 @@ const viewAdmissionDetails = async (id) => {
     const response = await AdmissionService.getOrCreateFicheNavette(id)
     
     if (response.data && response.data.data && response.data.data.fiche_navette_id) {
-      // Navigate to the fiche navette items list using the correct route path
-      router.push(`/reception/fiche-navette/${response.data.data.fiche_navette_id}/items`)
+      // Navigate to the fiche navette items list within admission context
+      router.push(`/admissions/fiche-navette/${response.data.data.fiche_navette_id}/items`)
     } else {
       toastr.error('Failed to create Fiche Navette')
     }

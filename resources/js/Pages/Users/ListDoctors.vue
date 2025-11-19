@@ -27,6 +27,7 @@ import IconField from 'primevue/iconfield';
 import Dialog from 'primevue/dialog';
 import Dropdown from 'primevue/dropdown';
 import Toast from 'primevue/toast';
+import TooltipDirective from 'primevue/tooltip';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
@@ -286,6 +287,7 @@ onMounted(() => {
 <template>
   <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50 tw-to-indigo-50">
     <Toast />
+    <Tooltip />
     <ConfirmDialog />
 
     <!-- Enhanced Medical-themed Header -->
@@ -405,12 +407,14 @@ onMounted(() => {
               icon="pi pi-download"
               label="Export Data"
               class="p-button-outlined p-button-info tw-rounded-xl tw-px-6 tw-py-3"
+              v-tooltip.top="'Export Data'"
             />
             <Button 
               @click="openModal"
               icon="pi pi-plus"
               label="Add Doctor"
               class="p-button-primary tw-rounded-xl tw-px-8 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200"
+              v-tooltip.top="'Add Doctor'"
             />
           </div>
         </div>
@@ -557,7 +561,8 @@ onMounted(() => {
                 label="Add Your First Doctor" 
                 icon="pi pi-plus" 
                 class="p-button-primary tw-rounded-xl tw-px-8 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200"
-                @click="openModal" 
+                @click="openModal"
+                v-tooltip.top="'Add Your First Doctor'"
               />
             </div>
           </template>

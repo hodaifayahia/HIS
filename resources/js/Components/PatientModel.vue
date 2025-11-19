@@ -428,7 +428,7 @@ const submitForm = async (values) => {
         modal
         :header="isEditMode ? 'Edit Patient Information' : 'Add New Patient'"
         :style="{ width: '90vw', maxWidth: '1400px' }"
-        :closable="true"
+        :closable="false"
         @hide="closeModal"
         class="tw-p-0"
     >

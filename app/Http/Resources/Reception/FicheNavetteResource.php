@@ -120,7 +120,7 @@ class FicheNavetteResource extends JsonResource
             'status' => $this->status,
             'fiche_date' => $this->fiche_date,
             'is_emergency' => (bool) $this->is_emergency,
-            'emergency_doctor_id' => $this->emergency_doctor_id,
+            'emergency_doctor_id' => $this->emergency_doctor_id ?? null,
             'emergency_doctor' => $this->whenLoaded('emergencyDoctor', function () {
                 return $this->emergencyDoctor ? [
                     'id' => $this->emergencyDoctor->id,

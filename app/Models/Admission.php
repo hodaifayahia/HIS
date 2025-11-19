@@ -17,6 +17,7 @@ class Admission extends Model
     protected $fillable = [
         'patient_id',
         'doctor_id',
+        'companion_id',
         'type',
         'status',
         'admitted_at',
@@ -47,6 +48,14 @@ class Admission extends Model
     public function doctor(): BelongsTo
     {
         return $this->belongsTo(Doctor::class);
+    }
+
+    /**
+     * Get the companion (patient who is accompanying the admitted patient)
+     */
+    public function companion(): BelongsTo
+    {
+        return $this->belongsTo(Patient::class, 'companion_id');
     }
 
     /**

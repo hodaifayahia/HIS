@@ -28,6 +28,12 @@ class AdmissionResource extends JsonResource
                 'id' => $this->doctor->id ?? null,
                 'name' => $this->doctor->user->name ?? 'N/A',
             ]),
+            'companion_id' => $this->companion_id,
+            'companion' => $this->whenLoaded('companion', [
+                'id' => $this->companion->id ?? null,
+                'name' => ($this->companion->Firstname ?? '').' '.($this->companion->Lastname ?? ''),
+                'phone' => $this->companion->phone ?? null,
+            ]),
             'type' => $this->type,
             'type_label' => ucfirst($this->type),
             'status' => $status,

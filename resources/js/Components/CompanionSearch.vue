@@ -3,14 +3,12 @@ import { ref, onMounted, watch } from 'vue';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import { useToastr } from '@/Components/toster';
-import PatientModel from '@/Components/PatientModel.vue';
 
 // PrimeVue Components
 import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
 import OverlayPanel from 'primevue/overlaypanel';
-import Tag from 'primevue/tag';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 
@@ -25,19 +23,17 @@ const props = defineProps({
         default: false
     },
     placeholder: String,
-    patientId: Number,
-    onSelectPatient: Function
+    excludePatientId: Number, // Exclude the main patient from companions
+    onSelectCompanion: Function
 });
 
-const emit = defineEmits(['update:modelValue', 'patientSelected']);
+const emit = defineEmits(['update:modelValue', 'companionSelected']);
 
 const toastr = useToastr();
-const patients = ref([]);
+const companions = ref([]);
 const isLoading = ref(false);
-const isModalOpen = ref(false);
-const selectedPatient = ref(null);
 const searchQuery = ref('');
-const isEditMode = ref(false);
+const selectedCompanion = ref(null);
 
 const op = ref();
 const searchInputRef = ref(null);
@@ -50,13 +46,13 @@ watch(() => props.modelValue, (newValue) => {
 
 const resetSearch = () => {
     searchQuery.value = '';
-    selectedPatient.value = null;
-    patients.value = [];
+    selectedCompanion.value = null;
+    companions.value = [];
     if (op.value) {
         op.value.hide();
     }
     emit('update:modelValue', '');
-    emit('patientSelected', null);
+    emit('companionSelected', null);
 };
 
 const handleSearch = debounce(async (event) => {
@@ -65,7 +61,7 @@ const handleSearch = debounce(async (event) => {
     emit('update:modelValue', query);
 
     if (!query || query.length < 2) {
-        patients.value = [];
+        companions.value = [];
         if (op.value) {
             op.value.hide();
         }
@@ -77,17 +73,24 @@ const handleSearch = debounce(async (event) => {
         const response = await axios.get('/api/patients/search', {
             params: { query }
         });
-        patients.value = response.data.data || [];
+        
+        // Filter out the main patient if excludePatientId is provided
+        let results = response.data.data || [];
+        if (props.excludePatientId) {
+            results = results.filter(p => p.id !== props.excludePatientId);
+        }
+        
+        companions.value = results;
 
-        const exactMatch = patients.value.find(p =>
+        const exactMatch = companions.value.find(p =>
             `${p.first_name} ${p.last_name} ${formatDateOfBirth(p.dateOfBirth)} ${p.phone}` === query
         );
         if (exactMatch) {
-            selectPatient(exactMatch);
+            selectCompanion(exactMatch);
             if (op.value) {
                 op.value.hide();
             }
-        } else if (patients.value.length > 0) {
+        } else if (companions.value.length > 0) {
             if (op.value && searchInputRef.value) {
                 op.value.show(event, searchInputRef.value.$el || event.target);
             }
@@ -98,9 +101,9 @@ const handleSearch = debounce(async (event) => {
         }
 
     } catch (error) {
-        console.error('Error searching patients:', error);
-        toastr.error('Failed to search patients');
-        patients.value = [];
+        console.error('Error searching companions:', error);
+        toastr.error('Failed to search companions');
+        companions.value = [];
         if (op.value) {
             op.value.hide();
         }
@@ -109,67 +112,25 @@ const handleSearch = debounce(async (event) => {
     }
 }, 500);
 
-watch(() => props.patientId, async (newId) => {
-    if (newId) {
-        await fetchPatientById(newId);
-    }
-}, { immediate: true });
-
-const fetchPatientById = async (id) => {
-    try {
-        const response = await axios.get(`/api/patients/${id}`);
-        if (response.data.data) {
-            const patient = response.data.data;
-            selectedPatient.value = patient;
-            searchQuery.value = `${patient.first_name} ${patient.last_name} ${formatDateOfBirth(patient.dateOfBirth)} ${patient.phone}`;
-            emit('patientSelected', patient);
-        } else {
-            console.error('Patient not found:', response.data.message);
-        }
-    } catch (error) {
-        console.error('Error fetching patient by ID:', error);
-        toastr.error('Could not find patient by ID');
-    }
-};
-
-const openModal = (edit = false) => {
-    isModalOpen.value = true;
-    isEditMode.value = edit;
-    if (!edit) {
-        selectedPatient.value = null;
-    }
-};
-
-const closeModal = () => {
-    isModalOpen.value = false;
-    isEditMode.value = false;
-};
-
-const handlePatientAdded = (newPatient) => {
-    closeModal();
-    selectPatient(newPatient);
-    toastr.success(isEditMode.value ? 'Patient updated successfully' : 'Patient added successfully');
-};
-
 const formatDateOfBirth = (date) => {
     if (!date) return '';
     const d = new Date(date);
     return d.toISOString().split('T')[0].replace(/-/g, '/');
 };
 
-const selectPatient = (patient) => {
-    selectedPatient.value = patient;
-    emit('patientSelected', patient);
-    const patientString = `${patient.first_name} ${patient.last_name} ${formatDateOfBirth(patient.dateOfBirth)} ${patient.phone}`;
-    emit('update:modelValue', patientString);
-    searchQuery.value = patientString;
+const selectCompanion = (companion) => {
+    selectedCompanion.value = companion;
+    emit('companionSelected', companion);
+    const companionString = `${companion.first_name} ${companion.last_name} ${formatDateOfBirth(companion.dateOfBirth)} ${companion.phone}`;
+    emit('update:modelValue', companionString);
+    searchQuery.value = companionString;
     if (op.value) {
         op.value.hide();
     }
 };
 
 const onInputFocus = (event) => {
-    if (searchQuery.value && patients.value.length > 0 || (searchQuery.value && searchQuery.value.length >= 2 && patients.value.length === 0 && !isLoading.value)) {
+    if (searchQuery.value && companions.value.length > 0 || (searchQuery.value && searchQuery.value.length >= 2 && companions.value.length === 0 && !isLoading.value)) {
         if (op.value && searchInputRef.value) {
             op.value.show(event, searchInputRef.value.$el || event.target);
         }
@@ -179,50 +140,30 @@ const onInputFocus = (event) => {
 
 <template>
     <div class="tw-w-full">
-        <div class="tw-flex tw-flex-col md:tw-flex-row tw-gap-3 tw-mb-2">
-            <!-- Search Input Section -->
-            <div class="tw-flex-1 tw-relative">
-                <div class="tw-flex tw-items-center tw-gap-2">
-                    <InputText
-                        ref="searchInputRef"
-                        v-model="searchQuery"
-                        @input="handleSearch"
-                        placeholder="Search patients by name or phone..."
-                        class="tw-w-full"
-                        @focus="onInputFocus"
-                        :disabled="disabled"
-                        :readonly="readonly"
-                        :placeholder="placeholder"
-                    />
-                    <Button
-                        v-if="searchQuery"
-                        icon="pi pi-times"
-                        class="p-button-secondary p-button-text tw-ml-auto"
-                        @click="resetSearch"
-                    />
-                </div>
-            </div>
-
-            <!-- Action Buttons Section -->
-            <div class="tw-flex tw-gap-2 tw-justify-end">
-                <Button
-                    v-if="selectedPatient"
-                    label="Edit Patient"
-                    icon="pi pi-user-edit"
-                    class="p-button-secondary p-button-sm tw-rounded-full"
-                    @click="openModal(true)"
+        <!-- Search Input Section -->
+        <div class="tw-flex-1 tw-relative">
+            <div class="tw-flex tw-items-center tw-gap-2">
+                <InputText
+                    ref="searchInputRef"
+                    v-model="searchQuery"
+                    @input="handleSearch"
+                    :placeholder="placeholder || 'Search companion by name or phone...'"
+                    class="tw-w-full"
+                    @focus="onInputFocus"
+                    :disabled="disabled"
+                    :readonly="readonly"
                 />
                 <Button
-                    label="Add New Patient"
-                    icon="pi pi-user-plus"
-                    class="p-button-primary p-button-sm tw-rounded-full"
-                    @click="openModal(false)"
+                    v-if="searchQuery"
+                    icon="pi pi-times"
+                    class="p-button-secondary p-button-text tw-ml-auto"
+                    @click="resetSearch"
                 />
             </div>
         </div>
 
         <!-- Search Results Overlay Panel -->
-        <OverlayPanel ref="op" :showCloseIcon="false" class="tw-patient-overlay">
+        <OverlayPanel ref="op" :showCloseIcon="false" class="tw-companion-overlay">
             <!-- Loading State -->
             <div v-if="isLoading" class="tw-flex tw-items-center tw-justify-center tw-py-6">
                 <ProgressSpinner 
@@ -235,17 +176,17 @@ const onInputFocus = (event) => {
             
             <!-- Results Template -->
             <template v-else>
-                <!-- Patient Results Table -->
-                <div v-if="patients.length > 0" class="tw-w-full">
+                <!-- Companion Results Table -->
+                <div v-if="companions.length > 0" class="tw-w-full">
                     <div class="tw-font-semibold tw-text-gray-700 tw-mb-3 tw-px-2">
-                        Search Results ({{ patients.length }})
+                        Available Companions ({{ companions.length }})
                     </div>
                     <DataTable 
-                        :value="patients" 
+                        :value="companions" 
                         :scrollable="true" 
                         scrollHeight="300px"
                         class="p-datatable-sm tw-border tw-border-gray-200 tw-rounded-lg"
-                        :paginator="patients.length > 10"
+                        :paginator="companions.length > 10"
                         :rows="10"
                         responsiveLayout="scroll"
                     >
@@ -275,21 +216,13 @@ const onInputFocus = (event) => {
                                 </div>
                             </template>
                         </Column>
-                        <Column field="dateOfBirth" header="Date of Birth" style="min-width: 120px;">
-                            <template #body="slotProps">
-                                <div class="tw-flex tw-items-center tw-gap-2">
-                                    <i class="pi pi-calendar tw-text-orange-500"></i>
-                                    <span>{{ formatDateOfBirth(slotProps.data.dateOfBirth) }}</span>
-                                </div>
-                            </template>
-                        </Column>
                         <Column header="Actions" style="min-width: 100px;">
                             <template #body="slotProps">
                                 <Button 
                                     label="Select" 
                                     icon="pi pi-check" 
                                     class="p-button-sm p-button-primary tw-rounded-full" 
-                                    @click="selectPatient(slotProps.data)"
+                                    @click="selectCompanion(slotProps.data)"
                                 />
                             </template>
                         </Column>
@@ -299,27 +232,19 @@ const onInputFocus = (event) => {
                 <!-- No Results State -->
                 <div v-else class="tw-flex tw-flex-col tw-items-center tw-py-8">
                     <i class="pi pi-search tw-text-5xl tw-text-gray-300 tw-mb-4"></i>
-                    <div class="tw-text-gray-500 tw-text-lg">No patients found</div>
+                    <div class="tw-text-gray-500 tw-text-lg">No companions found</div>
                     <div class="tw-text-gray-400 tw-text-sm tw-mt-1">
                         Try searching with different keywords
                     </div>
                 </div>
             </template>
         </OverlayPanel>
-
-        <!-- Patient Modal -->
-        <PatientModel
-            :show-modal="isModalOpen"
-            :spec-data="selectedPatient"
-            @close="closeModal"
-            @specUpdate="handlePatientAdded"
-        />
     </div>
 </template>
 
 <style scoped>
 /* Custom overlay panel width and positioning */
-:deep(.tw-patient-overlay) {
+:deep(.tw-companion-overlay) {
     min-width: 700px !important;
     max-width: 900px !important;
     margin-top: 4px !important;
@@ -330,16 +255,6 @@ const onInputFocus = (event) => {
 
 :deep(.p-overlaypanel-content) {
     padding: 0.75rem !important;
-}
-
-/* PrimeVue button customization */
-:deep(.p-button-sm) {
-    padding: 0.5rem 1rem !important;
-    font-size: 0.875rem !important;
-}
-
-:deep(.p-inputtext) {
-    width: 100% !important;
 }
 
 /* DataTable customization */
@@ -369,3 +284,4 @@ const onInputFocus = (event) => {
     border-top: 1px solid #e5e7eb !important;
 }
 </style>
+

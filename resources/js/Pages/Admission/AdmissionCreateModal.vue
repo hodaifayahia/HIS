@@ -128,6 +128,30 @@
         </small>
       </div>
 
+      <!-- Companion Selection (Optional) -->
+      <div class="tw-space-y-2">
+        <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+          <i class="pi pi-user-plus tw-text-purple-600"></i>Companion (Optional)
+        </label>
+        <CompanionSearch
+          :modelValue="companionSearchValue"
+          @update:modelValue="companionSearchValue = $event"
+          @companionSelected="selectCompanion"
+          :excludePatientId="form.patient_id"
+          placeholder="Search companion by name or phone..."
+        />
+        <div v-if="form.companion_id && selectedCompanion" class="tw-p-3 tw-bg-purple-50 tw-border tw-border-purple-200 tw-rounded-lg tw-flex tw-items-center tw-gap-2">
+          <i class="pi pi-check-circle tw-text-purple-600 tw-text-lg"></i>
+          <div>
+            <strong class="tw-text-purple-700">Selected Companion:</strong>
+            <span class="tw-text-purple-900 tw-ml-2">{{ selectedCompanion.first_name || '' }} {{ selectedCompanion.last_name || '' }}</span>
+          </div>
+        </div>
+        <small v-if="errors.companion_id" class="tw-text-red-600 tw-block tw-text-xs">
+          <i class="pi pi-exclamation-circle tw-mr-1"></i>{{ errors.companion_id[0] }}
+        </small>
+      </div>
+
       <!-- Initial Prestation (Surgery Only) using PrestationSearch Component -->
       <Transition name="fade">
         <div v-if="form.type === 'surgery'" class="tw-space-y-2">
@@ -203,6 +227,7 @@ import Dropdown from 'primevue/dropdown'
 import { useToastr } from '@/Components/toster'
 import { AdmissionService } from '@/services/admissionService'
 import PatientSearch from '@/Pages/Appointments/PatientSearch.vue'
+import CompanionSearch from '@/Components/CompanionSearch.vue'
 import PrestationSearch from '@/Components/PrestationSearch.vue'
 import axios from 'axios'
 
@@ -229,6 +254,7 @@ const editingAdmission = ref(null)
 const form = ref({
   patient_id: '',
   doctor_id: '',
+  companion_id: '',
   type: 'nursing',
   initial_prestation_id: '',
   fiche_navette_id: '',
@@ -244,9 +270,11 @@ const doctors = ref([])
 const selectedPatient = ref(null)
 const selectedDoctor = ref(null)
 const selectedPrestation = ref(null)
+const selectedCompanion = ref(null)
 const currentFicheNavette = ref(null)
 
 const patientSearchValue = ref('')
+const companionSearchValue = ref('')
 const prestationSearchValue = ref('')
 
 // Computed property to add labels for doctor dropdown
@@ -317,6 +345,12 @@ const selectPatient = async (patient) => {
   
   // Auto-create or get today's fiche navette for this patient
   await getOrCreateTodayFicheNavette(patient.id)
+}
+
+const selectCompanion = (companion) => {
+  form.value.companion_id = companion.id
+  selectedCompanion.value = companion
+  companionSearchValue.value = `${companion.first_name} ${companion.last_name}`
 }
 
 const selectPrestation = (prestation) => {
@@ -395,6 +429,7 @@ const openModal = async (admission = null) => {
     form.value = {
       patient_id: admission.patient_id,
       doctor_id: admission.doctor_id || '',
+      companion_id: admission.companion_id || '',
       type: admission.type,
       initial_prestation_id: admission.initial_prestation_id || '',
       fiche_navette_id: admission.fiche_navette_id || '',
@@ -414,6 +449,7 @@ const openModal = async (admission = null) => {
     
     selectedDoctor.value = admission.doctor || null
     selectedPrestation.value = admission.initialPrestation || null
+    selectedCompanion.value = admission.companion || null
     
     // Set search values - make sure to use fallback values
     if (selectedPatient.value) {
@@ -425,6 +461,9 @@ const openModal = async (admission = null) => {
     }
     prestationSearchValue.value = selectedPrestation.value ? 
       selectedPrestation.value.name : ''
+    
+    companionSearchValue.value = selectedCompanion.value ? 
+      `${selectedCompanion.value.first_name} ${selectedCompanion.value.last_name}` : ''
     
     // Set current fiche navette if exists
     currentFicheNavette.value = admission.fiche_navette || null
@@ -451,6 +490,7 @@ const resetForm = () => {
   form.value = {
     patient_id: '',
     doctor_id: '',
+    companion_id: '',
     type: 'nursing',
     initial_prestation_id: '',
     fiche_navette_id: '',
@@ -458,8 +498,10 @@ const resetForm = () => {
   selectedPatient.value = null
   selectedDoctor.value = null
   selectedPrestation.value = null
+  selectedCompanion.value = null
   currentFicheNavette.value = null
   patientSearchValue.value = ''
+  companionSearchValue.value = ''
   prestationSearchValue.value = ''
   errors.value = {}
   creatingFiche.value = false

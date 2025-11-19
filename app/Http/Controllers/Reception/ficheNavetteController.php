@@ -44,9 +44,12 @@ class ficheNavetteController extends Controller
             'patient.user:id,name',
             'items.prestation.service:id,name',
             'items.prestation.specialization:id,name',
-            'items.prestation.doctor:id,name',
-            'items.doctor:id,name',
-            'items.dependencies.dependencyPrestation.doctor:id,name',
+            'items.prestation.doctor:id',
+            'items.prestation.doctor.user:id,name',
+            'items.doctor:id',
+            'items.doctor.user:id,name',
+            'items.dependencies.dependencyPrestation.doctor:id',
+            'items.dependencies.dependencyPrestation.doctor.user:id,name',
         ])
             ->when($request->user(), function ($q) use ($request) {
                 // Apply user-based filtering if needed

@@ -31,6 +31,13 @@ const AdmissionRoutes = [
         component: () => import('../Pages/Admission/AdmissionEdit.vue'),
         meta: { title: 'Edit Admission' },
         props: true
+      },
+      {
+        path: 'fiche-navette/:id/items',
+        name: 'admissions.fiche-navette.items',
+        component: () => import('../Pages/Apps/Emergency/FicheNavatte/FicheNavetteItemsList.vue'),
+        meta: { title: 'Fiche Navette Items' },
+        props: true
       }
     ]
   }

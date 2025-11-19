@@ -22,6 +22,7 @@ class StoreAdmissionRequest extends FormRequest
         return [
             'patient_id' => 'required|exists:patients,id',
             'doctor_id' => 'nullable|exists:doctors,id',
+            'companion_id' => 'nullable|exists:patients,id|different:patient_id',
             'type' => 'required|in:surgery,nursing',
             'initial_prestation_id' => 'nullable|exists:prestations,id',
             'fiche_navette_id' => 'nullable|exists:fiche_navettes,id',
@@ -40,6 +41,8 @@ class StoreAdmissionRequest extends FormRequest
             'type.in' => 'Admission type must be either surgery or nursing',
             'initial_prestation_id.exists' => 'Selected prestation does not exist',
             'doctor_id.exists' => 'Selected doctor does not exist',
+            'companion_id.exists' => 'Selected companion does not exist',
+            'companion_id.different' => 'Companion must be different from the patient',
         ];
     }
 

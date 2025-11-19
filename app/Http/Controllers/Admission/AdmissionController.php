@@ -29,6 +29,7 @@ class AdmissionController extends Controller
             'id',
             'patient_id',
             'doctor_id',
+            'companion_id',
             'type',
             'status',
             'admitted_at',
@@ -44,6 +45,7 @@ class AdmissionController extends Controller
                 'patient:id,Firstname,Lastname,phone',
                 'doctor:id,user_id',
                 'doctor.user:id,name',
+                'companion:id,Firstname,Lastname,phone',
                 'initialPrestation:id,name,internal_code',
                 'creator:id,name',
             ])
@@ -87,6 +89,7 @@ class AdmissionController extends Controller
                 'data' => new AdmissionResource($admission->load([
                     'patient',
                     'doctor.user',
+                    'companion',
                     'initialPrestation',
                 ])),
             ], 201);
@@ -107,6 +110,7 @@ class AdmissionController extends Controller
         $admission = Admission::with([
             'patient',
             'doctor.user',
+            'companion',
             'initialPrestation',
             'procedures.prestation',
             'procedures.performedBy',
@@ -203,6 +207,7 @@ class AdmissionController extends Controller
         $admissions = Admission::with([
             'patient:id,Firstname,Lastname,phone',
             'doctor.user:id,name',
+            'companion:id,Firstname,Lastname,phone',
         ])
             ->whereIn('status', ['admitted', 'in_service', 'document_pending'])
             ->orderBy('admitted_at', 'desc')
