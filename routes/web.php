@@ -477,6 +477,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard/infrastructure/stats', [InfrastructureDashboardController::class, 'stats']);
         Route::get('/infrastructure/recent-activity', [InfrastructureDashboardController::class, 'recentActivity']);
 
+        // Config Routes
+        Route::get('/config/relation-types', [\App\Http\Controllers\Config\ConfigController::class, 'getRelationTypes']);
+
         // Organism
         Route::get('/organismes/settings', [OrganismeController::class, 'OrganismesSettings']);
         Route::apiResource('/organismes', OrganismeController::class);
@@ -1612,10 +1615,12 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/admissions', [AdmissionController::class, 'store']);
         Route::get('/admissions/statistics', [AdmissionController::class, 'statistics']);
         Route::get('/admissions/active', [AdmissionController::class, 'active']);
+        Route::get('/admissions/next-file-number', [AdmissionController::class, 'getNextFileNumber']);
+        Route::post('/admissions/{admission}/verify-file-number', [AdmissionController::class, 'verifyFileNumber']);
+        Route::post('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge']);
         Route::get('/admissions/{admission}', [AdmissionController::class, 'show']);
         Route::patch('/admissions/{admission}', [AdmissionController::class, 'update']);
         Route::delete('/admissions/{admission}', [AdmissionController::class, 'destroy']);
-        Route::post('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge']);
 
         // Admission Fiche Navette Routes
         Route::post('/admissions/{admission}/fiche-navette', [AdmissionController::class, 'getOrCreateFicheNavette']);

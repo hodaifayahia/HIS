@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { debounce } from 'lodash';
 import axios from 'axios';
 import { useToastr } from '@/Components/toster';
@@ -9,7 +9,8 @@ import InputText from 'primevue/inputtext';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
 import OverlayPanel from 'primevue/overlaypanel';
-import Tag from 'primevue/tag';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
 
 const props = defineProps({
     modelValue: String,
@@ -38,6 +39,11 @@ const searchQuery = ref('');
 const op = ref();
 const searchInputRef = ref(null);
 
+// Computed property to safely access prestations
+const safePrestations = computed(() => {
+    return Array.isArray(prestations.value) ? prestations.value : [];
+});
+
 watch(() => props.modelValue, (newValue) => {
     if (newValue && !searchQuery.value) {
         searchQuery.value = newValue;
@@ -49,21 +55,29 @@ const resetSearch = () => {
     selectedPrestation.value = null;
     prestations.value = [];
     if (op.value) {
-        op.value.hide();
+        try {
+            op.value.hide();
+        } catch (e) {
+            // Silently handle if overlay is already hidden
+        }
     }
     emit('update:modelValue', '');
     emit('prestationSelected', null);
 };
 
 const handleSearch = debounce(async (event) => {
-    const query = event.target.value;
+    const query = event?.target?.value || '';
     searchQuery.value = query;
     emit('update:modelValue', query);
 
-    if (!query || query.length < 1) {
+    if (!query || query.length < 2) {
         prestations.value = [];
         if (op.value) {
-            op.value.hide();
+            try {
+                op.value.hide();
+            } catch (e) {
+                // Silently handle if overlay is already hidden
+            }
         }
         return;
     }
@@ -84,11 +98,19 @@ const handleSearch = debounce(async (event) => {
 
         if (prestations.value.length > 0) {
             if (op.value && searchInputRef.value) {
-                op.value.show(event, searchInputRef.value.$el || event.target);
+                try {
+                    op.value.show(event, searchInputRef.value.$el || event.target);
+                } catch (e) {
+                    // Silently handle if overlay cannot be shown
+                }
             }
         } else {
             if (op.value && searchInputRef.value) {
-                op.value.show(event, searchInputRef.value.$el || event.target);
+                try {
+                    op.value.show(event, searchInputRef.value.$el || event.target);
+                } catch (e) {
+                    // Silently handle if overlay cannot be shown
+                }
             }
         }
 
@@ -97,10 +119,14 @@ const handleSearch = debounce(async (event) => {
         toastr.error('Failed to search prestations');
         prestations.value = [];
         if (op.value) {
-            op.value.hide();
+            try {
+                op.value.hide();
+            } catch (e) {
+                // Silently handle if overlay is already hidden
+            }
         }
     } finally {
-        isLoading.value = false;
+        isLoading.value = false
     }
 }, 500);
 
@@ -128,19 +154,28 @@ const fetchPrestationById = async (id) => {
 };
 
 const selectPrestation = (prestation) => {
-    selectedPrestation.value = prestation;
-    emit('prestationSelected', prestation);
-    emit('update:modelValue', prestation.name);
-    searchQuery.value = prestation.name;
+    const normalized = getNormalizedPrestation(prestation);
+    selectedPrestation.value = normalized;
+    emit('prestationSelected', normalized);
+    emit('update:modelValue', getNormalizePrestationName(prestation));
+    searchQuery.value = getNormalizePrestationName(prestation);
     if (op.value) {
-        op.value.hide();
+        try {
+            op.value.hide();
+        } catch (e) {
+            // Silently handle if overlay is already hidden
+        }
     }
 };
 
 const onInputFocus = (event) => {
-    if (searchQuery.value && prestations.value.length > 0 || (searchQuery.value && searchQuery.value.length >= 1 && prestations.value.length === 0 && !isLoading.value)) {
+    if (searchQuery.value && (prestations.value.length > 0 || (searchQuery.value.length >= 2 && prestations.value.length === 0 && !isLoading.value))) {
         if (op.value && searchInputRef.value) {
-            op.value.show(event, searchInputRef.value.$el || event.target);
+            try {
+                op.value.show(event, searchInputRef.value.$el || event.target);
+            } catch (e) {
+                // Silently handle if overlay cannot be shown
+            }
         }
     }
 };
@@ -152,34 +187,83 @@ const formatPrice = (price) => {
         currency: 'DZD',
     }).format(price);
 };
+
+// Normalize prestation data for display (handles both API response formats)
+const getNormalizePrestationName = (prestation) => {
+    return prestation.name || prestation.prestation_name || '';
+};
+
+const getNormalizedPrestationCode = (prestation) => {
+    return prestation.code || prestation.prestation_code || '';
+};
+
+const getNormalizedPrestationPrice = (prestation) => {
+    // Try to get price from different possible locations
+    if (prestation.price_with_vat_and_consumables_variant) {
+        if (typeof prestation.price_with_vat_and_consumables_variant === 'object') {
+            return prestation.price_with_vat_and_consumables_variant.ttc || prestation.price_with_vat_and_consumables_variant.ttc_with_consumables_vat || 0;
+        }
+        return prestation.price_with_vat_and_consumables_variant;
+    }
+    if (prestation.prix) return prestation.prix;
+    if (prestation.price) return prestation.price;
+    if (prestation.standard_price) return prestation.standard_price;
+    return 0;
+};
+
+const getNormalizedPrestation = (prestation) => {
+    // If it has a nested prestation object (from convention API), merge it
+    if (prestation.prestation) {
+        return {
+            ...prestation.prestation,
+            ...prestation,
+            id: prestation.prestation_id || prestation.prestation.id || prestation.id
+        };
+    }
+    return prestation;
+};
+
+const getNormalizedService = (prestation) => {
+    if (prestation.prestation && prestation.prestation.service) {
+        return prestation.prestation.service;
+    }
+    if (prestation.service) {
+        return prestation.service;
+    }
+    return null;
+};
 </script>
 
 <template>
     <div class="tw-w-full">
-        <!-- Search Input Section -->
         <div class="tw-flex tw-items-center tw-gap-2">
-            <InputText
-                ref="searchInputRef"
-                v-model="searchQuery"
-                @input="handleSearch"
-                :placeholder="placeholder || 'Search prestations by name...'"
-                class="tw-w-full"
-                @focus="onInputFocus"
-                :disabled="disabled"
-                :readonly="readonly"
-            />
-            <Button
-                v-if="searchQuery"
-                icon="pi pi-times"
-                class="p-button-secondary p-button-text"
-                @click="resetSearch"
-            />
+            <!-- Search Input Section -->
+            <div class="tw-flex-1 tw-relative">
+                <div class="tw-flex tw-items-center tw-gap-2">
+                    <InputText
+                        ref="searchInputRef"
+                        v-model="searchQuery"
+                        @input="handleSearch"
+                        :placeholder="placeholder || 'Search prestations by name...'"
+                        class="tw-w-full"
+                        @focus="onInputFocus"
+                        :disabled="disabled"
+                        :readonly="readonly"
+                    />
+                    <Button
+                        v-if="searchQuery"
+                        icon="pi pi-times"
+                        class="p-button-secondary p-button-text tw-ml-auto"
+                        @click="resetSearch"
+                    />
+                </div>
+            </div>
         </div>
 
         <!-- Search Results Overlay Panel -->
         <OverlayPanel ref="op" :showCloseIcon="false" class="prestation-overlay">
             <!-- Loading State -->
-            <div v-if="isLoading" class="tw-flex tw-items-center tw-justify-center py-6">
+            <div v-if="isLoading" class="tw-flex tw-items-center tw-justify-center tw-py-6">
                 <ProgressSpinner 
                     style="width: 30px; height: 30px" 
                     strokeWidth="6" 
@@ -189,48 +273,68 @@ const formatPrice = (price) => {
             </div>
             
             <!-- Results Template -->
-            <template v-else>
-                <!-- Prestation Results List -->
-                <div v-if="prestations.length > 0" class="tw-w-full">
+            <div v-else>
+                <!-- Prestation Results Table -->
+                <div v-if="safePrestations && safePrestations.length > 0" class="tw-w-full">
                     <div class="tw-font-semibold tw-text-gray-700 tw-mb-3 tw-px-2">
-                        Search Results ({{ prestations.length }})
+                        Search Results ({{ safePrestations.length }})
                     </div>
-                    <div class="tw-max-h-96 tw-overflow-y-auto">
-                        <div 
-                            v-for="prestation in prestations" 
-                            :key="prestation.id" 
-                            class="tw-prestation-item tw-flex tw-items-center tw-justify-between tw-py-3 tw-px-4 tw-mb-2 tw-rounded-lg tw-bg-white hover:tw-bg-blue-50 tw-cursor-pointer tw-transition-colors tw-duration-200 tw-border tw-border-gray-200 hover:tw-border-blue-300 tw-shadow-sm hover:tw-shadow-md"
-                            @click="selectPrestation(prestation)"
-                        >
-                                <div class="tw-flex tw-flex-col tw-flex-1">
-                                <span class="tw-text-base tw-font-semibold tw-text-gray-800">
-                                    {{ prestation.name }}
-                                </span>
-                                <div class="tw-flex tw-flex-wrap tw-gap-2 tw-mt-1">
-                                    <Tag 
-                                        icon="pi pi-tag" 
-                                        :value="prestation.code" 
-                                        severity="info" 
-                                        class="tw-text-xs"
-                                    />
-                                    <Tag 
-                                        icon="pi pi-dollar" 
-                                        :value="formatPrice(prestation.price)" 
-                                        severity="success" 
-                                        class="tw-text-xs"
-                                    />
-                                    <Tag 
-                                        v-if="prestation.service"
-                                        icon="pi pi-home" 
-                                        :value="prestation.service.name" 
-                                        severity="secondary" 
-                                        class="tw-text-xs"
-                                    />
+                    <DataTable 
+                        :key="`prestations-${safePrestations.length}`"
+                        :value="safePrestations" 
+                        :scrollable="true" 
+                        scrollHeight="300px"
+                        class="p-datatable-sm tw-border tw-border-gray-200 tw-rounded-lg"
+                        :paginator="safePrestations.length > 10"
+                        :rows="10"
+                        responsiveLayout="scroll"
+                    >
+                        <Column field="name" header="Name" style="min-width: 150px;">
+                            <template #body="slotProps">
+                                <div class="tw-flex tw-items-center tw-gap-2">
+                                    <i class="pi pi-briefcase tw-text-blue-500"></i>
+                                    <span class="tw-font-medium tw-text-gray-800">
+                                        {{ getNormalizePrestationName(slotProps.data) }}
+                                    </span>
                                 </div>
-                            </div>
-                            <i class="pi pi-chevron-right tw-text-gray-400"></i>
-                        </div>
-                    </div>
+                            </template>
+                        </Column>
+                        <Column field="code" header="Code" style="min-width: 100px;">
+                            <template #body="slotProps">
+                                <div class="tw-flex tw-items-center tw-gap-2">
+                                    <i class="pi pi-tag tw-text-indigo-500"></i>
+                                    <span>{{ getNormalizedPrestationCode(slotProps.data) }}</span>
+                                </div>
+                            </template>
+                        </Column>
+                        <Column field="price" header="Price" style="min-width: 120px;">
+                            <template #body="slotProps">
+                                <div class="tw-flex tw-items-center tw-gap-2">
+                                    <i class="pi pi-dollar tw-text-green-500"></i>
+                                    <span>{{ formatPrice(getNormalizedPrestationPrice(slotProps.data)) }}</span>
+                                </div>
+                            </template>
+                        </Column>
+                        <Column field="service" header="Service" style="min-width: 120px;">
+                            <template #body="slotProps">
+                                <div v-if="getNormalizedService(slotProps.data)" class="tw-flex tw-items-center tw-gap-2">
+                                    <i class="pi pi-home tw-text-purple-500"></i>
+                                    <span>{{ getNormalizedService(slotProps.data).name }}</span>
+                                </div>
+                                <span v-else class="tw-text-gray-400">N/A</span>
+                            </template>
+                        </Column>
+                        <Column header="Actions" style="min-width: 100px;">
+                            <template #body="slotProps">
+                                <Button 
+                                    label="Select" 
+                                    icon="pi pi-check" 
+                                    class="p-button-sm p-button-primary tw-rounded-full" 
+                                    @click="selectPrestation(slotProps.data)"
+                                />
+                            </template>
+                        </Column>
+                    </DataTable>
                 </div>
                 
                 <!-- No Results State -->
@@ -241,7 +345,7 @@ const formatPrice = (price) => {
                         Try searching with different keywords
                     </div>
                 </div>
-            </template>
+            </div>
         </OverlayPanel>
     </div>
 </template>
@@ -249,9 +353,8 @@ const formatPrice = (price) => {
 <style scoped>
 /* Custom overlay panel width and positioning */
 :deep(.prestation-overlay) {
-    width: 250px !important;
-    min-width: 250px !important;
-    max-width:250px !important;
+    min-width: 700px !important;
+    max-width: 900px !important;
     margin-top: 4px !important;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
     border-radius: 8px !important;
@@ -263,31 +366,39 @@ const formatPrice = (price) => {
 }
 
 /* PrimeVue button customization */
+:deep(.p-button-sm) {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.875rem !important;
+}
+
 :deep(.p-inputtext) {
     width: 100% !important;
 }
 
-/* Prestation item hover effect */
-.tw-prestation-item:hover {
-    transform: translateX(2px);
+/* DataTable customization */
+:deep(.p-datatable .p-datatable-thead > tr > th) {
+    background-color: #f8fafc !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    font-weight: 600 !important;
+    color: #374151 !important;
+    padding: 0.75rem !important;
 }
 
-/* Scrollbar styling for results list */
-.tw-max-h-96::-webkit-scrollbar {
-    width: 6px;
+:deep(.p-datatable .p-datatable-tbody > tr) {
+    border-bottom: 1px solid #e5e7eb !important;
 }
 
-.tw-max-h-96::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 10px;
+:deep(.p-datatable .p-datatable-tbody > tr:hover) {
+    background-color: #eff6ff !important;
 }
 
-.tw-max-h-96::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
+:deep(.p-datatable .p-datatable-tbody > tr > td) {
+    padding: 0.75rem !important;
+    vertical-align: middle !important;
 }
 
-.tw-max-h-96::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+:deep(.p-paginator) {
+    padding: 0.5rem !important;
+    border-top: 1px solid #e5e7eb !important;
 }
 </style>

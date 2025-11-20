@@ -51,17 +51,23 @@ const props = defineProps({
   doctorId: { type: Number, default: null },
   specialization_id: { type: Number, default: null },
   isConsulation: { type: Boolean, default: false },
-  appointmentId: { type: Number, default: null }
+  appointmentId: { type: Number, default: null },
+  patientId: { type: String, default: null },
+  preselectedPatient: { type: Object, default: null }
 });
 
 console.log(props);
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'appointmentCreated']);
 
 const fetchDoctors = async () => {
-  if (props.editMode) {
+  if (props.editMode || props.preselectedPatient) {
     try {
-      const response = await axios.get(`/api/doctors/specializations/${props.specialization_id}`);
+      let url = '/api/doctors';
+      if (props.specialization_id) {
+        url = `/api/doctors/specializations/${props.specialization_id}`;
+      }
+      const response = await axios.get(url);
       doctors.value = response.data.data;
     } catch (error) {
       console.error('Failed to fetch doctors:', error);
@@ -341,6 +347,11 @@ const handleSubmit = async (values, { setErrors }) => {
       await PrintTicket(response.data.data);
     }
 
+    // Emit appointmentCreated event with the new appointment data
+    if (response.data.data) {
+      emit('appointmentCreated', response.data.data);
+    }
+
     if (props.isConsulation) {
       router.push({ name: 'admin.consultations.consulation' });
     } else if (props.NextAppointment) {
@@ -432,6 +443,15 @@ onMounted(async () => {
     isWaitListEmpty()
   ]);
   await fetchAppointmentData();
+  
+  // Handle preselected patient from props
+  if (props.preselectedPatient && props.patientId) {
+    form.patient_id = parseInt(props.patientId);
+    form.first_name = props.preselectedPatient.first_name;
+    form.last_name = props.preselectedPatient.last_name;
+    form.phone = props.preselectedPatient.phone_number;
+    form.patient_Date_Of_Birth = props.preselectedPatient.date_of_birth;
+  }
 });
 </script>
 
@@ -443,7 +463,7 @@ onMounted(async () => {
       @patientSelected="handlePatientSelect" 
     />
     
-    <div class="mb-3" v-if="props.editMode && authStore.user.role !== 'doctor'">
+    <div class="mb-3" v-if="(props.editMode || props.preselectedPatient) && authStore.user.role !== 'doctor'">
       <label for="doctor_id" class="form-label">Select Doctor</label>
       <select id="doctor_id" v-model="form.doctor_id" class="form-control" required>
         <option value="" disabled>Select a doctor</option>
@@ -455,7 +475,7 @@ onMounted(async () => {
     </div>
 
     <AvailableAppointments
-      v-if="!form.selectionMethod"
+      v-if="!form.selectionMethod && form.doctor_id"
       :waitlist="false"
       :isEmpty="isEmpty"
       :doctorId="form.doctor_id || props.doctorId"

@@ -10,6 +10,7 @@ Route::get('/admissions', [AdmissionController::class, 'index']);
 Route::post('/admissions', [AdmissionController::class, 'store']);
 Route::get('/admissions/statistics', [AdmissionController::class, 'statistics']);
 Route::get('/admissions/active', [AdmissionController::class, 'active']);
+Route::post('/admissions/{admission}/verify-file-number', [AdmissionController::class, 'verifyFileNumber']);
 Route::get('/admissions/{admission}', [AdmissionController::class, 'show']);
 Route::patch('/admissions/{admission}', [AdmissionController::class, 'update']);
 Route::delete('/admissions/{admission}', [AdmissionController::class, 'destroy']);
@@ -29,6 +30,3 @@ Route::post('/admissions/{admission}/treatments', [AdmissionTreatmentController:
 Route::get('/admissions/{admission}/treatments/{treatment}', [AdmissionTreatmentController::class, 'show']);
 Route::patch('/admissions/{admission}/treatments/{treatment}', [AdmissionTreatmentController::class, 'update']);
 Route::delete('/admissions/{admission}/treatments/{treatment}', [AdmissionTreatmentController::class, 'destroy']);
-
-// Verify file number endpoint
-Route::post('/admissions/{admission}/verify-file-number', [AdmissionController::class, 'verifyFileNumber']);

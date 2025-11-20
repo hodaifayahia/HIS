@@ -35,7 +35,12 @@ const props = defineProps({
   },
   ficheNavetteId: {
     type: Number,
-    required: true
+    required: false,
+    default: null
+  },
+  patientId: {
+    type: [Number, String],
+    default: null
   }
 })
 
@@ -170,27 +175,59 @@ const alreadySelectedPrestationIds = computed(() => {
 
 // Filter out prestations that are already selected for the current convention
 const filteredConventionPrestations = computed(() => {
-  if (!conventionPrestations.value.length || !selectedSpecialization.value) {
+  console.log('=== filteredConventionPrestations computed ===')
+  console.log('conventionPrestations.value:', conventionPrestations.value)
+  console.log('selectedSpecialization.value:', selectedSpecialization.value)
+  
+  if (!conventionPrestations.value.length) {
+    console.log('No prestations available')
     return [];
   }
 
   const selectedPrestationIds = new Set(alreadySelectedPrestationIds.value);
   
-  return conventionPrestations.value.filter(prestation => {
+  const filtered = conventionPrestations.value.filter(prestation => {
     const prestationId = prestation.prestation_id || prestation.id;
-    const isForSpecialization = prestation.specialization_id === selectedSpecialization.value ||
-                                  prestation.service_specialization_id === selectedSpecialization.value;
     const isAlreadySelected = selectedPrestationIds.has(prestationId);
+    
+    // Get specialization ID from multiple possible locations
+    const prestationSpecId = prestation.specialization_id || 
+                             prestation.service_specialization_id ||
+                             prestation.prestation?.specialization_id ||
+                             null;
+    
+    console.log('Checking prestation:', {
+      id: prestationId,
+      name: prestation.prestation_name || prestation.name,
+      specialization_id: prestation.specialization_id,
+      service_specialization_id: prestation.service_specialization_id,
+      prestation_specialization_id: prestation.prestation?.specialization_id,
+      calculated_spec_id: prestationSpecId,
+      selectedSpecialization: selectedSpecialization.value,
+      isAlreadySelected
+    })
+    
+    // If no specialization is selected, show all prestations (don't filter by specialization)
+    if (!selectedSpecialization.value) {
+      console.log('No specialization filter, including:', !isAlreadySelected)
+      return !isAlreadySelected;
+    }
+    
+    // If specialization is selected, filter by it - check multiple fields
+    const isForSpecialization = prestationSpecId === selectedSpecialization.value;
 
+    console.log('Specialization match:', isForSpecialization, 'Not already selected:', !isAlreadySelected)
     return isForSpecialization && !isAlreadySelected;
   });
+  
+  console.log('Filtered prestations count:', filtered.length)
+  return filtered;
 })
 
 const canAddConvention = computed(() => {
   return currentOrganisme.value &&
            currentConvention.value &&
            currentPrestations.value.length > 0 &&
-           selectedSpecialization.value &&
            selectedDoctor.value
 })
 
@@ -284,7 +321,13 @@ const safePrestationId = computed(() => {
 const safePatientId = computed(() => {
   console.log('=== safePatientId computed ===')
   
-  // Priority 1: Get from selectedAdherentPatient if it exists
+  // Priority 1: Get from props (passed from AdmissionCreateModal)
+  if (props.patientId) {
+    console.log('Using patient ID from props:', props.patientId)
+    return props.patientId
+  }
+  
+  // Priority 2: Get from selectedAdherentPatient if it exists
   if (selectedAdherentPatient.value?.id) {
     console.log('Using patient ID from selectedAdherentPatient.id:', selectedAdherentPatient.value.id)
     return selectedAdherentPatient.value.id
@@ -295,13 +338,13 @@ const safePatientId = computed(() => {
     return selectedAdherentPatient.value.patient_id
   }
   
-  // Priority 2: Get from fiche navette data
+  // Priority 3: Get from fiche navette data
   if (ficheNavetteData.value?.patient_id) {
     console.log('Using patient ID from ficheNavetteData.patient_id:', ficheNavetteData.value.patient_id)
     return ficheNavetteData.value.patient_id
   }
   
-  // Priority 3: Get from fuckuifwork fallback
+  // Priority 4: Get from fuckuifwork fallback
   if (fuckuifwork.value?.otherItems?.patientId) {
     console.log('Using patient ID from fuckuifwork.otherItems.patientId:', fuckuifwork.value.otherItems.patientId)
     return fuckuifwork.value.otherItems.patientId
@@ -525,7 +568,7 @@ const onConventionChange = async () => {
 
 const onSpecializationChange = () => {
   selectedDoctor.value = null
-  currentPrestations.value = []
+  // Don't clear prestations - filtering is automatic via filteredConventionPrestations
 }
 
 
@@ -1124,8 +1167,28 @@ const proceedWithPrescriptionCreation = async () => {
         life: 3000
       })
       
-      // Emit success and close modal
-      emit('convention-items-added')
+      // Emit success with convention data
+      const emitData = {
+        patient_id: safePatientId.value,
+        doctor_id: selectedDoctor.value?.id || null,
+        company_id: currentOrganisme.value,
+        convention_id: currentConvention.value,
+        prestations: completedConventions.value.flatMap(conv => 
+          conv.prestations.map(p => ({
+            id: p.id || p.prestation_id,
+            prestation_id: p.prestation_id || p.id,
+            name: p.name || p.prestation_name,
+            prestation_name: p.prestation_name || p.name,
+            code: p.code || p.prestation_code,
+            prestation_code: p.prestation_code || p.code,
+            price: p.patient_price || p.price,
+            patient_price: p.patient_price || p.price,
+            ...p
+          }))
+        )
+      }
+      
+      emit('convention-items-added', emitData)
       emit('update:visible', false)
       resetAll()
     } else {
@@ -1380,20 +1443,27 @@ watch(showSameDayModal, (newValue) => {
 
 
                         <div class="field-group">
-                          <label>Specialization *</label>
+                          <label>Specialization (Optional - Filter)</label>
                           <Dropdown
                             v-model="selectedSpecialization"
                             :options="specializations"
                             optionLabel="name"
                             optionValue="id"
-                            placeholder="Select specialization"
+                            placeholder="All Specializations"
                             :disabled="currentConvention === null"
                             @change="onSpecializationChange"
                             class="field-input"
                             :loading="specializationLoading"
+                            showClear
                           />
                           <small v-if="currentConvention === null" class="field-help">
                             Select conventions first
+                          </small>
+                          <small v-else-if="!selectedSpecialization" class="field-help text-blue-600">
+                            Showing all prestations ({{ conventionPrestations.length }} total)
+                          </small>
+                          <small v-else class="field-help text-green-600">
+                            Filtered by {{ specializations.find(s => s.id === selectedSpecialization)?.name }} ({{ filteredConventionPrestations.length }} of {{ conventionPrestations.length }})
                           </small>
                         </div>
 
@@ -1401,14 +1471,16 @@ watch(showSameDayModal, (newValue) => {
                           <label>Doctor *</label>
                           <Dropdown
                             v-model="selectedDoctor"
-                            :options="filteredDoctors"
+                            :options="selectedSpecialization ? filteredDoctors : allDoctors"
                             optionLabel="name"
                             optionValue="id"
                             placeholder="Select doctor"
-                            :disabled="!selectedSpecialization"
+                            :disabled="currentConvention === null"
                             @change="onDoctorChange"
                             class="field-input"
                             :loading="doctorLoading"
+                            filter
+                            filterPlaceholder="Search doctors..."
                           >
                             <template #option="{ option }">
                               <div class="doctor-option">
@@ -1417,8 +1489,11 @@ watch(showSameDayModal, (newValue) => {
                               </div>
                             </template>
                           </Dropdown>
-                          <small v-if="!selectedSpecialization" class="field-help">
-                            Select specialization first
+                          <small v-if="currentConvention === null" class="field-help">
+                            Select convention first
+                          </small>
+                          <small v-else-if="!selectedSpecialization && allDoctors.length > 0" class="field-help text-blue-600">
+                            Showing all doctors ({{ allDoctors.length }} available)
                           </small>
                           <small v-else-if="filteredDoctors.length === 0" class="field-help text-orange-600">
                             No doctors found for selected specialization
@@ -1525,7 +1600,7 @@ watch(showSameDayModal, (newValue) => {
                           <div class="field-help-section">
                             <small v-if="!selectedDoctor" class="field-help">
                               <i class="pi pi-arrow-up"></i>
-                              Select doctor to see filtered prestations
+                              Select doctor first
                             </small>
                             <small v-else-if="loading" class="field-help text-blue-600">
                               <i class="pi pi-spin pi-spinner"></i>
@@ -1535,9 +1610,13 @@ watch(showSameDayModal, (newValue) => {
                               <i class="pi pi-exclamation-triangle"></i>
                               No prestations found for selected convention
                             </small>
+                            <small v-else-if="filteredConventionPrestations.length === 0 && selectedSpecialization" class="field-help text-orange-600">
+                              <i class="pi pi-exclamation-triangle"></i>
+                              No prestations match specialization "{{ specializations.find(s => s.id === selectedSpecialization)?.name }}". Try clearing the specialization filter.
+                            </small>
                             <small v-else-if="filteredConventionPrestations.length === 0" class="field-help text-orange-600">
                               <i class="pi pi-exclamation-triangle"></i>
-                              No prestations found for selected specialization "{{ specializations.find(s => s.id === selectedSpecialization)?.name }}"
+                              No prestations available
                             </small>
                             <small v-else class="field-help text-green-600">
                               <i class="pi pi-check-circle"></i>

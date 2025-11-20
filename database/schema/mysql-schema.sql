@@ -2709,7 +2709,7 @@ CREATE TABLE `prestation_pricing` (
   `avenant_id` bigint unsigned  NULL,
   `subname` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `head` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `activation_at` timestamp NOT NULL,
+  `activation_at` timestamp   DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
   `contract_percentage_id` bigint unsigned DEFAULT NULL,

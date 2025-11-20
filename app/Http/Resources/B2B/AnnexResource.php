@@ -33,6 +33,11 @@ class AnnexResource extends JsonResource
             'min_price_convention' => $this->convention->conventionDetail->min_price ?? null,
             'max_price_convention' => $this->convention->conventionDetail->max_price ?? null,
             'discount_percentage' => $this->convention->conventionDetail->discount_percentage ?? null,
+            // Prestation pricing count
+            'prestations_count' => $this->whenLoaded('prestationPrices', function () {
+                return $this->prestationPrices->count();
+            }, 0),
+            'prestations' => PrestationPricingResource::collection($this->whenLoaded('prestationPrices')),
         ];
     }
 }

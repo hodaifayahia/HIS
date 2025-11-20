@@ -2,11 +2,11 @@
 
 namespace App\Services\Reception;
 
+use App\Models\B2B\Annex;
+use App\Models\B2B\Avenant;
 use App\Models\B2B\Convention;
 use App\Models\B2B\ConventionDetail;
 use App\Models\B2B\PrestationPricing;
-use App\Models\B2B\Avenant;
-use App\Models\B2B\Annex;
 use App\Models\CONFIGURATION\Prestation;
 use App\Services\B2B\ConventionService;
 use Carbon\Carbon;
@@ -43,12 +43,13 @@ class ConventionPricingService
     public function getConventionPrestationsForDate($conventionId, Carbon $priseEnChargeDate, $contractPercentageId = null): array
     {
         $prestationsWithPricing = [];
-        
+
         // Step 1: Find the appropriate convention detail based on date
         $conventionDetail = $this->findConventionDetailForDate($conventionId, $priseEnChargeDate);
-        
-        if (!$conventionDetail) {
+
+        if (! $conventionDetail) {
             Log::warning("No convention detail found for convention {$conventionId} and date {$priseEnChargeDate}");
+
             return [];
         }
 
@@ -56,11 +57,11 @@ class ConventionPricingService
         if ($conventionDetail->avenant_id) {
             // Get prestations from Avenant's PrestationPricing table
             $avenantPrestations = $this->getPrestationsFromAvenant(
-                $conventionDetail->avenant_id, 
+                $conventionDetail->avenant_id,
                 $conventionId,
                 $contractPercentageId
             );
-            
+
             foreach ($avenantPrestations as $prestation) {
                 $prestationsWithPricing[] = array_merge($prestation, [
                     'pricing_source' => 'avenant',
@@ -69,8 +70,8 @@ class ConventionPricingService
                     'avenant_id' => $conventionDetail->avenant_id,
                     'valid_date_range' => [
                         'start_date' => $conventionDetail->start_date,
-                        'end_date' => $conventionDetail->end_date
-                    ]
+                        'end_date' => $conventionDetail->end_date,
+                    ],
                 ]);
             }
         } else {
@@ -79,7 +80,7 @@ class ConventionPricingService
                 $conventionId,
                 $contractPercentageId
             );
-            
+
             foreach ($annexPrestations as $prestation) {
                 $prestationsWithPricing[] = array_merge($prestation, [
                     'pricing_source' => 'annex',
@@ -87,8 +88,8 @@ class ConventionPricingService
                     'convention_detail_id' => $conventionDetail->id,
                     'valid_date_range' => [
                         'start_date' => $conventionDetail->start_date,
-                        'end_date' => $conventionDetail->end_date
-                    ]
+                        'end_date' => $conventionDetail->end_date,
+                    ],
                 ]);
             }
         }
@@ -96,6 +97,7 @@ class ConventionPricingService
         // Step 3: If still nothing found, return empty (NO fallback to public pricing)
         if (empty($prestationsWithPricing)) {
             Log::warning("No pricing found in PrestationPricing for convention {$conventionId}, date {$priseEnChargeDate}, percentage {$contractPercentageId}");
+
             return [];
         }
 
@@ -129,11 +131,11 @@ class ConventionPricingService
                     'convention_id' => $conventionId,
                     'pricing_source' => 'public_pricing',
                     'priority' => 4,
-                    'prestation' => $prestation
+                    'prestation' => $prestation,
                 ];
             }
         } catch (\Exception $e) {
-            Log::error('Error getting all prestations with public pricing: ' . $e->getMessage());
+            Log::error('Error getting all prestations with public pricing: '.$e->getMessage());
         }
 
         return $prestations;
@@ -149,19 +151,19 @@ class ConventionPricingService
         try {
             // Get all active annexes for this convention
             $annexes = Annex::where('convention_id', $conventionId)
-                ->where('status', 'active')
+                ->where('is_active', true)
                 ->get();
 
             foreach ($annexes as $annex) {
                 // Build query for PrestationPricing
                 $query = PrestationPricing::with(['prestation.specialization'])
                     ->where('annex_id', $annex->id);
-                
+
                 // Add contract_percentage_id filter if provided
                 if ($contractPercentageId !== null) {
                     $query->where('contract_percentage_id', $contractPercentageId);
                 }
-                
+
                 $annexPrestations = $query->get();
 
                 foreach ($annexPrestations as $pricing) {
@@ -184,13 +186,13 @@ class ConventionPricingService
                             'annex_id' => $annex->id,
                             'pricing_id' => $pricing->id,
                             'contract_percentage_id' => $pricing->contract_percentage_id,
-                            'prestation' => $pricing->prestation
+                            'prestation' => $pricing->prestation,
                         ];
                     }
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Error getting prestations from annexes: ' . $e->getMessage());
+            Log::error('Error getting prestations from annexes: '.$e->getMessage());
         }
 
         return $prestations;
@@ -220,12 +222,12 @@ class ConventionPricingService
             // Build query for PrestationPricing
             $query = PrestationPricing::with(['prestation.specialization'])
                 ->where('avenant_id', $avenantId);
-            
+
             // Add contract_percentage_id filter if provided
             if ($contractPercentageId !== null) {
                 $query->where('contract_percentage_id', $contractPercentageId);
             }
-            
+
             $avenantPrestations = $query->get();
 
             foreach ($avenantPrestations as $pricing) {
@@ -248,12 +250,12 @@ class ConventionPricingService
                         'avenant_id' => $avenantId,
                         'pricing_id' => $pricing->id,
                         'contract_percentage_id' => $pricing->contract_percentage_id,
-                        'prestation' => $pricing->prestation
+                        'prestation' => $pricing->prestation,
                     ];
                 }
             }
         } catch (\Exception $e) {
-            Log::error('Error getting prestations from avenant: ' . $e->getMessage());
+            Log::error('Error getting prestations from avenant: '.$e->getMessage());
         }
 
         return $prestations;
@@ -268,7 +270,7 @@ class ConventionPricingService
         $seenPrestationIds = [];
 
         foreach ($prestations as $prestation) {
-            if (!in_array($prestation['prestation_id'], $seenPrestationIds)) {
+            if (! in_array($prestation['prestation_id'], $seenPrestationIds)) {
                 $uniquePrestations[] = $prestation;
                 $seenPrestationIds[] = $prestation['prestation_id'];
             }
@@ -283,8 +285,8 @@ class ConventionPricingService
     public function getPrestationPricingForDate($prestationId, $conventionId, Carbon $priseEnChargeDate, $contractPercentageId = null): ?array
     {
         $conventionDetail = $this->findConventionDetailForDate($conventionId, $priseEnChargeDate);
-        
-        if (!$conventionDetail) {
+
+        if (! $conventionDetail) {
             return null;
         }
 
@@ -293,11 +295,11 @@ class ConventionPricingService
             $query = PrestationPricing::with('prestation')
                 ->where('avenant_id', $conventionDetail->avenant_id)
                 ->where('prestation_id', $prestationId);
-            
+
             if ($contractPercentageId !== null) {
                 $query->where('contract_percentage_id', $contractPercentageId);
             }
-            
+
             $pricing = $query->first();
 
             if ($pricing) {
@@ -305,14 +307,14 @@ class ConventionPricingService
                     'pricing_source' => 'avenant',
                     'convention_price' => $pricing->patient_price + $pricing->company_price,
                     'patient_price' => $pricing->patient_price,
-                        // Provide `price` for frontend fallback (patient share)
-                        'price' => $pricing->patient_price,
+                    // Provide `price` for frontend fallback (patient share)
+                    'price' => $pricing->patient_price,
                     'company_price' => $pricing->company_price,
                     'prix' => $pricing->prix,
                     'pricing_id' => $pricing->id,
                     'avenant_id' => $conventionDetail->avenant_id,
                     'contract_percentage_id' => $pricing->contract_percentage_id,
-                    'uses_convention' => true
+                    'uses_convention' => true,
                 ];
             }
         } else {
@@ -325,11 +327,11 @@ class ConventionPricingService
                 $query = PrestationPricing::with('prestation')
                     ->where('annex_id', $annex->id)
                     ->where('prestation_id', $prestationId);
-                
+
                 if ($contractPercentageId !== null) {
                     $query->where('contract_percentage_id', $contractPercentageId);
                 }
-                
+
                 $pricing = $query->first();
 
                 if ($pricing) {
@@ -337,14 +339,14 @@ class ConventionPricingService
                         'pricing_source' => 'annex',
                         'convention_price' => $pricing->patient_price + $pricing->company_price,
                         'patient_price' => $pricing->patient_price,
-                            // Provide `price` for frontend fallback (patient share)
-                            'price' => $pricing->patient_price,
+                        // Provide `price` for frontend fallback (patient share)
+                        'price' => $pricing->patient_price,
                         'company_price' => $pricing->company_price,
                         'prix' => $pricing->prix,
                         'pricing_id' => $pricing->id,
                         'annex_id' => $annex->id,
                         'contract_percentage_id' => $pricing->contract_percentage_id,
-                        'uses_convention' => true
+                        'uses_convention' => true,
                     ];
                 }
             }

@@ -303,6 +303,29 @@ class AdmissionController extends Controller
     }
 
     /**
+     * Get the next file number that will be generated
+     */
+    public function getNextFileNumber(): JsonResponse
+    {
+        try {
+            $nextFileNumber = Admission::generateFileNumber();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'next_file_number' => $nextFileNumber,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate next file number',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Verify file number for an admission
      */
     public function verifyFileNumber($id): JsonResponse

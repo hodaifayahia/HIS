@@ -69,6 +69,19 @@ case $1 in
         echo "📊 Running migrations..."
         docker exec -it his-laravel.test-1 php artisan migrate
         ;;
+    "seed")
+        if [ -z "$2" ]; then
+            echo "🌱 Seeding database (all seeders)..."
+            docker exec -it his-laravel.test-1 php artisan db:seed
+        else
+            echo "🌱 Seeding database with $2..."
+            docker exec -it his-laravel.test-1 php artisan db:seed --class="$2"
+        fi
+        ;;
+    "fresh")
+        echo "🔄 Fresh migration with seeding..."
+        docker exec -it his-laravel.test-1 php artisan migrate:fresh --seed
+        ;;
     "build")
         echo "🎨 Building frontend assets..."
         docker exec -it his-laravel.test-1 npm run build
@@ -161,6 +174,9 @@ case $1 in
         echo "  shell      - Access application shell"
         echo "  logs       - View Laravel application logs"
         echo "  migrate    - Run database migrations"
+        echo "  seed       - Seed database (all seeders)"
+        echo "  seed <SeederName> - Seed specific seeder"
+        echo "  fresh      - Fresh migration + seed"
         echo ""
         echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "💡 Quick Start: ./manage-his.sh full-dev"

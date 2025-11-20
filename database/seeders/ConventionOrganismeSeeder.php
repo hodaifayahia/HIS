@@ -2,16 +2,15 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\CRM\Organisme;
-use App\Models\B2B\Convention;
 use App\Models\B2B\Annex;
 use App\Models\B2B\Avenant;
-use App\Models\ContractPercentage;
+use App\Models\B2B\Convention;
+use App\Models\B2B\ConventionDetail;
 use App\Models\CONFIGURATION\Service;
-use App\Models\CONFIGURATION\Prestation;
-use App\Models\Specialization;
+use App\Models\ContractPercentage;
+use App\Models\CRM\Organisme;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 
 class ConventionOrganismeSeeder extends Seeder
 {
@@ -28,86 +27,111 @@ class ConventionOrganismeSeeder extends Seeder
             ]
         );
 
-        // Ensure a default user exists because avenants require a creator_id
+        // Ensure a default user exists because avenants and conventions require a creator_id
         $defaultUser = User::firstOrCreate(
             ['email' => 'seeder-default@example.com'],
             ['name' => 'Seeder Default User', 'password' => bcrypt('password')]
         );
 
-        // For each organisme create 1-3 conventions with related annexes, avenants, and contract percentages
+        // Get all available services for annexes
+        $services = Service::where('is_active', true)->get();
+        if ($services->isEmpty()) {
+            $services = collect([$defaultService]);
+        }
+
+        // For each organisme create 1-3 conventions with related details, annexes, and contract percentages
         foreach (Organisme::all() as $organisme) {
-            $conventionCount = rand(1,3);
+            $conventionCount = rand(1, 3);
             for ($i = 0; $i < $conventionCount; $i++) {
-                // pick a status: pending, active, terminated
+                // Pick a status: pending, active, terminated
                 $statuses = ['pending', 'active', 'terminated'];
                 $status = $statuses[array_rand($statuses)];
 
                 $conventionAttrs = [
                     'organisme_id' => $organisme->id,
-                    'name' => $organisme->name . ' Convention ' . ($i+1),
+                    'name' => $organisme->name.' Convention '.($i + 1),
                     'status' => $status,
                 ];
 
+                // Create or get the convention
                 $convention = Convention::firstOrCreate([
                     'organisme_id' => $organisme->id,
-                    'name' => $conventionAttrs['name']
+                    'name' => $conventionAttrs['name'],
                 ], $conventionAttrs);
 
                 // If convention is active, set activation_at if not set
-                if ($convention->status === 'active' && !$convention->activation_at) {
+                if ($convention->status === 'active' && ! $convention->activation_at) {
                     $convention->activation_at = now();
                     $convention->save();
                 }
 
+                // Create ConventionDetail for this convention
+                $discountPercentage = rand(10, 90); // Random discount between 10-90%
+                $minPrice = rand(50, 500); // Random min price
+                $maxPrice = rand(500, 5000); // Random max price
+
+                $startDate = now()->subDays(rand(0, 365)); // Random start date within past year
+                $endDate = (clone $startDate)->addYear(); // 1 year from start
+
+                ConventionDetail::firstOrCreate([
+                    'convention_id' => $convention->id,
+                    'head' => true,
+                ], [
+                    'convention_id' => $convention->id,
+                    'head' => true,
+                    'start_date' => $startDate,
+                    'end_date' => $endDate,
+                    'family_auth' => json_encode(['Conjoint', 'Descendant', 'Ascendant']),
+                    'max_price' => $maxPrice,
+                    'min_price' => $minPrice,
+                    'discount_percentage' => $discountPercentage,
+                    'avenant_id' => null, // Initially no avenant
+                    'extension_count' => 0,
+                ]);
+
+                // Create 1-3 contract percentages for this convention
+                $cpCount = rand(1, 3);
+                for ($c = 0; $c < $cpCount; $c++) {
+                    $percentage = rand(1, 100);
+                    ContractPercentage::firstOrCreate([
+                        'contract_id' => $convention->id,
+                        'percentage' => $percentage,
+                    ], [
+                        'contract_id' => $convention->id,
+                        'percentage' => $percentage,
+                    ]);
+                }
+
                 // Create 1-2 annexes for this convention
-                $annexCount = rand(1,2);
+                $annexCount = rand(1, 2);
                 for ($a = 0; $a < $annexCount; $a++) {
-                    // Prefer an existing specialization that already has at least one prestation
-                    $specId = Prestation::inRandomOrder()->pluck('specialization_id')->first();
-                    $specWithPrestation = $specId ? Specialization::find($specId) : null;
+                    // Pick a random service
+                    $selectedService = $services->random();
 
-                    // If none exists, create a default specialization and a default prestation for it
-                    if (! $specWithPrestation) {
-                        $specWithPrestation = Specialization::firstOrCreate(
-                            ['name' => 'Seeder Default Specialization'],
-                            ['service_id' => $defaultService->id, 'created_by' => $defaultUser->id]
-                        );
-
-                        Prestation::firstOrCreate([
-                            'internal_code' => 'SEED-DEFAULT-PREST-001'
-                        ], [
-                            'name' => 'Seeder Default Prestation',
-                            'service_id' => $defaultService->id,
-                            'specialization_id' => $specWithPrestation->id,
-                            'type' => 'consultation',
-                            'default_payment_type' => 'cash',
-                            'public_price' => 0.00,
-                            'convenience_prix' => 0.00,
-                            'vat_rate' => 0.00,
-                            'is_active' => 1,
-                        ]);
-                    }
+                    // Randomly choose prestation_prix_status
+                    $prixStatuses = ['empty', 'convenience_prix', 'public_prix'];
+                    $prixStatus = $prixStatuses[array_rand($prixStatuses)];
 
                     Annex::firstOrCreate([
                         'convention_id' => $convention->id,
-                        'annex_name' => $convention->name . ' Annex ' . ($a+1)
+                        'annex_name' => $convention->name.' Annex '.($a + 1),
                     ], [
                         'convention_id' => $convention->id,
-                        'annex_name' => $convention->name . ' Annex ' . ($a+1),
-                        'description' => 'Auto-created annex',
+                        'annex_name' => $convention->name.' Annex '.($a + 1),
+                        'description' => 'Auto-created annex for '.$selectedService->name,
                         'is_active' => 1,
-                        'min_price' => rand(100,1000),
-                        'prestation_prix_status' => 'empty',
-                        'service_id' => $defaultService->id,
-                        // set created_by for traceability
+                        'min_price' => rand(100, 1000),
+                        'prestation_prix_status' => $prixStatus,
+                        'service_id' => $selectedService->id,
                         'created_by' => $defaultUser->id,
+                        'updated_by' => $defaultUser->id,
                     ]);
                 }
 
                 // Create 0-2 avenants BUT enforce business rules:
-                // - Only create an avenant if the convention is active (activation_at set or status === 'active')
+                // - Only create an avenant if the convention is active
                 // - Do not create more than one pending/active/scheduled avenant for the same convention
-                $avenantCount = rand(0,2);
+                $avenantCount = rand(0, 2);
                 for ($av = 0; $av < $avenantCount; $av++) {
                     // Skip creating avenants for non-active conventions
                     if ($convention->status !== 'active' && ! $convention->activation_at) {
@@ -125,27 +149,17 @@ class ConventionOrganismeSeeder extends Seeder
 
                     Avenant::firstOrCreate([
                         'convention_id' => $convention->id,
-                        'description' => 'Avenant ' . ($av+1) . ' for ' . $convention->name
+                        'description' => 'Avenant '.($av + 1).' for '.$convention->name,
                     ], [
                         'convention_id' => $convention->id,
-                        'description' => 'Avenant ' . ($av+1) . ' for ' . $convention->name,
+                        'description' => 'Avenant '.($av + 1).' for '.$convention->name,
                         'status' => 'pending',
                         'creator_id' => $defaultUser->id,
                     ]);
                 }
-
-                // Create 1-3 contract percentages
-                $cpCount = rand(1,3);
-                for ($c = 0; $c < $cpCount; $c++) {
-                    ContractPercentage::firstOrCreate([
-                        'contract_id' => $convention->id,
-                        'percentage' => rand(1,100)
-                    ], [
-                        'contract_id' => $convention->id,
-                        'percentage' => rand(1,100)
-                    ]);
-                }
             }
         }
+
+        $this->command->info('✅ Created conventions with details for all organisms!');
     }
 }

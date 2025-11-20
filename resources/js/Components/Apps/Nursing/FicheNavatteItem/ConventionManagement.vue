@@ -35,7 +35,12 @@ const props = defineProps({
   },
   ficheNavetteId: {
     type: Number,
-    required: true
+    required: false,
+    default: null
+  },
+  patientId: {
+    type: [Number, String],
+    default: null
   }
 })
 
@@ -152,7 +157,7 @@ const alreadySelectedPrestationIds = computed(() => {
 
 // Filter out prestations that are already selected for the current convention
 const filteredConventionPrestations = computed(() => {
-  if (!conventionPrestations.value.length || !selectedSpecialization.value) {
+  if (!conventionPrestations.value.length) {
     return [];
   }
 
@@ -160,9 +165,16 @@ const filteredConventionPrestations = computed(() => {
   
   return conventionPrestations.value.filter(prestation => {
     const prestationId = prestation.prestation_id || prestation.id;
+    const isAlreadySelected = selectedPrestationIds.has(prestationId);
+    
+    // If no specialization is selected, show all prestations (don't filter by specialization)
+    if (!selectedSpecialization.value) {
+      return !isAlreadySelected;
+    }
+    
+    // If specialization is selected, filter by it
     const isForSpecialization = prestation.specialization_id === selectedSpecialization.value ||
                                   prestation.service_specialization_id === selectedSpecialization.value;
-    const isAlreadySelected = selectedPrestationIds.has(prestationId);
 
     return isForSpecialization && !isAlreadySelected;
   });
@@ -172,7 +184,6 @@ const canAddConvention = computed(() => {
   return currentOrganisme.value &&
            currentConvention.value &&
            currentPrestations.value.length > 0 &&
-           selectedSpecialization.value &&
            selectedDoctor.value
 })
 
@@ -267,7 +278,13 @@ const safePrestationId = computed(() => {
 const safePatientId = computed(() => {
   console.log('=== safePatientId computed ===')
   
-  // Priority 1: Get from selectedAdherentPatient if it exists
+  // Priority 1: Get from props (passed from parent component)
+  if (props.patientId) {
+    console.log('Using patient ID from props:', props.patientId)
+    return props.patientId
+  }
+  
+  // Priority 2: Get from selectedAdherentPatient if it exists
   if (selectedAdherentPatient.value?.id) {
     console.log('Using patient ID from selectedAdherentPatient.id:', selectedAdherentPatient.value.id)
     return selectedAdherentPatient.value.id
@@ -278,7 +295,7 @@ const safePatientId = computed(() => {
     return selectedAdherentPatient.value.patient_id
   }
   
-  // Priority 2: Get from fiche navette data
+  // Priority 3: Get from fiche navette data
   if (ficheNavetteData.value?.patient_id) {
     console.log('Using patient ID from ficheNavetteData.patient_id:', ficheNavetteData.value.patient_id)
     return ficheNavetteData.value.patient_id
@@ -493,7 +510,7 @@ const onConventionChange = async () => {
 
 const onSpecializationChange = () => {
   selectedDoctor.value = null
-  currentPrestations.value = []
+  // Don't clear prestations - filtering is automatic via filteredConventionPrestations
 }
 
 
@@ -1071,8 +1088,28 @@ const proceedWithPrescriptionCreation = async () => {
         life: 3000
       })
       
-      // Emit success and close modal
-      emit('convention-items-added')
+      // Emit success with convention data
+      const emitData = {
+        patient_id: safePatientId.value,
+        doctor_id: selectedDoctor.value?.id || null,
+        company_id: currentOrganisme.value,
+        convention_id: currentConvention.value,
+        prestations: completedConventions.value.flatMap(conv => 
+          conv.prestations.map(p => ({
+            id: p.id || p.prestation_id,
+            prestation_id: p.prestation_id || p.id,
+            name: p.name || p.prestation_name,
+            prestation_name: p.prestation_name || p.name,
+            code: p.code || p.prestation_code,
+            prestation_code: p.prestation_code || p.code,
+            price: p.patient_price || p.price,
+            patient_price: p.patient_price || p.price,
+            ...p
+          }))
+        )
+      }
+      
+      emit('convention-items-added', emitData)
       emit('update:visible', false)
       resetAll()
     } else {

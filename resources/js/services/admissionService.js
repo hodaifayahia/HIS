@@ -22,6 +22,10 @@ export const AdmissionService = {
     return axios.delete(`/api/admissions/${id}`)
   },
 
+  verifyFileNumber(id) {
+    return axios.post(`/api/admissions/${id}/verify-file-number`)
+  },
+
   dischargeAdmission(id) {
     return axios.post(`/api/admissions/${id}/discharge`)
   },
@@ -32,6 +36,10 @@ export const AdmissionService = {
 
   getStatistics() {
     return axios.get('/api/admissions/statistics')
+  },
+
+  getNextFileNumber() {
+    return axios.get('/api/admissions/next-file-number')
   },
 
   // Procedures

@@ -4,11 +4,10 @@ namespace App\Services\B2B;
 
 use App\Models\B2B\Annex;
 use App\Models\B2B\Convention;
-use App\Models\CONFIGURATION\Prestation;
 use App\Models\B2B\PrestationPricing;
-use App\Models\ContractPercentage;
-use Illuminate\Support\Facades\DB;
+use App\Models\CONFIGURATION\Prestation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class AnnexCreationService
 {
@@ -16,8 +15,6 @@ class AnnexCreationService
 
     /**
      * Constructor to inject ConventionService.
-     *
-     * @param ConventionService $conventionService
      */
     public function __construct(ConventionService $conventionService)
     {
@@ -27,9 +24,9 @@ class AnnexCreationService
     /**
      * Create a new annex and initialize its associated prestation pricings.
      *
-     * @param array $data Validated data for the annex.
-     * @param string|null $contractId Optional contract ID if coming from storeWithContract.
-     * @return Annex
+     * @param  array  $data  Validated data for the annex.
+     * @param  string|null  $contractId  Optional contract ID if coming from storeWithContract.
+     *
      * @throws \Exception
      */
     public function createAnnexAndInitializePrestations(array $data, ?string $contractId = null): Annex
@@ -54,7 +51,7 @@ class AnnexCreationService
             // Fetch the associated Convention and its details to get discount_percentage and max_price
             $convention = Convention::with('conventionDetail', 'contractPercentages')->find($annex->convention_id);
 
-            if (!$convention || !$convention->conventionDetail) {
+            if (! $convention || ! $convention->conventionDetail) {
                 throw new \Exception('Associated Convention or Convention Detail not found for annex initialization.');
             }
 
@@ -68,6 +65,25 @@ class AnnexCreationService
             // Fetch all prestations associated with the service chosen for this new annex
             $prestations = Prestation::where('service_id', $annex->service_id)->get();
             $prestationPrixStatus = $annex->prestation_prix_status;
+
+            \Log::info('Creating annex prestations', [
+                'annex_id' => $annex->id,
+                'service_id' => $annex->service_id,
+                'prestations_count' => $prestations->count(),
+                'contract_percentages_count' => $contractPercentages->count(),
+                'prestation_prix_status' => $prestationPrixStatus,
+            ]);
+
+            // If no prestations found, log warning and return early
+            if ($prestations->isEmpty()) {
+                \Log::warning('No prestations found for service', [
+                    'annex_id' => $annex->id,
+                    'service_id' => $annex->service_id,
+                    'service_name' => $annex->service->name ?? 'Unknown',
+                ]);
+
+                return $annex;
+            }
 
             // Loop through each fetched prestation and create an entry in the prestation_pricing table
             foreach ($prestations as $prestation) {
@@ -110,7 +126,7 @@ class AnnexCreationService
 
                     // Calculate company and patient shares based on the convention's discount and max_price
                     $companyShareFactor = $discountPercentage / 100;
-                  
+
                     $originalCompanyShare = $initialBasePrice * $companyShareFactor;
                     $originalPatientShare = $initialBasePrice - $originalCompanyShare; // Patient share before capping
 
@@ -140,6 +156,11 @@ class AnnexCreationService
                     ]);
                 }
             }
+
+            \Log::info('Annex prestations created successfully', [
+                'annex_id' => $annex->id,
+                'total_pricing_entries' => $prestations->count() * $contractPercentages->count(),
+            ]);
 
             // Return the created annex (loaded with relationships if needed for the response)
             return $annex;
