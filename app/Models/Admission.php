@@ -33,6 +33,7 @@ class Admission extends Model
         'company_id',
         'social_security_num',
         'relation_type',
+        'reason_for_admission',
     ];
 
     protected $casts = [

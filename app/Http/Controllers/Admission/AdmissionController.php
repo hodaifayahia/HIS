@@ -117,6 +117,7 @@ class AdmissionController extends Controller
             'documents',
             'billingRecords',
             'creator',
+            'company',
         ])->findOrFail($id);
 
         return response()->json([

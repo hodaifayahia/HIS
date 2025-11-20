@@ -1,5 +1,5 @@
 <template>
-  <!-- PrimeVue Dialog Modal with Professional Medical Theme -->
+  <!-- PrimeVue Dialog Modal with Professional Medical Theme - Matching Admission Style -->
   <Dialog 
     :visible="showModal" 
     @update:visible="closeModal"
@@ -7,23 +7,23 @@
     :closable="true" 
     :close-on-escape="true"
     class="tw-rounded-2xl tw-overflow-hidden"
-    :style="{ width: '100%', maxWidth: '700px' }"
-    :breakpoints="{ '960px': '75vw', '640px': '90vw' }"
+    :style="{ width: '100%', maxWidth: '900px' }"
+    :breakpoints="{ '960px': '85vw', '640px': '95vw' }"
   >
     <!-- Enhanced Header with Gradient Background - Matching Admission List Page -->
     <template #header>
-      <div class="tw-bg-gradient-to-r tw-from-white tw-via-indigo-50/50 tw-to-purple-50/30 tw-border-b tw-border-slate-200/60 tw-shadow-lg tw-backdrop-blur-sm tw--m-6 tw-mb-0 tw-w-screen tw--ml-6">
+      <div class="tw-bg-gradient-to-r tw-from-white tw-via-blue-50/50 tw-to-indigo-50/30 tw-border-b tw-border-slate-200/60 tw-shadow-lg tw-backdrop-blur-sm tw--m-6 tw-mb-0 tw-w-screen tw--ml-6">
         <div class="tw-px-6 tw-py-6 tw-flex tw-items-center tw-justify-between">
           <div class="tw-flex tw-items-center tw-gap-4">
-            <div class="tw-w-12 tw-h-12 tw-bg-gradient-to-br tw-from-indigo-500 tw-to-purple-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
+            <div class="tw-w-12 tw-h-12 tw-bg-gradient-to-br tw-from-blue-500 tw-to-indigo-600 tw-rounded-xl tw-flex tw-items-center tw-justify-center tw-shadow-lg">
               <i :class="isEditMode ? 'bi bi-pencil-square' : 'bi bi-person-plus-fill'" class="tw-text-white tw-text-xl"></i>
             </div>
             <div>
               <h2 class="tw-text-2xl tw-font-bold tw-text-gray-900 tw-mb-1">
-                {{ isEditMode ? 'Edit User' : 'Add New User' }}
+                {{ isEditMode ? 'Edit User Account' : 'Create New User Account' }}
               </h2>
               <p class="tw-text-slate-600 tw-text-sm">
-                {{ isEditMode ? 'Update user account details and permissions' : 'Create a new user account with role and access permissions' }}
+                {{ isEditMode ? 'Modify user details, roles and permissions' : 'Set up a new user with credentials and access level' }}
               </p>
             </div>
           </div>
@@ -78,13 +78,14 @@
                 <i class="pi pi-user tw-text-indigo-400"></i>
               </InputGroupAddon>
               <Field 
-                name="name" 
-                v-slot="{ field }"
+                name="name"
+                v-model="user.name"
               >
                 <input 
-                  v-bind="field"
+                  v-model="user.name"
                   type="text" 
-                  id="name" 
+                  id="name"
+                  name="name"
                   class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-slate-300 tw-rounded-lg tw-text-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-indigo-500 focus:tw-border-transparent"
                   placeholder="Enter full name"
                   :class="{ 'tw-border-red-500 tw-bg-red-50': validationErrors.name }"
@@ -107,13 +108,14 @@
                 <i class="pi pi-envelope tw-text-green-400"></i>
               </InputGroupAddon>
               <Field 
-                name="email" 
-                v-slot="{ field }"
+                name="email"
+                v-model="user.email"
               >
                 <input 
-                  v-bind="field"
+                  v-model="user.email"
                   type="email" 
-                  id="email" 
+                  id="email"
+                  name="email"
                   class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-slate-300 tw-rounded-lg tw-text-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-green-500 focus:tw-border-transparent"
                   placeholder="user@hospital.com"
                   :class="{ 'tw-border-red-500 tw-bg-red-50': validationErrors.email }"
@@ -136,15 +138,16 @@
                 <i class="pi pi-phone tw-text-purple-400"></i>
               </InputGroupAddon>
               <Field 
-                name="phone" 
-                v-slot="{ field }"
+                name="phone"
+                v-model="user.phone"
               >
                 <input 
-                  v-bind="field"
+                  v-model="user.phone"
                   type="tel" 
-                  id="phone" 
+                  id="phone"
+                  name="phone"
                   class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-slate-300 tw-rounded-lg tw-text-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-purple-500 focus:tw-border-transparent"
-                  placeholder="+213 (555) 000-0000"
+                  placeholder="05xxxxxxxx"
                   :class="{ 'tw-border-red-500 tw-bg-red-50': validationErrors.phone }"
                 />
               </Field>
@@ -202,11 +205,10 @@
             </label>
             <Field
               name="role"
-              v-slot="{ field }"
+              v-model="user.role"
             >
               <Dropdown
-                :model-value="field.value"
-                @update:model-value="field.value = $event"
+                v-model="user.role"
                 id="role"
                 :options="getRoleOptions()"
                 option-label="label"
@@ -232,15 +234,17 @@
               </InputGroupAddon>
               <Field 
                 name="fichenavatte_max" 
-                v-slot="{ field }"
+                v-model="user.fichenavatte_max"
               >
                 <input 
-                  v-bind="field"
+                  v-model="user.fichenavatte_max"
                   type="number" 
-                  id="fichenavatte_max" 
+                  id="fichenavatte_max"
+                  name="fichenavatte_max"
                   class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-slate-300 tw-rounded-lg tw-text-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-orange-500 focus:tw-border-transparent"
                   placeholder="0"
                   min="0"
+                  step="1"
                   :class="{ 'tw-border-red-500 tw-bg-red-50': validationErrors.fichenavatte_max }"
                 />
               </Field>
@@ -259,17 +263,17 @@
             </label>
             <Field
               name="main_specialization_id"
-              v-slot="{ field }"
+              v-model="user.main_specialization_id"
             >
               <Dropdown
-                :model-value="field.value"
-                @update:model-value="field.value = $event"
+                v-model="user.main_specialization_id"
                 id="main_specialization_id"
                 :options="specializations"
                 option-label="name"
                 option-value="id"
                 class="tw-w-full tw-p-inputfield-sm"
                 placeholder="Select main specialization"
+                :loading="loadingspecializations"
                 :class="{ 'tw-border-red-500': validationErrors.main_specialization_id }"
               />
             </Field>
@@ -288,11 +292,10 @@
             </label>
             <Field
               name="specializations"
-              v-slot="{ field }"
+              v-model="user.specializations"
             >
               <MultiSelect
-                :model-value="field.value"
-                @update:model-value="field.value = $event"
+                v-model="user.specializations"
                 id="specializations"
                 :options="specializations"
                 option-label="name"
@@ -302,6 +305,7 @@
                 :filter="true"
                 :show-toggle-all="true"
                 :max-selected-labels="3"
+                selected-items-label="{0} specializations selected"
                 class="tw-w-full tw-p-inputfield-sm"
                 :class="{ 'tw-border-red-500': validationErrors.specializations }"
                 display="chip"
@@ -332,12 +336,13 @@
             </InputGroupAddon>
             <Field 
               name="salary" 
-              v-slot="{ field }"
+              v-model="user.salary"
             >
               <input 
-                v-bind="field"
+                v-model="user.salary"
                 type="number" 
-                id="salary" 
+                id="salary"
+                name="salary"
                 class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-slate-300 tw-rounded-lg tw-text-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-green-500 focus:tw-border-transparent"
                 placeholder="0.00"
                 min="0"
@@ -370,14 +375,15 @@
             </InputGroupAddon>
             <Field 
               name="password"
-              v-slot="{ field }"
+              v-model="user.password"
             >
               <input 
-                v-bind="field"
-                :type="showPassword ? 'text' : 'password'"
+                v-model="user.password"
+                :type="showPassword ? 'text' : 'password'" 
                 id="password"
+                name="password"
                 class="tw-w-full tw-px-3 tw-py-2 tw-border tw-border-slate-300 tw-rounded-lg tw-text-sm focus:tw-outline-none focus:tw-ring-2 focus:tw-ring-red-500 focus:tw-border-transparent"
-                :placeholder="isEditMode ? 'Leave blank to keep current password' : 'Enter password (min 8 characters)'"
+                :placeholder="isEditMode ? 'Leave blank to keep current password' : 'Enter password'"
                 :class="{ 'tw-border-red-500 tw-bg-red-50': validationErrors.password }"
               />
             </Field>
@@ -482,8 +488,8 @@ const user = ref({
   avatar: props.userData?.avatar,
   password: '',
   role: props.userData?.role || 'receptionist',
-  fichenavatte_max: props.userData?.fichenavatte_max ?? 0,
-  salary: props.userData?.salary ?? 0,
+  fichenavatte_max: props.userData?.fichenavatte_max || null,
+  salary: props.userData?.salary || null,
   specializations: props.userData?.specialization_ids || [],
   main_specialization_id: props.userData?.main_specialization?.id || null,
 });
@@ -526,8 +532,8 @@ watch(
       avatar: newValue?.avatar,
       password: '',
       role: newValue?.role || 'receptionist',
-      fichenavatte_max: newValue?.fichenavatte_max ?? 0,
-      salary: newValue?.salary ?? 0,
+      fichenavatte_max: newValue?.fichenavatte_max || null,
+      salary: newValue?.salary || null,
       specializations: newValue?.specialization_ids || [],
       main_specialization_id: newValue?.main_specialization?.id || null,
     };
@@ -627,35 +633,64 @@ const createFormData = (values) => {
     formData.append('_method', 'PUT');
   }
 
-  Object.keys(values).forEach((key) => {
-    if (key === 'password' && isEditMode.value && !values[key]) {
-      return;
-    }
-
-    if (key === 'avatar') {
-      if (values[key] instanceof File) {
-        formData.append('avatar', values[key]);
-      }
-    } else if (key === 'specializations') {
-      if (Array.isArray(values[key])) {
-        values[key].forEach((specializationId, index) => {
-          formData.append(`specializations[${index}]`, specializationId);
-        });
-      }
-    } else if (values[key] !== null && values[key] !== undefined && values[key] !== '') {
-      formData.append(key, values[key]);
+  // Required fields - always send
+  const requiredFields = ['name', 'email', 'phone', 'role', 'is_active'];
+  requiredFields.forEach(field => {
+    if (values[field] !== null && values[field] !== undefined) {
+      formData.append(field, values[field]);
     }
   });
+
+  // Password - only if provided
+  if (values.password && (isEditMode.value === false || values.password !== '')) {
+    formData.append('password', values.password);
+  }
+
+  // Avatar - only if it's a File
+  if (values.avatar instanceof File) {
+    formData.append('avatar', values.avatar);
+  }
+
+  // Numeric fields - send if they have a value > 0
+  if (values.fichenavatte_max && values.fichenavatte_max > 0) {
+    formData.append('fichenavatte_max', values.fichenavatte_max);
+  }
+  
+  if (values.salary && values.salary > 0) {
+    formData.append('salary', values.salary);
+  }
+
+  // Specializations array
+  if (Array.isArray(values.specializations) && values.specializations.length > 0) {
+    values.specializations.forEach((specializationId, index) => {
+      formData.append(`specializations[${index}]`, specializationId);
+    });
+  }
+
+  // Main specialization
+  if (values.main_specialization_id) {
+    formData.append('main_specialization_id', values.main_specialization_id);
+  }
 
   return formData;
 };
 
-const submitForm = async (values) => {
+const submitForm = async () => {
   isSubmitting.value = true;
   try {
-    const formData = createFormData(values);
+    // Use the reactive user object directly
+    console.log('Submitting user data:', user.value);
+    
+    const formData = createFormData(user.value);
+    
+    // Debug: Log FormData contents
+    console.log('FormData entries:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`  ${key} = ${value}`);
+    }
+    
     const url = isEditMode.value ? `/api/users/${user.value.id}` : '/api/users';
-    const method = isEditMode.value ? 'post' : 'post';
+    const method = 'post';
 
     const response = await axios({
       method,
@@ -668,6 +703,7 @@ const submitForm = async (values) => {
     emit('userUpdated', response.data.data);
     closeModal();
   } catch (error) {
+    console.error('Submission error:', error.response?.data || error);
     handleBackendErrors(error);
   } finally {
     isSubmitting.value = false;

@@ -1639,6 +1639,13 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/admissions/{admission}/documents/{document}/download', [AdmissionDocumentController::class, 'download']);
         Route::delete('/admissions/{admission}/documents/{document}', [AdmissionDocumentController::class, 'destroy']);
         Route::patch('/admissions/{admission}/documents/{document}/verify', [AdmissionDocumentController::class, 'verify']);
+
+        // Admission Treatment Routes
+        Route::get('/admissions/{admission}/treatments', [\App\Http\Controllers\Admission\AdmissionTreatmentController::class, 'index']);
+        Route::post('/admissions/{admission}/treatments', [\App\Http\Controllers\Admission\AdmissionTreatmentController::class, 'store']);
+        Route::get('/admissions/{admission}/treatments/{treatment}', [\App\Http\Controllers\Admission\AdmissionTreatmentController::class, 'show']);
+        Route::patch('/admissions/{admission}/treatments/{treatment}', [\App\Http\Controllers\Admission\AdmissionTreatmentController::class, 'update']);
+        Route::delete('/admissions/{admission}/treatments/{treatment}', [\App\Http\Controllers\Admission\AdmissionTreatmentController::class, 'destroy']);
     }); // End of /api group
 
     // The main application entry point for authenticated users

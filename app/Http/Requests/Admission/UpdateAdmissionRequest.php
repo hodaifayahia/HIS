@@ -36,8 +36,10 @@ class UpdateAdmissionRequest extends FormRequest
             'observation' => 'nullable|string',
             'company_id' => 'nullable|exists:organismes,id',
             'social_security_num' => 'nullable|string|max:50',
-            'relation_type' => ['nullable', 'string', Rule::in(array_keys(config('relation_types')))],
+            'relation_type' => 'nullable|string',
             'file_number_verified' => 'sometimes|boolean',
+            'type' => 'sometimes|in:surgery,nursing',
+            'reason_for_admission' => 'nullable|string',
         ];
     }
 

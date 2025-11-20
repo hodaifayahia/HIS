@@ -47,6 +47,7 @@ class AdmissionResource extends JsonResource
             'social_security_num' => $this->social_security_num,
             'relation_type' => $this->relation_type,
             'relation_type_label' => $this->relation_type ? config('relation_types.' . $this->relation_type) : null,
+            'reason_for_admission' => $this->reason_for_admission,
             
             'type' => $this->type,
             'type_label' => ucfirst($this->type),
