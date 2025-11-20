@@ -35,17 +35,6 @@
                 </div>
               </div>
             </div>
-            <div class="tw-bg-gradient-to-r tw-from-green-50 tw-to-green-100 tw-px-6 tw-py-4 tw-rounded-xl tw-border tw-border-green-200 tw-shadow-sm">
-              <div class="tw-flex tw-items-center tw-gap-3">
-                <div class="tw-bg-green-500 tw-p-2 tw-rounded-lg">
-                  <i class="pi pi-check-circle tw-text-white"></i>
-                </div>
-                <div>
-                  <div class="tw-text-xs tw-font-medium tw-text-green-700 tw-uppercase tw-tracking-wide">Active</div>
-                  <div class="tw-text-2xl tw-font-bold tw-text-green-800">{{ patient.is_active ? 'Yes' : 'No' }}</div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -119,19 +108,9 @@
               @click="openNewAppointment"
               v-tooltip.top="'Schedule New Appointment'"
             />
-            <Button
-              label="New Consultation"
-              icon="pi pi-stethoscope"
-              severity="info"
-              class="p-button-info tw-rounded-xl tw-px-8 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200"
-              @click="openNewConsultation"
-              v-tooltip.top="'Start New Consultation'"
-            />
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Enhanced Tabs for different sections -->
+        </div>      <!-- Enhanced Tabs for different sections -->
       <TabView class="tw-min-h-[800px]">
         <!-- Overview Tab -->
         <TabPanel header="Overview" class="tw-p-0">
@@ -173,14 +152,6 @@
                   <div class="tw-flex tw-justify-between tw-items-center tw-py-3 tw-px-4 tw-bg-slate-50 tw-rounded-lg">
                     <span class="tw-font-medium tw-text-slate-600">Phone:</span>
                     <span class="tw-text-slate-900">{{ patient.phone || 'N/A' }}</span>
-                  </div>
-                  <div class="tw-flex tw-justify-between tw-items-center tw-py-3 tw-px-4 tw-bg-slate-50 tw-rounded-lg">
-                    <span class="tw-font-medium tw-text-slate-600">Status:</span>
-                    <Badge
-                      :value="patient.is_active ? 'Active' : 'Inactive'"
-                      :severity="patient.is_active ? 'success' : 'danger'"
-                      rounded
-                    />
                   </div>
                 </div>
               </div>
@@ -392,17 +363,9 @@
                 </h3>
                 <div class="tw-flex tw-items-center tw-gap-4">
                   <Badge :value="consultations.length.toString()" severity="info" class="tw-rounded-full" />
-                  <Button
-                    label="New Consultation"
-                    icon="pi pi-plus"
-                    severity="info"
-                    class="p-button-info tw-rounded-xl tw-px-6 tw-py-2 tw-font-semibold"
-                    @click="openNewConsultation"
-                    v-tooltip.top="'Start New Consultation'"
-                  />
+                  </div>
                 </div>
               </div>
-            </div>
             <div class="tw-p-6">
               <DataTable
                 :value="consultations"
@@ -475,13 +438,6 @@
                     </div>
                     <h3 class="tw-text-xl tw-font-semibold tw-text-slate-900 tw-mb-2">No consultations found</h3>
                     <p class="tw-text-slate-500 tw-mb-6 tw-max-w-md tw-mx-auto">This patient doesn't have any medical consultations yet. Start their first consultation to begin their medical record.</p>
-                    <Button
-                      label="Start First Consultation"
-                      icon="pi pi-plus"
-                      class="p-button-info tw-rounded-xl tw-px-8 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200"
-                      @click="openNewConsultation"
-                      v-tooltip.top="'Start First Consultation'"
-                    />
                   </div>
                 </template>
 
@@ -656,6 +612,25 @@
       @close="closeEditModal"
       @patientsUpdate="handlePatientUpdate"
     />
+
+    <!-- Appointment Modal -->
+    <Dialog 
+      v-model:visible="showAppointmentModal" 
+      modal 
+      :header="`Schedule Appointment for ${patient?.first_name} ${patient?.last_name}`"
+      :style="{ width: '90vw', maxWidth: '1000px' }"
+      :draggable="false"
+      class="appointment-modal"
+    >
+      <AppointmentForm 
+        v-if="showAppointmentModal && patient"
+        :patientId="patient.id.toString()"
+        :preselectedPatient="patient"
+        :edit-mode="false"
+        @close="handleAppointmentClose"
+        @appointmentCreated="handleAppointmentCreated"
+      />
+    </Dialog>
   </div>
 </template>
 
@@ -665,6 +640,7 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToastr } from '../../Components/toster';
 import PatientModel from '../../Components/PatientModel.vue';
+import AppointmentForm from '../Appointments/AppointmentForm.vue';
 
 // PrimeVue Components
 import Card from 'primevue/card';
@@ -682,10 +658,11 @@ import Textarea from 'primevue/textarea';
 import InputText from 'primevue/inputtext';
 import Chip from 'primevue/chip';
 import Dropdown from 'primevue/dropdown';
-import Tooltip from 'primevue/tooltip';
+import TooltipDirective from 'primevue/tooltip';
+import Dialog from 'primevue/dialog';
 
-// Register directives
-const { default: TooltipDirective } = Tooltip;
+// Register directive for template
+const vTooltip = TooltipDirective;
 
 const route = useRoute();
 const router = useRouter();
@@ -699,6 +676,7 @@ const consultations = ref([]);
 const appointmentsLoading = ref(false);
 const consultationsLoading = ref(false);
 const showEditModal = ref(false);
+const showAppointmentModal = ref(false);
 const patientNotes = ref('');
 const newAllergy = ref('');
 const newMedication = ref('');
@@ -928,34 +906,52 @@ const updatePatientMedicalInfo = async () => {
 };
 
 const openNewAppointment = () => {
-  router.push({ 
-    name: 'admin.appointments.create', 
-    query: { 
-      patientId: patientId.value,
-
-      preselected: 'true'
-    } 
-  });
+  showAppointmentModal.value = true;
 };
 
-const openNewConsultation = () => {
-  router.push({ 
-    name: 'admin.consultations.create', 
-    query: { patientId: patientId.value } 
-  });
+const handleAppointmentClose = () => {
+  showAppointmentModal.value = false;
 };
 
-const viewAppointment = (appointment) => {
-  router.push({ 
-    name: 'admin.appointments.show', 
-    params: { id: appointment.id } 
-  });
+const handleAppointmentCreated = async () => {
+  showAppointmentModal.value = false;
+  await fetchAppointments();
+  toaster.success('Appointment scheduled successfully!');
 };
 
-const editAppointment = (appointment) => {
+const viewAppointment = (appointmentOrEvent) => {
+  // Handle both direct data object (from button click) and event object (from row click)
+  const appointment = appointmentOrEvent?.data || appointmentOrEvent;
+  if (!appointment?.id) {
+    console.error('Invalid appointment data:', appointmentOrEvent);
+    return;
+  }
+  // Navigate to edit page with query param to indicate view-only mode
   router.push({ 
     name: 'admin.appointments.edit', 
-    params: { id: appointment.id } 
+    params: { 
+      id: appointment.doctor_id,
+      specialization_id: appointment.specialization_id || 1,
+      appointmentId: appointment.id
+    },
+    query: { view: 'true' }
+  });
+};
+
+const editAppointment = (appointmentOrEvent) => {
+  // Handle both direct data object (from button click) and event object (from row click)
+  const appointment = appointmentOrEvent?.data || appointmentOrEvent;
+  if (!appointment?.id) {
+    console.error('Invalid appointment data:', appointmentOrEvent);
+    return;
+  }
+  router.push({ 
+    name: 'admin.appointments.edit', 
+    params: { 
+      id: appointment.doctor_id,
+      specialization_id: appointment.specialization_id || 1,
+      appointmentId: appointment.id
+    }
   });
 };
 
@@ -1073,5 +1069,38 @@ onMounted(() => {
 /* Status filter dropdown */
 :deep(.p-dropdown) {
   min-width: 180px;
+}
+
+/* Appointment Modal Styling */
+:deep(.appointment-modal .p-dialog-header) {
+  background: linear-gradient(135deg, rgb(99, 102, 241) 0%, rgb(139, 92, 246) 100%);
+  color: white;
+  border-radius: 1rem 1rem 0 0;
+  padding: 1.5rem;
+}
+
+:deep(.appointment-modal .p-dialog-title) {
+  color: white;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+:deep(.appointment-modal .p-dialog-header-icon) {
+  color: white;
+}
+
+:deep(.appointment-modal .p-dialog-header-icon:hover) {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+:deep(.appointment-modal .p-dialog-content) {
+  padding: 1.5rem;
+  background: linear-gradient(135deg, rgb(249, 250, 251) 0%, rgb(241, 245, 249) 100%);
+}
+
+:deep(.appointment-modal) {
+  border-radius: 1rem;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
 </style>
