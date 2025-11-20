@@ -118,7 +118,19 @@ class AdmissionController extends Controller
             'billingRecords',
             'creator',
             'company',
+            'ficheNavette.items.convention.organisme',
         ])->findOrFail($id);
+
+        // If company is not already set, try to get it from fiche navette items
+        if (! $admission->company_id && $admission->ficheNavette) {
+            $firstCompany = $admission->ficheNavette->items()
+                ->with('convention.organisme')
+                ->first();
+            if ($firstCompany?->convention?->organisme) {
+                $admission->company_id = $firstCompany->convention->organisme->id;
+                $admission->setRelation('company', $firstCompany->convention->organisme);
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -352,6 +364,48 @@ class AdmissionController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to verify file number',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate and download admission record as PDF/HTML
+     */
+    public function generateAdmissionRecord($id)
+    {
+        try {
+            $admission = Admission::with([
+                'patient',
+                'doctor.user',
+                'companion',
+                'initialPrestation',
+                'procedures.prestation',
+                'procedures.performedBy',
+                'documents',
+                'billingRecords',
+                'creator',
+                'company',
+                'ficheNavette.items.convention.organisme',
+                'treatments',
+            ])->findOrFail($id);
+
+            // If company is not already set, try to get it from fiche navette items
+            if (!$admission->company_id && $admission->ficheNavette) {
+                $firstCompany = $admission->ficheNavette->items()
+                    ->with('convention.organisme')
+                    ->first();
+                if ($firstCompany?->convention?->organisme) {
+                    $admission->company_id = $firstCompany->convention->organisme->id;
+                    $admission->setRelation('company', $firstCompany->convention->organisme);
+                }
+            }
+
+            return view('admission.admission-template', ['admission' => $admission]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate admission record',
                 'error' => $e->getMessage(),
             ], 500);
         }

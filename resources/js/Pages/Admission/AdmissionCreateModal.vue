@@ -180,7 +180,7 @@
             <Transition name="fade">
               <div v-if="form.type === 'surgery'" class="tw-space-y-2">
                 <div class="tw-flex tw-items-center tw-justify-between">
-                  <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                  <label for="company_id" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                     <i class="pi pi-building tw-text-cyan-600"></i>Company/Insurance (Optional)
                   </label>
                   <Button
@@ -194,6 +194,8 @@
                   />
                 </div>
                 <Dropdown
+                  id="company_id"
+                  name="company_id"
                   v-model="form.company_id"
                   :options="companies"
                   optionLabel="name"
@@ -212,11 +214,13 @@
 
             <!-- Doctor Selection -->
             <div class="tw-space-y-2">
-              <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+              <label for="doctor_id" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                 <i class="pi pi-user-md tw-text-indigo-600"></i>Doctor
                 <span class="tw-text-red-600">*</span>
               </label>
               <Dropdown
+                id="doctor_id"
+                name="doctor_id"
                 v-model="form.doctor_id"
                 :options="doctorsWithLabel"
                 optionLabel="doctorLabel"
@@ -286,10 +290,12 @@
 
             <!-- Observation/Notes -->
             <div class="tw-space-y-2">
-              <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+              <label for="observation" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                 <i class="pi pi-comment tw-text-orange-600"></i>Observation/Notes
               </label>
               <Dropdown
+                id="observation"
+                name="observation"
                 v-model="form.observation"
                 :options="observationTypes"
                 optionLabel="label"
@@ -350,10 +356,12 @@
             <!-- Relation Type (if companion selected) -->
             <Transition name="fade">
               <div v-if="form.companion_id" class="tw-space-y-2">
-                <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                <label for="relation_type" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                   <i class="pi pi-users tw-text-teal-600"></i>Relation Type
                 </label>
                 <Dropdown
+                  id="relation_type"
+                  name="relation_type"
                   v-model="form.relation_type"
                   :options="relationTypes"
                   optionLabel="label"
@@ -546,8 +554,10 @@ const loadCompanies = async () => {
 const loadRelationTypes = async () => {
   try {
     const response = await axios.get('/api/config/relation-types')
-    relationTypes.value = response.data || []
+    relationTypes.value = response.data.data || response.data || []
+    console.log('Loaded relation types:', relationTypes.value)
   } catch (error) {
+    console.error('Failed to load relation types:', error)
     // Fallback to hardcoded list
     relationTypes.value = [
       { value: 'father', label: 'Father' },
@@ -865,17 +875,18 @@ const openModal = async (admission = null) => {
     prestationSearchValue.value = selectedPrestation.value ? 
       selectedPrestation.value.name : ''
     
-  companionSearchValue.value = selectedCompanion.value ? 
-    `${selectedCompanion.value.first_name} ${selectedCompanion.value.last_name}` : ''
-  
-  // Set current fiche navette if exists
-  currentFicheNavette.value = admission.fiche_navette || null
-  
-  // Check if observation is a custom value (not in predefined list)
-  if (admission.observation && !observationTypes.value.find(o => o.value === admission.observation)) {
-    customObservation.value = admission.observation
-    form.value.observation = 'other'
-  }  } else {
+    companionSearchValue.value = selectedCompanion.value ? 
+      `${selectedCompanion.value.first_name} ${selectedCompanion.value.last_name}` : ''
+    
+    // Set current fiche navette if exists
+    currentFicheNavette.value = admission.fiche_navette || null
+    
+    // Check if observation is a custom value (not in predefined list)
+    if (admission.observation && !observationTypes.value.find(o => o.value === admission.observation)) {
+      customObservation.value = admission.observation
+      form.value.observation = 'other'
+    }
+  } else {
     // Create mode
     isEditMode.value = false
     editingAdmission.value = null

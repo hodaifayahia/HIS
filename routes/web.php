@@ -16,6 +16,7 @@ use App\Http\Controllers\Attribute\AttributeController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LogoutController;
 use App\Http\Controllers\Auth\PasswordValidationController;
+use App\Http\Controllers\FileServeController;
 use App\Http\Controllers\B2B\AgreementsController;
 use App\Http\Controllers\B2B\AnnexController;
 use App\Http\Controllers\B2B\AvenantController;
@@ -107,6 +108,12 @@ use App\Http\Controllers\Template\TemplateController;
 use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\WaitList\WaitListController;
 use Illuminate\Support\Facades\Route;
+
+// --- Storage File Download Routes (Public) ---
+// Serve storage files through controller
+Route::get('/serve-file/{path}', [FileServeController::class, 'serve'])
+    ->where('path', '.*')
+    ->name('serve.file');
 
 // --- Unauthenticated Routes ---
 // Redirect root URL to the login page if the user is not authenticated
@@ -1610,12 +1617,62 @@ Route::middleware(['auth'])->group(function () {
 
         });
 
+        // Config Routes
+        Route::get('/config/relation-types', function () {
+            return response()->json([
+                'data' => [
+                    ['value' => 'father', 'label' => 'Son Père → His/Her father'],
+                    ['value' => 'grandfather', 'label' => 'Son Grand Père → His/Her grandfather'],
+                    ['value' => 'mother', 'label' => 'Sa Mère → His/Her mother'],
+                    ['value' => 'grandmother', 'label' => 'Sa Grand-Mère → His/Her grandmother'],
+                    ['value' => 'husband', 'label' => 'Son Epoux → His/Her husband'],
+                    ['value' => 'wife', 'label' => 'Son Epouse → His/Her wife'],
+                    ['value' => 'son', 'label' => 'Son Fils → His/Her son'],
+                    ['value' => 'grandson', 'label' => 'Son Petit Fils → His/Her grandson'],
+                    ['value' => 'stepson', 'label' => 'Son Beau Fils → His/Her stepson / son-in-law'],
+                    ['value' => 'daughter', 'label' => 'Sa Fille → His/Her daughter'],
+                    ['value' => 'granddaughter', 'label' => 'Sa Petite Fille → His/Her granddaughter'],
+                    ['value' => 'stepdaughter', 'label' => 'Sa Belle Fille → His/Her stepdaughter / daughter-in-law'],
+                    ['value' => 'brother', 'label' => 'Son Frère → His/Her brother'],
+                    ['value' => 'brother_maternal', 'label' => 'Son Frère Mat. → His/Her maternal half-brother'],
+                    ['value' => 'brother_paternal', 'label' => 'Son Frère Pat. → His/Her paternal half-brother'],
+                    ['value' => 'sister', 'label' => 'Sa Sœur → His/Her sister'],
+                    ['value' => 'sister_maternal', 'label' => 'Sa Sœur Mat. → His/Her maternal half-sister'],
+                    ['value' => 'sister_paternal', 'label' => 'Sa Sœur Pat. → His/Her paternal half-sister'],
+                    ['value' => 'cousin_male', 'label' => 'Son Cousin → His/Her male cousin'],
+                    ['value' => 'cousin_female', 'label' => 'Son Cousine → His/Her female cousin'],
+                    ['value' => 'cousin_maternal_male', 'label' => 'Son Cousin Mat. → His/Her maternal cousin (male)'],
+                    ['value' => 'cousin_maternal_female', 'label' => 'Son Cousine Mat. → His/Her maternal cousin (female)'],
+                    ['value' => 'uncle', 'label' => 'Son Oncle → His/Her uncle'],
+                    ['value' => 'uncle_maternal', 'label' => 'Son Oncle Mat. → His/Her maternal uncle'],
+                    ['value' => 'aunt', 'label' => 'Sa Tante → His/Her aunt'],
+                    ['value' => 'aunt_maternal', 'label' => 'Sa Tante Mat. → His/Her maternal aunt'],
+                    ['value' => 'nephew', 'label' => 'Son Neveu → His/Her nephew'],
+                    ['value' => 'niece', 'label' => 'Sa Nièce → His/Her niece'],
+                    ['value' => 'close_family', 'label' => 'Sa Famille (Proche) → His/Her close family'],
+                    ['value' => 'son_in_law', 'label' => 'Son Gendre → His/Her son-in-law'],
+                    ['value' => 'friend', 'label' => 'Son Ami → His/Her friend'],
+                    ['value' => 'colleague', 'label' => 'Son Collègue → His/Her colleague'],
+                    ['value' => 'physician', 'label' => 'Son Médecin → His/Her physician'],
+                    ['value' => 'assistant', 'label' => 'Son Assistant → His/Her assistant'],
+                    ['value' => 'nurse', 'label' => 'Son Infirmier → His/Her nurse'],
+                    ['value' => 'paramedic', 'label' => 'Son Ambulancier → His/Her paramedic / ambulance worker'],
+                    ['value' => 'dependant', 'label' => 'Son Charge → His/Her dependant / charge'],
+                    ['value' => 'benefactor', 'label' => 'Son Bienfaiteur → His/Her benefactor'],
+                    ['value' => 'escort', 'label' => 'Son Accompagnateur → His/Her escort / accompanying person'],
+                    ['value' => 'mother_in_law', 'label' => 'Belle-Mère → Mother-in-law / stepmother'],
+                    ['value' => 'father_in_law', 'label' => 'Beau-Père → Father-in-law / stepfather'],
+                ],
+            ]);
+        });
+
         // Admission Routes
         Route::get('/admissions', [AdmissionController::class, 'index']);
         Route::post('/admissions', [AdmissionController::class, 'store']);
         Route::get('/admissions/statistics', [AdmissionController::class, 'statistics']);
         Route::get('/admissions/active', [AdmissionController::class, 'active']);
         Route::get('/admissions/next-file-number', [AdmissionController::class, 'getNextFileNumber']);
+        Route::get('/admissions/{admission}/record', [AdmissionController::class, 'generateAdmissionRecord']);
         Route::post('/admissions/{admission}/verify-file-number', [AdmissionController::class, 'verifyFileNumber']);
         Route::post('/admissions/{admission}/discharge', [AdmissionController::class, 'discharge']);
         Route::get('/admissions/{admission}', [AdmissionController::class, 'show']);

@@ -20,7 +20,9 @@ class AdmissionResource extends JsonResource
             'patient_id' => $this->patient_id,
             'patient' => $this->whenLoaded('patient', [
                 'id' => $this->patient->id ?? null,
-                'name' => ($this->patient->Firstname ?? '').' '.($this->patient->Lastname ?? ''),
+                'first_name' => $this->patient->Firstname ?? $this->patient->first_name ?? '',
+                'last_name' => $this->patient->Lastname ?? $this->patient->last_name ?? '',
+                'name' => ($this->patient->Firstname ?? $this->patient->first_name ?? '').' '.($this->patient->Lastname ?? $this->patient->last_name ?? ''),
                 'phone' => $this->patient->phone ?? null,
             ]),
             'doctor_id' => $this->doctor_id,
@@ -31,10 +33,12 @@ class AdmissionResource extends JsonResource
             'companion_id' => $this->companion_id,
             'companion' => $this->whenLoaded('companion', [
                 'id' => $this->companion->id ?? null,
-                'name' => ($this->companion->Firstname ?? '').' '.($this->companion->Lastname ?? ''),
+                'first_name' => $this->companion->Firstname ?? $this->companion->first_name ?? '',
+                'last_name' => $this->companion->Lastname ?? $this->companion->last_name ?? '',
+                'name' => ($this->companion->Firstname ?? $this->companion->first_name ?? '').' '.($this->companion->Lastname ?? $this->companion->last_name ?? ''),
                 'phone' => $this->companion->phone ?? null,
             ]),
-            
+
             // New fields
             'file_number' => $this->file_number,
             'file_number_verified' => (bool) $this->file_number_verified,
@@ -46,9 +50,9 @@ class AdmissionResource extends JsonResource
             ]),
             'social_security_num' => $this->social_security_num,
             'relation_type' => $this->relation_type,
-            'relation_type_label' => $this->relation_type ? config('relation_types.' . $this->relation_type) : null,
+            'relation_type_label' => $this->relation_type ? config('relation_types.'.$this->relation_type) : null,
             'reason_for_admission' => $this->reason_for_admission,
-            
+
             'type' => $this->type,
             'type_label' => ucfirst($this->type),
             'status' => $status,
@@ -88,7 +92,7 @@ class AdmissionResource extends JsonResource
 
             // Billing records (only when loaded in detail view)
             'billing_records' => AdmissionBillingRecordResource::collection($this->whenLoaded('billingRecords')),
-            
+
             // Treatments (only when loaded in detail view)
             'treatments' => AdmissionTreatmentResource::collection($this->whenLoaded('treatments')),
 
@@ -104,7 +108,7 @@ class AdmissionResource extends JsonResource
             // Computed flags (inline for performance)
             'can_discharge' => $documentsVerified && $status !== 'ready_for_discharge',
             'is_active' => in_array($status, ['admitted', 'in_service', 'document_pending'], true),
-            'can_edit_file_number' => !$this->file_number_verified,
+            'can_edit_file_number' => ! $this->file_number_verified,
         ];
     }
 }

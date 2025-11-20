@@ -15,18 +15,25 @@ class SpecializationResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        // Generate photo URL from public/images directory
+        $photoUrl = null;
+        if ($this->photo) {
+            // Direct path to public/images where images are copied
+            $photoUrl = '/images/' . basename($this->photo);
+        } else {
+            $photoUrl = '/images/default.png';
+        }
+
         return [
-            'id' => $this->id, // Include the ID if needed
+            'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
-            'photo_url' => $this->photo 
-            ? asset(Storage::url($this->photo)) 
-            : asset('storage/default.png'),
+            'photo_url' => $photoUrl,
             'service_id' => $this->service_id,
-'service_name' => $this->service?->name ?? 'No Service', // ✅ Safe null access
+            'service_name' => $this->service?->name ?? 'No Service',
             'is_active' => $this->is_active,
-            'created_at' => $this->created_at?->toDateTimeString(), // Format the created_at timestamp
-            'updated_at' => $this->updated_at?->toDateTimeString(), // Format the updated_at timestamp
+            'created_at' => $this->created_at?->toDateTimeString(),
+            'updated_at' => $this->updated_at?->toDateTimeString(),
         ];
     }
 }

@@ -21,7 +21,8 @@ class UpdateAdmissionRequest extends FormRequest
     public function rules(): array
     {
         $admission = $this->route('admission');
-        
+        $admissionId = is_string($admission) ? $admission : ($admission?->id ?? null);
+
         return [
             'doctor_id' => 'nullable|exists:doctors,id',
             'companion_id' => 'nullable|exists:patients,id|different:patient_id',
@@ -31,7 +32,7 @@ class UpdateAdmissionRequest extends FormRequest
             'file_number' => [
                 'sometimes',
                 'string',
-                Rule::unique('admissions', 'file_number')->ignore($admission?->id),
+                Rule::unique('admissions', 'file_number')->ignore($admissionId),
             ],
             'observation' => 'nullable|string',
             'company_id' => 'nullable|exists:organismes,id',

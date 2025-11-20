@@ -50,6 +50,13 @@ class specializationsController extends Controller
                 $fileName = Str::slug($validatedData['name']).'-'.time().'.'.$photo->getClientOriginalExtension();
                 $photoPath = $photo->storeAs('specializations', $fileName, 'public');
                 $validatedData['photo'] = $photoPath;
+                
+                // Copy image to public/images for nginx serving
+                $sourceFile = storage_path('app/public/'.  $photoPath);
+                $destFile = public_path('images/'.$fileName);
+                if (file_exists($sourceFile)) {
+                    copy($sourceFile, $destFile);
+                }
             }
 
             // Check if the specialization already exists (including soft deleted)
@@ -72,7 +79,7 @@ class specializationsController extends Controller
             // Return the specialization with appropriate message
             return response()->json([
                 'message' => $existingSpecialization ? 'Specialization restored and updated' : 'Specialization created successfully',
-                'data' => $specialization,
+                'data' => new SpecializationResource($specialization),
             ], 201); // 201 Created HTTP status code
 
         } catch (\Exception $e) {
@@ -82,6 +89,7 @@ class specializationsController extends Controller
             // If there was a file upload, delete it to clean up
             if ($photoPath) {
                 Storage::disk('public')->delete($photoPath);
+                @unlink(public_path('images/'.basename($photoPath)));
             }
 
             // Return an error response with a more specific message
@@ -120,6 +128,7 @@ class specializationsController extends Controller
                 // First, delete the old photo if it exists
                 if ($specialization->photo) {
                     Storage::disk('public')->delete($specialization->photo);
+                    @unlink(public_path('images/'.basename($specialization->photo)));
                 }
 
                 // Upload the new photo
@@ -127,6 +136,13 @@ class specializationsController extends Controller
                 $fileName = Str::slug($validatedData['name']).'-'.time().'.'.$photo->getClientOriginalExtension();
                 $photoPath = $photo->storeAs('specializations', $fileName, 'public');
                 $validatedData['photo'] = $photoPath;
+                
+                // Copy image to public/images for nginx serving
+                $sourceFile = storage_path('app/public/'.$photoPath);
+                $destFile = public_path('images/'.$fileName);
+                if (file_exists($sourceFile)) {
+                    copy($sourceFile, $destFile);
+                }
             } else {
                 // If no photo is uploaded, keep the existing photo
                 $validatedData['photo'] = $specialization->photo;
@@ -138,7 +154,7 @@ class specializationsController extends Controller
             // Return a success response
             return response()->json([
                 'message' => 'Specialization updated successfully',
-                'data' => $specialization,
+                'data' => new SpecializationResource($specialization),
             ], 200); // 200 OK for updates
 
         } catch (\Exception $e) {
@@ -148,6 +164,7 @@ class specializationsController extends Controller
             // If a photo was uploaded but we encountered an error, delete the new photo to clean up
             if ($request->hasFile('photo')) {
                 Storage::disk('public')->delete($photoPath ?? '');
+                @unlink(public_path('images/'.basename($photoPath ?? '')));
             }
 
             // Return an error response

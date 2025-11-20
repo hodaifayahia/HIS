@@ -125,7 +125,17 @@
         <TabView class="tw-border-0">
             <!-- Edit Info Tab -->
             <TabPanel header="Edit Information" :header-icon="'pi pi-pencil'">
-              <div class="tw-space-y-6 tw-p-6">
+              <div v-if="admission.file_number_verified" class="tw-bg-yellow-50 tw-border-l-4 tw-border-yellow-400 tw-p-6 tw-mb-6 tw-rounded">
+                <div class="tw-flex tw-items-center tw-gap-3">
+                  <i class="bi bi-lock-fill tw-text-yellow-600 tw-text-xl"></i>
+                  <div>
+                    <h6 class="tw-font-semibold tw-text-yellow-900 tw-mb-1">File Number Verified</h6>
+                    <p class="tw-text-sm tw-text-yellow-800">This admission record is locked and cannot be edited after verification.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div :class="['tw-space-y-6 tw-p-6', admission.file_number_verified ? 'tw-bg-gray-50 tw-opacity-60 tw-pointer-events-none' : '']">
                 <div class="tw-flex tw-items-center tw-gap-3 tw-mb-6">
                   <div class="tw-w-10 tw-h-10 tw-bg-blue-100 tw-rounded-lg tw-flex tw-items-center tw-justify-center">
                     <i class="bi bi-pencil-square tw-text-blue-600"></i>
@@ -151,8 +161,12 @@
                         id="file_number"
                         name="file_number"
                         v-model="editForm.file_number" 
-                        class="tw-w-full"
+                        :class="[
+                          'tw-w-full',
+                          admission.file_number_verified ? 'tw-bg-gray-100 tw-text-gray-500 tw-cursor-not-allowed' : ''
+                        ]"
                         :readonly="admission.file_number_verified"
+                        :disabled="admission.file_number_verified"
                         placeholder="e.g., 2024/001"
                       />
                       <small v-if="admission.file_number_verified" class="tw-text-green-600">
@@ -182,7 +196,7 @@
                   <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
                     <!-- Doctor -->
                     <div class="tw-space-y-2">
-                      <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                      <label for="doctor_id" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                         <i class="pi pi-user-md tw-text-indigo-600"></i>Doctor
                       </label>
                       <Dropdown
@@ -199,7 +213,7 @@
 
                     <!-- Companion -->
                     <div class="tw-space-y-2">
-                      <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                      <label for="companion_name" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                         <i class="pi pi-people tw-text-pink-600"></i>Companion
                       </label>
                       <InputText
@@ -216,7 +230,7 @@
                   <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
                     <!-- Company/Insurance -->
                     <div class="tw-space-y-2">
-                      <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                      <label for="company_id" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                         <i class="pi pi-building tw-text-cyan-600"></i>Company/Insurance
                       </label>
                       <Dropdown
@@ -235,7 +249,7 @@
 
                     <!-- Social Security Number -->
                     <div class="tw-space-y-2">
-                      <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                      <label for="social_security_num" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                         <i class="pi pi-shield tw-text-green-600"></i>Social Security Number
                       </label>
                       <InputText
@@ -252,7 +266,7 @@
                   <div class="tw-grid tw-grid-cols-1 md:tw-grid-cols-2 tw-gap-6">
                     <!-- Relation Type -->
                     <div class="tw-space-y-2">
-                      <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                      <label for="relation_type" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                         <i class="pi pi-link tw-text-orange-600"></i>Relation Type
                       </label>
                       <Dropdown
@@ -271,7 +285,7 @@
 
                     <!-- Initial Prestation -->
                     <div class="tw-space-y-2">
-                      <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                      <label for="initial_prestation_name" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                         <i class="pi pi-plus-circle tw-text-emerald-600"></i>Initial Prestation
                       </label>
                       <InputText
@@ -287,7 +301,7 @@
 
                   <!-- Row 5: Observation/Notes -->
                   <div class="tw-space-y-2">
-                    <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                    <label for="observation" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                       <i class="pi pi-comment tw-text-orange-600"></i>Observation/Notes
                     </label>
                     <Dropdown
@@ -315,7 +329,7 @@
 
                   <!-- Reason for Admission -->
                   <div class="tw-space-y-2">
-                    <label class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
+                    <label for="reason_for_admission" class="tw-flex tw-items-center tw-gap-2 tw-text-sm tw-font-semibold tw-text-gray-700">
                       <i class="pi pi-info-circle tw-text-red-600"></i>Reason for Admission
                     </label>
                     <Textarea
@@ -337,6 +351,7 @@
                       severity="secondary"
                       outlined
                       icon="pi pi-times"
+                      :disabled="admission.file_number_verified"
                     />
                     <Button
                       @click="saveAdmissionChanges"
@@ -345,6 +360,7 @@
                       severity="success"
                       icon="pi pi-check"
                       :loading="savingChanges"
+                      :disabled="admission.file_number_verified"
                     />
                   </div>
                 </form>
@@ -465,7 +481,7 @@
                   empty-message="No treatments recorded yet"
                   :rows-per-page-options="[5, 10, 20]"
                 >
-                  <Column header="Entered At" style="width: 15%">
+                  <Column header="Entered At" style="width: 20%">
                     <template #body="slotProps">
                       <div class="tw-flex tw-items-center">
                         <i class="pi pi-sign-in tw-mr-2 tw-text-green-600"></i>
@@ -474,7 +490,7 @@
                     </template>
                   </Column>
 
-                  <Column header="Exited At" style="width: 15%">
+                  <Column header="Exited At" style="width: 20%">
                     <template #body="slotProps">
                       <div v-if="slotProps.data.exited_at" class="tw-flex tw-items-center">
                         <i class="pi pi-sign-out tw-mr-2 tw-text-red-600"></i>
@@ -484,7 +500,7 @@
                     </template>
                   </Column>
 
-                  <Column header="Duration" style="width: 12%">
+                  <Column header="Duration" style="width: 15%">
                     <template #body="slotProps">
                       <span v-if="slotProps.data.duration_minutes">
                         {{ Math.floor(slotProps.data.duration_minutes / 60) }}h {{ slotProps.data.duration_minutes % 60 }}m
@@ -493,7 +509,7 @@
                     </template>
                   </Column>
 
-                  <Column field="notes" header="Notes" style="width: 40%">
+                  <Column field="notes" header="Notes" style="width: 45%">
                     <template #body="slotProps">
                       <span :title="slotProps.data.notes" class="tw-truncate tw-block">
                         {{ slotProps.data.notes || '-' }}
@@ -634,40 +650,6 @@
         <div class="tw-grid tw-grid-cols-2 tw-gap-4">
           <div>
             <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-              Doctor <span class="tw-text-red-500">*</span>
-            </label>
-            <Dropdown
-              v-model="treatmentForm.doctor_id"
-              :options="doctors"
-              option-label="name"
-              option-value="id"
-              placeholder="Select doctor"
-              class="tw-w-full"
-              filter
-              show-clear
-            />
-          </div>
-
-          <div>
-            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
-              Prestation
-            </label>
-            <Dropdown
-              v-model="treatmentForm.prestation_id"
-              :options="prestations"
-              option-label="name"
-              option-value="id"
-              placeholder="Select prestation"
-              class="tw-w-full"
-              filter
-              show-clear
-            />
-          </div>
-        </div>
-
-        <div class="tw-grid tw-grid-cols-2 tw-gap-4">
-          <div>
-            <label class="tw-block tw-text-sm tw-font-medium tw-text-gray-700 tw-mb-2">
               Entered At <span class="tw-text-red-500">*</span>
             </label>
             <Calendar
@@ -716,7 +698,7 @@
           />
           <Button
             @click="saveTreatment"
-            :disabled="!treatmentForm.doctor_id || !treatmentForm.entered_at"
+            :disabled="!treatmentForm.entered_at"
             severity="primary"
             :label="editingTreatment ? 'Update' : 'Save'"
           />
@@ -1103,36 +1085,22 @@ const dischargeAdmission = async () => {
 }
 
 // Initialize edit form with admission data
-const initializeEditForm = async () => {
+const initializeEditForm = () => {
   if (!admission.value) return
 
   console.log('Initializing edit form with admission:', admission.value)
 
-  // If admission has fiche_navette_id but missing info, fetch from fiche navette
-  let ficheData = null
-  if (admission.value.fiche_navette_id && 
-      (!admission.value.company_id || !admission.value.initial_prestation_id)) {
-    try {
-      const ficheResponse = await axios.get(`/api/fiche-navette/${admission.value.fiche_navette_id}`)
-      ficheData = ficheResponse.data.data
-      console.log('Fetched fiche navette data:', ficheData)
-    } catch (error) {
-      console.error('Failed to fetch fiche navette:', error)
-    }
-  }
-
   editForm.value = {
     file_number: admission.value.file_number || '',
     type: admission.value.type || 'nursing',
-    doctor_id: admission.value.doctor_id || ficheData?.doctor_id || null,
+    doctor_id: admission.value.doctor_id || null,
     companion_id: admission.value.companion_id || null,
     companion_name: admission.value.companion?.name || '',
-    company_id: admission.value.company_id || ficheData?.organisme_id || null,
+    company_id: admission.value.company_id || null,
     social_security_num: admission.value.social_security_num || '',
     relation_type: admission.value.relation_type || '',
     initial_prestation_id: admission.value.initial_prestation_id || null,
-    initial_prestation_name: admission.value.initial_prestation?.name || 
-                             (ficheData?.items?.[0]?.prestation?.name) || '',
+    initial_prestation_name: admission.value.initial_prestation?.name || '',
     observation: admission.value.observation || '',
     custom_observation: '',
     reason_for_admission: admission.value.reason_for_admission || '',

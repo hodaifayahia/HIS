@@ -51,7 +51,7 @@ class ficheNavetteController extends Controller
             'items.dependencies.dependencyPrestation.doctor:id',
             'items.dependencies.dependencyPrestation.doctor.user:id,name',
         ])
-            ->when($request->user(), function ($q) use ($request) {
+            ->when($request->user(), function ($q) {
                 // Apply user-based filtering if needed
                 return $q;
             });
@@ -87,52 +87,52 @@ class ficheNavetteController extends Controller
         ]);
 
         // try {
-            DB::beginTransaction();
+        DB::beginTransaction();
 
-            // Create fiche navette
-            $ficheNavette = ficheNavette::create([
-                'patient_id' => $validatedData['patient_id'],
-                'creator_id' => Auth::id(),
-                'status' => 'pending',
-                'fiche_date' => now(),
-                'total_amount' => 0,
-            ]);
+        // Create fiche navette
+        $ficheNavette = ficheNavette::create([
+            'patient_id' => $validatedData['patient_id'],
+            'creator_id' => Auth::id(),
+            'status' => 'pending',
+            'fiche_date' => now(),
+            'total_amount' => 0,
+        ]);
 
-            // Optionally load prestations from today's appointments
-            $appointmentPrestations = AppointmentPrestation::with(['appointment', 'prestation'])
-                ->whereHas('appointment', function ($query) use ($validatedData) {
-                    $query->where('patient_id', $validatedData['patient_id'])
-                        ->whereDate('appointment_date', Carbon::today());
-                })
-                ->get();
-                // dd($appointmentPrestations );
-            // Create fiche items from appointment prestations if any exist
-            if ($appointmentPrestations->isNotEmpty()) {
-                foreach ($appointmentPrestations as $appPrestation) {
-                    if ($appPrestation->prestation) {
-                        $ficheNavette->items()->create([
-                            'prestation_id' => $appPrestation->prestation_id,
-                            'patient_id' => $validatedData['patient_id'],
-                            'base_price' => $appPrestation->prestation->price_with_vat ?? 0,
-                            'final_price' => $appPrestation->prestation->price_with_vat ?? 0,
-                            'status' => 'pending',
-                            'payment_status' => 'unpaid',
-                        ]);
-                    }
+        // Optionally load prestations from today's appointments
+        $appointmentPrestations = AppointmentPrestation::with(['appointment', 'prestation'])
+            ->whereHas('appointment', function ($query) use ($validatedData) {
+                $query->where('patient_id', $validatedData['patient_id'])
+                    ->whereDate('appointment_date', Carbon::today());
+            })
+            ->get();
+        // dd($appointmentPrestations );
+        // Create fiche items from appointment prestations if any exist
+        if ($appointmentPrestations->isNotEmpty()) {
+            foreach ($appointmentPrestations as $appPrestation) {
+                if ($appPrestation->prestation) {
+                    $ficheNavette->items()->create([
+                        'prestation_id' => $appPrestation->prestation_id,
+                        'patient_id' => $validatedData['patient_id'],
+                        'base_price' => $appPrestation->prestation->price_with_vat ?? 0,
+                        'final_price' => $appPrestation->prestation->price_with_vat ?? 0,
+                        'status' => 'pending',
+                        'payment_status' => 'unpaid',
+                    ]);
                 }
-
-                // Recalculate total amount
-                $totalAmount = $ficheNavette->items()->sum('final_price');
-                $ficheNavette->update(['total_amount' => $totalAmount]);
             }
 
-            DB::commit();
+            // Recalculate total amount
+            $totalAmount = $ficheNavette->items()->sum('final_price');
+            $ficheNavette->update(['total_amount' => $totalAmount]);
+        }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Fiche Navette created successfully',
-                'data' => new FicheNavetteResource($ficheNavette->load(['patient', 'creator', 'items.prestation'])),
-            ], 201);
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Fiche Navette created successfully',
+            'data' => new FicheNavetteResource($ficheNavette->load(['patient', 'creator', 'items.prestation'])),
+        ], 201);
 
         // } catch (\Exception $e) {
         //     DB::rollBack();
@@ -153,7 +153,13 @@ class ficheNavetteController extends Controller
 
     public function show($id)
     {
-        $ficheNavette = FicheNavette::with(['creator', 'patient', 'items.prestation'])->findOrFail($id);
+        $ficheNavette = FicheNavette::with([
+            'creator',
+            'patient',
+            'items.prestation',
+            'organisme',
+            'doctor',
+        ])->findOrFail($id);
 
         return new FicheNavetteResource($ficheNavette);
     }
@@ -190,6 +196,7 @@ class ficheNavetteController extends Controller
         // Return all items without filtering by user specializations
         $filteredItems = $allItems->filter(function ($item) {
             $prestation = $item->prestation ?? null;
+
             return $prestation !== null;
         })->values();
 
@@ -212,6 +219,7 @@ class ficheNavetteController extends Controller
         // Return all dependencies without filtering by specialization
         $filteredDeps = $dependencies->filter(function ($dep) {
             $pre = $dep->dependencyPrestation ?? null;
+
             return $pre !== null;
         })->values();
 
@@ -653,12 +661,12 @@ class ficheNavetteController extends Controller
                 'patient:id,Firstname,Lastname,balance,is_faithful',
                 'items.prestation',
                 'items.doctor',
-                'items.dependencies.dependencyPrestation'
+                'items.dependencies.dependencyPrestation',
             ])->findOrFail($ficheNavetteId);
 
             $patient = $fiche->patient;
 
-            if (!$patient) {
+            if (! $patient) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Patient not found',
@@ -666,7 +674,7 @@ class ficheNavetteController extends Controller
             }
 
             // Toggle the is_faithful status
-            $patient->is_faithful = !$patient->is_faithful;
+            $patient->is_faithful = ! $patient->is_faithful;
             $patient->save();
 
             // Reload the fiche to get fresh data with updated patient
@@ -676,13 +684,13 @@ class ficheNavetteController extends Controller
                 'patient:id,Firstname,Lastname,balance,is_faithful',
                 'items.prestation',
                 'items.doctor',
-                'items.dependencies.dependencyPrestation'
+                'items.dependencies.dependencyPrestation',
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => $patient->is_faithful 
-                    ? 'Patient marked as faithful' 
+                'message' => $patient->is_faithful
+                    ? 'Patient marked as faithful'
                     : 'Patient marked as unfaithful',
                 'data' => new FicheNavetteResource($fiche),
             ], 200);
@@ -702,81 +710,78 @@ class ficheNavetteController extends Controller
         }
     }
 
-public function getPrestationsBySpecialization($specializationId): JsonResponse
-{
-    $prestations = Prestation::with(['service', 'specialization', 'modalityType'])
-        ->where('specialization_id', $specializationId)
-        ->where('is_active', true)
-        ->get()
-        ->map(function ($prestation) {
-            // Check if it's a consultation based on service name OR prestation name
-            $isConsultation = $this->isConsultationType($prestation);
-            
-            return [
-                'id' => $prestation->id,
-                'name' => $prestation->name,
-                'internal_code' => $prestation->internal_code,
-                'description' => $prestation->description,
-                'price' => $prestation->price_with_vat_and_consumables_variant,
-                'duration' => $prestation->default_duration_minutes,
-                'service_id' => $prestation->service_id,
-                'need_an_appointment' => $prestation->need_an_appointment,
-                'service_name' => $prestation->service->name ?? '',
-                'specialization_id' => $prestation->specialization_id,
-                'specialization_name' => $prestation->specialization->name ?? '',
-                'required_prestations_info' => $prestation->required_prestations_info,
-                'patient_instructions' => $prestation->patient_instructions,
-                'type' => $isConsultation ? 'consultation' : 'prestation',
-                'is_consultation' => $isConsultation,
-            ];
-        });
+    public function getPrestationsBySpecialization($specializationId): JsonResponse
+    {
+        $prestations = Prestation::with(['service', 'specialization', 'modalityType'])
+            ->where('specialization_id', $specializationId)
+            ->where('is_active', true)
+            ->get()
+            ->map(function ($prestation) {
+                // Check if it's a consultation based on service name OR prestation name
+                $isConsultation = $this->isConsultationType($prestation);
 
-    return response()->json([
-        'success' => true,
-        'data' => $prestations,
-        'meta' => [
-            'total' => $prestations->count(),
-            'consultations' => $prestations->where('is_consultation', true)->count(),
-            'prestations' => $prestations->where('is_consultation', false)->count(),
-        ]
-    ]);
-}
+                return [
+                    'id' => $prestation->id,
+                    'name' => $prestation->name,
+                    'internal_code' => $prestation->internal_code,
+                    'description' => $prestation->description,
+                    'price' => $prestation->price_with_vat_and_consumables_variant,
+                    'duration' => $prestation->default_duration_minutes,
+                    'service_id' => $prestation->service_id,
+                    'need_an_appointment' => $prestation->need_an_appointment,
+                    'service_name' => $prestation->service->name ?? '',
+                    'specialization_id' => $prestation->specialization_id,
+                    'specialization_name' => $prestation->specialization->name ?? '',
+                    'required_prestations_info' => $prestation->required_prestations_info,
+                    'patient_instructions' => $prestation->patient_instructions,
+                    'type' => $isConsultation ? 'consultation' : 'prestation',
+                    'is_consultation' => $isConsultation,
+                ];
+            });
 
-/**
- * Check if a prestation is a consultation type
- * Checks both service name and prestation name for consultation keywords
- */
-private function isConsultationType($prestation): bool
-{
-    // Keywords to check for consultation type (case-insensitive)
-    $consultationKeywords = [
-        'consultation',
-        'consult',
-        'consul',
-        'visite',
-        'examen clinique',
-        'avis médical',
-        'rendez-vous médical'
-    ];
-    
-    // Convert to lowercase for case-insensitive comparison
-  
-    $prestationName = strtolower($prestation->name ?? '');
-    
-    // Check if any keyword exists in service name, prestation name, or description
-    foreach ($consultationKeywords as $keyword) {
-        $keyword = strtolower($keyword);
-        
-        if (str_contains($prestationName, $keyword)) {
-            return true;
-        }
+        return response()->json([
+            'success' => true,
+            'data' => $prestations,
+            'meta' => [
+                'total' => $prestations->count(),
+                'consultations' => $prestations->where('is_consultation', true)->count(),
+                'prestations' => $prestations->where('is_consultation', false)->count(),
+            ],
+        ]);
     }
-    
-    return false;
-}
 
+    /**
+     * Check if a prestation is a consultation type
+     * Checks both service name and prestation name for consultation keywords
+     */
+    private function isConsultationType($prestation): bool
+    {
+        // Keywords to check for consultation type (case-insensitive)
+        $consultationKeywords = [
+            'consultation',
+            'consult',
+            'consul',
+            'visite',
+            'examen clinique',
+            'avis médical',
+            'rendez-vous médical',
+        ];
 
+        // Convert to lowercase for case-insensitive comparison
 
+        $prestationName = strtolower($prestation->name ?? '');
+
+        // Check if any keyword exists in service name, prestation name, or description
+        foreach ($consultationKeywords as $keyword) {
+            $keyword = strtolower($keyword);
+
+            if (str_contains($prestationName, $keyword)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public function getPackagesBySpecialization($specializationId): JsonResponse
     {
@@ -794,10 +799,10 @@ private function isConsultationType($prestation): bool
                         'quantity' => 1,
                     ];
                 });
-                
+
                 // Calculate package price as sum of prestations with VAT and consumables
                 $calculatedPrice = $prestations->sum('price');
-                
+
                 return [
                     'id' => $package->id,
                     'name' => $package->name,
@@ -845,6 +850,7 @@ private function isConsultationType($prestation): bool
         try {
             $prestations = Prestation::with(['service', 'specialization'])
                 ->get();
+
             return response()->json([
                 'success' => true,
                 'data' => PrestationResource::collection($prestations),

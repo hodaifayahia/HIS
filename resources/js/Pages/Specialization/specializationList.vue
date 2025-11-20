@@ -1,977 +1,900 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import { useToastr } from '../../Components/toster';
 import specializationModel from "../../Components/specializationModel.vue";
-import { useSweetAlert } from '../../Components/useSweetAlert';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import Avatar from 'primevue/avatar';
+import Badge from 'primevue/badge';
+import Tag from 'primevue/tag';
+import ProgressSpinner from 'primevue/progressspinner';
+import ConfirmDialog from 'primevue/confirmdialog';
+import { useConfirm } from 'primevue/useconfirm';
+import Tooltip from 'primevue/tooltip';
 
-const swal = useSweetAlert();
+// Register directive for template
+const vTooltip = Tooltip;
+
+const specializations = ref([]);
+const pagination = ref({});
+const selectedSpecialization = ref({ name: '', description: '', service_id: '', photo_url: null, is_active: true });
+const isModalOpen = ref(false);
 const toaster = useToastr();
+const searchQuery = ref('');
+const isLoading = ref(false);
+const selectedSpecializations = ref([]);
+const loading = ref(false);
+const file = ref(null);
+const errorMessage = ref('');
+const successMessage = ref('');
+const fileInput = ref(null);
+const confirm = useConfirm();
 
-const specializations = ref([])
-const loading = ref(false)
-const error = ref(null)
-const isModalOpen = ref(false)
-const selectedSpecialization = ref([])
-const searchQuery = ref('')
-const statusFilter = ref('all') // 'all', 'active', 'inactive'
+// Fetch specializations from the server
+const getSpecializations = async (page = 1) => {
+  try {
+    const response = await axios.get(`/api/specializations?page=${page}`);
+    specializations.value = response.data.data;
+    pagination.value = response.data.meta;
+    selectAll.value = false;
+    selectAllSpecializations.value = [];
+  } catch (error) {
+    toaster.error('Failed to fetch specializations');
+    console.error('Error fetching specializations:', error);
+  }
+};
 
-/**
- * Computed property for filtered specializations
- */
-const filteredSpecializations = computed(() => {
-    let filtered = specializations.value;
+const exportSpecializations = async () => {
+  try {
+    const response = await axios.get('/api/specializations/export', {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'specializations.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (error) {
+    console.error('Failed to export specializations:', error);
+    toaster.error('Failed to export specializations');
+  }
+};
 
-    // Filter by search query
-    if (searchQuery.value) {
-        filtered = filtered.filter(specialization =>
-            specialization.name.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-            (specialization.description && specialization.description.toLowerCase().includes(searchQuery.value.toLowerCase())) ||
-            (specialization.service_name && specialization.service_name.toLowerCase().includes(searchQuery.value.toLowerCase()))
-        );
-    }
+const handleFileChange = (event) => {
+  file.value = event.target.files[0];
+  errorMessage.value = '';
+  successMessage.value = '';
+};
 
-    // Filter by status
-    if (statusFilter.value !== 'all') {
-        filtered = filtered.filter(specialization => {
-            if (statusFilter.value === 'active') return specialization.is_active;
-            if (statusFilter.value === 'inactive') return !specialization.is_active;
-            return true;
-        });
-    }
+const uploadFile = async () => {
+  if (!file.value) {
+    errorMessage.value = 'Please select a file.';
+    return;
+  }
+  const allowedTypes = ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+  if (!allowedTypes.includes(file.value.type)) {
+    errorMessage.value = 'Please upload a CSV or XLSX file.';
+    return;
+  }
 
-    return filtered;
-});
+  const formData = new FormData();
+  formData.append('file', file.value);
 
-/**
- * Fetches the list of specializations from the API
- */
-const getSpecializations = async () => {
+  try {
     loading.value = true;
-    error.value = null;
-    try {
-        const response = await axios.get('/api/specializations', {
-            params: {
-                all: true,
-            }
-        });
-        specializations.value = response.data.data || response.data;
-    } catch (err) {
-        console.error('Error fetching specializations:', err);
-        error.value = err.response?.data?.message || 'Failed to load specializations. Please try again.';
-        toaster.error(error.value);
-    } finally {
-        loading.value = false;
-    }
-};
-
-/**
- * Opens the modal for adding/editing specialization
- */
-const openModal = (specialization = null) => {
-    selectedSpecialization.value = specialization ? { ...specialization } : {
-        name: '',
-        description: '',
-        service_id: '',
-        photo_url: null, // Ensure new specialization starts without a photo_url
-        is_active: true
-    };
-    isModalOpen.value = true;
-};
-
-/**
- * Closes the modal
- */
-const closeModal = () => {
-    isModalOpen.value = false;
-    selectedSpecialization.value = [];
-};
-
-/**
- * Handles a newly added specialization.
- * Adds the new specialization object to the local array.
- */
-const handleSpecializationAdded = (newSpecialization) => {
-    specializations.value.unshift(newSpecialization); // Add to the beginning for immediate visibility
-    closeModal();
-};
-
-/**
- * Handles an updated specialization.
- * Finds and replaces the updated specialization in the local array.
- */
-const handleSpecializationUpdated = (updatedSpecialization) => {
-    const index = specializations.value.findIndex(s => s.id === updatedSpecialization.id);
-    if (index !== -1) {
-        specializations.value[index] = updatedSpecialization; // Replace the old object with the updated one
-    }
-    closeModal();
-};
-
-/**
- * Toggles the active status of a specialization
- */
-const toggleSpecializationStatus = async (specialization) => {
-    const action = specialization.is_active ? 'deactivate' : 'activate';
-    const result = await swal.fire({
-        title: `${action.charAt(0).toUpperCase() + action.slice(1)} Specialization?`,
-        text: `Are you sure you want to ${action} "${specialization.name}"?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: specialization.is_active ? '#f59e0b' : '#10b981',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: `Yes, ${action} it!`,
-        cancelButtonText: 'Cancel'
+    const response = await axios.post('/api/specializations/import', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      },
     });
 
-    if (result.isConfirmed) {
-        try {
-            await axios.patch(`/api/specializations/${specialization.id}/toggle-status`);
-            // Update the local service object's status immediately
-            specialization.is_active = !specialization.is_active;
-            toaster.success(`Specialization ${action}d successfully!`);
-        } catch (err) {
-            console.error(`Error ${action}ing specialization:`, err);
-            const errorMessage = err.response?.data?.message || `Failed to ${action} specialization.`;
-            toaster.error(errorMessage);
-        }
+    if (response.data.success) {
+      successMessage.value = response.data.message;
+      refreshSpecializations();
+      toaster.success('Specializations imported successfully!');
+      errorMessage.value = '';
+    } else {
+      errorMessage.value = response.data.message;
+      successMessage.value = '';
     }
+  } catch (error) {
+    console.error('Import error:', error);
+    errorMessage.value = error.response?.data?.message || 'An error occurred during the file import.';
+    successMessage.value = '';
+  } finally {
+    loading.value = false;
+    if (fileInput.value) {
+      fileInput.value.value = '';
+    }
+  }
 };
 
-/**
- * Deletes a specialization
- */
-const deleteSpecialization = async (id) => {``
-    try {
-        const result = await swal.fire({
-            title: 'Are you sure?',
-            text: "You won't be able to revert this!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            cancelButtonColor: '#6b7280',
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'Cancel'
+const addNewSpecialization = () => {
+  selectedSpecialization.value = { name: '', description: '', service_id: '', photo_url: null, is_active: true };
+  isModalOpen.value = true;
+};
+
+const closeModal = () => {
+  isModalOpen.value = false;
+};
+
+const refreshSpecializations = () => {
+  getSpecializations();
+};
+
+const debouncedSearch = (() => {
+  let timeout;
+  return () => {
+    clearTimeout(timeout);
+    timeout = setTimeout(async () => {
+      try {
+        isLoading.value = true;
+        const response = await axios.get('/api/specializations/search', {
+          params: { query: searchQuery.value },
         });
+        specializations.value = response.data.data;
+        pagination.value = response.data.meta;
+      } catch (error) {
+        toaster.error('Failed to search specializations');
+        console.error('Error searching specializations:', error);
+      } finally {
+        isLoading.value = false;
+      }
+    }, 300);
+  };
+})();
 
-        if (result.isConfirmed) {
-            await axios.delete(`/api/specializations/${id}`);
-            // Remove the specialization from the local array
-            specializations.value = specializations.value.filter(s => s.id !== id);
-            toaster.success('Specialization deleted successfully');
-            swal.fire('Deleted!', 'Specialization has been deleted.', 'success');
-        }
-    } catch (error) {
+watch(searchQuery, debouncedSearch);
+
+const deleteSpecialization = (specialization) => {
+  confirm.require({
+    message: `Are you sure you want to delete ${specialization.name}?`,
+    header: 'Confirm',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/specializations/${specialization.id}`);
+        toaster.success('Specialization deleted successfully!');
+        refreshSpecializations();
+      } catch (error) {
+        toaster.error('Failed to delete specialization');
         console.error('Error deleting specialization:', error);
-        const errorMessage = error.response?.data?.message || 'Failed to delete specialization.';
-        toaster.error(errorMessage);
-        swal.fire('Error!', errorMessage, 'error');
-    }
+      }
+    },
+  });
 };
 
-/**
- * Clears all filters
- */
-const clearFilters = () => {
-    searchQuery.value = '';
-    statusFilter.value = 'all';
+const bulkDelete = async () => {
+  confirm.require({
+    message: `Delete ${selectedSpecializations.value.length} selected specializations?`,
+    header: 'Confirm Bulk Delete',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await axios.delete('/api/specializations', {
+          params: { ids: selectedSpecializations.value },
+        });
+        toaster.success('Specializations deleted successfully!');
+        selectedSpecializations.value = [];
+        selectAll.value = false;
+        getSpecializations();
+      } catch (error) {
+        toaster.error('Failed to delete specializations');
+        console.error('Error deleting specializations:', error);
+      }
+    },
+  });
+};
+
+const selectAll = ref(false);
+
+const selectAllSpecializations = () => {
+  if (selectAll.value) {
+    selectedSpecializations.value = specializations.value.map(specialization => specialization.id);
+  } else {
+    selectedSpecializations.value = [];
+  }
+};
+
+const getStatusColor = (isActive) => {
+  return isActive ? 'success' : 'danger';
+};
+
+const getInitials = (name) => {
+  return name
+    ?.split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase() || 'S';
+};
+
+const selectedStatus = ref(null);
+
+const getRelativeTime = (date) => {
+  if (!date) return '';
+  const now = new Date();
+  const past = new Date(date);
+  const diffInSeconds = Math.floor((now - past) / 1000);
+
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  return formatDateOnly(date);
+};
+
+const formatDateOnly = (date) => {
+  if (!date) return 'N/A';
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+const filteredSpecializations = computed(() => {
+  return specializations.value.filter(specialization => {
+    const matchesSearch = !searchQuery.value || 
+      specialization.name?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      specialization.description?.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      specialization.service_name?.toLowerCase().includes(searchQuery.value.toLowerCase());
+    
+    const matchesStatus = !selectedStatus.value || specialization.is_active === selectedStatus.value;
+    
+    return matchesSearch && matchesStatus;
+  });
+});
+
+const totalRecords = computed(() => {
+  return filteredSpecializations.value.length;
+});
+
+const setQuickFilter = (status) => {
+  selectedStatus.value = selectedStatus.value === status ? null : status;
+};
+
+const clearSearch = () => {
+  searchQuery.value = '';
+};
+
+const clearAllFilters = () => {
+  searchQuery.value = '';
+  selectedStatus.value = null;
+};
+
+const editSpecialization = (specialization) => {
+  selectedSpecialization.value = specialization;
+  isModalOpen.value = true;
+};
+
+const viewSpecialization = (specialization) => {
+  selectedSpecialization.value = specialization;
+  isModalOpen.value = true;
+};
+
+const handleImageError = (event) => {
+  // If image fails to load, hide it to show avatar fallback
+  console.warn('Image failed to load:', event.target.src);
+  console.warn('Error event:', event);
+  event.target.style.display = 'none';
+  // Show next sibling (avatar)
+  if (event.target.nextElementSibling) {
+    event.target.nextElementSibling.style.display = 'block';
+  }
+};
+
+const handleImageLoad = (event) => {
+  // Image loaded successfully
+  console.log('✓ Image loaded successfully:', event.target.src);
 };
 
 onMounted(() => {
-    getSpecializations();
+  getSpecializations();
 });
 </script>
 
 <template>
-    <div class="specialization-page">
-        <div class="content-header">
-            <div class="header-flex-container">
-                <div class="header-left">
-                    <h1 class="page-title">Specializations Management</h1>
-                    <p class="page-subtitle">Manage medical specializations and their status</p>
-                </div>
-                <nav class="breadcrumbs">
-                    <ul class="breadcrumb-list">
-                        <li><a href="#" class="breadcrumb-link">Home</a></li>
-                        <li><i class="fas fa-chevron-right breadcrumb-separator"></i></li>
-                        <li class="breadcrumb-current">Specializations</li>
-                    </ul>
-                </nav>
+  <div class="tw-min-h-screen tw-bg-gradient-to-br tw-from-slate-50 tw-via-blue-50/30 tw-to-indigo-50/20">
+    <!-- Enhanced Header with Gradient Background -->
+    <div class="tw-bg-gradient-to-r tw-from-white tw-via-blue-50/50 tw-to-indigo-50/30 tw-border-b tw-border-slate-200/60 tw-sticky tw-top-0 tw-z-10 tw-shadow-lg tw-backdrop-blur-sm">
+      <div class="tw-px-6 tw-py-6">
+        <div class="tw-flex tw-flex-col lg:tw-flex-row tw-justify-between tw-items-start lg:tw-items-center tw-gap-6">
+          <div class="tw-flex tw-items-center tw-gap-4">
+            <div class="tw-relative">
+              <div class="tw-bg-gradient-to-br tw-from-indigo-500 tw-to-purple-600 tw-p-3 tw-rounded-xl tw-shadow-lg">
+                <i class="pi pi-stethoscope tw-text-white tw-text-2xl"></i>
+              </div>
+              <div class="tw-absolute -tw-top-1 -tw-right-1 tw-w-4 tw-h-4 tw-bg-green-400 tw-rounded-full tw-border-2 tw-border-white tw-animate-pulse"></div>
             </div>
-        </div>
-
-        <div class="content">
-            <div class="container">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="header-content">
-                            <div class="title-section">
-                                <h2 class="card-title">Specialization List</h2>
-                                <span class="specialization-count">{{ filteredSpecializations.length }} of {{ specializations.length }} specializations</span>
-                            </div>
-                            <button @click="openModal()" class="add-specialization-button">
-                                <i class="fas fa-plus-circle button-icon"></i>
-                                <span>Add Specialization</span>
-                            </button>
-                        </div>
-
-                        <div class="filters-section">
-                            <div class="search-container">
-                                <div class="search-input-wrapper">
-                                    <i class="fas fa-search search-icon"></i>
-                                    <input
-                                        v-model="searchQuery"
-                                        type="text"
-                                        placeholder="Search specializations..."
-                                        class="search-input"
-                                    >
-                                </div>
-                            </div>
-
-                            <div class="filter-container">
-                                <select v-model="statusFilter" class="status-filter">
-                                    <option value="all">All Status</option>
-                                    <option value="active">Active Only</option>
-                                    <option value="inactive">Inactive Only</option>
-                                </select>
-
-                                <button
-                                    @click="clearFilters"
-                                    class="clear-filters-btn"
-                                    v-if="searchQuery || statusFilter !== 'all'"
-                                >
-                                    <i class="fas fa-times"></i>
-                                    Clear Filters
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div v-if="loading" class="loading-state">
-                        <div class="spinner" role="status">
-                            <span class="sr-only">Loading...</span>
-                        </div>
-                        <p class="loading-text">Loading specializations...</p>
-                    </div>
-
-                    <div v-else-if="error" class="error-message" role="alert">
-                        <div class="error-content">
-                            <i class="fas fa-exclamation-triangle error-icon"></i>
-                            <div>
-                                <strong class="error-bold">Error!</strong>
-                                <span class="error-text">{{ error }}</span>
-                            </div>
-                        </div>
-                        <button @click="getSpecializations" class="retry-button">
-                            <i class="fas fa-redo"></i>
-                            Retry
-                        </button>
-                    </div>
-
-                    <div v-else-if="filteredSpecializations.length > 0" class="table-responsive">
-                        <table class="specialization-table">
-                            <thead>
-                                <tr class="table-header-row">
-                                    <th class="table-header">#</th>
-                                    <th class="table-header">Photo</th>
-                                    <th class="table-header">Specialization</th>
-                                    <th class="table-header">Service</th>
-                                    <th class="table-header">Status</th>
-                                    <th class="table-header">Description</th>
-                                    <th class="table-header actions-header">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody class="table-body">
-                                <tr v-for="(specialization, index) in filteredSpecializations" :key="specialization.id" class="table-row">
-                                    <td class="table-cell">{{ index + 1 }}</td>
-                                    <td class="table-cell">
-                                        <div class="photo-container">
-                                            <img
-                                                v-if="specialization.photo_url"
-                                                :src="specialization.photo_url"
-                                                :alt="`Photo for ${specialization.name}`"
-                                                class="specialization-photo"
-                                            />
-                                            <div v-else class="no-photo">
-                                                <i class="fas fa-image"></i>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="table-cell">
-                                        <div class="specialization-name">{{ specialization.name }}</div>
-                                    </td>
-                                    <td class="table-cell">
-                                        <span class="service-badge">{{ specialization.service_name || 'N/A' }}</span>
-                                    </td>
-                                    <td class="table-cell">
-                                        <button
-                                            @click="toggleSpecializationStatus(specialization)"
-                                            :class="['status-badge', specialization.is_active ? 'status-active' : 'status-inactive']"
-                                        >
-                                            <i :class="['fas', specialization.is_active ? 'fa-check-circle' : 'fa-times-circle']"></i>
-                                            {{ specialization.is_active ? 'Active' : 'Inactive' }}
-                                        </button>
-                                    </td>
-                                    <td class="table-cell">
-                                        <div class="description-text">{{ specialization.description || 'No description' }}</div>
-                                    </td>
-                                    <td class="table-cell actions-cell">
-                                        <div class="actions-container">
-                                            <button
-                                                @click="openModal(specialization)"
-                                                class="action-button edit-button"
-                                                title="Edit specialization"
-                                            >
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button
-                                                @click="deleteSpecialization(specialization.id)"
-                                                class="action-button delete-button"
-                                                title="Delete specialization"
-                                            >
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div v-else class="no-specializations">
-                        <div class="no-specializations-content">
-                            <i class="fas fa-stethoscope no-specializations-icon"></i>
-                            <h3 class="no-specializations-title">
-                                {{ searchQuery || statusFilter !== 'all' ? 'No specializations match your filters' : 'No specializations found' }}
-                            </h3>
-                            <p class="no-specializations-text">
-                                {{ searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or filters' : 'Click "Add Specialization" to get started!' }}
-                            </p>
-                            <div class="no-specializations-actions">
-                                <button
-                                    v-if="searchQuery || statusFilter !== 'all'"
-                                    @click="clearFilters"
-                                    class="clear-filters-btn"
-                                >
-                                    Clear Filters
-                                </button>
-                                <button @click="openModal()" class="add-specialization-button">
-                                    <i class="fas fa-plus-circle button-icon"></i>
-                                    Add Specialization
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div>
+              <h1 class="tw-text-3xl tw-font-bold tw-bg-gradient-to-r tw-from-slate-900 tw-to-slate-700 tw-bg-clip-text tw-text-transparent">
+                Specialization Management
+              </h1>
+              <p class="tw-text-slate-600 tw-text-sm tw-mt-1 tw-flex tw-items-center tw-gap-2">
+                <i class="pi pi-info-circle tw-text-blue-500"></i>
+                Manage medical specializations and their status
+              </p>
             </div>
-        </div>
+          </div>
 
-        <specializationModel
-            :show-modal="isModalOpen"
-            :spec-data="selectedSpecialization"
-            @close="closeModal"
-            @specialization-added="handleSpecializationAdded"
-            @specialization-updated="handleSpecializationUpdated"
-        />
+          <!-- Enhanced Stats Cards -->
+          <div class="tw-flex tw-flex-wrap tw-gap-4">
+            <div class="tw-bg-gradient-to-br tw-from-blue-50 tw-to-cyan-50 tw-px-4 tw-py-3 tw-rounded-xl tw-border tw-border-blue-200/60 tw-shadow-sm hover:tw-shadow-md tw-transition-all tw-duration-200">
+              <div class="tw-flex tw-items-center tw-gap-3">
+                <div class="tw-relative">
+                  <div class="tw-bg-blue-100 tw-p-2 tw-rounded-lg">
+                    <i class="pi pi-stethoscope tw-text-blue-600 tw-text-lg"></i>
+                  </div>
+                  <div class="tw-absolute -tw-top-1 -tw-right-1 tw-w-3 tw-h-3 tw-bg-blue-400 tw-rounded-full tw-border tw-border-white"></div>
+                </div>
+                <div>
+                  <div class="tw-text-xs tw-text-blue-700 tw-font-medium tw-uppercase tw-tracking-wide">Total Specializations</div>
+                  <div class="tw-text-2xl tw-font-bold tw-text-blue-800">
+                    {{ specializations.length }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tw-bg-gradient-to-br tw-from-green-50 tw-to-emerald-50 tw-px-4 tw-py-3 tw-rounded-xl tw-border tw-border-green-200/60 tw-shadow-sm hover:tw-shadow-md tw-transition-all tw-duration-200">
+              <div class="tw-flex tw-items-center tw-gap-3">
+                <div class="tw-relative">
+                  <div class="tw-bg-green-100 tw-p-2 tw-rounded-lg">
+                    <i class="pi pi-check-circle tw-text-green-600 tw-text-lg"></i>
+                  </div>
+                  <div class="tw-absolute -tw-top-1 -tw-right-1 tw-w-3 tw-h-3 tw-bg-green-400 tw-rounded-full tw-border tw-border-white"></div>
+                </div>
+                <div>
+                  <div class="tw-text-xs tw-text-green-700 tw-font-medium tw-uppercase tw-tracking-wide">Active</div>
+                  <div class="tw-text-2xl tw-font-bold tw-text-green-800">
+                    {{ specializations.filter(s => s.is_active).length }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="tw-bg-gradient-to-br tw-from-amber-50 tw-to-orange-50 tw-px-4 tw-py-3 tw-rounded-xl tw-border tw-border-amber-200/60 tw-shadow-sm hover:tw-shadow-md tw-transition-all tw-duration-200">
+              <div class="tw-flex tw-items-center tw-gap-3">
+                <div class="tw-bg-amber-100 tw-p-2 tw-rounded-lg">
+                  <i class="pi pi-chart-line tw-text-amber-600 tw-text-lg"></i>
+                  <div class="tw-absolute -tw-top-1 -tw-right-1 tw-w-3 tw-h-3 tw-bg-amber-400 tw-rounded-full tw-border tw-border-white"></div>
+                </div>
+                <div>
+                  <div class="tw-text-xs tw-text-amber-700 tw-font-medium tw-uppercase tw-tracking-wide">Inactive</div>
+                  <div class="tw-text-2xl tw-font-bold tw-text-amber-800">
+                    {{ specializations.filter(s => !s.is_active).length }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <div class="tw-px-6 tw-py-6">
+      <!-- Enhanced Action Toolbar -->
+      <div class="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-slate-200/60 tw-p-6 tw-mb-8 tw-backdrop-blur-sm">
+        <div class="tw-flex tw-flex-col xl:tw-flex-row tw-justify-between tw-items-start xl:tw-items-center tw-gap-6">
+          <!-- Enhanced Filters Section -->
+          <div class="tw-flex tw-flex-col sm:tw-flex-row tw-gap-4 tw-flex-1">
+            <!-- Search with Enhanced Design -->
+            <div class="tw-relative tw-flex-1 tw-min-w-[250px] tw-max-w-[400px]">
+              <div class="tw-absolute tw-inset-y-0 tw-left-0 tw-pl-4 tw-flex tw-items-center tw-pointer-events-none">
+                <i class="pi pi-search tw-text-slate-400 tw-text-lg"></i>
+              </div>
+              <InputText
+                v-model="searchQuery"
+                placeholder="Search by name, description, service..."
+                class="tw-w-full tw-pl-12 tw-pr-4 tw-py-3 tw-border tw-border-slate-200 tw-rounded-xl focus:tw-border-blue-500 focus:tw-ring-2 focus:tw-ring-blue-500/20 focus:tw-outline-none tw-transition-all tw-duration-200 tw-bg-slate-50/50 hover:tw-bg-white"
+              />
+              <div v-if="searchQuery" class="tw-absolute tw-inset-y-0 tw-right-0 tw-pr-4 tw-flex tw-items-center">
+                <Button
+                  @click="clearSearch"
+                  icon="pi pi-times"
+                  class="p-button-text p-button-sm p-button-rounded tw-text-slate-400 hover:tw-text-slate-600"
+                  v-tooltip.top="'Clear search'"
+                />
+              </div>
+            </div>
+
+            <!-- Quick Filter Buttons -->
+            <div class="tw-flex tw-gap-2">
+              <Button
+                @click="setQuickFilter(true)"
+                :class="selectedStatus === true ? 'p-button-primary' : 'p-button-outlined p-button-secondary'"
+                class="p-button-sm tw-rounded-xl"
+                label="Active"
+              />
+              <Button
+                @click="setQuickFilter(false)"
+                :class="selectedStatus === false ? 'p-button-primary' : 'p-button-outlined p-button-secondary'"
+                class="p-button-sm tw-rounded-xl"
+                label="Inactive"
+              />
+            </div>
+          </div>
+
+          <!-- Enhanced Action Buttons -->
+          <div class="tw-flex tw-flex-wrap tw-gap-3">
+            <Button 
+              @click="refreshSpecializations"
+              icon="pi pi-refresh"
+              class="p-button-outlined p-button-secondary p-button-lg tw-rounded-xl hover:tw-shadow-md tw-transition-all tw-duration-200"
+              v-tooltip.top="'Refresh data'"
+              :loading="isLoading"
+            />
+            <Button 
+              @click="exportSpecializations"
+              icon="pi pi-download"
+              label="Export"
+              class="p-button-outlined p-button-info p-button-lg tw-rounded-xl hover:tw-shadow-md tw-transition-all tw-duration-200"
+            />
+            <Button 
+              @click="addNewSpecialization"
+              icon="pi pi-plus"
+              label="New Specialization"
+              class="p-button-primary p-button-lg tw-rounded-xl tw-shadow-lg hover:tw-shadow-xl tw-transition-all tw-duration-200 tw-transform hover:tw-scale-105"
+            />
+          </div>
+        </div>
+
+        <!-- Import Section -->
+        <div class="tw-mt-6 tw-pt-6 tw-border-t tw-border-slate-200">
+          <div class="tw-flex tw-flex-col md:tw-flex-row tw-gap-4 tw-items-center">
+            <div class="tw-relative tw-flex-1 tw-max-w-xs">
+              <label for="fileUpload" class="tw-block tw-w-full tw-px-4 tw-py-2.5 tw-text-center tw-bg-gradient-to-r tw-from-blue-50 tw-to-indigo-50 tw-border-2 tw-border-dashed tw-border-indigo-300 tw-rounded-lg tw-cursor-pointer hover:tw-bg-indigo-50 tw-transition-colors tw-duration-200">
+                <i class="pi pi-upload tw-mr-2"></i>
+                <span class="tw-text-sm tw-font-medium tw-text-slate-700">{{ file ? file.name : 'Choose CSV or XLSX' }}</span>
+              </label>
+              <input ref="fileInput" type="file" accept=".csv,.xlsx" @change="handleFileChange" id="fileUpload" class="tw-hidden" />
+            </div>
+
+            <Button
+              label="Import Specializations"
+              icon="pi pi-check"
+              @click="uploadFile"
+              :loading="loading"
+              :disabled="loading || !file"
+              class="p-button-success tw-rounded-lg tw-font-semibold"
+              v-tooltip.top="'Upload specializations from file'"
+            />
+
+            <div v-if="successMessage" class="tw-flex-1 tw-bg-green-50 tw-text-green-800 tw-p-3 tw-rounded-lg tw-text-sm tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-check-circle"></i>{{ successMessage }}
+            </div>
+            <div v-if="errorMessage" class="tw-flex-1 tw-bg-red-50 tw-text-red-800 tw-p-3 tw-rounded-lg tw-text-sm tw-flex tw-items-center tw-gap-2">
+              <i class="pi pi-exclamation-circle"></i>{{ errorMessage }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Filters Display -->
+        <div v-if="searchQuery || selectedStatus !== null" class="tw-mt-4 tw-flex tw-flex-wrap tw-items-center tw-gap-2">
+          <span class="tw-text-sm tw-text-slate-600 tw-font-medium">Active filters:</span>
+          <Tag v-if="searchQuery" 
+               :value="`Search: ${searchQuery}`" 
+               severity="info" 
+               class="tw-rounded-lg"
+               @click="clearSearch" />
+          <Tag v-if="selectedStatus !== null" 
+               :value="`Status: ${selectedStatus ? 'Active' : 'Inactive'}`" 
+               severity="info" 
+               class="tw-rounded-lg"
+               @click="selectedStatus = null" />
+          <Button @click="clearAllFilters" 
+                  label="Clear all" 
+                  class="p-button-text p-button-sm tw-text-slate-500 hover:tw-text-slate-700" />
+        </div>
+      </div>
+
+      <!-- Enhanced Data Table -->
+      <div class="tw-bg-white tw-rounded-2xl tw-shadow-lg tw-border tw-border-slate-200/60 tw-overflow-hidden tw-backdrop-blur-sm">
+        <DataTable 
+          v-model:selection="selectedSpecializations"
+          :value="filteredSpecializations"
+          :paginator="true"
+          :rows="10"
+          paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+          currentPageReportTemplate="Showing {first} to {last} of {totalRecords} specializations"
+          :rowsPerPageOptions="[10, 25, 50]"
+          dataKey="id"
+          :loading="isLoading"
+          selectionMode="multiple"
+          responsiveLayout="scroll"
+          class="p-datatable-sm medical-table"
+        >
+          <!-- Selection Column -->
+          <Column selectionMode="multiple" headerStyle="width: 3rem" />
+
+    
+
+          <!-- Name Column with Photo/Avatar -->
+          <Column field="name" header="Specialization" :sortable="true">
+            <template #body="{ data }">
+              <div class="tw-flex tw-items-center tw-gap-3">
+                <div v-if="data.photo_url" class="tw-flex-shrink-0">
+                  <img 
+                    :src="data.photo_url" 
+                    :alt="`Photo for ${data.name}`"
+                    class="tw-w-10 tw-h-10 tw-rounded-lg tw-object-cover tw-border tw-border-slate-200 tw-shadow-sm hover:tw-shadow-md tw-transition-shadow"
+                    @error="handleImageError"
+                    @load="handleImageLoad"
+                    loading="lazy"
+                  />
+                </div>
+                <Avatar
+                  v-else
+                  :label="getInitials(data.name)"
+                  class="tw-bg-gradient-to-br tw-from-indigo-500 tw-to-purple-600 tw-text-white tw-font-semibold tw-shadow-md"
+                  size="normal"
+                  shape="circle"
+                />
+                <div>
+                  <div class="tw-font-semibold tw-text-slate-900">{{ data.name }}</div>
+                  <div class="tw-text-xs tw-text-slate-500">ID: {{ data.id }}</div>
+                </div>
+              </div>
+            </template>
+          </Column>
+
+          <!-- Service Column -->
+          <Column field="service_name" header="Service" :sortable="true">
+            <template #body="{ data }">
+              <div class="tw-flex tw-items-center tw-gap-2">
+                <i class="pi pi-hospital tw-text-slate-400 tw-text-sm"></i>
+                <span class="tw-text-slate-700">{{ data.service_name || 'N/A' }}</span>
+              </div>
+            </template>
+          </Column>
+
+          <!-- Description Column -->
+          <Column field="description" header="Description" :sortable="true">
+            <template #body="{ data }">
+              <div class="tw-text-slate-900 tw-font-medium">
+                {{ data.description || 'No description' }}
+              </div>
+            </template>
+          </Column>
+
+          <!-- Status Column -->
+          <Column field="is_active" header="Status" :sortable="true">
+            <template #body="{ data }">
+              <Badge
+                :value="data.is_active ? 'Active' : 'Inactive'"
+                :severity="getStatusColor(data.is_active)"
+                class="tw-font-semibold tw-rounded-lg"
+              />
+            </template>
+          </Column>
+
+          <!-- Created At Column -->
+          <Column field="created_at" header="Created" :sortable="true">
+            <template #body="{ data }">
+              <div class="tw-text-sm">
+                <div class="tw-font-semibold tw-text-slate-900">{{ formatDateOnly(data.created_at) }}</div>
+                <div class="tw-text-xs tw-text-slate-500">{{ getRelativeTime(data.created_at) }}</div>
+              </div>
+            </template>
+          </Column>
+
+          <!-- Actions Column -->
+          <Column header="Actions" headerStyle="width: 12rem">
+            <template #body="{ data }">
+              <div class="tw-flex tw-items-center tw-gap-2">
+                <Button
+                  icon="pi pi-pencil"
+                  class="p-button-rounded p-button-text p-button-sm"
+                  @click="editSpecialization(data)"
+                  v-tooltip.top="'Edit specialization'"
+                />
+                <Button
+                  icon="pi pi-eye"
+                  class="p-button-rounded p-button-text p-button-info p-button-sm"
+                  @click="viewSpecialization(data)"
+                  v-tooltip.top="'View details'"
+                />
+                <Button
+                  icon="pi pi-trash"
+                  class="p-button-rounded p-button-text p-button-danger p-button-sm"
+                  @click="deleteSpecialization(data)"
+                  v-tooltip.top="'Delete specialization'"
+                />
+              </div>
+            </template>
+          </Column>
+
+          <!-- Empty State -->
+          <template #empty>
+            <div class="tw-text-center tw-py-16 tw-px-8">
+              <div class="tw-bg-gradient-to-br tw-from-slate-100 tw-to-slate-200 tw-w-24 tw-h-24 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-6">
+                <i class="pi pi-stethoscope tw-text-4xl tw-text-slate-400"></i>
+              </div>
+              <h3 class="tw-text-xl tw-font-semibold tw-text-slate-900 tw-mb-2">No specializations found</h3>
+              <p class="tw-text-slate-500 tw-mb-6 tw-max-w-md tw-mx-auto">No specializations match your search criteria. Create a new specialization to get started.</p>
+              <Button
+                label="Add First Specialization"
+                icon="pi pi-plus"
+                @click="addNewSpecialization"
+                class="p-button-success tw-rounded-xl tw-px-8 tw-py-3 tw-font-semibold tw-shadow-lg hover:tw-shadow-xl"
+              />
+            </div>
+          </template>
+
+          <!-- Loading State -->
+          <template #loading>
+            <div class="tw-text-center tw-py-16 tw-px-8">
+              <div class="tw-bg-gradient-to-br tw-from-indigo-100 tw-to-purple-100 tw-w-20 tw-h-20 tw-rounded-full tw-flex tw-items-center tw-justify-center tw-mx-auto tw-mb-6">
+                <ProgressSpinner
+                  class="tw-w-8 tw-h-8"
+                  strokeWidth="4"
+                  fill="transparent"
+                  animationDuration="1.5s"
+                />
+              </div>
+              <h3 class="tw-text-lg tw-font-semibold tw-text-slate-900 tw-mb-2">Loading specializations...</h3>
+              <p class="tw-text-slate-500">Please wait while we fetch the specialization data</p>
+            </div>
+          </template>
+        </DataTable>
+
+        <!-- Bulk Actions -->
+        <div v-if="selectedSpecializations.length > 0" class="tw-bg-blue-50 tw-border-t tw-border-blue-200 tw-p-4 tw-flex tw-items-center tw-justify-between">
+          <div class="tw-flex tw-items-center tw-gap-3">
+            <i class="pi pi-info-circle tw-text-blue-600 tw-text-xl"></i>
+            <span class="tw-text-blue-900 tw-font-medium">{{ selectedSpecializations.length }} specialization(s) selected</span>
+          </div>
+          <Button
+            label="Delete Selected"
+            icon="pi pi-trash"
+            severity="danger"
+            @click="bulkDelete"
+            class="tw-rounded-lg tw-font-semibold"
+            v-tooltip.top="'Delete selected specializations'"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Add/Edit Specialization Modal -->
+    <specializationModel :show-modal="isModalOpen" :spec-data="selectedSpecialization" @close="closeModal" @specialization-updated="refreshSpecializations" />
+
+    <!-- Confirmation Dialog -->
+    <ConfirmDialog />
+
+    <!-- Toast -->
+    <Toast />
+
+    <!-- Floating Action Button -->
+    <button 
+      @click="addNewSpecialization"
+      class="fab tw-shadow-xl"
+      v-tooltip.top="'Create New Specialization'"
+    >
+      <i class="pi pi-plus tw-text-xl"></i>
+    </button>
+  </div>
 </template>
 
 
 <style scoped>
-/* Base Page Layout */
-.specialization-page {
-    padding: 1.5rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-    min-height: 100vh;
+/* Floating Action Button */
+.fab {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 3.5rem;
+  height: 3.5rem;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+  transition: all 0.3s ease;
+  z-index: 1000;
 }
 
-/* Content Header */
-.content-header {
-    margin-bottom: 2rem;
+.fab:hover {
+  transform: scale(1.1);
+  box-shadow: 0 15px 35px -5px rgba(59, 130, 246, 0.6);
 }
 
-.header-flex-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
+/* Medical Table Styles */
+.medical-table .p-datatable-thead > tr > th {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border-bottom: 2px solid #e2e8f0;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 1rem 1.5rem;
 }
 
-.header-left {
-    flex: 1;
+.medical-table .p-datatable-tbody > tr {
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s;
 }
 
-.page-title {
-    font-size: 2.25rem;
-    font-weight: 800;
-    color: #1e293b;
-    margin-bottom: 0.5rem;
-    background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+.medical-table .p-datatable-tbody > tr:hover {
+  background-color: #f8fafc;
 }
 
-.page-subtitle {
-    color: #64748b;
-    font-size: 1rem;
-    margin: 0;
+.medical-table .p-datatable-tbody > tr > td {
+  padding: 1rem 1.5rem;
+  vertical-align: middle;
+  color: #4b5563;
 }
 
-.breadcrumbs {
-    font-size: 0.875rem;
+/* Enhanced Pagination */
+.medical-table .p-paginator {
+  background: #ffffff;
+  border-top: 1px solid #e5e7eb;
+  padding: 1rem 1.5rem;
+  justify-content: space-between;
 }
 
-.breadcrumb-list {
-    display: flex;
-    align-items: center;
-    list-style: none;
-    padding: 0.75rem 1rem;
-    margin: 0;
-    background-color: #ffffff;
-    border-radius: 0.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.medical-table .p-paginator .p-paginator-pages .p-paginator-page {
+  border-radius: 0.5rem;
+  margin: 0 0.25rem;
+  transition: all 0.2s;
 }
 
-.breadcrumb-list li {
-    margin-right: 0.5rem;
+.medical-table .p-paginator .p-paginator-pages .p-paginator-page:hover {
+  background: #f3f4f6;
 }
 
-.breadcrumb-list li:last-child {
-    margin-right: 0;
+.medical-table .p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: #3b82f6;
+  color: white;
 }
 
-.breadcrumb-link {
-    color: #3b82f6;
-    text-decoration: none;
-    transition: color 0.2s;
+/* Selection Styles */
+.medical-table .p-datatable-tbody > tr.p-highlight {
+  background: #eff6ff;
+  color: #1e40af;
 }
 
-.breadcrumb-link:hover {
-    color: #1d4ed8;
-}
-
-.breadcrumb-current {
-    color: #64748b;
-    font-weight: 500;
-}
-
-.breadcrumb-separator {
-    font-size: 0.75rem;
-    margin: 0 0.5rem;
-    color: #cbd5e1;
-}
-
-/* Main Content */
-.container {
-    max-width: 90rem;
-    margin: 0 auto;
-}
-
-.card {
-    background: #ffffff;
-    border-radius: 1rem;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-    overflow: hidden;
-    border: 1px solid #e2e8f0;
-}
-
-.card-header {
-    padding: 2rem;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border-bottom: 1px solid #e2e8f0;
-}
-
-.header-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-
-.title-section {
-    display: flex;
-    align-items: baseline;
-    gap: 1rem;
-}
-
-.card-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: #1e293b;
-    margin: 0;
-}
-
-.specialization-count {
-    font-size: 0.875rem;
-    color: #64748b;
-    background-color: #e2e8f0;
-    padding: 0.25rem 0.75rem;
-    border-radius: 9999px;
-    font-weight: 500;
-}
-
-.add-specialization-button {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.75rem 1.5rem;
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff;
-    font-weight: 600;
-    border-radius: 0.5rem;
-    box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
-    transition: all 0.2s;
-    border: none;
-    cursor: pointer;
-    font-size: 0.875rem;
-}
-
-.add-specialization-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 8px -1px rgba(16, 185, 129, 0.4);
-}
-
-.button-icon {
-    margin-right: 0.5rem;
-}
-
-/* Filters Section */
-.filters-section {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.search-container {
-    flex: 1;
-    min-width: 300px;
-}
-
-.search-input-wrapper {
-    position: relative;
-}
-
-.search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #9ca3af;
-    font-size: 0.875rem;
-}
-
-.search-input {
-    width: 100%;
-    padding: 0.75rem 1rem 0.75rem 2.5rem;
-    border: 2px solid #e5e7eb;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    transition: all 0.2s;
-    background-color: #ffffff;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-.filter-container {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-}
-
-.status-filter {
-    padding: 0.75rem 1rem;
-    border: 2px solid #e5e7eb;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    background-color: #ffffff;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.status-filter:focus {
-    outline: none;
-    border-color: #10b981;
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
-}
-
-.clear-filters-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background-color: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.clear-filters-btn:hover {
-    background-color: #e2e8f0;
-    color: #475569;
-}
-
-/* Loading State */
-.loading-state {
-    text-align: center;
-    padding: 4rem 2rem;
-}
-
-.spinner {
-    display: inline-block;
-    width: 3rem;
-    height: 3rem;
-    border: 4px solid #e5e7eb;
-    border-top-color: #10b981;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.loading-text {
-    color: #64748b;
-    margin-top: 1rem;
-    font-size: 1rem;
-}
-
-.sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-/* Error Message */
-.error-message {
-    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
-    border: 1px solid #fca5a5;
-    border-radius: 0.75rem;
-    padding: 1.5rem;
-    margin: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.error-content {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.error-icon {
-    color: #dc2626;
-    font-size: 1.25rem;
-}
-
-.error-bold {
-    font-weight: 700;
-    color: #dc2626;
-}
-
-.error-text {
-    color: #b91c1c;
-    margin-left: 0.5rem;
-}
-
-.retry-button {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: #dc2626;
-    color: #ffffff;
-    border: none;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    font-size: 0.875rem;
-    transition: background-color 0.2s;
-}
-
-.retry-button:hover {
-    background-color: #b91c1c;
-}
-
-/* Table Styles */
-.table-responsive {
-    overflow-x: auto;
-    margin: 0;
-}
-
-.specialization-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.875rem;
-}
-
-.table-header-row {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-    border-bottom: 2px solid #cbd5e1;
-}
-
-.table-header {
-    padding: 1rem 1.5rem;
-    text-align: left;
-    font-weight: 600;
-    color: #374151;
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
-}
-
-.actions-header {
-    text-align: center;
-}
-
-.table-body {
-    color: #4b5563;
-}
-
-.table-row {
-    border-bottom: 1px solid #e5e7eb;
-    transition: background-color 0.2s;
-}
-
-.table-row:hover {
-    background-color: #f8fafc;
-}
-
-.table-cell {
-    padding: 1rem 1.5rem;
-    vertical-align: middle;
-}
-
-/* Photo Container */
-.photo-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.specialization-photo {
-    width: 50px;
-    height: 50px;
-    border-radius: 0.5rem;
-    object-fit: cover;
-    border: 2px solid #e5e7eb;
-}
-
-.no-photo {
-    width: 50px;
-    height: 50px;
-    background-color: #f1f5f9;
-    border: 2px solid #e5e7eb;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #9ca3af;
-}
-
-/* Specialization Name */
-.specialization-name {
-    font-weight: 600;
-    color: #1e293b;
-}
-
-/* Service Badge */
-.service-badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    background-color: #dbeafe;
-    color: #1e40af;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-}
-
-/* Status Badge */
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.status-active {
-    background-color: #dcfce7;
-    color: #166534;
-}
-
-.status-active:hover {
-    background-color: #bbf7d0;
-}
-
-.status-inactive {
-    background-color: #fee2e2;
-    color: #991b1b;
-}
-
-.status-inactive:hover {
-    background-color: #fecaca;
-}
-
-/* Description */
-.description-text {
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: #64748b;
-}
-
-/* Actions */
-.actions-cell {
-    text-align: center;
-}
-
-.actions-container {
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-}
-
-.action-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 0.375rem;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-size: 0.875rem;
-}
-
-.edit-button {
-    background-color: #dbeafe;
-    color: #1e40af;
-}
-
-.edit-button:hover {
-    background-color: #bfdbfe;
-    transform: translateY(-1px);
-}
-
-.delete-button {
-    background-color: #fee2e2;
-    color: #dc2626;
-}
-
-.delete-button:hover {
-    background-color: #fecaca;
-    transform: translateY(-1px);
-}
-
-/* No Specializations */
-.no-specializations {
-    padding: 4rem 2rem;
-    text-align: center;
-}
-
-.no-specializations-content {
-    max-width: 400px;
-    margin: 0 auto;
-}
-
-.no-specializations-icon {
-    font-size: 4rem;
-    color: #cbd5e1;
-    margin-bottom: 1.5rem;
-}
-
-.no-specializations-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: #374151;
-    margin-bottom: 0.5rem;
-}
-
-.no-specializations-text {
-    color: #6b7280;
-    margin-bottom: 2rem;
-    line-height: 1.6;
-}
-
-.no-specializations-actions {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    flex-wrap: wrap;
+.medical-table .p-checkbox .p-checkbox-box {
+  border-radius: 0.375rem;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .specialization-page {
-        padding: 1rem;
-    }
+  .fab {
+    bottom: 1rem;
+    right: 1rem;
+    width: 3rem;
+    height: 3rem;
+  }
 
-    .header-flex-container {
-        flex-direction: column;
-        gap: 1rem;
-    }
+  .medical-table .p-datatable-thead > tr > th,
+  .medical-table .p-datatable-tbody > tr > td {
+    padding: 0.75rem;
+  }
 
-    .header-content {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: stretch;
-    }
+  .medical-table .p-paginator {
+    padding: 0.75rem;
+    flex-direction: column;
+    gap: 1rem;
+  }
+}
 
-    .filters-section {
-        flex-direction: column;
-        gap: 1rem;
-    }
+/* Loading and Empty States */
+.medical-table .p-datatable-loading-overlay {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(4px);
+}
 
-    .search-container {
-        min-width: auto;
-    }
+/* Custom scrollbar for DataTable */
+.medical-table .p-datatable-wrapper::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
 
-    .filter-container {
-        justify-content: center;
-    }
+.medical-table .p-datatable-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 3px;
+}
 
-    .page-title {
-        font-size: 1.75rem;
-    }
+.medical-table .p-datatable-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
 
-    .card-header {
-        padding: 1.5rem;
-    }
+.medical-table .p-datatable-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
 
-    .table-header,
-    .table-cell {
-        padding: 0.75rem;
-    }
+/* Enhanced Badge Styles */
+.p-badge {
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.75rem;
+}
 
-    .actions-container {
-        flex-direction: column;
-        gap: 0.25rem;
-    }
+/* Enhanced Button Styles */
+.p-button {
+  border-radius: 0.75rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
 
-    .description-text {
-        max-width: 150px;
-    }
+.p-button:hover {
+  transform: translateY(-1px);
+}
+
+.p-button.p-button-primary {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  border: none;
+  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
+}
+
+.p-button.p-button-primary:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.4);
+}
+
+/* Input Styles */
+.p-inputtext {
+  border-radius: 0.75rem;
+  border: 2px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.p-inputtext:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Tag Styles */
+.p-tag {
+  border-radius: 0.5rem;
+  font-weight: 500;
+}
+
+/* Tooltip Styles */
+.p-tooltip {
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress Spinner */
+.p-progress-spinner {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Avatar Styles */
+.p-avatar {
+  border: 2px solid #e5e7eb;
+}
+
+/* Confirm Dialog */
+.p-confirm-dialog {
+  border-radius: 1rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Toast */
+.p-toast {
+  border-radius: 0.75rem;
+}
+
+.p-toast .p-toast-message {
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 </style>

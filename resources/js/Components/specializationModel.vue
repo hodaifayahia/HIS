@@ -256,6 +256,25 @@ const submitForm = async (values) => {
               <div class="invalid-feedback" v-if="errors.photo">
                 {{ errors.photo }}
               </div>
+
+              <!-- Photo Preview Section -->
+              <div v-if="specialization.photo_url" class="mt-3">
+                <div class="tw-relative tw-inline-block">
+                  <img 
+                    :src="specialization.photo_url" 
+                    alt="Photo preview"
+                    class="tw-max-w-xs tw-h-auto tw-rounded-lg tw-border tw-border-slate-300 tw-shadow-md"
+                  />
+                  <button
+                    type="button"
+                    @click="removeCurrentPhoto"
+                    class="tw-absolute tw-top-2 tw-right-2 tw-bg-red-500 tw-text-white tw-rounded-full tw-p-1 tw-hover:bg-red-600 tw-transition-colors"
+                    title="Remove photo"
+                  >
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div class="mb-3">
